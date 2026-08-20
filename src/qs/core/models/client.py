@@ -5,6 +5,7 @@ from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
 from qs.core.providers.provider_mapper import ProviderMapper
 from qs.interfaces.message import Message
+from qs.interfaces.provider import Provider
 from qs.interfaces.provider_config import ProviderConfig
 
 
@@ -16,9 +17,11 @@ class Client:
 
         self.validate_provider()
 
-    def validate_provider(self):
-        if not isinstance(self._provider, ProviderConfig):
-            raise ValueError(f"Invalid provider: {self._provider}. Expected a ProviderConfig instance.")
+    def validate_provider(self) -> None:
+        if not isinstance(self._provider, Provider):
+            raise TypeError(
+                f"Invalid provider: {self._provider}. Expected a Provider instance."
+            )
 
 
     def call(self, messages: Message | list[Message]) -> ProviderResponse:

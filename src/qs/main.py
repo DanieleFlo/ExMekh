@@ -18,7 +18,7 @@ def main():
     messages = [system_message, user_message]
 
     response = client.call(messages=messages)
-    print("Response:", response.response)
+    print("Response:", response.response.get_message())
 
 
 if __name__ == "__main__":

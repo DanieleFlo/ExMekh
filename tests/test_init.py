@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from qs.core.models.assistant_message import AssistantMessage
 from qs.core.models.system_message import SystemMessage
 from qs.core.models.user_message import UserMessage
 from qs.main import main
@@ -9,7 +10,9 @@ from qs.main import main
 def test_main_sends_default_messages_and_prints_response(capsys) -> None:
     with patch("qs.main.Client") as client_class:
         client = client_class.return_value
-        client.call.return_value = SimpleNamespace(response="answer")
+        client.call.return_value = SimpleNamespace(
+            response=AssistantMessage("answer")
+        )
 
         main()
 
