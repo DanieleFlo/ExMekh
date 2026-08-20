@@ -4,20 +4,23 @@ from unittest.mock import MagicMock, patch
 import openai
 import pytest
 
-from qs.config.local_provider import LocalProviderConfig
+from qs.config.local_provider import LocalProviderConfig, ReasoningEffort
 from qs.core.models.assistant_message import AssistantMessage
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
 from qs.providers.local import LocalProvider
 
 
-def make_provider(model: str = "local-model") -> LocalProvider:
-    provider = object.__new__(LocalProvider)
-    provider._model = model
-    provider._api_key_env_var = "API_KEY"
-    provider._base_url_env_var = "BASE_URL"
-    provider.client = MagicMock()
-    return provider
+def make_provider(
+    model: str = "local-model",
+    reasoning_effort: ReasoningEffort | None = None,
+) -> LocalProvider:
+    config = LocalProviderConfig(model=model, reasoning_effort=reasoning_effort)
+    with (
+        patch.object(LocalProvider, "_build_client", return_value=MagicMock()),
+        patch.object(LocalProvider, "_check_provider"),
+    ):
+        return LocalProvider(config)
 
 
 def test_init_builds_client_and_checks_provider() -> None:
@@ -97,8 +100,20 @@ def test_resolve_base_url_rejects_missing_environment_value(monkeypatch) -> None
         provider._resolve_base_url()
 
 
+@pytest.mark.parametrize("base_url", ["   ", "localhost:9000", "file:///tmp/socket"])
+def test_resolve_base_url_rejects_malformed_or_unsafe_url(
+    monkeypatch, base_url: str
+) -> None:
+    provider = make_provider()
+    monkeypatch.setenv("BASE_URL", base_url)
+
+    with pytest.raises(ValueError):
+        provider._resolve_base_url()
+
+
 def test_check_provider_rejects_empty_model() -> None:
-    provider = make_provider(model="")
+    provider = make_provider()
+    provider._model = ""
 
     with pytest.raises(ValueError, match="Model name is not set"):
         provider._check_provider()
@@ -148,8 +163,28 @@ def test_get_available_models_returns_unique_model_ids() -> None:
     provider.client.models.list.assert_called_once_with()
 
 
-def test_call_delegates_to_chat_completion() -> None:
+@pytest.mark.parametrize(
+    "catalog",
+    [SimpleNamespace(data=None), SimpleNamespace(data=[SimpleNamespace(id=None)])],
+)
+def test_get_available_models_rejects_malformed_catalog(catalog) -> None:
     provider = make_provider()
+    provider.client.models.list.return_value = catalog
+
+    with pytest.raises(RuntimeError, match="malformed"):
+        provider._get_available_models()
+
+
+def test_get_available_models_rejects_catalog_with_wrong_collection_type() -> None:
+    provider = make_provider()
+    provider.client.models.list.return_value = SimpleNamespace(data=("model",))
+
+    with pytest.raises(TypeError, match="catalog data must be a list"):
+        provider._get_available_models()
+
+
+def test_call_delegates_to_chat_completion() -> None:
+    provider = make_provider(reasoning_effort=ReasoningEffort.HIGH)
     request = MagicMock(spec=ProviderRequest)
     expected = ProviderResponse(AssistantMessage("answer"))
     completion = MagicMock()
@@ -162,7 +197,9 @@ def test_call_delegates_to_chat_completion() -> None:
 
     assert result is expected
     completion_class.assert_called_once_with(
-        client=provider.client, model="local-model"
+        client=provider.client,
+        model="local-model",
+        reasoning_effort=ReasoningEffort.HIGH,
     )
     completion.call.assert_called_once_with(request)
 
@@ -177,6 +214,8 @@ def test_call_translates_openai_api_error_to_runtime_error() -> None:
 
     with (
         patch("qs.providers.local.ChatCompletionOpenAI", return_value=completion),
-        pytest.raises(RuntimeError, match="Local provider request failed"),
+        pytest.raises(RuntimeError, match="Local provider request failed") as error,
     ):
         provider.call(request)
+
+    assert error.value.__cause__ is completion.call.side_effect

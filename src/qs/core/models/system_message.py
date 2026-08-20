@@ -18,5 +18,5 @@ class SystemMessage(Message):
     def get_name(self) -> str:
         return self._name
 
-    def message_dump(self) -> dict:
+    def message_dump(self) -> dict[str, str]:
         return {"role": self._role, "content": self._content}

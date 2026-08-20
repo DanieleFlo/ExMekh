@@ -3,18 +3,12 @@ from typing import cast
 from unittest.mock import MagicMock, patch
 
 import pytest
-from openai.types.chat import ChatCompletionMessage
-from openai.types.chat.chat_completion import ChatCompletion, Choice
-from openai.types.chat.chat_completion_message_custom_tool_call import (
-    ChatCompletionMessageCustomToolCall,
-)
-from openai.types.chat.chat_completion_message_custom_tool_call import (
-    Custom as OpenAICustom,
-)
+from openai.types.chat.chat_completion import ChatCompletion
 
+from qs.config.local_provider import ReasoningEffort
 from qs.core.models.assistant_message import AssistantMessage
 from qs.core.models.function_message import FunctionMessage
-from qs.core.models.history import History
+from qs.core.models.history import MessageHistory
 from qs.core.models.model_thinking import ModelThinking
 from qs.core.models.model_usage import ModelUsage
 from qs.core.models.provider_request import ProviderRequest
@@ -32,12 +26,11 @@ from qs.core.providers.to_openai_chat_completion_mapper import (
 from qs.interfaces.message import Message
 
 
-def test_init_preserves_client_model_and_number_of_choices(openai_client) -> None:
-    completion = ChatCompletionOpenAI(openai_client, "model", number_of_choices=3)
+def test_init_preserves_client_and_model(openai_client) -> None:
+    completion = ChatCompletionOpenAI(openai_client, "model")
 
     assert completion._client is openai_client
     assert completion._model == "model"
-    assert completion._number_of_choices == 3
 
 
 def test_call_executes_and_parses_provider_response(openai_client) -> None:
@@ -62,7 +55,7 @@ def test_call_executes_and_parses_provider_response(openai_client) -> None:
 
 
 def test_execute_request_sends_expected_provider_arguments(openai_client) -> None:
-    completion = ChatCompletionOpenAI(openai_client, "model", number_of_choices=2)
+    completion = ChatCompletionOpenAI(openai_client, "model")
     request = MagicMock(spec=ProviderRequest)
     mapped_messages = [{"role": "user", "content": "question"}]
     provider_response = object()
@@ -80,8 +73,30 @@ def test_execute_request_sends_expected_provider_arguments(openai_client) -> Non
     openai_client.chat.completions.create.assert_called_once_with(
         model="model",
         messages=mapped_messages,
-        n=2,
         stream=False,
+    )
+
+
+@pytest.mark.parametrize("effort", [ReasoningEffort.LOW, ReasoningEffort.XHIGH])
+def test_execute_request_forwards_explicit_reasoning_effort(
+    openai_client, effort: ReasoningEffort
+) -> None:
+    completion = ChatCompletionOpenAI(
+        openai_client, "non-default-model", reasoning_effort=effort
+    )
+    request = MagicMock(spec=ProviderRequest)
+    mapped_messages = [{"role": "user", "content": "different question"}]
+
+    with patch.object(
+        completion, "_map_request_to_provider_format", return_value=mapped_messages
+    ):
+        completion._execute_request(request)
+
+    openai_client.chat.completions.create.assert_called_once_with(
+        model="non-default-model",
+        messages=mapped_messages,
+        stream=False,
+        reasoning_effort=effort.value,
     )
 
 
@@ -89,7 +104,8 @@ def test_parse_response_builds_response_with_content_usage_and_thinking(
     openai_client,
 ) -> None:
     completion = ChatCompletionOpenAI(openai_client, "model")
-    choices = [SimpleNamespace(message=SimpleNamespace(content="answer"))]
+    provider_message = SimpleNamespace(content="answer")
+    choices = [SimpleNamespace(message=provider_message)]
     response = cast(ChatCompletion, SimpleNamespace(choices=choices))
     assistant_message = AssistantMessage("answer")
     usage = ModelUsage(10, 5, 15)
@@ -97,8 +113,10 @@ def test_parse_response_builds_response_with_content_usage_and_thinking(
 
     with (
         patch.object(
-            completion, "_extract_content", return_value=assistant_message
-        ) as extract,
+            FromOpenAIChatCompletionMapper,
+            "map_assistant_message",
+            return_value=assistant_message,
+        ) as map_assistant_message,
         patch.object(
             FromOpenAIChatCompletionMapper,
             "extract_usage",
@@ -115,7 +133,7 @@ def test_parse_response_builds_response_with_content_usage_and_thinking(
     assert result.response is assistant_message
     assert result.usage is usage
     assert result.thinking is thinking
-    extract.assert_called_once_with(choices)
+    map_assistant_message.assert_called_once_with(provider_message)
     extract_usage.assert_called_once_with(response)
     extract_thinking.assert_called_once_with(response)
 
@@ -132,7 +150,7 @@ def test_map_request_to_provider_format_maps_history_in_order(openai_client) -> 
     system_message = SystemMessage("rules")
     user_message = UserMessage("question")
     request = MagicMock(spec=ProviderRequest)
-    request.get_request.return_value = History([system_message, user_message])
+    request.get_request.return_value = MessageHistory([system_message, user_message])
     mapped_messages = [
         {"role": "system", "content": "rules"},
         {"role": "user", "content": "question"},
@@ -186,71 +204,3 @@ def test_map_message_to_provider_format_rejects_unknown_message(
 
     with pytest.raises(TypeError, match="Unsupported message type"):
         completion._map_message_to_provider_format(cast(Message, object()))
-
-
-def test_extract_content_returns_first_choice_as_assistant_message(
-    openai_client,
-) -> None:
-    completion = ChatCompletionOpenAI(openai_client, "model")
-    choices = [
-        Choice(
-            finish_reason="stop",
-            index=0,
-            logprobs=None,
-            message=ChatCompletionMessage(content="first", role="assistant"),
-        ),
-        Choice(
-            finish_reason="stop",
-            index=1,
-            logprobs=None,
-            message=ChatCompletionMessage(content="second", role="assistant"),
-        ),
-    ]
-
-    result = completion._extract_content(choices)
-
-    assert isinstance(result, AssistantMessage)
-    assert result.get_message() == "first"
-    assert result.get_tool_calls() is None
-
-
-def test_content_from_maps_custom_tool_call() -> None:
-    choice = Choice(
-        finish_reason="tool_calls",
-        index=0,
-        logprobs=None,
-        message=ChatCompletionMessage(
-            content=None,
-            role="assistant",
-            tool_calls=[
-                ChatCompletionMessageCustomToolCall(
-                    id="call_123",
-                    custom=OpenAICustom(
-                        name="execute_python",
-                        input="print(2 + 2)",
-                    ),
-                    type="custom",
-                )
-            ],
-        ),
-    )
-
-    result = ChatCompletionOpenAI._content_from(choice)
-
-    assert isinstance(result, AssistantMessage)
-    assert result.get_message() is None
-    assert result.get_tool_calls() == [
-        {
-            "id": "call_123",
-            "custom": {
-                "name": "execute_python",
-                "input": "print(2 + 2)",
-            },
-            "type": "custom",
-        }
-    ]
-
-
-def test_content_from_rejects_missing_message() -> None:
-    with pytest.raises(RuntimeError, match="Choice message is None"):
-        ChatCompletionOpenAI._content_from(cast(Choice, SimpleNamespace(message=None)))

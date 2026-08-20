@@ -31,10 +31,13 @@ class AssistantMessage(Message):
     def get_tool_calls(self) -> list[ToolCall] | None:
         return self._tool_calls
 
-    def message_dump(self) -> dict:
+    def message_dump(self) -> dict[str, str]:
+        content = self._content
+        if content is None:
+            content = ""
         return {
             "role": self._role,
-            "content": self._content,
+            "content": content,
         }
 
 

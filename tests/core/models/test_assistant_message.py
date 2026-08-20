@@ -53,3 +53,10 @@ def test_message_dump_returns_provider_fields() -> None:
     )
 
     assert message.message_dump() == {"role": "assistant", "content": "answer"}
+
+
+def test_message_dump_normalizes_missing_content() -> None:
+    assert AssistantMessage(None).message_dump() == {
+        "role": "assistant",
+        "content": "",
+    }

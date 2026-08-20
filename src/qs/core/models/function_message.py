@@ -22,5 +22,6 @@ class FunctionMessage(Message):
     def get_name(self) -> str:
         return self._name
 
-    def message_dump(self) -> dict:
-        return {"role": self._role, "content": self._content}
+    def message_dump(self) -> dict[str, str]:
+        content = self._content if self._content is not None else ""
+        return {"role": self._role, "content": content}

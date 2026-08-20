@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from qs.core.models.history import History
+from qs.core.models.history import MessageHistory
 from qs.core.models.system_message import SystemMessage
 from qs.core.models.user_message import UserMessage
 
@@ -18,8 +18,8 @@ def user_message() -> UserMessage:
 
 
 @pytest.fixture
-def valid_history(system_message: SystemMessage) -> History:
-    return History([system_message])
+def valid_history(system_message: SystemMessage) -> MessageHistory:
+    return MessageHistory([system_message])
 
 
 @pytest.fixture

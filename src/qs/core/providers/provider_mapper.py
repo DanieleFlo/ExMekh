@@ -10,6 +10,4 @@ class ProviderMapper:
     def provider(config_provider: ProviderConfig) -> LocalProvider:
         if isinstance(config_provider, LocalProviderConfig):
             return LocalProvider(config_provider)
-        raise ValueError(f"Unsupported config provider: {config_provider}")
-
-    
+        raise ValueError("Unsupported provider configuration")

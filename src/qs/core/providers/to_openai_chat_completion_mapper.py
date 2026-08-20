@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TypeGuard
+
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionContentPartImageParam,
@@ -50,7 +52,6 @@ from qs.utils.image import pil_image_to_data_url
 
 
 class ToOpenAIChatCompletionMapper:
-
     @staticmethod
     def map_system_message(
         system_message: SystemMessage,
@@ -90,24 +91,24 @@ class ToOpenAIChatCompletionMapper:
 
     @classmethod
     def _map_user_content(
-            cls,
-            content: str | TextsUserMessage | ImagesUserMessage | FilesUserMessage,
-        ) -> str | list[ChatCompletionContentPartParam]:
-    
-            if isinstance(content, str):
-                return content
-    
-            if isinstance(content, TextsUserMessage):
-                return cls._map_text_parts(content)
-    
-            if isinstance(content, ImagesUserMessage):
-                return cls._map_image_parts(content)
-    
-            if isinstance(content, FilesUserMessage):
-                return cls._map_file_parts(content)
-    
-            raise TypeError(f"Unsupported user content type: {type(content).__name__}")
-    
+        cls,
+        content: str | TextsUserMessage | ImagesUserMessage | FilesUserMessage,
+    ) -> str | list[ChatCompletionContentPartParam]:
+
+        if isinstance(content, str):
+            return content
+
+        if isinstance(content, TextsUserMessage):
+            return cls._map_text_parts(content)
+
+        if isinstance(content, ImagesUserMessage):
+            return cls._map_image_parts(content)
+
+        if isinstance(content, FilesUserMessage):
+            return cls._map_file_parts(content)
+
+        raise TypeError(f"Unsupported user content type: {type(content).__name__}")
+
     @staticmethod
     def _map_text_parts(
         content: TextsUserMessage,
@@ -119,7 +120,7 @@ class ToOpenAIChatCompletionMapper:
             )
             for text in content.texts
         ]
-    
+
     @staticmethod
     def _map_image_parts(
         content: ImagesUserMessage,
@@ -183,7 +184,6 @@ class ToOpenAIChatCompletionMapper:
 
         return mapped_message
 
-
     @classmethod
     def _map_tool_calls(
         cls,
@@ -191,19 +191,37 @@ class ToOpenAIChatCompletionMapper:
     ) -> list[ChatCompletionMessageToolCallUnionParam]:
         return [cls._map_tool_call(tool_call) for tool_call in tool_calls]
 
-
     @classmethod
     def _map_tool_call(
         cls,
         tool_call: ToolCall,
     ) -> ChatCompletionMessageToolCallUnionParam:
-        if tool_call["type"] == "function":
-            return cls._map_function_tool_call(tool_call)
+        if not isinstance(tool_call, dict):
+            raise TypeError("Tool call must be a dictionary")
 
-        if tool_call["type"] == "custom":
-            return cls._map_custom_tool_call(tool_call)
+        tool_call_type = tool_call.get("type")
+        try:
+            if cls._is_function_tool_call(tool_call):
+                return cls._map_function_tool_call(tool_call)
 
-        raise ValueError(f"Unsupported tool call type: {tool_call['type']!r}")
+            if cls._is_custom_tool_call(tool_call):
+                return cls._map_custom_tool_call(tool_call)
+        except (KeyError, TypeError) as error:
+            raise ValueError(f"Malformed {tool_call_type!r} tool call") from error
+
+        raise ValueError(f"Unsupported tool call type: {tool_call_type!r}")
+
+    @staticmethod
+    def _is_function_tool_call(
+        tool_call: ToolCall,
+    ) -> TypeGuard[FunctionToolCall]:
+        return tool_call.get("type") == "function"
+
+    @staticmethod
+    def _is_custom_tool_call(
+        tool_call: ToolCall,
+    ) -> TypeGuard[CustomToolCall]:
+        return tool_call.get("type") == "custom"
 
     @staticmethod
     def _map_function_tool_call(
@@ -232,7 +250,6 @@ class ToOpenAIChatCompletionMapper:
             ),
             type="custom",
         )
-    
 
     @staticmethod
     def map_tool_message(
@@ -265,9 +282,3 @@ class ToOpenAIChatCompletionMapper:
             role=role,
             name=function_message.get_name(),
         )
-
-    
-
-    
-
-    

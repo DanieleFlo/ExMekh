@@ -15,6 +15,7 @@ from openai.types.chat.chat_completion_message_function_tool_call import (
 )
 
 from qs.core.models.assistant_message import (
+    AssistantMessage,
     CustomCall,
     CustomToolCall,
     FunctionCall,
@@ -31,7 +32,6 @@ class FromOpenAIChatCompletionMapper:
         "reasoning_content",
         "thinking",
     )
-    
 
     @staticmethod
     def extract_usage(response: ChatCompletion) -> ModelUsage:
@@ -64,6 +64,16 @@ class FromOpenAIChatCompletionMapper:
         return None
 
     @classmethod
+    def map_assistant_message(
+        cls,
+        message: ChatCompletionMessage,
+    ) -> AssistantMessage:
+        return AssistantMessage(
+            content=message.content,
+            tool_calls=cls.map_tool_calls(message.tool_calls),
+        )
+
+    @classmethod
     def _thinking_from(
         cls,
         message: ChatCompletionMessage,
@@ -86,8 +96,6 @@ class FromOpenAIChatCompletionMapper:
 
         return [cls._map_tool_call(tool_call) for tool_call in tool_calls]
 
-
-
     @classmethod
     def _map_tool_call(cls, tool_call: ChatCompletionMessageToolCallUnion) -> ToolCall:
         if isinstance(tool_call, ChatCompletionMessageFunctionToolCall):
@@ -96,12 +104,13 @@ class FromOpenAIChatCompletionMapper:
         if isinstance(tool_call, ChatCompletionMessageCustomToolCall):
             return cls._map_custom_tool_call(tool_call)
 
-        raise TypeError(f"Unsupported OpenAI tool call type: {type(tool_call).__name__}")
+        raise TypeError(
+            f"Unsupported OpenAI tool call type: {type(tool_call).__name__}"
+        )
 
     @classmethod
     def _map_function_tool_call(
-        cls, 
-        tool_call: ChatCompletionMessageFunctionToolCall
+        cls, tool_call: ChatCompletionMessageFunctionToolCall
     ) -> FunctionToolCall:
         return FunctionToolCall(
             id=tool_call.id,
@@ -114,8 +123,7 @@ class FromOpenAIChatCompletionMapper:
 
     @classmethod
     def _map_custom_tool_call(
-        cls, 
-        tool_call: ChatCompletionMessageCustomToolCall
+        cls, tool_call: ChatCompletionMessageCustomToolCall
     ) -> CustomToolCall:
         return CustomToolCall(
             id=tool_call.id,

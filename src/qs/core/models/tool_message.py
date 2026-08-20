@@ -27,5 +27,5 @@ class ToolMessage(Message):
     def get_tool_call_id(self) -> str:
         return self._tool_call_id
 
-    def message_dump(self) -> dict:
+    def message_dump(self) -> dict[str, str]:
         return {"role": self._role, "content": self._content}

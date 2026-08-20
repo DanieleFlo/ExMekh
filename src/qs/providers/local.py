@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from urllib.parse import urlparse
 
 import openai
 from openai import OpenAI
@@ -20,6 +21,7 @@ class LocalProvider(Provider):
         self._model = config_provider.model
         self._api_key_env_var = config_provider.api_key_env_var
         self._base_url_env_var = config_provider.base_url_env_var
+        self._reasoning_effort = config_provider.reasoning_effort
 
         self.client = self._build_client()
         self._check_provider()
@@ -39,10 +41,13 @@ class LocalProvider(Provider):
 
     def _resolve_base_url(self) -> str:
         base_url = os.getenv(self._base_url_env_var)
-        if not base_url:
+        if not base_url or not base_url.strip():
             raise ValueError(
                 f"Environment variable '{self._base_url_env_var}' is not set."
             )
+        parsed_url = urlparse(base_url)
+        if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
+            raise ValueError("Base URL must be a valid HTTP(S) URL")
         return base_url
 
     def _check_provider(self) -> None:
@@ -64,8 +69,16 @@ class LocalProvider(Provider):
         available_models: set[str] = set()
 
         model_list = self.client.models.list()
-        for model in model_list.data:
-            model_id = model.id
+        model_data = getattr(model_list, "data", None)
+        if model_data is None:
+            raise RuntimeError("Provider returned a malformed model catalog")
+        if not isinstance(model_data, list):
+            raise TypeError("Provider model catalog data must be a list")
+
+        for model in model_data:
+            model_id = getattr(model, "id", None)
+            if not isinstance(model_id, str) or not model_id.strip():
+                raise RuntimeError("Provider returned a malformed model identifier")
             available_models.add(model_id)
 
         return available_models
@@ -73,9 +86,11 @@ class LocalProvider(Provider):
     def call(self, request: ProviderRequest) -> ProviderResponse:
         try:
             chat_completion = ChatCompletionOpenAI(
-                client=self.client, model=self._model
+                client=self.client,
+                model=self._model,
+                reasoning_effort=self._reasoning_effort,
             )
             response = chat_completion.call(request)
             return response
-        except openai.APIError:
-            raise RuntimeError("Local provider request failed")
+        except openai.APIError as error:
+            raise RuntimeError("Local provider request failed") from error
