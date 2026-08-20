@@ -14,12 +14,6 @@ def test_get_message_returns_content() -> None:
     assert message.get_message() == "instructions"
 
 
-def test_get_role_name_returns_custom_role() -> None:
-    message = SystemMessage("instructions", role="developer")
-
-    assert message.get_role_name() == "developer"
-
-
 def test_get_name_returns_custom_name() -> None:
     message = SystemMessage("instructions", name="policy")
 
@@ -27,9 +21,9 @@ def test_get_name_returns_custom_name() -> None:
 
 
 def test_message_dump_returns_provider_fields() -> None:
-    message = SystemMessage("instructions", role="developer", name="policy")
+    message = SystemMessage("instructions", name="policy")
 
     assert message.message_dump() == {
-        "role": "developer",
+        "role": "system",
         "content": "instructions",
     }

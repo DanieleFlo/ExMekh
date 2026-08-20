@@ -4,6 +4,8 @@ from unittest.mock import MagicMock, patch
 import openai
 import pytest
 
+from qs.config.local_provider import LocalProviderConfig
+from qs.core.models.assistant_message import AssistantMessage
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
 from qs.providers.local import LocalProvider
@@ -20,16 +22,17 @@ def make_provider(model: str = "local-model") -> LocalProvider:
 
 def test_init_builds_client_and_checks_provider() -> None:
     client = MagicMock()
+    config = LocalProviderConfig(
+        model="local-model",
+        api_key_env_var="CUSTOM_KEY",
+        base_url_env_var="CUSTOM_URL",
+    )
 
     with (
         patch.object(LocalProvider, "_build_client", return_value=client) as build,
         patch.object(LocalProvider, "_check_provider") as check,
     ):
-        provider = LocalProvider(
-            "local-model",
-            api_key_env_var="CUSTOM_KEY",
-            base_url_env_var="CUSTOM_URL",
-        )
+        provider = LocalProvider(config)
 
     assert provider._model == "local-model"
     assert provider._api_key_env_var == "CUSTOM_KEY"
@@ -148,7 +151,7 @@ def test_get_available_models_returns_unique_model_ids() -> None:
 def test_call_delegates_to_chat_completion() -> None:
     provider = make_provider()
     request = MagicMock(spec=ProviderRequest)
-    expected = ProviderResponse("answer")
+    expected = ProviderResponse(AssistantMessage("answer"))
     completion = MagicMock()
     completion.call.return_value = expected
 

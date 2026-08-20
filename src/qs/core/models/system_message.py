@@ -4,9 +4,9 @@ from qs.interfaces.message import Message
 
 
 class SystemMessage(Message):
-    def __init__(self, content: str, role: str = "system", name: str = "") -> None:
+    def __init__(self, content: str, name: str = "") -> None:
         self._content = content
-        self._role = role
+        self._role = "system"
         self._name = name
 
     def get_message(self) -> str:

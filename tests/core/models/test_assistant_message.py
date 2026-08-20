@@ -21,12 +21,6 @@ def test_get_message_returns_content() -> None:
     assert message.get_message() == "answer"
 
 
-def test_get_role_name_returns_custom_role() -> None:
-    message = AssistantMessage("answer", role="custom")
-
-    assert message.get_role_name() == "custom"
-
-
 def test_get_name_returns_custom_name() -> None:
     message = AssistantMessage("answer", name="agent")
 

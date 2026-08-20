@@ -2,6 +2,7 @@ from typing import Any
 
 import pytest
 
+from qs.core.models.assistant_message import AssistantMessage
 from qs.core.models.provider_response import ProviderResponse
 from qs.interfaces.provider import Provider
 
@@ -14,7 +15,7 @@ class ConcreteProvider(Provider):
         return None
 
     def call(self, *args, **kwargs) -> ProviderResponse:
-        return ProviderResponse("response")
+        return ProviderResponse(AssistantMessage("response"))
 
 
 def test_provider_cannot_be_instantiated() -> None:
@@ -27,4 +28,4 @@ def test_complete_provider_implementation_satisfies_contract() -> None:
 
     assert provider._build_client() is not None
     assert provider._check_provider() is None
-    assert provider.call().response == "response"
+    assert provider.call().response.get_message() == "response"

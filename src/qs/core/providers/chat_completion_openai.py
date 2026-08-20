@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import List
 
 from openai import OpenAI
-from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessage
+from openai.types.chat import ChatCompletionMessage, ChatCompletionMessageParam
 from openai.types.chat.chat_completion import ChatCompletion, Choice
 
 from qs.core.models.assistant_message import AssistantMessage
@@ -14,7 +13,12 @@ from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.user_message import UserMessage
-from qs.core.providers.openai_chat_completion_mapper import OpenAIChatCompletionMapper
+from qs.core.providers.from_openai_chat_completion_mapper import (
+    FromOpenAIChatCompletionMapper,
+)
+from qs.core.providers.to_openai_chat_completion_mapper import (
+    ToOpenAIChatCompletionMapper,
+)
 from qs.interfaces.message import Message
 
 
@@ -41,8 +45,8 @@ class ChatCompletionOpenAI:
             raise RuntimeError("No choices returned from the provider")
 
         response_content = self._extract_content(response.choices)
-        usage = OpenAIChatCompletionMapper.extract_usage(response)
-        thinking = OpenAIChatCompletionMapper.extract_thinking(response)
+        usage = FromOpenAIChatCompletionMapper.extract_usage(response)
+        thinking = FromOpenAIChatCompletionMapper.extract_thinking(response)
 
         return ProviderResponse(
             response=response_content, thinking=thinking, usage=usage
@@ -50,7 +54,7 @@ class ChatCompletionOpenAI:
 
     def _map_request_to_provider_format(
         self, request: ProviderRequest
-    ) -> List[ChatCompletionMessageParam]:
+    ) -> list[ChatCompletionMessageParam]:
         history = request.get_request()
         messages = history.get_history()
         return [self._map_message_to_provider_format(message) for message in messages]
@@ -59,15 +63,15 @@ class ChatCompletionOpenAI:
         self, message: Message
     ) -> ChatCompletionMessageParam:
         if isinstance(message, SystemMessage):
-            return OpenAIChatCompletionMapper.map_system_message(message)
+            return ToOpenAIChatCompletionMapper.map_system_message(message)
         elif isinstance(message, UserMessage):
-            return OpenAIChatCompletionMapper.map_user_message(message)
+            return ToOpenAIChatCompletionMapper.map_user_message(message)
         elif isinstance(message, AssistantMessage):
-            return OpenAIChatCompletionMapper.map_assistant_message(message)
+            return ToOpenAIChatCompletionMapper.map_assistant_message(message)
         elif isinstance(message, ToolMessage):
-            return OpenAIChatCompletionMapper.map_tool_message(message)
+            return ToOpenAIChatCompletionMapper.map_tool_message(message)
         elif isinstance(message, FunctionMessage):
-            return OpenAIChatCompletionMapper.map_function_message(message)
+            return ToOpenAIChatCompletionMapper.map_function_message(message)
         else:
             raise TypeError(f"Unsupported message type: {type(message)}")
 
@@ -83,14 +87,10 @@ class ChatCompletionOpenAI:
         # TODO
         return cls.resolve_message_type(choice.message)
 
-
     @classmethod
     def resolve_message_type(cls, message: ChatCompletionMessage) -> Message:
-        if not isinstance(message, dict):
-            raise ValueError(f"Invalid message: {message}. Expected a dictionary.")
-        content = message.get("content", "")
-        tool_calls = message.get("tool_calls")
+        mapped_tool_calls = FromOpenAIChatCompletionMapper.map_tool_calls(
+            message.tool_calls
+        )
 
-        mapped_tool_calls= OpenAIChatCompletionMapper.map_tool_calls(tool_calls)
-
-        return AssistantMessage(content=content, tool_calls=mapped_tool_calls)
+        return AssistantMessage(content=message.content, tool_calls=mapped_tool_calls)

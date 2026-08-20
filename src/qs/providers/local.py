@@ -5,6 +5,7 @@ import os
 import openai
 from openai import OpenAI
 
+from qs.config.local_provider import LocalProviderConfig
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
 from qs.core.providers.chat_completion_openai import ChatCompletionOpenAI
@@ -14,13 +15,11 @@ from qs.interfaces.provider import Provider
 class LocalProvider(Provider):
     def __init__(
         self,
-        model: str,
-        api_key_env_var: str = "API_KEY",
-        base_url_env_var: str = "BASE_URL",
+        config_provider: LocalProviderConfig,
     ) -> None:
-        self._model = model
-        self._api_key_env_var = api_key_env_var
-        self._base_url_env_var = base_url_env_var
+        self._model = config_provider.model
+        self._api_key_env_var = config_provider.api_key_env_var
+        self._base_url_env_var = config_provider.base_url_env_var
 
         self.client = self._build_client()
         self._check_provider()

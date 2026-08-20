@@ -1,18 +1,15 @@
 from __future__ import annotations
 
-from qs.config.provider import SupportedProviders
-from qs.core.providers.chat_completion_openai import ChatCompletionOpenAI
+from qs.config.local_provider import LocalProviderConfig
+from qs.interfaces.provider_config import ProviderConfig
+from qs.providers.local import LocalProvider
+
 
 class ProviderMapper:
     @staticmethod
-    def provider(provider: SupportedProviders, *args, **kwargs):
-        if provider == SupportedProviders.OPENAI:
-            raise NotImplementedError("OpenAI provider is not implemented yet.")
-        elif provider == SupportedProviders.OLLAMA:
-            return ChatCompletionOpenAI(*args, **kwargs)
-        elif provider == SupportedProviders.LMSTUDIO:
-            return ChatCompletionOpenAI(*args, **kwargs)
-        else:
-            raise ValueError(f"Unsupported provider: {provider}")
+    def provider(config_provider: ProviderConfig) -> LocalProvider:
+        if isinstance(config_provider, LocalProviderConfig):
+            return LocalProvider(config_provider)
+        raise ValueError(f"Unsupported config provider: {config_provider}")
 
     

@@ -15,12 +15,6 @@ def test_get_message_returns_content() -> None:
     assert message.get_message() == "result"
 
 
-def test_get_role_name_returns_custom_role() -> None:
-    message = ToolMessage("result", "call_123", role="custom")
-
-    assert message.get_role_name() == "custom"
-
-
 def test_get_name_returns_custom_name() -> None:
     message = ToolMessage("result", "call_123", name="lookup")
 

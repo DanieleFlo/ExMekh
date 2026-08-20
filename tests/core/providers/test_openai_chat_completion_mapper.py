@@ -26,13 +26,16 @@ from qs.core.models.user_message import (
     TextsUserMessage,
     UserMessage,
 )
-from qs.core.providers.openai_chat_completion_mapper import (
-    OpenAIChatCompletionMapper,
+from qs.core.providers.from_openai_chat_completion_mapper import (
+    FromOpenAIChatCompletionMapper,
+)
+from qs.core.providers.to_openai_chat_completion_mapper import (
+    ToOpenAIChatCompletionMapper,
 )
 
 
 def test_extract_usage_returns_empty_usage_when_provider_omits_it() -> None:
-    usage = OpenAIChatCompletionMapper.extract_usage(SimpleNamespace(usage=None))
+    usage = FromOpenAIChatCompletionMapper.extract_usage(SimpleNamespace(usage=None))
 
     assert usage.prompt_tokens is None
     assert usage.completion_tokens is None
@@ -48,7 +51,7 @@ def test_extract_usage_maps_provider_token_counts() -> None:
         )
     )
 
-    usage = OpenAIChatCompletionMapper.extract_usage(response)
+    usage = FromOpenAIChatCompletionMapper.extract_usage(response)
 
     assert (usage.prompt_tokens, usage.completion_tokens, usage.total_tokens) == (
         10,
@@ -66,7 +69,7 @@ def test_extract_thinking_returns_first_available_thinking() -> None:
         ]
     )
 
-    thinking = OpenAIChatCompletionMapper.extract_thinking(response)
+    thinking = FromOpenAIChatCompletionMapper.extract_thinking(response)
 
     assert thinking is not None
     assert thinking.thoughts == "reasoning"
@@ -77,14 +80,15 @@ def test_extract_thinking_returns_none_when_no_choice_contains_it() -> None:
         choices=[SimpleNamespace(message=SimpleNamespace(content="answer"))]
     )
 
-    assert OpenAIChatCompletionMapper.extract_thinking(response) is None
+    assert FromOpenAIChatCompletionMapper.extract_thinking(response) is None
 
 
 @pytest.mark.parametrize("role", ["system", "developer"])
 def test_map_system_message_maps_supported_roles(role: str) -> None:
-    message = SystemMessage("instructions", role=role, name="policy")
+    message = SystemMessage("instructions", name="policy")
 
-    mapped = OpenAIChatCompletionMapper.map_system_message(message)
+    with patch.object(message, "get_role_name", return_value=role):
+        mapped = ToOpenAIChatCompletionMapper.map_system_message(message)
 
     assert mapped == {
         "content": "instructions",
@@ -94,18 +98,21 @@ def test_map_system_message_maps_supported_roles(role: str) -> None:
 
 
 def test_map_system_message_rejects_unsupported_role() -> None:
-    message = SystemMessage("instructions", role="assistant")
+    message = SystemMessage("instructions")
 
-    with pytest.raises(
-        ValueError, match="Expected role 'system' or 'developer', got 'assistant'"
+    with (
+        patch.object(message, "get_role_name", return_value="assistant"),
+        pytest.raises(
+            ValueError, match="Expected role 'system' or 'developer', got 'assistant'"
+        ),
     ):
-        OpenAIChatCompletionMapper.map_system_message(message)
+        ToOpenAIChatCompletionMapper.map_system_message(message)
 
 
 def test_map_user_message_maps_content_name_and_role() -> None:
     message = UserMessage("question", name="customer")
 
-    mapped = OpenAIChatCompletionMapper.map_user_message(message)
+    mapped = ToOpenAIChatCompletionMapper.map_user_message(message)
 
     assert mapped == {
         "content": "question",
@@ -121,13 +128,13 @@ def test_map_user_message_rejects_unsupported_role() -> None:
         patch.object(message, "get_role_name", return_value="assistant"),
         pytest.raises(ValueError, match="Expected role 'user', got 'assistant'"),
     ):
-        OpenAIChatCompletionMapper.map_user_message(message)
+        ToOpenAIChatCompletionMapper.map_user_message(message)
 
 
 def test_map_assistant_message_maps_content_name_and_role() -> None:
     message = AssistantMessage("answer", name="agent")
 
-    assert OpenAIChatCompletionMapper.map_assistant_message(message) == {
+    assert ToOpenAIChatCompletionMapper.map_assistant_message(message) == {
         "content": "answer",
         "role": "assistant",
         "name": "agent",
@@ -154,7 +161,7 @@ def test_map_assistant_message_maps_tool_calls() -> None:
         ],
     )
 
-    assert OpenAIChatCompletionMapper.map_assistant_message(message) == {
+    assert ToOpenAIChatCompletionMapper.map_assistant_message(message) == {
         "content": None,
         "role": "assistant",
         "name": "",
@@ -177,14 +184,17 @@ def test_map_assistant_message_maps_tool_calls() -> None:
 
 
 def test_map_assistant_message_rejects_unsupported_role() -> None:
-    message = AssistantMessage("answer", role="user")
+    message = AssistantMessage("answer")
 
-    with pytest.raises(ValueError, match="Expected role 'assistant', got 'user'"):
-        OpenAIChatCompletionMapper.map_assistant_message(message)
+    with (
+        patch.object(message, "get_role_name", return_value="user"),
+        pytest.raises(ValueError, match="Expected role 'assistant', got 'user'"),
+    ):
+        ToOpenAIChatCompletionMapper.map_assistant_message(message)
 
 
 def test_map_tool_calls_returns_none_when_provider_omits_them() -> None:
-    assert OpenAIChatCompletionMapper.map_tool_calls(None) is None
+    assert FromOpenAIChatCompletionMapper.map_tool_calls(None) is None
 
 
 def test_map_tool_calls_maps_function_and_custom_calls() -> None:
@@ -204,7 +214,7 @@ def test_map_tool_calls_maps_function_and_custom_calls() -> None:
         ),
     ]
 
-    assert OpenAIChatCompletionMapper.map_tool_calls(tool_calls) == [
+    assert FromOpenAIChatCompletionMapper.map_tool_calls(tool_calls) == [
         {
             "id": "call_123",
             "function": {
@@ -229,13 +239,13 @@ def test_map_tool_calls_rejects_unsupported_provider_type() -> None:
         TypeError,
         match="Unsupported OpenAI tool call type: SimpleNamespace",
     ):
-        OpenAIChatCompletionMapper.map_tool_calls([SimpleNamespace()])
+        FromOpenAIChatCompletionMapper.map_tool_calls([SimpleNamespace()])
 
 
 def test_map_tool_message_maps_content_name_and_role() -> None:
     message = ToolMessage("result", "call_123", name="search")
 
-    assert OpenAIChatCompletionMapper.map_tool_message(message) == {
+    assert ToOpenAIChatCompletionMapper.map_tool_message(message) == {
         "content": "result",
         "role": "tool",
         "tool_call_id": "call_123",
@@ -243,16 +253,19 @@ def test_map_tool_message_maps_content_name_and_role() -> None:
 
 
 def test_map_tool_message_rejects_unsupported_role() -> None:
-    message = ToolMessage("result", "call_123", role="assistant")
+    message = ToolMessage("result", "call_123")
 
-    with pytest.raises(ValueError, match="Expected role 'tool', got 'assistant'"):
-        OpenAIChatCompletionMapper.map_tool_message(message)
+    with (
+        patch.object(message, "get_role_name", return_value="assistant"),
+        pytest.raises(ValueError, match="Expected role 'tool', got 'assistant'"),
+    ):
+        ToOpenAIChatCompletionMapper.map_tool_message(message)
 
 
 def test_map_function_message_maps_content_name_and_role() -> None:
     message = FunctionMessage("result", "calculate")
 
-    assert OpenAIChatCompletionMapper.map_function_message(message) == {
+    assert ToOpenAIChatCompletionMapper.map_function_message(message) == {
         "content": "result",
         "role": "function",
         "name": "calculate",
@@ -260,14 +273,17 @@ def test_map_function_message_maps_content_name_and_role() -> None:
 
 
 def test_map_function_message_rejects_unsupported_role() -> None:
-    message = FunctionMessage("result", "calculate", role="assistant")
+    message = FunctionMessage("result", "calculate")
 
-    with pytest.raises(ValueError, match="Expected role 'function', got 'assistant'"):
-        OpenAIChatCompletionMapper.map_function_message(message)
+    with (
+        patch.object(message, "get_role_name", return_value="assistant"),
+        pytest.raises(ValueError, match="Expected role 'function', got 'assistant'"),
+    ):
+        ToOpenAIChatCompletionMapper.map_function_message(message)
 
 
 def test_map_user_content_returns_string_unchanged() -> None:
-    assert OpenAIChatCompletionMapper._map_user_content("question") == "question"
+    assert ToOpenAIChatCompletionMapper._map_user_content("question") == "question"
 
 
 @pytest.mark.parametrize(
@@ -282,9 +298,9 @@ def test_map_user_content_dispatches_structured_content(content, method_name) ->
     expected = [{"mapped": True}]
 
     with patch.object(
-        OpenAIChatCompletionMapper, method_name, return_value=expected
+        ToOpenAIChatCompletionMapper, method_name, return_value=expected
     ) as mapper:
-        result = OpenAIChatCompletionMapper._map_user_content(content)
+        result = ToOpenAIChatCompletionMapper._map_user_content(content)
 
     assert result is expected
     mapper.assert_called_once_with(content)
@@ -292,14 +308,14 @@ def test_map_user_content_dispatches_structured_content(content, method_name) ->
 
 def test_map_user_content_rejects_unsupported_content() -> None:
     with pytest.raises(TypeError, match="Unsupported user content type: int"):
-        OpenAIChatCompletionMapper._map_user_content(42)
+        ToOpenAIChatCompletionMapper._map_user_content(42)
 
 
 def test_map_text_parts_maps_each_text_in_order() -> None:
     content = TextsUserMessage()
     content.texts = ["first", "second"]
 
-    assert OpenAIChatCompletionMapper._map_text_parts(content) == [
+    assert ToOpenAIChatCompletionMapper._map_text_parts(content) == [
         {"text": "first", "type": "text"},
         {"text": "second", "type": "text"},
     ]
@@ -312,10 +328,10 @@ def test_map_image_parts_maps_each_image_to_data_url() -> None:
     content.images = [first_image, second_image]
 
     with patch(
-        "qs.core.providers.openai_chat_completion_mapper.pil_image_to_data_url",
+        "qs.core.providers.to_openai_chat_completion_mapper.pil_image_to_data_url",
         side_effect=["data:image/png;base64,first", "data:image/png;base64,second"],
     ) as convert:
-        result = OpenAIChatCompletionMapper._map_image_parts(content)
+        result = ToOpenAIChatCompletionMapper._map_image_parts(content)
 
     assert result == [
         {
@@ -341,11 +357,11 @@ def test_map_file_parts_maps_each_document_with_its_index() -> None:
     mapped = [{"file": "first"}, {"file": "second"}]
 
     with patch.object(
-        OpenAIChatCompletionMapper,
+        ToOpenAIChatCompletionMapper,
         "_map_file_document",
         side_effect=mapped,
     ) as map_document:
-        result = OpenAIChatCompletionMapper._map_file_parts(content)
+        result = ToOpenAIChatCompletionMapper._map_file_parts(content)
 
     assert result == mapped
     assert map_document.call_args_list[0].args == (first, 0)
@@ -358,10 +374,10 @@ def test_map_file_document_builds_indexed_data_url() -> None:
     )
 
     with patch(
-        "qs.core.providers.openai_chat_completion_mapper.convert_bytes_to_base64",
+        "qs.core.providers.to_openai_chat_completion_mapper.convert_bytes_to_base64",
         return_value="bmFtZSx2YWx1ZQ==",
     ) as convert:
-        mapped = OpenAIChatCompletionMapper._map_file_document(document, 3)
+        mapped = ToOpenAIChatCompletionMapper._map_file_document(document, 3)
 
     assert mapped == {
         "type": "file",
@@ -388,4 +404,4 @@ def test_thinking_from_uses_supported_fields_in_precedence_order(
 ) -> None:
     message = SimpleNamespace(**attributes)
 
-    assert OpenAIChatCompletionMapper._thinking_from(message) == expected
+    assert FromOpenAIChatCompletionMapper._thinking_from(message) == expected

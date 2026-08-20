@@ -8,10 +8,9 @@ class FunctionMessage(Message):
         self,
         content: str | None,
         name: str,
-        role: str = "function",
     ) -> None:
         self._content = content
-        self._role = role
+        self._role: str = "function"
         self._name = name
 
     def get_message(self) -> str | None:

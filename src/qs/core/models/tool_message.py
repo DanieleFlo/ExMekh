@@ -8,12 +8,11 @@ class ToolMessage(Message):
         self,
         content: str,
         tool_call_id: str,
-        role: str = "tool",
         name: str = "",
     ) -> None:
         self._content = content
         self._tool_call_id = tool_call_id
-        self._role = role
+        self._role: str = "tool"
         self._name = name
 
     def get_message(self) -> str:

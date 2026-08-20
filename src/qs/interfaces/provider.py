@@ -3,8 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
-from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.provider_request import ProviderRequest
+from qs.core.models.provider_response import ProviderResponse
 
 
 class Provider(ABC):
