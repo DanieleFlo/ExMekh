@@ -4,26 +4,32 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from openai.types.chat.chat_completion import ChatCompletion
+from pydantic import BaseModel, ValidationError
 
-from qs.config.local_provider import ReasoningEffort
 from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.function_message import FunctionMessage
-from qs.core.models.history import MessageHistory
 from qs.core.models.model_thinking import ModelThinking
 from qs.core.models.model_usage import ModelUsage
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
+from qs.core.models.reasoning_effort import ReasoningEffort, ReasoningEffortLMX
+from qs.core.models.structured_assistant_message import StructuredAssistantMessage
+from qs.core.models.structured_provider_request import StructuredProviderRequest
+from qs.core.models.structured_provider_response import StructuredProviderResponse
 from qs.core.models.system_message import SystemMessage
-from qs.core.models.tool_message import ToolMessage
-from qs.core.models.user_message import UserMessage
 from qs.core.providers.chat_completion_openai import ChatCompletionOpenAI
 from qs.core.providers.from_openai_chat_completion_mapper import (
     FromOpenAIChatCompletionMapper,
 )
-from qs.core.providers.to_openai_chat_completion_mapper import (
-    ToOpenAIChatCompletionMapper,
+from qs.core.providers.openai_chat_completion_response_format_mapper import (
+    OpenAIChatCompletionResponseFormatMapper,
 )
-from qs.interfaces.message import Message
+from qs.core.providers.to_openai_chat_completion_request_mapper import (
+    ToOpenAIChatCompletionRequestMapper,
+)
+
+
+class StructuredAnswer(BaseModel):
+    value: int
 
 
 def test_init_preserves_client_and_model(openai_client) -> None:
@@ -57,27 +63,34 @@ def test_call_executes_and_parses_provider_response(openai_client) -> None:
 def test_execute_request_sends_expected_provider_arguments(openai_client) -> None:
     completion = ChatCompletionOpenAI(openai_client, "model")
     request = MagicMock(spec=ProviderRequest)
-    mapped_messages = [{"role": "user", "content": "question"}]
+    payload = {
+        "model": "model",
+        "messages": [{"role": "user", "content": "question"}],
+        "stream": False,
+    }
     provider_response = object()
     openai_client.chat.completions.create.return_value = provider_response
 
     with patch.object(
-        completion,
-        "_map_request_to_provider_format",
-        return_value=mapped_messages,
-    ) as map_request:
+        ToOpenAIChatCompletionRequestMapper,
+        "map_request",
+        return_value=payload,
+    ) as mapper:
         result = completion._execute_request(request)
 
     assert result is provider_response
-    map_request.assert_called_once_with(request)
-    openai_client.chat.completions.create.assert_called_once_with(
+    mapper.assert_called_once_with(
+        request,
         model="model",
-        messages=mapped_messages,
-        stream=False,
+        reasoning_effort=None,
     )
+    openai_client.chat.completions.create.assert_called_once_with(**payload)
 
 
-@pytest.mark.parametrize("effort", [ReasoningEffort.LOW, ReasoningEffort.XHIGH])
+@pytest.mark.parametrize(
+    "effort",
+    [ReasoningEffortLMX.LOW, ReasoningEffortLMX.XHIGH, "provider-specific-effort"],
+)
 def test_execute_request_forwards_explicit_reasoning_effort(
     openai_client, effort: ReasoningEffort
 ) -> None:
@@ -85,19 +98,26 @@ def test_execute_request_forwards_explicit_reasoning_effort(
         openai_client, "non-default-model", reasoning_effort=effort
     )
     request = MagicMock(spec=ProviderRequest)
-    mapped_messages = [{"role": "user", "content": "different question"}]
+    payload = {
+        "model": "non-default-model",
+        "messages": [],
+        "stream": False,
+        "reasoning_effort": effort if isinstance(effort, str) else effort.value,
+    }
 
     with patch.object(
-        completion, "_map_request_to_provider_format", return_value=mapped_messages
-    ):
+        ToOpenAIChatCompletionRequestMapper,
+        "map_request",
+        return_value=payload,
+    ) as mapper:
         completion._execute_request(request)
 
-    openai_client.chat.completions.create.assert_called_once_with(
+    mapper.assert_called_once_with(
+        request,
         model="non-default-model",
-        messages=mapped_messages,
-        stream=False,
-        reasoning_effort=effort.value,
+        reasoning_effort=effort,
     )
+    openai_client.chat.completions.create.assert_called_once_with(**payload)
 
 
 def test_parse_response_builds_response_with_content_usage_and_thinking(
@@ -145,62 +165,195 @@ def test_parse_response_rejects_empty_choices(openai_client) -> None:
         completion._parse_response(cast(ChatCompletion, SimpleNamespace(choices=[])))
 
 
-def test_map_request_to_provider_format_maps_history_in_order(openai_client) -> None:
+def test_call_structured_executes_and_parses_provider_response(openai_client) -> None:
     completion = ChatCompletionOpenAI(openai_client, "model")
-    system_message = SystemMessage("rules")
-    user_message = UserMessage("question")
-    request = MagicMock(spec=ProviderRequest)
-    request.get_request.return_value = MessageHistory([system_message, user_message])
-    mapped_messages = [
-        {"role": "system", "content": "rules"},
-        {"role": "user", "content": "question"},
-    ]
+    request = MagicMock(spec=StructuredProviderRequest)
+    provider_response = object()
+    parsed_response = StructuredProviderResponse(
+        StructuredAssistantMessage(StructuredAnswer(value=42)),
+    )
 
-    with patch.object(
-        completion,
-        "_map_message_to_provider_format",
-        side_effect=mapped_messages,
-    ) as map_message:
-        result = completion._map_request_to_provider_format(request)
+    with (
+        patch.object(
+            completion,
+            "_execute_structured_request",
+            return_value=provider_response,
+        ) as execute,
+        patch.object(
+            completion,
+            "_parse_structured_response",
+            return_value=parsed_response,
+        ) as parse,
+    ):
+        result = completion.call_structured(request)
 
-    assert result == mapped_messages
-    assert [call.args[0] for call in map_message.call_args_list] == [
-        system_message,
-        user_message,
-    ]
-
-
-@pytest.mark.parametrize(
-    ("message", "mapper_name"),
-    [
-        (SystemMessage("rules"), "map_system_message"),
-        (UserMessage("question"), "map_user_message"),
-        (AssistantMessage("answer"), "map_assistant_message"),
-        (ToolMessage("result", "call_123"), "map_tool_message"),
-        (FunctionMessage("result", "calculate"), "map_function_message"),
-    ],
-)
-def test_map_message_to_provider_format_dispatches_supported_message(
-    openai_client, message, mapper_name
-) -> None:
-    completion = ChatCompletionOpenAI(openai_client, "model")
-    mapped = {"mapped": True}
-
-    with patch.object(
-        ToOpenAIChatCompletionMapper,
-        mapper_name,
-        return_value=mapped,
-    ) as mapper:
-        result = completion._map_message_to_provider_format(message)
-
-    assert result is mapped
-    mapper.assert_called_once_with(message)
+    assert result is parsed_response
+    execute.assert_called_once_with(request)
+    parse.assert_called_once_with(provider_response, request)
 
 
-def test_map_message_to_provider_format_rejects_unknown_message(
+def test_execute_structured_request_sends_strict_response_format(
     openai_client,
 ) -> None:
     completion = ChatCompletionOpenAI(openai_client, "model")
+    request = StructuredProviderRequest([SystemMessage("rules")], StructuredAnswer)
+    payload = {
+        "model": "model",
+        "messages": [{"role": "user", "content": "question"}],
+        "stream": False,
+    }
+    provider_response = object()
+    response_format = {"type": "json_schema", "strict": True}
+    openai_client.chat.completions.create.return_value = provider_response
 
-    with pytest.raises(TypeError, match="Unsupported message type"):
-        completion._map_message_to_provider_format(cast(Message, object()))
+    with (
+        patch.object(
+            ToOpenAIChatCompletionRequestMapper,
+            "map_request",
+            return_value=payload,
+        ),
+        patch.object(
+            OpenAIChatCompletionResponseFormatMapper,
+            "map",
+            return_value=response_format,
+        ) as map_response_format,
+    ):
+        result = completion._execute_structured_request(request)
+
+    assert result is provider_response
+    map_response_format.assert_called_once_with(StructuredAnswer, strict=True)
+    openai_client.chat.completions.create.assert_called_once_with(
+        model="model",
+        messages=[{"role": "user", "content": "question"}],
+        stream=False,
+        response_format=response_format,
+    )
+
+
+def test_execute_structured_request_sends_non_strict_json_schema(
+    openai_client,
+) -> None:
+    completion = ChatCompletionOpenAI(openai_client, "model")
+    request = StructuredProviderRequest(
+        [SystemMessage("rules")],
+        StructuredAnswer,
+        strict=False,
+    )
+    payload = {
+        "model": "model",
+        "messages": [{"role": "user", "content": "question"}],
+        "stream": False,
+    }
+    provider_response = object()
+    openai_client.chat.completions.create.return_value = provider_response
+
+    with patch.object(
+        ToOpenAIChatCompletionRequestMapper,
+        "map_request",
+        return_value=payload,
+    ):
+        result = completion._execute_structured_request(request)
+
+    assert result is provider_response
+    openai_client.chat.completions.create.assert_called_once_with(
+        model="model",
+        messages=[{"role": "user", "content": "question"}],
+        stream=False,
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "StructuredAnswer",
+                "schema": StructuredAnswer.model_json_schema(),
+                "strict": False,
+            },
+        },
+    )
+
+
+@pytest.mark.parametrize("strict", [True, False])
+def test_parse_structured_response_returns_pydantic_content(
+    openai_client,
+    strict: bool,
+) -> None:
+    completion = ChatCompletionOpenAI(openai_client, "model")
+    request = StructuredProviderRequest(
+        [SystemMessage("rules")],
+        StructuredAnswer,
+        strict=strict,
+    )
+    provider_message = SimpleNamespace(content='{"value":42}', tool_calls=None)
+    response = cast(
+        ChatCompletion,
+        SimpleNamespace(
+            choices=[SimpleNamespace(message=provider_message)], usage=None
+        ),
+    )
+
+    result = completion._parse_structured_response(
+        response,
+        request,
+    )
+
+    content = result.response.get_message()
+    assert isinstance(content, StructuredAnswer)
+    assert content.value == 42
+
+
+def test_parse_structured_response_non_strict_mode_allows_coercion(
+    openai_client,
+) -> None:
+    completion = ChatCompletionOpenAI(openai_client, "model")
+    request = StructuredProviderRequest(
+        [SystemMessage("rules")],
+        StructuredAnswer,
+        strict=False,
+    )
+    provider_message = SimpleNamespace(content='{"value":"42"}', tool_calls=None)
+    response = cast(
+        ChatCompletion,
+        SimpleNamespace(
+            choices=[SimpleNamespace(message=provider_message)], usage=None
+        ),
+    )
+
+    result = completion._parse_structured_response(
+        response,
+        request,
+    )
+
+    assert result.response.get_message() == StructuredAnswer(value=42)
+
+
+@pytest.mark.parametrize(
+    ("content", "error_type", "location"),
+    [
+        ('{"value":"42"}', "int_type", ("value",)),
+        ('{"unexpected":42}', "missing", ("value",)),
+        ("not-json", "json_invalid", ()),
+    ],
+)
+def test_parse_structured_response_propagates_detailed_validation_error(
+    openai_client,
+    content: str,
+    error_type: str,
+    location: tuple,
+) -> None:
+    completion = ChatCompletionOpenAI(openai_client, "model")
+    request = StructuredProviderRequest([SystemMessage("rules")], StructuredAnswer)
+    provider_message = SimpleNamespace(content=content, tool_calls=None)
+    response = cast(
+        ChatCompletion,
+        SimpleNamespace(
+            choices=[SimpleNamespace(message=provider_message)],
+            usage=None,
+        ),
+    )
+
+    with pytest.raises(ValidationError) as error:
+        completion._parse_structured_response(
+            response,
+            request,
+        )
+
+    assert error.value.errors()[0]["type"] == error_type
+    assert error.value.errors()[0]["loc"] == location

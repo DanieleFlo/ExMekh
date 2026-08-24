@@ -118,7 +118,6 @@ class FromOpenAIChatCompletionMapper:
                 name=tool_call.function.name,
                 arguments=tool_call.function.arguments,
             ),
-            type="function",
         )
 
     @classmethod
@@ -131,5 +130,4 @@ class FromOpenAIChatCompletionMapper:
                 name=tool_call.custom.name,
                 input=tool_call.custom.input,
             ),
-            type="custom",
         )

@@ -1,24 +1,24 @@
 from __future__ import annotations
 
 from openai import OpenAI
-from openai.types.chat import ChatCompletionMessageParam
 from openai.types.chat.chat_completion import ChatCompletion
+from pydantic import BaseModel
 
-from qs.config.local_provider import ReasoningEffort
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.function_message import FunctionMessage
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.tool_message import ToolMessage
-from qs.core.models.user_message import UserMessage
+from qs.core.models.reasoning_effort import ReasoningEffort
+from qs.core.models.structured_assistant_message import StructuredAssistantMessage
+from qs.core.models.structured_provider_request import StructuredProviderRequest
+from qs.core.models.structured_provider_response import StructuredProviderResponse
 from qs.core.providers.from_openai_chat_completion_mapper import (
     FromOpenAIChatCompletionMapper,
 )
-from qs.core.providers.to_openai_chat_completion_mapper import (
-    ToOpenAIChatCompletionMapper,
+from qs.core.providers.openai_chat_completion_response_format_mapper import (
+    OpenAIChatCompletionResponseFormatMapper,
 )
-from qs.interfaces.message import Message
+from qs.core.providers.to_openai_chat_completion_request_mapper import (
+    ToOpenAIChatCompletionRequestMapper,
+)
 
 
 class ChatCompletionOpenAI:
@@ -31,25 +31,54 @@ class ChatCompletionOpenAI:
         self._client = client
         self._model = model
         self._reasoning_effort = reasoning_effort
+        self._check_inputs()
+
+    def _check_inputs(self) -> None:
+        if not isinstance(self._client, OpenAI):
+            raise TypeError("Client must be an instance of OpenAI")
+
+        if not isinstance(self._model, str):
+            raise TypeError("Model must be a string")
+
+        if self._reasoning_effort is not None and not isinstance(
+            self._reasoning_effort, ReasoningEffort
+        ):
+            raise TypeError("Reasoning effort must be a ReasoningEffort instance")
 
     def call(self, request: ProviderRequest) -> ProviderResponse:
         response = self._execute_request(request)
         return self._parse_response(response)
 
+    def call_structured[ResponseModel: BaseModel](
+        self,
+        request: StructuredProviderRequest[ResponseModel],
+    ) -> StructuredProviderResponse[ResponseModel]:
+        response = self._execute_structured_request(request)
+        return self._parse_structured_response(response, request)
+
     def _execute_request(self, request: ProviderRequest) -> ChatCompletion:
-        if self._reasoning_effort is None:
-            return self._client.chat.completions.create(
-                model=self._model,
-                messages=self._map_request_to_provider_format(request),
-                stream=False,
-            )
-        else:
-            return self._client.chat.completions.create(
-                model=self._model,
-                messages=self._map_request_to_provider_format(request),
-                stream=False,
-                reasoning_effort=self._reasoning_effort.value,
-            )
+        payload = ToOpenAIChatCompletionRequestMapper.map_request(
+            request,
+            model=self._model,
+            reasoning_effort=self._reasoning_effort,
+        )
+        return self._client.chat.completions.create(**payload)
+
+    def _execute_structured_request[ResponseModel: BaseModel](
+        self,
+        request: StructuredProviderRequest[ResponseModel],
+    ) -> ChatCompletion:
+        payload = ToOpenAIChatCompletionRequestMapper.map_request(
+            request,
+            model=self._model,
+            reasoning_effort=self._reasoning_effort,
+        )
+
+        payload["response_format"] = OpenAIChatCompletionResponseFormatMapper.map(
+            request.get_response_model(),
+            strict=request.get_strict(),
+        )
+        return self._client.chat.completions.create(**payload)
 
     def _parse_response(self, response: ChatCompletion) -> ProviderResponse:
         if not response.choices:
@@ -58,6 +87,7 @@ class ChatCompletionOpenAI:
         response_content = FromOpenAIChatCompletionMapper.map_assistant_message(
             response.choices[0].message
         )
+
         usage = FromOpenAIChatCompletionMapper.extract_usage(response)
         thinking = FromOpenAIChatCompletionMapper.extract_thinking(response)
 
@@ -65,25 +95,33 @@ class ChatCompletionOpenAI:
             response=response_content, thinking=thinking, usage=usage
         )
 
-    def _map_request_to_provider_format(
-        self, request: ProviderRequest
-    ) -> list[ChatCompletionMessageParam]:
-        history = request.get_request()
-        messages = history.get_history()
-        return [self._map_message_to_provider_format(message) for message in messages]
+    def _parse_structured_response[ResponseModel: BaseModel](
+        self,
+        response: ChatCompletion,
+        request: StructuredProviderRequest[ResponseModel],
+    ) -> StructuredProviderResponse[ResponseModel]:
+        if not response.choices:
+            raise RuntimeError("No choices returned from the provider")
 
-    def _map_message_to_provider_format(
-        self, message: Message
-    ) -> ChatCompletionMessageParam:
-        if isinstance(message, SystemMessage):
-            return ToOpenAIChatCompletionMapper.map_system_message(message)
-        elif isinstance(message, UserMessage):
-            return ToOpenAIChatCompletionMapper.map_user_message(message)
-        elif isinstance(message, AssistantMessage):
-            return ToOpenAIChatCompletionMapper.map_assistant_message(message)
-        elif isinstance(message, ToolMessage):
-            return ToOpenAIChatCompletionMapper.map_tool_message(message)
-        elif isinstance(message, FunctionMessage):
-            return ToOpenAIChatCompletionMapper.map_function_message(message)
-        else:
-            raise TypeError(f"Unsupported message type: {type(message)}")
+        provider_message = response.choices[0].message
+        json_data = provider_message.content or "{}"
+        response_model = request.get_response_model()
+        content = response_model.model_validate_json(
+            json_data,
+            strict=request.get_strict(),
+        )
+        response_content = StructuredAssistantMessage(
+            content,
+            tool_calls=FromOpenAIChatCompletionMapper.map_tool_calls(
+                provider_message.tool_calls
+            ),
+        )
+
+        usage = FromOpenAIChatCompletionMapper.extract_usage(response)
+        thinking = FromOpenAIChatCompletionMapper.extract_thinking(response)
+
+        return StructuredProviderResponse(
+            response=response_content,
+            thinking=thinking,
+            usage=usage,
+        )

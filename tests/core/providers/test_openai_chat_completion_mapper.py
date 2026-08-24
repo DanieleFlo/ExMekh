@@ -16,9 +16,18 @@ from openai.types.chat.chat_completion_message_function_tool_call import (
 from openai.types.chat.chat_completion_message_function_tool_call import (
     Function as OpenAIFunction,
 )
+from pydantic import BaseModel
 
-from qs.core.models.assistant_message import AssistantMessage, ToolCall
+from qs.core.models.assistant_message import (
+    AssistantMessage,
+    CustomCall,
+    CustomToolCall,
+    FunctionCall,
+    FunctionToolCall,
+    ToolCall,
+)
 from qs.core.models.function_message import FunctionMessage
+from qs.core.models.structured_assistant_message import StructuredAssistantMessage
 from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.user_message import (
@@ -34,6 +43,10 @@ from qs.core.providers.from_openai_chat_completion_mapper import (
 from qs.core.providers.to_openai_chat_completion_mapper import (
     ToOpenAIChatCompletionMapper,
 )
+
+
+class StructuredAnswer(BaseModel):
+    value: int
 
 
 def test_extract_usage_returns_empty_usage_when_provider_omits_it() -> None:
@@ -115,14 +128,13 @@ def test_map_provider_message_maps_custom_tool_calls() -> None:
 
     assert result.get_message() is None
     assert result.get_tool_calls() == [
-        {
-            "id": "call_123",
-            "custom": {
-                "name": "execute_python",
-                "input": "print(2 + 2)",
-            },
-            "type": "custom",
-        }
+        CustomToolCall(
+            id="call_123",
+            custom=CustomCall(
+                name="execute_python",
+                input="print(2 + 2)",
+            ),
+        )
     ]
 
 
@@ -184,23 +196,31 @@ def test_map_assistant_message_maps_content_name_and_role() -> None:
     }
 
 
+def test_map_structured_assistant_message_serializes_pydantic_content() -> None:
+    message = StructuredAssistantMessage(StructuredAnswer(value=42), name="agent")
+
+    assert ToOpenAIChatCompletionMapper.map_structured_assistant_message(message) == {
+        "content": '{"value":42}',
+        "role": "assistant",
+        "name": "agent",
+    }
+
+
 def test_map_assistant_message_maps_tool_calls() -> None:
     message = AssistantMessage(
         None,
         tool_calls=[
-            {
-                "id": "call_123",
-                "function": {"name": "search", "arguments": "{}"},
-                "type": "function",
-            },
-            {
-                "id": "call_456",
-                "custom": {
-                    "name": "execute_python",
-                    "input": "print(2 + 2)",
-                },
-                "type": "custom",
-            },
+            FunctionToolCall(
+                id="call_123",
+                function=FunctionCall(name="search", arguments="{}"),
+            ),
+            CustomToolCall(
+                id="call_456",
+                custom=CustomCall(
+                    name="execute_python",
+                    input="print(2 + 2)",
+                ),
+            ),
         ],
     )
 
@@ -226,34 +246,9 @@ def test_map_assistant_message_maps_tool_calls() -> None:
     }
 
 
-@pytest.mark.parametrize(
-    ("tool_call", "error_message"),
-    [
-        ({"id": "missing-type"}, "Unsupported tool call type: None"),
-        (
-            {"id": "missing-function", "type": "function"},
-            "Malformed 'function' tool call",
-        ),
-        (
-            {"id": "unknown", "type": "shell"},
-            "Unsupported tool call type: 'shell'",
-        ),
-    ],
-)
-def test_map_assistant_message_rejects_malformed_tool_calls(
-    tool_call, error_message: str
-) -> None:
-    message = AssistantMessage(None, tool_calls=[tool_call])
-
-    with pytest.raises(ValueError, match=error_message):
-        ToOpenAIChatCompletionMapper.map_assistant_message(message)
-
-
-def test_map_assistant_message_rejects_non_dictionary_tool_call() -> None:
-    message = AssistantMessage(None, tool_calls=[cast(ToolCall, object())])
-
-    with pytest.raises(TypeError, match="Tool call must be a dictionary"):
-        ToOpenAIChatCompletionMapper.map_assistant_message(message)
+def test_map_tool_call_rejects_unsupported_tool_call() -> None:
+    with pytest.raises(TypeError, match="Unsupported tool call type: object"):
+        ToOpenAIChatCompletionMapper._map_tool_call(cast(ToolCall, object()))
 
 
 def test_map_assistant_message_rejects_unsupported_role() -> None:
@@ -288,22 +283,20 @@ def test_map_tool_calls_maps_function_and_custom_calls() -> None:
     ]
 
     assert FromOpenAIChatCompletionMapper.map_tool_calls(tool_calls) == [
-        {
-            "id": "call_123",
-            "function": {
-                "name": "search",
-                "arguments": '{"query":"docs"}',
-            },
-            "type": "function",
-        },
-        {
-            "id": "call_456",
-            "custom": {
-                "name": "execute_python",
-                "input": "print(2 + 2)",
-            },
-            "type": "custom",
-        },
+        FunctionToolCall(
+            id="call_123",
+            function=FunctionCall(
+                name="search",
+                arguments='{"query":"docs"}',
+            ),
+        ),
+        CustomToolCall(
+            id="call_456",
+            custom=CustomCall(
+                name="execute_python",
+                input="print(2 + 2)",
+            ),
+        ),
     ]
 
 

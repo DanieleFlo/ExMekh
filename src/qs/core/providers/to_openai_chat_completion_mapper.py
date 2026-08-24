@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import TypeGuard
-
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionContentPartImageParam,
@@ -30,6 +28,7 @@ from openai.types.chat.chat_completion_message_function_tool_call_param import (
 from openai.types.chat.chat_completion_message_tool_call_union_param import (
     ChatCompletionMessageToolCallUnionParam,
 )
+from pydantic import BaseModel
 
 from qs.core.models.assistant_message import (
     AssistantMessage,
@@ -38,6 +37,7 @@ from qs.core.models.assistant_message import (
     ToolCall,
 )
 from qs.core.models.function_message import FunctionMessage
+from qs.core.models.structured_assistant_message import StructuredAssistantMessage
 from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.user_message import (
@@ -185,6 +185,36 @@ class ToOpenAIChatCompletionMapper:
         return mapped_message
 
     @classmethod
+    def map_structured_assistant_message(
+        cls,
+        assistant_message: StructuredAssistantMessage,
+    ) -> ChatCompletionAssistantMessageParam:
+        role = assistant_message.get_role_name()
+
+        if role != "assistant":
+            raise ValueError(f"Expected role 'assistant', got '{role}'")
+        
+        message_content = assistant_message.get_message()
+
+        if not isinstance(message_content, BaseModel):
+            raise TypeError(
+                f"Structured assistant content must be a Pydantic BaseModel, "
+                f"got {type(message_content)!r}"
+            )
+        
+        mapped_message = ChatCompletionAssistantMessageParam(
+            content=message_content.model_dump_json(),
+            role=role,
+            name=assistant_message.get_name(),
+        )
+        tool_calls = assistant_message.get_tool_calls()
+
+        if tool_calls is not None:
+            mapped_message["tool_calls"] = cls._map_tool_calls(tool_calls)
+
+        return mapped_message
+
+    @classmethod
     def _map_tool_calls(
         cls,
         tool_calls: list[ToolCall],
@@ -196,43 +226,24 @@ class ToOpenAIChatCompletionMapper:
         cls,
         tool_call: ToolCall,
     ) -> ChatCompletionMessageToolCallUnionParam:
-        if not isinstance(tool_call, dict):
-            raise TypeError("Tool call must be a dictionary")
+        if isinstance(tool_call, FunctionToolCall):
+            return cls._map_function_tool_call(tool_call)
 
-        tool_call_type = tool_call.get("type")
-        try:
-            if cls._is_function_tool_call(tool_call):
-                return cls._map_function_tool_call(tool_call)
+        if isinstance(tool_call, CustomToolCall):
+            return cls._map_custom_tool_call(tool_call)
 
-            if cls._is_custom_tool_call(tool_call):
-                return cls._map_custom_tool_call(tool_call)
-        except (KeyError, TypeError) as error:
-            raise ValueError(f"Malformed {tool_call_type!r} tool call") from error
-
-        raise ValueError(f"Unsupported tool call type: {tool_call_type!r}")
-
-    @staticmethod
-    def _is_function_tool_call(
-        tool_call: ToolCall,
-    ) -> TypeGuard[FunctionToolCall]:
-        return tool_call.get("type") == "function"
-
-    @staticmethod
-    def _is_custom_tool_call(
-        tool_call: ToolCall,
-    ) -> TypeGuard[CustomToolCall]:
-        return tool_call.get("type") == "custom"
+        raise TypeError(f"Unsupported tool call type: {type(tool_call).__name__}")
 
     @staticmethod
     def _map_function_tool_call(
         tool_call: FunctionToolCall,
     ) -> ChatCompletionMessageFunctionToolCallParam:
-        function = tool_call["function"]
+        function = tool_call.function
         return ChatCompletionMessageFunctionToolCallParam(
-            id=tool_call["id"],
+            id=tool_call.id,
             function=OpenAIFunction(
-                name=function["name"],
-                arguments=function["arguments"],
+                name=function.name,
+                arguments=function.arguments,
             ),
             type="function",
         )
@@ -241,12 +252,12 @@ class ToOpenAIChatCompletionMapper:
     def _map_custom_tool_call(
         tool_call: CustomToolCall,
     ) -> ChatCompletionMessageCustomToolCallParam:
-        custom = tool_call["custom"]
+        custom = tool_call.custom
         return ChatCompletionMessageCustomToolCallParam(
-            id=tool_call["id"],
+            id=tool_call.id,
             custom=OpenAICustom(
-                name=custom["name"],
-                input=custom["input"],
+                name=custom.name,
+                input=custom.input,
             ),
             type="custom",
         )
