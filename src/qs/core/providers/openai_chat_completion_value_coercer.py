@@ -4,7 +4,7 @@ import inspect
 from collections import abc
 from dataclasses import is_dataclass
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from enum import Enum
 from pathlib import Path
 from types import NoneType, UnionType
@@ -233,10 +233,10 @@ class OpenAIChatCompletionValueCoercer:
             if annotation is Path:
                 return Path(value)
 
-        except (TypeError, ValueError) as error:
+        except (InvalidOperation, TypeError, ValueError) as error:
             raise TypeError(f"Argument '{path}' has an invalid value") from error
 
-        raise AssertionError("Unsupported scalar annotation")
+        raise AssertionError("Unsupported scalar annotation")  # pragma: no cover
 
     def _coerce_array(
         self,
