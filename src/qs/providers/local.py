@@ -5,10 +5,13 @@ from urllib.parse import urlparse
 
 import openai
 from openai import OpenAI
+from pydantic import BaseModel
 
-from qs.config.local_provider import LocalProviderConfig
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
+from qs.core.models.reasoning_effort import ReasoningEffort
+from qs.core.models.structured_provider_request import StructuredProviderRequest
+from qs.core.models.structured_provider_response import StructuredProviderResponse
 from qs.core.providers.chat_completion_openai import ChatCompletionOpenAI
 from qs.interfaces.provider import Provider
 
@@ -16,15 +19,38 @@ from qs.interfaces.provider import Provider
 class LocalProvider(Provider):
     def __init__(
         self,
-        config_provider: LocalProviderConfig,
+        model: str,
+        api_key_env_var: str = "API_KEY",
+        base_url_env_var: str = "BASE_URL",
+        reasoning_effort: ReasoningEffort | None = None,
     ) -> None:
-        self._model = config_provider.model
-        self._api_key_env_var = config_provider.api_key_env_var
-        self._base_url_env_var = config_provider.base_url_env_var
-        self._reasoning_effort = config_provider.reasoning_effort
+        self._model = model
+        self._api_key_env_var = api_key_env_var
+        self._base_url_env_var = base_url_env_var
+        self._reasoning_effort = reasoning_effort
 
+        self._check_inputs()
         self.client = self._build_client()
         self._check_provider()
+
+    def _check_inputs(self) -> None:
+        if not isinstance(self._model, str):
+            raise TypeError("Model must be a string")
+        if not isinstance(self._api_key_env_var, str):
+            raise TypeError("API key environment variable must be a string")
+        if not isinstance(self._base_url_env_var, str):
+            raise TypeError("Base URL environment variable must be a string")
+        if self._reasoning_effort is not None and not isinstance(
+            self._reasoning_effort, ReasoningEffort
+        ):
+            raise TypeError("Reasoning effort must be a ReasoningEffort or None")
+
+        if not self._model.strip():
+            raise ValueError("Model must be a non-empty string")
+        if not self._api_key_env_var.strip():
+            raise ValueError("API key environment variable must be a non-empty string")
+        if not self._base_url_env_var.strip():
+            raise ValueError("Base URL environment variable must be a non-empty string")
 
     def _build_client(self) -> OpenAI:
         api_key = self._resolve_api_key()
@@ -92,5 +118,19 @@ class LocalProvider(Provider):
             )
             response = chat_completion.call(request)
             return response
+        except openai.APIError as error:
+            raise RuntimeError("Local provider request failed") from error
+
+    def call_structured[ResponseModel: BaseModel](
+        self,
+        request: StructuredProviderRequest[ResponseModel],
+    ) -> StructuredProviderResponse[ResponseModel]:
+        try:
+            chat_completion = ChatCompletionOpenAI(
+                client=self.client,
+                model=self._model,
+                reasoning_effort=self._reasoning_effort,
+            )
+            return chat_completion.call_structured(request)
         except openai.APIError as error:
             raise RuntimeError("Local provider request failed") from error

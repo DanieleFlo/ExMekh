@@ -3,46 +3,99 @@ from unittest.mock import MagicMock, patch
 
 import openai
 import pytest
+from pydantic import BaseModel
 
-from qs.config.local_provider import LocalProviderConfig, ReasoningEffort
 from qs.core.models.assistant_message import AssistantMessage
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
+from qs.core.models.reasoning_effort import (
+    ReasoningEffort,
+    ReasoningEffortLMH,
+    ReasoningEffortLMHXM,
+    ReasoningEffortLMX,
+)
+from qs.core.models.structured_assistant_message import StructuredAssistantMessage
+from qs.core.models.structured_provider_request import StructuredProviderRequest
+from qs.core.models.structured_provider_response import StructuredProviderResponse
 from qs.providers.local import LocalProvider
+
+
+class StructuredAnswer(BaseModel):
+    value: int
 
 
 def make_provider(
     model: str = "local-model",
     reasoning_effort: ReasoningEffort | None = None,
 ) -> LocalProvider:
-    config = LocalProviderConfig(model=model, reasoning_effort=reasoning_effort)
     with (
         patch.object(LocalProvider, "_build_client", return_value=MagicMock()),
         patch.object(LocalProvider, "_check_provider"),
     ):
-        return LocalProvider(config)
+        return LocalProvider(model=model, reasoning_effort=reasoning_effort)
 
 
 def test_init_builds_client_and_checks_provider() -> None:
     client = MagicMock()
-    config = LocalProviderConfig(
-        model="local-model",
-        api_key_env_var="CUSTOM_KEY",
-        base_url_env_var="CUSTOM_URL",
-    )
 
     with (
+        patch.object(LocalProvider, "_check_inputs") as check_inputs,
         patch.object(LocalProvider, "_build_client", return_value=client) as build,
-        patch.object(LocalProvider, "_check_provider") as check,
+        patch.object(LocalProvider, "_check_provider") as check_provider,
     ):
-        provider = LocalProvider(config)
+        provider = LocalProvider(
+            model="local-model",
+            api_key_env_var="CUSTOM_KEY",
+            base_url_env_var="CUSTOM_URL",
+        )
 
     assert provider._model == "local-model"
     assert provider._api_key_env_var == "CUSTOM_KEY"
     assert provider._base_url_env_var == "CUSTOM_URL"
+    assert provider._reasoning_effort is None
     assert provider.client is client
+    check_inputs.assert_called_once_with()
     build.assert_called_once_with()
-    check.assert_called_once_with()
+    check_provider.assert_called_once_with()
+
+
+@pytest.mark.parametrize(
+    ("overrides", "error_type"),
+    [
+        ({"model": ""}, ValueError),
+        ({"model": "   "}, ValueError),
+        ({"model": None}, TypeError),
+        ({"api_key_env_var": ""}, ValueError),
+        ({"base_url_env_var": 7}, TypeError),
+        ({"reasoning_effort": 7}, TypeError),
+    ],
+)
+def test_init_rejects_malformed_settings(overrides, error_type) -> None:
+    values = {
+        "model": "valid-model",
+        "api_key_env_var": "VALID_KEY",
+        "base_url_env_var": "VALID_URL",
+        "reasoning_effort": ReasoningEffortLMH.LOW,
+    }
+    values.update(overrides)
+
+    with pytest.raises(error_type):
+        LocalProvider(**values)
+
+
+@pytest.mark.parametrize(
+    "effort",
+    [
+        ReasoningEffortLMX.XHIGH,
+        ReasoningEffortLMH.HIGH,
+        ReasoningEffortLMHXM.Max,
+        "provider-specific-effort",
+    ],
+)
+def test_init_accepts_supported_reasoning_efforts(effort: ReasoningEffort) -> None:
+    provider = make_provider(reasoning_effort=effort)
+
+    assert provider._reasoning_effort == effort
 
 
 def test_build_client_uses_resolved_credentials() -> None:
@@ -184,7 +237,7 @@ def test_get_available_models_rejects_catalog_with_wrong_collection_type() -> No
 
 
 def test_call_delegates_to_chat_completion() -> None:
-    provider = make_provider(reasoning_effort=ReasoningEffort.HIGH)
+    provider = make_provider(reasoning_effort=ReasoningEffortLMH.HIGH)
     request = MagicMock(spec=ProviderRequest)
     expected = ProviderResponse(AssistantMessage("answer"))
     completion = MagicMock()
@@ -199,7 +252,7 @@ def test_call_delegates_to_chat_completion() -> None:
     completion_class.assert_called_once_with(
         client=provider.client,
         model="local-model",
-        reasoning_effort=ReasoningEffort.HIGH,
+        reasoning_effort=ReasoningEffortLMH.HIGH,
     )
     completion.call.assert_called_once_with(request)
 
@@ -219,3 +272,43 @@ def test_call_translates_openai_api_error_to_runtime_error() -> None:
         provider.call(request)
 
     assert error.value.__cause__ is completion.call.side_effect
+
+
+def test_call_structured_delegates_to_chat_completion() -> None:
+    provider = make_provider(reasoning_effort="high")
+    request = MagicMock(spec=StructuredProviderRequest)
+    expected = StructuredProviderResponse(
+        StructuredAssistantMessage(StructuredAnswer(value=42)),
+    )
+    completion = MagicMock()
+    completion.call_structured.return_value = expected
+
+    with patch(
+        "qs.providers.local.ChatCompletionOpenAI", return_value=completion
+    ) as completion_class:
+        result = provider.call_structured(request)
+
+    assert result is expected
+    completion_class.assert_called_once_with(
+        client=provider.client,
+        model="local-model",
+        reasoning_effort="high",
+    )
+    completion.call_structured.assert_called_once_with(request)
+
+
+def test_call_structured_translates_openai_api_error_to_runtime_error() -> None:
+    provider = make_provider()
+    request = MagicMock(spec=StructuredProviderRequest)
+    completion = MagicMock()
+    completion.call_structured.side_effect = openai.APIError(
+        "provider failed", MagicMock(), body=None
+    )
+
+    with (
+        patch("qs.providers.local.ChatCompletionOpenAI", return_value=completion),
+        pytest.raises(RuntimeError, match="Local provider request failed") as error,
+    ):
+        provider.call_structured(request)
+
+    assert error.value.__cause__ is completion.call_structured.side_effect
