@@ -476,6 +476,7 @@ dependencies = [
     { name = "dotenv" },
     { name = "openai" },
     { name = "pillow" },
+    { name = "pydantic" },
     { name = "ruff" },
 ]
 
@@ -490,6 +491,7 @@ requires-dist = [
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "openai", specifier = ">=3.3.0" },
     { name = "pillow", specifier = ">=11.0.0" },
+    { name = "pydantic", specifier = ">=2.0.0" },
     { name = "ruff", specifier = ">=0.16.3" },
 ]
 

@@ -11,6 +11,7 @@ dependencies = [
     "dotenv>=0.9.9",
     "openai>=3.3.0",
     "pillow>=11.0.0",
+    "pydantic>=2.0.0",
     "ruff>=0.16.3",
 ]
 
@@ -23,6 +24,9 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+markers = [
+    "live: contacts a real model provider and runs only with explicit opt-in",
+]
 
 [project.scripts]
 qs = "qs.main:main"
