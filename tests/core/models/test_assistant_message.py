@@ -87,3 +87,9 @@ def test_message_dump_normalizes_missing_content() -> None:
 def test_init_rejects_non_string_content() -> None:
     with pytest.raises(TypeError, match="Assistant content must be a string"):
         AssistantMessage(cast(str, object()))
+
+
+@pytest.mark.parametrize("tool_calls", [object(), [object()]])
+def test_init_rejects_invalid_tool_calls(tool_calls: object) -> None:
+    with pytest.raises(TypeError, match="list of ToolCall objects"):
+        AssistantMessage(None, tool_calls=cast(list, tool_calls))

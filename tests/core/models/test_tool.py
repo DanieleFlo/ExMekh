@@ -1,3 +1,5 @@
+from typing import cast
+
 import pytest
 
 from qs.core.models.tool import Tool
@@ -32,3 +34,8 @@ def test_tool_rejects_invalid_openai_name(name: str) -> None:
 def test_tool_rejects_non_callable() -> None:
     with pytest.raises(TypeError, match="callable"):
         Tool("not-callable")
+
+
+def test_tool_rejects_non_string_description() -> None:
+    with pytest.raises(TypeError, match="description must be a string"):
+        Tool(documented_tool, description=cast(str, object()))

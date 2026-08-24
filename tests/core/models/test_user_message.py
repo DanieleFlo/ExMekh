@@ -1,4 +1,5 @@
 import hashlib
+from typing import cast
 
 import pytest
 from PIL import Image
@@ -108,3 +109,17 @@ def test_document_user_message_preserves_custom_mime_type() -> None:
     )
 
     assert document.mime_type == "text/csv"
+
+
+@pytest.mark.parametrize(
+    ("content", "name", "message"),
+    [
+        (object(), "", "User content must be"),
+        ("question", object(), "User name must be a string"),
+    ],
+)
+def test_init_rejects_invalid_fields(
+    content: object, name: object, message: str
+) -> None:
+    with pytest.raises(TypeError, match=message):
+        UserMessage(cast(str, content), name=cast(str, name))

@@ -206,6 +206,51 @@ def test_map_structured_assistant_message_serializes_pydantic_content() -> None:
     }
 
 
+def test_map_structured_assistant_message_rejects_unsupported_role() -> None:
+    message = StructuredAssistantMessage(StructuredAnswer(value=42))
+
+    with (
+        patch.object(message, "get_role_name", return_value="user"),
+        pytest.raises(ValueError, match="Expected role 'assistant', got 'user'"),
+    ):
+        ToOpenAIChatCompletionMapper.map_structured_assistant_message(message)
+
+
+def test_map_structured_assistant_message_rejects_non_model_content() -> None:
+    message = StructuredAssistantMessage(StructuredAnswer(value=42))
+
+    with (
+        patch.object(message, "get_message", return_value=object()),
+        pytest.raises(TypeError, match="Pydantic BaseModel"),
+    ):
+        ToOpenAIChatCompletionMapper.map_structured_assistant_message(message)
+
+
+def test_map_structured_assistant_message_maps_tool_calls() -> None:
+    message = StructuredAssistantMessage(
+        StructuredAnswer(value=42),
+        tool_calls=[
+            FunctionToolCall(
+                id="call_123",
+                function=FunctionCall(name="search", arguments="{}"),
+            )
+        ],
+    )
+
+    assert ToOpenAIChatCompletionMapper.map_structured_assistant_message(message) == {
+        "content": '{"value":42}',
+        "role": "assistant",
+        "name": "",
+        "tool_calls": [
+            {
+                "id": "call_123",
+                "function": {"name": "search", "arguments": "{}"},
+                "type": "function",
+            }
+        ],
+    }
+
+
 def test_map_assistant_message_maps_tool_calls() -> None:
     message = AssistantMessage(
         None,

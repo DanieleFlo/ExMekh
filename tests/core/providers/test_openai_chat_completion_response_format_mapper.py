@@ -17,6 +17,15 @@ class StructuredAnswer(BaseModel):
     details: Annotated[Details | None, Field(description="Optional details")] = None
 
 
+class AnswerWithDescribedReference(BaseModel):
+    details: Annotated[Details, Field(description="Required details")]
+
+
+class AnswerWithMappingAndDefault(BaseModel):
+    labels: dict[str, int]
+    count: int = 3
+
+
 def test_map_builds_strict_nested_json_schema_by_default() -> None:
     mapped = OpenAIChatCompletionResponseFormatMapper.map(StructuredAnswer)
 
@@ -64,3 +73,50 @@ def test_map_rejects_non_boolean_strict_value() -> None:
             StructuredAnswer,
             strict=cast(bool, 1),
         )
+
+
+def test_map_inlines_reference_with_sibling_metadata_in_strict_mode() -> None:
+    mapped = OpenAIChatCompletionResponseFormatMapper.map(AnswerWithDescribedReference)
+
+    details = mapped["json_schema"]["schema"]["properties"]["details"]
+    assert "$ref" not in details
+    assert details["description"] == "Required details"
+    assert details["type"] == "object"
+    assert details["additionalProperties"] is False
+    assert details["required"] == ["label"]
+
+
+def test_map_preserves_mapping_schema_and_non_null_default_in_strict_mode() -> None:
+    mapped = OpenAIChatCompletionResponseFormatMapper.map(AnswerWithMappingAndDefault)
+
+    properties = mapped["json_schema"]["schema"]["properties"]
+    assert properties["labels"] == {
+        "type": "object",
+        "additionalProperties": {"type": "integer"},
+        "title": "Labels",
+    }
+    assert properties["count"]["default"] == 3
+
+
+def test_resolve_reference_decodes_json_pointer_escapes() -> None:
+    resolved = OpenAIChatCompletionResponseFormatMapper._resolve_reference(
+        {"$defs": {"path/to~value": {"type": "string"}}},
+        "#/$defs/path~1to~0value",
+    )
+
+    assert resolved == {"type": "string"}
+
+
+@pytest.mark.parametrize(
+    ("root", "reference", "message"),
+    [
+        ({}, "external.json", "Unsupported JSON schema reference"),
+        ({"$defs": {}}, "#/$defs/Missing", "Unresolvable JSON schema reference"),
+        ({"$defs": {"Value": "text"}}, "#/$defs/Value", "not an object"),
+    ],
+)
+def test_resolve_reference_rejects_invalid_targets(
+    root: dict, reference: str, message: str
+) -> None:
+    with pytest.raises((TypeError, ValueError), match=message):
+        OpenAIChatCompletionResponseFormatMapper._resolve_reference(root, reference)

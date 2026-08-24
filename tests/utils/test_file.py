@@ -1,4 +1,5 @@
 import base64
+from typing import cast
 
 import pytest
 
@@ -18,3 +19,8 @@ def test_convert_bytes_to_base64_returns_utf8_base64(file_bytes, expected) -> No
 
     assert result == expected
     assert base64.b64decode(result) == file_bytes
+
+
+def test_convert_bytes_to_base64_rejects_non_bytes() -> None:
+    with pytest.raises(TypeError, match="Input must be of type 'bytes'"):
+        convert_bytes_to_base64(cast(bytes, "content"))

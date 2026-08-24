@@ -1,3 +1,7 @@
+from typing import cast
+
+import pytest
+
 from qs.core.models.system_message import SystemMessage
 
 
@@ -27,3 +31,17 @@ def test_message_dump_returns_provider_fields() -> None:
         "role": "system",
         "content": "instructions",
     }
+
+
+@pytest.mark.parametrize(
+    ("content", "name", "message"),
+    [
+        (object(), "", "content must be a string"),
+        ("instructions", object(), "name must be a string"),
+    ],
+)
+def test_init_rejects_invalid_fields(
+    content: object, name: object, message: str
+) -> None:
+    with pytest.raises(TypeError, match=message):
+        SystemMessage(cast(str, content), name=cast(str, name))

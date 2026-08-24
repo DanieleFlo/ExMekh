@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
-from typing import Dict, Literal
+from typing import Literal
 
 from PIL import Image
 
@@ -21,8 +21,6 @@ class UserMessage(Message):
         self._check_inputs()
 
     def _check_inputs(self):
-        if not isinstance(self._role, str):
-            raise TypeError("User role must be a string")
         if not isinstance(self._name, str):
             raise TypeError("User name must be a string")
         if not isinstance(
@@ -45,7 +43,7 @@ class UserMessage(Message):
     def get_name(self) -> str:
         return self._name
 
-    def message_dump(self) -> Dict[str, str]:
+    def message_dump(self) -> dict[str, str]:
         content = self._content
         if content is None:
             content = ""

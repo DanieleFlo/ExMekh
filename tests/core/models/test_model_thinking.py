@@ -18,3 +18,8 @@ def test_model_thinking_is_immutable() -> None:
 
     with pytest.raises(FrozenInstanceError):
         thinking.thoughts = "changed"
+
+
+def test_init_rejects_non_string_thoughts() -> None:
+    with pytest.raises(TypeError, match="string or None"):
+        ModelThinking(42)

@@ -27,6 +27,10 @@ class OptionalFilters(TypedDict, total=False):
     label: NotRequired[str]
 
 
+class AllOptionalFilters(TypedDict, total=False):
+    category: str
+
+
 class Mode(Enum):
     FAST = "fast"
     ACCURATE = "accurate"
@@ -113,6 +117,15 @@ UserId = NewType("UserId", int)
         (
             Annotated[int, "Positive count", {"minimum": 1}],
             {"type": "integer", "description": "Positive count", "minimum": 1},
+        ),
+        (Annotated[int, object()], {"type": "integer"}),
+        (
+            AllOptionalFilters,
+            {
+                "type": "object",
+                "properties": {"category": {"type": "string"}},
+                "additionalProperties": False,
+            },
         ),
         (Sequence[str], {"type": "array", "items": {"type": "string"}}),
     ],

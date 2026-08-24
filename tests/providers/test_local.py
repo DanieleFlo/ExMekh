@@ -66,6 +66,8 @@ def test_init_builds_client_and_checks_provider() -> None:
         ({"model": "   "}, ValueError),
         ({"model": None}, TypeError),
         ({"api_key_env_var": ""}, ValueError),
+        ({"api_key_env_var": 7}, TypeError),
+        ({"base_url_env_var": ""}, ValueError),
         ({"base_url_env_var": 7}, TypeError),
         ({"reasoning_effort": 7}, TypeError),
     ],

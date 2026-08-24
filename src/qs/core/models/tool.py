@@ -34,8 +34,6 @@ class Tool:
             raise TypeError("Tool must be callable")
 
     def _check_inputs(self):
-        if not isinstance(self.name, str):
-            raise TypeError("Tool name must be a string")
         if not isinstance(self.description, str):
             raise TypeError("Tool description must be a string")
 

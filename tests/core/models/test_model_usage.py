@@ -24,3 +24,16 @@ def test_model_usage_is_immutable() -> None:
 
     with pytest.raises(FrozenInstanceError):
         usage.total_tokens = 1
+
+
+@pytest.mark.parametrize(
+    ("field", "message"),
+    [
+        ("prompt_tokens", "prompt_tokens"),
+        ("completion_tokens", "completion_tokens"),
+        ("total_tokens", "total_tokens"),
+    ],
+)
+def test_init_rejects_non_integer_token_counts(field: str, message: str) -> None:
+    with pytest.raises(TypeError, match=message):
+        ModelUsage(**{field: "invalid"})

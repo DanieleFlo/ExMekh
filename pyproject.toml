@@ -28,6 +28,15 @@ markers = [
     "live: contacts a real model provider and runs only with explicit opt-in",
 ]
 
+[tool.coverage.run]
+branch = true
+source = ["qs"]
+omit = ["src/qs/main.py"]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+
 [project.scripts]
 qs = "qs.main:main"
 

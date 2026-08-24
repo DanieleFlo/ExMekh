@@ -37,3 +37,25 @@ def test_init_uses_optional_metadata_defaults() -> None:
 def test_init_rejects_non_structured_message() -> None:
     with pytest.raises(TypeError, match="StructuredAssistantMessage"):
         StructuredProviderResponse(object())
+
+
+@pytest.mark.parametrize(
+    ("metadata", "message"),
+    [
+        ({"usage": object()}, "ModelUsage"),
+        ({"thinking": object()}, "ModelThinking"),
+    ],
+)
+def test_init_rejects_invalid_metadata(metadata: dict, message: str) -> None:
+    response = StructuredAssistantMessage(Answer(value=42))
+
+    with pytest.raises(TypeError, match=message):
+        StructuredProviderResponse(response, **metadata)
+
+
+def test_init_rejects_non_model_response_content(monkeypatch) -> None:
+    message = StructuredAssistantMessage(Answer(value=42))
+    monkeypatch.setattr(message, "get_message", lambda: object())
+
+    with pytest.raises(TypeError, match="Pydantic BaseModel"):
+        StructuredProviderResponse(message)

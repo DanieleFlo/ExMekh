@@ -30,3 +30,20 @@ def test_init_preserves_response_metadata() -> None:
 def test_init_rejects_non_message_response() -> None:
     with pytest.raises(TypeError, match="Response must be an AssistantMessage"):
         ProviderResponse(object())
+
+
+@pytest.mark.parametrize(
+    ("metadata", "message"),
+    [
+        ({"usage": object()}, "ModelUsage"),
+        ({"thinking": object()}, "ModelThinking"),
+    ],
+)
+def test_init_rejects_invalid_metadata(metadata: dict, message: str) -> None:
+    with pytest.raises(TypeError, match=message):
+        ProviderResponse(AssistantMessage("answer"), **metadata)
+
+
+def test_init_rejects_response_without_text_content() -> None:
+    with pytest.raises(TypeError, match="content must be a string"):
+        ProviderResponse(AssistantMessage(None))

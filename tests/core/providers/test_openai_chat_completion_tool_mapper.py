@@ -90,6 +90,37 @@ def test_map_tools_preserves_registry_order() -> None:
     assert [item["function"]["name"] for item in mapped] == ["search", "count"]
 
 
+def test_map_tool_omits_non_json_default_and_empty_required_list() -> None:
+    opaque_default = object()
+
+    def inspect_value(value: object = opaque_default) -> object:
+        return value
+
+    mapped = OpenAIChatCompletionToolMapper.map_tool(Tool(inspect_value))
+    parameters = mapped["function"]["parameters"]
+
+    assert parameters == {
+        "type": "object",
+        "properties": {"value": {}},
+        "additionalProperties": False,
+    }
+    assert "description" not in mapped["function"]
+
+
+@pytest.mark.parametrize(
+    ("method", "value", "message"),
+    [
+        (OpenAIChatCompletionToolMapper.map_tools, object(), "Tools instance"),
+        (OpenAIChatCompletionToolMapper.map_tool, object(), "Tool instance"),
+    ],
+)
+def test_map_rejects_invalid_registry_types(
+    method, value: object, message: str
+) -> None:
+    with pytest.raises(TypeError, match=message):
+        method(value)
+
+
 def test_map_tool_rejects_missing_annotations() -> None:
     def untyped(value):
         return value
@@ -172,6 +203,19 @@ def test_find_tool_supports_internal_tool_call() -> None:
 def test_find_tool_rejects_non_function_or_malformed_calls(tool_call) -> None:
     with pytest.raises((TypeError, ValueError)):
         OpenAIChatCompletionToolMapper.find_tool(tool_call, Tools([Tool(search)]))
+
+
+def test_resolve_tool_call_rejects_non_string_internal_arguments() -> None:
+    tool_call = FunctionToolCall(
+        id="call_123",
+        function=FunctionCall(name="search", arguments=cast(str, object())),
+    )
+
+    with pytest.raises(TypeError, match="arguments must be a string"):
+        OpenAIChatCompletionToolMapper.resolve_tool_call(
+            tool_call,
+            Tools([Tool(search)]),
+        )
 
 
 @pytest.mark.parametrize(

@@ -1,3 +1,7 @@
+from typing import cast
+
+import pytest
+
 from qs.core.models.function_message import FunctionMessage
 
 
@@ -24,3 +28,17 @@ def test_message_dump_returns_provider_fields() -> None:
     message = FunctionMessage("result", "calculate")
 
     assert message.message_dump() == {"role": "function", "content": "result"}
+
+
+@pytest.mark.parametrize(
+    ("content", "name", "message"),
+    [
+        (object(), "calculate", "content must be a string"),
+        ("result", object(), "name must be a string"),
+    ],
+)
+def test_init_rejects_invalid_fields(
+    content: object, name: object, message: str
+) -> None:
+    with pytest.raises(TypeError, match=message):
+        FunctionMessage(cast(str, content), cast(str, name))

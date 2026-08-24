@@ -13,11 +13,11 @@ from qs.core.models.structured_provider_response import StructuredProviderRespon
 class Provider(ABC):
     @abstractmethod
     def call(self, request: ProviderRequest) -> ProviderResponse:
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def call_structured[ResponseModel: BaseModel](
         self,
         request: StructuredProviderRequest[ResponseModel],
     ) -> StructuredProviderResponse[ResponseModel]:
-        pass
+        pass  # pragma: no cover
