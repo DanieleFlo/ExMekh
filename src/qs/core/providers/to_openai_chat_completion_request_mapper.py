@@ -36,8 +36,11 @@ class ToOpenAIChatCompletionRequestMapper:
         payload: dict[str, Any] = {
             "model": model,
             "messages": cls._map_messages(request.get_messages()),
-            "stream": False,
+            "stream": request.get_streaming(),
         }
+
+        if request.get_streaming():
+            payload["stream_options"] = {"include_usage": True}
 
         if reasoning_effort is not None:
             payload["reasoning_effort"] = cls._get_reasoning_effort_value(

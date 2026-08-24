@@ -48,6 +48,17 @@ def test_init_rejects_non_system_message() -> None:
         Client(provider=provider, system_message=cast(SystemMessage, object()))
 
 
+def test_init_rejects_invalid_tools() -> None:
+    provider = MagicMock(spec=Provider)
+
+    with pytest.raises(TypeError, match="Tools must be a Tools instance"):
+        Client(
+            provider=provider,
+            system_message=SystemMessage("rules"),
+            tools=cast(Tools, object()),
+        )
+
+
 @pytest.mark.parametrize(
     "malicious_input",
     [
@@ -158,6 +169,32 @@ def test_call_forwards_tools_and_tool_choice() -> None:
     assert provider_request.get_extra() == {"temperature": 0.2}
 
 
+@pytest.mark.parametrize("structured", [False, True])
+def test_call_forwards_streaming_options(structured: bool) -> None:
+    provider = MagicMock(spec=Provider)
+    provider.call.return_value = ProviderResponse(AssistantMessage("answer"))
+    provider.call_structured.return_value = StructuredProviderResponse(
+        StructuredAssistantMessage(StructuredAnswer(value=42))
+    )
+    client = Client(provider=provider, system_message=SystemMessage("rules"))
+    callback = lambda event: None
+    request = ClientRequest(
+        UserMessage("question"),
+        streaming=True,
+        on_event=callback,
+    )
+
+    if structured:
+        client.call_structured(request, StructuredAnswer)
+        provider_request = provider.call_structured.call_args.args[0]
+    else:
+        client.call(request)
+        provider_request = provider.call.call_args.args[0]
+
+    assert provider_request.get_streaming() is True
+    assert provider_request.on_event is callback
+
+
 def test_call_provider_failure_keeps_unanswered_request_in_history() -> None:
     provider = MagicMock(spec=Provider)
     system_message = SystemMessage("stable-rules")
@@ -243,6 +280,17 @@ def test_continue_after_tools_requires_tool_response() -> None:
     provider.call.assert_not_called()
 
 
+def test_add_tool_response_rejects_non_tool_message_without_changing_history() -> None:
+    provider = MagicMock(spec=Provider)
+    system_message = SystemMessage("rules")
+    client = Client(provider=provider, system_message=system_message)
+
+    with pytest.raises(TypeError, match="Expected a ToolMessage"):
+        client.add_tool_response(cast(ToolMessage, object()))
+
+    assert client.get_history() == [system_message]
+
+
 def test_continue_after_tools_structured_builds_structured_request() -> None:
     provider = MagicMock(spec=Provider)
     system_message = SystemMessage("rules")
@@ -325,6 +373,18 @@ def test_call_structured_records_typed_response_and_uses_strict_default() -> Non
     assert result is response
     assert result.response.get_message() == content
     assert client.dump_history()[-1]["content"] == '{"value":42}'
+
+
+def test_call_structured_rejects_non_request_without_contacting_provider() -> None:
+    provider = MagicMock(spec=Provider)
+    system_message = SystemMessage("rules")
+    client = Client(provider=provider, system_message=system_message)
+
+    with pytest.raises(TypeError, match="Expected a ClientRequest"):
+        client.call_structured(cast(ClientRequest, object()), StructuredAnswer)
+
+    provider.call_structured.assert_not_called()
+    assert client.get_history() == [system_message]
 
 
 def test_call_structured_forwards_non_strict_mode() -> None:

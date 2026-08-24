@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from qs.core.models.client import Client
 from qs.core.models.client_request import ClientRequest
+from qs.core.models.provider_stream_event import ProviderStreamEvent
 from qs.core.models.reasoning_effort import ReasoningEffort
 from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool_message import ToolMessage
@@ -65,12 +66,15 @@ def main(
     print("E---E")
 
     if tool_calls and tool_calls[0]:
+        def fake_streaming_callback(event: ProviderStreamEvent) -> None:
+            print(f"{event.type} Streaming event: {event}")
+
         tool_id = tool_calls[0].id
         tool_response = ToolMessage(
             content='{"city":"Rome","temperature":"28 °C"}', tool_call_id=tool_id
         )
         client.add_tool_response(tool_response)
-        response = client.continue_after_tools()
+        response = client.continue_after_tools(streaming=True, on_event=fake_streaming_callback)
 
         print("S---S")
         print("Tool response added to history.")

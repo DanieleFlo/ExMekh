@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from pydantic import BaseModel
 
 from qs.core.models.client_request import ClientRequest
 from qs.core.models.history import MessageHistory
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
+from qs.core.models.provider_stream_event import ProviderStreamEvent
 from qs.core.models.structured_provider_request import StructuredProviderRequest
 from qs.core.models.structured_provider_response import StructuredProviderResponse
 from qs.core.models.system_message import SystemMessage
@@ -55,6 +58,8 @@ class Client:
         *,
         extra: dict | None = None,
         tool_choice: str | None = None,
+        streaming: bool = False,
+        on_event: Callable[[ProviderStreamEvent], None] | None = None,
     ) -> ProviderResponse:
         messages = self._get_tool_continuation_messages()
         provider_request = ProviderRequest(
@@ -62,6 +67,8 @@ class Client:
             extra=extra,
             tool_choice=tool_choice,
             tools=self.tools,
+            stream=streaming,
+            on_event=on_event,
         )
         response = self._provider.call(provider_request)
         self._history.add(response.response)
@@ -90,6 +97,8 @@ class Client:
         strict: bool = True,
         extra: dict | None = None,
         tool_choice: str | None = None,
+        streaming: bool = False,
+        on_event: Callable[[ProviderStreamEvent], None] | None = None,
     ) -> StructuredProviderResponse[ResponseModel]:
         messages = self._get_tool_continuation_messages()
         provider_request = StructuredProviderRequest(
@@ -99,6 +108,8 @@ class Client:
             extra=extra,
             tool_choice=tool_choice,
             tools=self.tools,
+            stream=streaming,
+            on_event=on_event,
         )
         response = self._provider.call_structured(provider_request)
         self._history.add(response.response)
@@ -127,6 +138,8 @@ class Client:
             extra=request.extra,
             tool_choice=request.tool_choice,
             tools=self.tools,
+            stream=request.streaming,
+            on_event=request.on_event,
         )
         return provider_request
 
@@ -158,5 +171,7 @@ class Client:
             extra=request.extra,
             tool_choice=request.tool_choice,
             tools=self.tools,
+            stream=request.streaming,
+            on_event=request.on_event,
         )
         return provider_request

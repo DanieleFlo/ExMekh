@@ -1,3 +1,4 @@
+from typing import cast
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -50,6 +51,18 @@ def test_map_request_builds_minimal_payload() -> None:
         ],
         "stream": False,
     }
+
+
+def test_map_request_includes_usage_for_streaming() -> None:
+    request = ProviderRequest([UserMessage("question")], stream=True)
+
+    payload = ToOpenAIChatCompletionRequestMapper.map_request(
+        request,
+        model="model",
+    )
+
+    assert payload["stream"] is True
+    assert payload["stream_options"] == {"include_usage": True}
 
 
 def test_map_request_maps_all_provider_options() -> None:
@@ -157,3 +170,10 @@ def test_map_request_omits_empty_tool_registry() -> None:
     payload = ToOpenAIChatCompletionRequestMapper.map_request(request, model="model")
 
     assert "tools" not in payload
+
+
+def test_get_reasoning_effort_value_rejects_unsupported_type() -> None:
+    with pytest.raises(TypeError, match="string or an instance of ReasoningEffort"):
+        ToOpenAIChatCompletionRequestMapper._get_reasoning_effort_value(
+            cast(ReasoningEffort, object())
+        )

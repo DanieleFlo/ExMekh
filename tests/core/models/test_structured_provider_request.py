@@ -32,6 +32,20 @@ def test_init_preserves_non_strict_mode_and_provider_options() -> None:
     assert request.get_tool_choice() == "auto"
 
 
+def test_init_preserves_streaming_options() -> None:
+    callback = lambda event: None
+
+    request = StructuredProviderRequest(
+        [SystemMessage("rules")],
+        Answer,
+        stream=True,
+        on_event=callback,
+    )
+
+    assert request.get_streaming() is True
+    assert request.on_event is callback
+
+
 @pytest.mark.parametrize("response_model", [object, Answer(value=42)])
 def test_init_rejects_non_pydantic_model_type(response_model) -> None:
     with pytest.raises(TypeError, match="Pydantic BaseModel type"):

@@ -1,17 +1,29 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
+from typing import Any, cast
+
 from openai import OpenAI
+from openai.lib.streaming.chat import ChatCompletionStreamState
+from openai.types.chat import ChatCompletionChunk
 from openai.types.chat.chat_completion import ChatCompletion
 from pydantic import BaseModel
 
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
+from qs.core.models.provider_stream_event import (
+    ProviderStreamEvent,
+    ProviderStreamEventType,
+)
 from qs.core.models.reasoning_effort import ReasoningEffort
 from qs.core.models.structured_assistant_message import StructuredAssistantMessage
 from qs.core.models.structured_provider_request import StructuredProviderRequest
 from qs.core.models.structured_provider_response import StructuredProviderResponse
 from qs.core.providers.from_openai_chat_completion_mapper import (
     FromOpenAIChatCompletionMapper,
+)
+from qs.core.providers.from_openai_chat_completion_stream_mapper import (
+    FromOpenAIChatCompletionStreamMapper,
 )
 from qs.core.providers.openai_chat_completion_response_format_mapper import (
     OpenAIChatCompletionResponseFormatMapper,
@@ -62,7 +74,7 @@ class ChatCompletionOpenAI:
             model=self._model,
             reasoning_effort=self._reasoning_effort,
         )
-        return self._client.chat.completions.create(**payload)
+        return self._execute_payload(request, payload)
 
     def _execute_structured_request[ResponseModel: BaseModel](
         self,
@@ -78,7 +90,51 @@ class ChatCompletionOpenAI:
             request.get_response_model(),
             strict=request.get_strict(),
         )
-        return self._client.chat.completions.create(**payload)
+        return self._execute_payload(request, payload)
+
+    def _execute_payload(
+        self,
+        request: ProviderRequest,
+        payload: dict[str, Any],
+    ) -> ChatCompletion:
+        response = self._client.chat.completions.create(**payload)
+        if payload.get("stream") is not True:
+            return cast(ChatCompletion, response)
+
+        return self._consume_stream(
+            cast(Iterable[ChatCompletionChunk], response),
+            request,
+        )
+
+    @staticmethod
+    def _consume_stream(
+        stream: Iterable[ChatCompletionChunk],
+        request: ProviderRequest,
+    ) -> ChatCompletion:
+        state = ChatCompletionStreamState()
+        received_chunk = False
+
+        try:
+            start_event = ProviderStreamEventType.START
+
+            request.execute_on_stream_event(ProviderStreamEvent(start_event))
+            for chunk in stream:
+                received_chunk = True
+                state.handle_chunk(chunk)
+                for event in FromOpenAIChatCompletionStreamMapper.map_chunk(chunk):
+                    request.execute_on_stream_event(event)
+        finally:
+            close = getattr(stream, "close", None)
+            if callable(close):
+                close()
+
+        if not received_chunk:
+            raise RuntimeError("No chunks returned from the provider")
+
+        response = cast(ChatCompletion, state.get_final_completion())
+        end_event = ProviderStreamEventType.END
+        request.execute_on_stream_event(ProviderStreamEvent(end_event))
+        return response
 
     def _parse_response(self, response: ChatCompletion) -> ProviderResponse:
         if not response.choices:

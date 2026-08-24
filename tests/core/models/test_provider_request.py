@@ -2,6 +2,10 @@ import pytest
 
 from qs.core.models.assistant_message import AssistantMessage
 from qs.core.models.provider_request import ProviderRequest
+from qs.core.models.provider_stream_event import (
+    ProviderStreamEvent,
+    ProviderStreamEventType,
+)
 from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool import Tool
 from qs.core.models.tools import Tools
@@ -56,6 +60,28 @@ def test_request_preserves_provider_options() -> None:
     assert request.get_tools() is tools
 
 
+def test_request_preserves_streaming_and_executes_callback() -> None:
+    events = []
+    request = ProviderRequest(
+        [SystemMessage("rules")],
+        stream=True,
+        on_event=events.append,
+    )
+    event = ProviderStreamEvent(ProviderStreamEventType.START)
+
+    request.execute_on_stream_event(event)
+
+    assert request.get_streaming() is True
+    assert events == [event]
+
+
+def test_execute_on_stream_event_without_callback_is_a_noop() -> None:
+    request = ProviderRequest([SystemMessage("rules")])
+    event = ProviderStreamEvent(ProviderStreamEventType.START)
+
+    assert request.execute_on_stream_event(event) is None
+
+
 @pytest.mark.parametrize("messages", [None, [], [object()]])
 def test_request_rejects_invalid_messages(messages) -> None:
     with pytest.raises((TypeError, ValueError)):
@@ -73,3 +99,9 @@ def test_request_rejects_invalid_options() -> None:
 
     with pytest.raises(TypeError, match="Tools instance"):
         ProviderRequest(messages, tools=object())
+
+    with pytest.raises(TypeError, match="boolean"):
+        ProviderRequest(messages, stream=1)
+
+    with pytest.raises(TypeError, match="callable"):
+        ProviderRequest(messages, on_event=object())

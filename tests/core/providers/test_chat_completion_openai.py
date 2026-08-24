@@ -3,6 +3,7 @@ from typing import cast
 from unittest.mock import MagicMock, patch
 
 import pytest
+from openai.types.chat import ChatCompletionChunk
 from openai.types.chat.chat_completion import ChatCompletion
 from pydantic import BaseModel, ValidationError
 
@@ -11,6 +12,10 @@ from qs.core.models.model_thinking import ModelThinking
 from qs.core.models.model_usage import ModelUsage
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
+from qs.core.models.provider_stream_event import (
+    ProviderStreamEvent,
+    ProviderStreamEventType,
+)
 from qs.core.models.reasoning_effort import ReasoningEffort, ReasoningEffortLMX
 from qs.core.models.structured_assistant_message import StructuredAssistantMessage
 from qs.core.models.structured_provider_request import StructuredProviderRequest
@@ -32,11 +37,83 @@ class StructuredAnswer(BaseModel):
     value: int
 
 
+def make_stream_chunk(
+    choices: list[dict],
+    usage: dict | None = None,
+) -> ChatCompletionChunk:
+    return ChatCompletionChunk.model_validate(
+        {
+            "id": "chunk-1",
+            "created": 1,
+            "model": "model",
+            "object": "chat.completion.chunk",
+            "choices": choices,
+            "usage": usage,
+        }
+    )
+
+
+def make_stream(content: str) -> list[ChatCompletionChunk]:
+    return [
+        make_stream_chunk(
+            [
+                {
+                    "index": 0,
+                    "delta": {
+                        "role": "assistant",
+                        "reasoning_content": "thinking",
+                    },
+                    "finish_reason": None,
+                }
+            ]
+        ),
+        make_stream_chunk(
+            [
+                {
+                    "index": 0,
+                    "delta": {"content": content},
+                    "finish_reason": "stop",
+                }
+            ]
+        ),
+        make_stream_chunk(
+            [],
+            {
+                "prompt_tokens": 2,
+                "completion_tokens": 3,
+                "total_tokens": 5,
+            },
+        ),
+    ]
+
+
 def test_init_preserves_client_and_model(openai_client) -> None:
     completion = ChatCompletionOpenAI(openai_client, "model")
 
     assert completion._client is openai_client
     assert completion._model == "model"
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("client", object(), "Client must be an instance of OpenAI"),
+        ("model", object(), "Model must be a string"),
+        ("reasoning_effort", object(), "Reasoning effort must be"),
+    ],
+)
+def test_init_rejects_invalid_inputs(
+    openai_client, field: str, value: object, message: str
+) -> None:
+    arguments = {
+        "client": openai_client,
+        "model": "model",
+        "reasoning_effort": None,
+    }
+    arguments[field] = value
+
+    with pytest.raises(TypeError, match=message):
+        ChatCompletionOpenAI(**arguments)
 
 
 def test_call_executes_and_parses_provider_response(openai_client) -> None:
@@ -58,6 +135,56 @@ def test_call_executes_and_parses_provider_response(openai_client) -> None:
     assert result is parsed_response
     execute.assert_called_once_with(request)
     parse.assert_called_once_with(provider_response)
+
+
+def test_call_streams_mapped_events_and_returns_accumulated_response(
+    openai_client,
+) -> None:
+    events = []
+    completion = ChatCompletionOpenAI(openai_client, "model")
+    request = ProviderRequest(
+        [SystemMessage("rules")],
+        stream=True,
+        on_event=events.append,
+    )
+    openai_client.chat.completions.create.return_value = make_stream("answer")
+
+    result = completion.call(request)
+
+    assert result.response.get_message() == "answer"
+    assert result.thinking == ModelThinking("thinking")
+    assert result.usage == ModelUsage(2, 3, 5)
+    assert events == [
+        ProviderStreamEvent(ProviderStreamEventType.START),
+        ProviderStreamEvent(
+            ProviderStreamEventType.REASONING,
+            content="thinking",
+        ),
+        ProviderStreamEvent(
+            ProviderStreamEventType.RESPONSE,
+            content="answer",
+        ),
+        ProviderStreamEvent(
+            ProviderStreamEventType.TOTALS,
+            usage=ModelUsage(2, 3, 5),
+        ),
+        ProviderStreamEvent(ProviderStreamEventType.END),
+    ]
+
+
+def test_consume_stream_closes_empty_stream_and_omits_end_event() -> None:
+    events = []
+    request = ProviderRequest(
+        [SystemMessage("rules")], stream=True, on_event=events.append
+    )
+    stream = MagicMock()
+    stream.__iter__.return_value = iter([])
+
+    with pytest.raises(RuntimeError, match="No chunks returned"):
+        ChatCompletionOpenAI._consume_stream(stream, request)
+
+    stream.close.assert_called_once_with()
+    assert events == [ProviderStreamEvent(ProviderStreamEventType.START)]
 
 
 def test_execute_request_sends_expected_provider_arguments(openai_client) -> None:
@@ -192,6 +319,29 @@ def test_call_structured_executes_and_parses_provider_response(openai_client) ->
     parse.assert_called_once_with(provider_response, request)
 
 
+def test_call_structured_streams_and_parses_accumulated_json(openai_client) -> None:
+    events = []
+    completion = ChatCompletionOpenAI(openai_client, "model")
+    request = StructuredProviderRequest(
+        [SystemMessage("rules")],
+        StructuredAnswer,
+        stream=True,
+        on_event=events.append,
+    )
+    openai_client.chat.completions.create.return_value = make_stream('{"value":42}')
+
+    result = completion.call_structured(request)
+
+    assert result.response.get_message() == StructuredAnswer(value=42)
+    assert [event.type for event in events] == [
+        ProviderStreamEventType.START,
+        ProviderStreamEventType.REASONING,
+        ProviderStreamEventType.RESPONSE,
+        ProviderStreamEventType.TOTALS,
+        ProviderStreamEventType.END,
+    ]
+
+
 def test_execute_structured_request_sends_strict_response_format(
     openai_client,
 ) -> None:
@@ -322,6 +472,15 @@ def test_parse_structured_response_non_strict_mode_allows_coercion(
     )
 
     assert result.response.get_message() == StructuredAnswer(value=42)
+
+
+def test_parse_structured_response_rejects_empty_choices(openai_client) -> None:
+    completion = ChatCompletionOpenAI(openai_client, "model")
+    request = StructuredProviderRequest([SystemMessage("rules")], StructuredAnswer)
+    response = cast(ChatCompletion, SimpleNamespace(choices=[]))
+
+    with pytest.raises(RuntimeError, match="No choices returned from the provider"):
+        completion._parse_structured_response(response, request)
 
 
 @pytest.mark.parametrize(
