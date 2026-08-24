@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from typing import List
 
-from qs.core.models.system_message import SystemMessage
 from qs.interfaces.message import Message
 
 logger = logging.getLogger(__name__)
@@ -21,10 +20,8 @@ class MessageHistory:
             raise ValueError("History cannot be empty")
         if not all(isinstance(message, Message) for message in self._history):
             raise TypeError("Item must be an instance of Message")
-        if not isinstance(self._history[0], SystemMessage):
-            raise TypeError(
-                "First item in history must be an instance of SystemMessage"
-            )
+        if self._history[0].get_role_name() != "system":
+            raise TypeError("First item in history must have the system role")
 
         for previous, current in zip(self._history, self._history[1:]):
             if not self._is_valid_transition(previous, current):
@@ -76,15 +73,6 @@ class MessageHistory:
         candidate.check_history()
         self._history = candidate.get_history()
         return MessageHistory(self._history)
-
-    def add_exchange(
-        self,
-        request_messages: List[Message],
-        response_message: Message,
-    ) -> MessageHistory:
-        exchange = request_messages.copy()
-        exchange.append(response_message)
-        return self.add(exchange)
 
     def get_history(self) -> list[Message]:
         return list(self._history)

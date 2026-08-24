@@ -8,6 +8,10 @@ def pil_image_to_data_url(
     image: Image.Image,
     format: str = "PNG",
 ) -> str:
+    if not isinstance(image, Image.Image):
+        raise TypeError("Input must be a PIL Image")
+    if not isinstance(format, str):
+        raise TypeError("Format must be a string")
     normalized_format = format.upper()
     pillow_format = "JPEG" if normalized_format == "JPG" else normalized_format
     mime_type = {

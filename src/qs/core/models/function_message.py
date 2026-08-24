@@ -3,7 +3,7 @@ from __future__ import annotations
 from qs.interfaces.message import Message
 
 
-class FunctionMessage(Message):
+class FunctionMessage(Message[str | None]):
     def __init__(
         self,
         content: str | None,
@@ -12,6 +12,13 @@ class FunctionMessage(Message):
         self._content = content
         self._role: str = "function"
         self._name = name
+        self._check_inputs()
+
+    def _check_inputs(self):
+        if self._content is not None and not isinstance(self._content, str):
+            raise TypeError("Function content must be a string")
+        if not isinstance(self._name, str):
+            raise TypeError("Function name must be a string")
 
     def get_message(self) -> str | None:
         return self._content

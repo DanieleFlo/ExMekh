@@ -18,6 +18,21 @@ class UserMessage(Message):
         self._content = content
         self._role = "user"
         self._name = name
+        self._check_inputs()
+
+    def _check_inputs(self):
+        if not isinstance(self._role, str):
+            raise TypeError("User role must be a string")
+        if not isinstance(self._name, str):
+            raise TypeError("User name must be a string")
+        if not isinstance(
+            self._content,
+            (str, TextsUserMessage, ImagesUserMessage, FilesUserMessage),
+        ):
+            raise TypeError(
+                "User content must be a string or an instance of TextsUserMessage, "
+                "ImagesUserMessage, or FilesUserMessage"
+            )
 
     def get_message(
         self,

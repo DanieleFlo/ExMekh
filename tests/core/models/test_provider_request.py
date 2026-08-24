@@ -1,70 +1,75 @@
 import pytest
 
-from qs.core.models.history import MessageHistory
+from qs.core.models.assistant_message import AssistantMessage
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.system_message import SystemMessage
+from qs.core.models.tool import Tool
+from qs.core.models.tools import Tools
 from qs.core.models.user_message import UserMessage
 
 
-def test_get_request_adds_single_message_to_history() -> None:
-    system_message = SystemMessage("rules")
-    user_message = UserMessage("question")
-    request = ProviderRequest(user_message, MessageHistory([system_message]))
+def test_get_messages_returns_messages_in_order() -> None:
+    messages = [
+        SystemMessage("non-default-rules"),
+        UserMessage("non-default-question"),
+        AssistantMessage("non-default-answer"),
+    ]
+    request = ProviderRequest(messages)
 
-    result = request.get_request()
+    result = request.get_messages()
 
-    assert result.get_history() == [system_message, user_message]
-
-
-def test_get_request_adds_message_list_to_history() -> None:
-    system_message = SystemMessage("rules")
-    messages = [UserMessage("first"), UserMessage("second")]
-    request = ProviderRequest(messages, MessageHistory([system_message]))
-
-    result = request.get_request()
-
-    assert result.get_history() == [system_message, *messages]
+    assert result == messages
 
 
-def test_get_request_is_repeatable_without_mutating_source_history() -> None:
+def test_get_messages_is_isolated_from_external_list_mutation() -> None:
     system_message = SystemMessage("stable-rules")
-    user_message = UserMessage("repeatable-question")
-    source = MessageHistory([system_message])
-    request = ProviderRequest(user_message, source)
+    source = [system_message]
+    request = ProviderRequest(source)
 
-    first = request.get_request()
-    second = request.get_request()
+    source.append(UserMessage("source mutation"))
+    result = request.get_messages()
+    result.append(UserMessage("attempted external mutation"))
 
-    assert first.get_history() == [system_message, user_message]
-    assert second.get_history() == first.get_history()
-    assert source.get_history() == [system_message]
+    assert request.get_messages() == [system_message]
 
 
-@pytest.mark.parametrize("messages", [[], ""])
-def test_get_request_rejects_empty_messages(messages) -> None:
-    request = ProviderRequest(messages, MessageHistory([SystemMessage("rules")]))
+def test_request_preserves_provider_options() -> None:
+    def search(query: str) -> str:
+        return query
 
-    with pytest.raises(ValueError, match="Messages cannot be empty"):
-        request.get_request()
-
-
-def test_get_request_rejects_non_message_list_items() -> None:
+    tools = Tools([Tool(search)])
+    extra = {"temperature": 0.2}
     request = ProviderRequest(
-        [UserMessage("question"), object()],
-        MessageHistory([SystemMessage("rules")]),
+        [SystemMessage("rules")],
+        extra=extra,
+        tool_choice="auto",
+        tools=tools,
     )
 
-    with pytest.raises(
-        TypeError, match="All items in messages must be instances of Message"
-    ):
-        request.get_request()
+    extra["temperature"] = 1
+    returned_extra = request.get_extra()
+    assert returned_extra is not None
+    returned_extra["temperature"] = 2
+
+    assert request.get_extra() == {"temperature": 0.2}
+    assert request.get_tool_choice() == "auto"
+    assert request.get_tools() is tools
 
 
-def test_get_request_rejects_unsupported_type() -> None:
-    request = ProviderRequest(42, MessageHistory([SystemMessage("rules")]))
+@pytest.mark.parametrize("messages", [None, [], [object()]])
+def test_request_rejects_invalid_messages(messages) -> None:
+    with pytest.raises((TypeError, ValueError)):
+        ProviderRequest(messages)
 
-    with pytest.raises(
-        TypeError,
-        match="Messages must be an instance of Message or a list of Message instances",
-    ):
-        request.get_request()
+
+def test_request_rejects_invalid_options() -> None:
+    messages = [SystemMessage("rules")]
+
+    with pytest.raises(TypeError, match="dictionary"):
+        ProviderRequest(messages, extra="invalid")
+
+    with pytest.raises(TypeError, match="Tool choice"):
+        ProviderRequest(messages, tool_choice=object())
+
+    with pytest.raises(TypeError, match="Tools instance"):
+        ProviderRequest(messages, tools=object())

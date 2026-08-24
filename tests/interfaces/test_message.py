@@ -3,7 +3,7 @@ import pytest
 from qs.interfaces.message import Message
 
 
-class ConcreteMessage(Message):
+class ConcreteMessage(Message[str]):
     def get_message(self) -> str:
         return "content"
 

@@ -1,3 +1,5 @@
+import pytest
+
 from qs.core.models.assistant_message import AssistantMessage
 from qs.core.models.model_thinking import ModelThinking
 from qs.core.models.model_usage import ModelUsage
@@ -23,3 +25,8 @@ def test_init_preserves_response_metadata() -> None:
     assert response.response is message
     assert response.thinking is thinking
     assert response.usage is usage
+
+
+def test_init_rejects_non_message_response() -> None:
+    with pytest.raises(TypeError, match="Response must be an AssistantMessage"):
+        ProviderResponse(object())

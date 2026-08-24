@@ -3,7 +3,7 @@ from __future__ import annotations
 from qs.interfaces.message import Message
 
 
-class ToolMessage(Message):
+class ToolMessage(Message[str]):
     def __init__(
         self,
         content: str,
@@ -14,6 +14,15 @@ class ToolMessage(Message):
         self._tool_call_id = tool_call_id
         self._role: str = "tool"
         self._name = name
+        self._check_inputs()
+
+    def _check_inputs(self):
+        if not isinstance(self._content, str):
+            raise TypeError("Tool content must be a string")
+        if not isinstance(self._tool_call_id, str):
+            raise TypeError("Tool call ID must be a string")
+        if not isinstance(self._name, str):
+            raise TypeError("Tool name must be a string")
 
     def get_message(self) -> str:
         return self._content

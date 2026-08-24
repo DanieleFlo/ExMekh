@@ -9,11 +9,23 @@ from qs.core.models.history import MessageHistory
 from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.user_message import UserMessage
+from qs.interfaces.message import Message
 
 
 @dataclass
 class NotAMessage:
     content: str
+
+
+class AlternativeSystemMessage(Message[str]):
+    def get_message(self) -> str:
+        return "alternative rules"
+
+    def get_role_name(self) -> str:
+        return "system"
+
+    def message_dump(self) -> dict:
+        return {"role": "system", "content": self.get_message()}
 
 
 def test_init_creates_empty_history_by_default() -> None:
@@ -102,10 +114,8 @@ def test_add_exchange_records_request_and_response_together() -> None:
     response_message = AssistantMessage("exchange-answer")
     history = MessageHistory()
 
-    result = history.add_exchange(
-        request_messages=[system_message, user_message],
-        response_message=response_message,
-    )
+    result = history.add([system_message, user_message])
+    result = history.add(response_message)
 
     assert history.get_history() == [system_message, user_message, response_message]
     assert result.get_history() == history.get_history()
@@ -138,6 +148,15 @@ def test_add_rejects_non_system_first_message_atomically() -> None:
         history.add(UserMessage("attempted injection"))
 
     assert history.get_history() == []
+
+
+def test_history_accepts_system_role_without_concrete_system_message() -> None:
+    message = AlternativeSystemMessage()
+    history = MessageHistory()
+
+    history.add(message)
+
+    assert history.get_history() == [message]
 
 
 def test_check_history_accepts_all_supported_transitions(caplog) -> None:
