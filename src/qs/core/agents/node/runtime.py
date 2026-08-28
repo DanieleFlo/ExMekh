@@ -12,11 +12,11 @@ from qs.core.models.client import Client
 from qs.core.models.client_request import ClientRequest
 from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.system_message import SystemMessage
-from qs.core.models.tool import Tool
 from qs.core.models.tools import Tools
 from qs.core.models.user_message import ErrorUserMessage, UserMessage
 from qs.interfaces.provider import Provider
 
+from .agentic_scope import AgenticScope
 from .tool_call_executor import ToolCallExecutor
 from .tool_call_resolver import ToolCallResolver
 from .types import NodeUserMessage
@@ -28,40 +28,32 @@ logger = logging.getLogger(__name__)
 class NodeRuntimeConfig:
     provider: Provider
     capabilities: CapabilitiesData
-    hds_name: str
+    hds: HDS
     exit_skill: ExitSkill
     persistent_history: bool
     initial_depth: int
 
-    def build_tools(self, hds: HDS) -> Tools:
-        direct_tool_names = hds.get_direct_tool_names()
-        skill_availability = self.capabilities.get_skill_availability()
+    def build_tools(self) -> Tools:
+        return Tools(list(self.capabilities.get_contextual_tools(self.hds)))
 
-        tools = [
-            self._prepare_tool(tool, direct_tool_names, skill_availability)
-            for tool in self.capabilities.get_all_tools()
-        ]
-        return Tools(tools)
+    def build_executor(self, client: Client) -> ToolCallExecutor:
+        agentic_scope = AgenticScope(
+            hds=self.hds,
+            exit_skill_name=self.exit_skill.name,
+            exit_tool_names=self.capabilities.get_exit_tool_names(self.exit_skill.name),
+        )
+        return ToolCallExecutor(
+            client=client,
+            exit_skill=self.exit_skill,
+            initial_depth=self.initial_depth,
+            agentic_scope=agentic_scope,
+        )
 
-    @staticmethod
-    def _prepare_tool(
-        tool: Tool,
-        direct_tool_names: set[str],
-        skill_availability: dict[str, list[str]],
-    ) -> Tool:
-        if tool.name in direct_tool_names:
-            return tool
+    def get_hds_name(self) -> str:
+        return self.hds.name
 
-        skill_names = skill_availability.get(tool.name, [])
-        if not skill_names:
-            description = ""
-        elif len(skill_names) == 1:
-            description = f"Available in skill '{skill_names[0]}'."
-        else:
-            names = ", ".join(f"'{name}'" for name in skill_names)
-            description = f"Available in skills {names}."
-
-        return tool.with_description(description)
+    def build_system_message(self) -> SystemMessage:
+        return SystemMessage(content=self.hds.get_hds())
 
 
 class NodeRuntime:
@@ -89,18 +81,21 @@ class NodeRuntime:
             self._reset_session()
 
         logger.info(
-            "Starting node run: node=%s depth=%d", self._config.hds_name, self.depth
+            "Starting node run: node=%s depth=%d",
+            self._config.get_hds_name(),
+            self.depth,
         )
         response = self._client.call(
             ClientRequest(
                 message=UserMessage(content=user_message),
+                extra=self._executor.build_agentic_extra(),
                 tool_choice=self._current_tool_choice(),
             )
         )
         response = self._route_until_complete(response)
         logger.info(
             "Completed node run: node=%s depth=%d root_executions=%d",
-            self._config.hds_name,
+            self._config.get_hds_name(),
             self.depth,
             len(self._executor.skill_executions),
         )
@@ -115,12 +110,16 @@ class NodeRuntime:
     def _route_until_complete(self, response: ProviderResponse) -> ProviderResponse:
         while True:
             tool_calls = response.get_tool_calls()
-            if tool_calls is not None:
-                self.validate_tool_calls(tool_calls)
-                self._executor.execute_all(self._resolver.resolve_all(tool_calls))
+            if tool_calls:
+                resolved_tool_calls = self._resolver.resolve_all(tool_calls)
+                self._executor.execute_all(resolved_tool_calls)
 
                 tool_choice = self._current_tool_choice()
-                response = self._client.continue_after_tools(tool_choice=tool_choice)
+                response = self._client.continue_after_tools(
+                    extra=self._executor.build_agentic_extra(),
+                    tool_choice=tool_choice,
+                )
+                self._executor.acknowledge_agentic_extra()
                 continue
 
             content = response.get_message()
@@ -130,40 +129,22 @@ class NodeRuntime:
             response = self._client.call(
                 ClientRequest(
                     message=ErrorUserMessage(self.EMPTY_RESPONSE_MESSAGE),
+                    extra=self._executor.build_agentic_extra(),
                     tool_choice=self._current_tool_choice(),
                 )
             )
 
     def _reset_session(self) -> None:
-        hds = next(
-            hds
-            for hds in self._config.capabilities.hds
-            if hds.name == self._config.hds_name
-        )
-
-        tools = self._config.build_tools(hds)
-        content = hds.get_hds()
-        system_message = SystemMessage(content=content)
+        tools = self._config.build_tools()
         self._client = Client(
             provider=self._config.provider,
-            system_message=system_message,
+            system_message=self._config.build_system_message(),
             tools=tools,
         )
 
-        self._executor = ToolCallExecutor(
-            client=self._client,
-            exit_skill=self._config.exit_skill,
-            initial_depth=self._config.initial_depth,
-        )
+        self._executor = self._config.build_executor(self._client)
 
     def _current_tool_choice(self) -> str | None:
         if self.depth > 0:
             return self.REQUIRED_TOOL_CHOICE
         return None
-
-    @staticmethod
-    def validate_tool_calls(tool_calls: object) -> None:
-        if not isinstance(tool_calls, list):
-            raise TypeError("tool_calls must be a list or None")
-        if not tool_calls:
-            raise ValueError("Tool calls list cannot be empty")

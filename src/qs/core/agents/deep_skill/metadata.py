@@ -14,6 +14,9 @@ from qs.core.agents.capability.metadata import (
 class DeepSkillMetadata(CapabilityMetadata):
     inherits_parent_tools: bool
 
+    def get_inherits_parent_tools(self) -> bool:
+        return self.inherits_parent_tools
+
 
 class DeepSkillMetadataParser(CapabilityMetadataParser):
     INHERITS_PARENT_TOOLS_FIELD = MetadataFieldSpec("inherits-parent-tools")

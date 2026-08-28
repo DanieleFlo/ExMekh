@@ -71,6 +71,13 @@ class DeepSkillExecutionTracker:
         return tuple(self._roots)
 
     @property
+    def active_skills(self) -> tuple[DeepSkill, ...]:
+        return tuple(execution.skill for execution in self._active)
+
+    def get_current_start_index(self) -> int:
+        return self.current.start_index
+
+    @property
     def current(self) -> DeepSkillExecution:
         if not self._active:
             raise RuntimeError("No deep skill execution is active")

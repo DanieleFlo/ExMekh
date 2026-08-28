@@ -50,8 +50,9 @@ def test_called_exit_skill_validates_types(tmp_path: Path) -> None:
     tool_call = ToolCall("call-1", FunctionCall("finish", {}))
     called = CalledExitSkill(skill, tool_call)
 
-    assert called.exit_skill is skill
-    assert called.tool_call is tool_call
+    assert called.name == "finish"
+    assert called.call_id == "call-1"
+    assert called.render_instructions() == "Finish now"
 
     with pytest.raises(TypeError, match="exit_skill must be an ExitSkill"):
         CalledExitSkill(cast(ExitSkill, object()), tool_call)

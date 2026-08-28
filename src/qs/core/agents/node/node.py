@@ -57,17 +57,14 @@ class Node:
             raise TypeError("provider must be a Provider")
 
         capabilities = self.load_capabilities()
-        hds = next(hds for hds in capabilities.hds if hds.name == self._name_hds)
-        exit_skill = next(
-            skill
-            for skill in capabilities.exit_skills
-            if skill.name == hds.get_exit_skill_name()
-        )
+        hds = capabilities.get_hds(self._name_hds)
+        exit_skill_name = hds.get_exit_skill_name()
+        exit_skill = capabilities.get_exit_skill(exit_skill_name)
         self._runtime = NodeRuntime(
             NodeRuntimeConfig(
                 provider=provider,
                 capabilities=capabilities,
-                hds_name=self._name_hds,
+                hds=hds,
                 exit_skill=exit_skill,
                 persistent_history=self._persistent_history,
                 initial_depth=self._initial_depth,
@@ -77,7 +74,7 @@ class Node:
 
     def load_capabilities(self) -> CapabilitiesData:
         capabilities = self._capability_loader.load()
-        self._require_configured_hds(capabilities)
+        capabilities.get_hds(self._name_hds)
         return capabilities
 
     def run(self, user_message: NodeUserMessage) -> AgentResponse:
@@ -115,12 +112,3 @@ class Node:
         if depth < 0:
             raise ValueError("depth cannot be negative")
         return depth
-
-    def _require_configured_hds(self, capabilities: CapabilitiesData) -> None:
-        available_hds_names = tuple(hds.name for hds in capabilities.hds)
-        if self._name_hds in available_hds_names:
-            return
-        available_hds = ", ".join(available_hds_names) or "none"
-        raise ValueError(
-            f"HDS '{self._name_hds}' not found. Available HDS: {available_hds}"
-        )

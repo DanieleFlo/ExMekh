@@ -12,6 +12,8 @@ from qs.core.models.tool import Tool
 
 @dataclass(frozen=True, slots=True)
 class CapabilitiesData:
+    _SKILL_ONLY_AVAILABILITY = "Available in every skill."
+
     deep_skills: tuple[DeepSkill, ...]
     tools: tuple[Tool, ...]
     hds: tuple[HDS, ...] = ()
@@ -45,7 +47,62 @@ class CapabilitiesData:
     def get_all_tools(self) -> tuple[DeepSkill | Tool | ExitSkill | ExitTool, ...]:
         return self.deep_skills + self.tools + self.exit_skills + self.exit_tools
 
-    def get_skill_availability(self) -> dict[str, list[str]]:
+    def get_contextual_tools(self, hds: HDS) -> tuple[Tool, ...]:
+        direct_tool_names = hds.get_direct_tool_names()
+        skill_availability = self.get_skill_availability()
+        return tuple(
+            self._prepare_contextual_tool(
+                tool,
+                direct_tool_names,
+                skill_availability,
+            )
+            for tool in self.get_all_tools()
+        )
+
+    def _prepare_contextual_tool(
+        self,
+        tool: Tool,
+        direct_tool_names: set[str],
+        skill_availability: dict[str, tuple[str, ...]],
+    ) -> Tool:
+        if isinstance(tool, (ExitSkill, ExitTool)):
+            return tool.with_description_suffix(self._SKILL_ONLY_AVAILABILITY)
+
+        if tool.name in direct_tool_names:
+            return tool
+
+        skill_names = skill_availability.get(tool.name, [])
+        if not skill_names:
+            description = ""
+        elif len(skill_names) == 1:
+            description = f"Available in skill '{skill_names[0]}'."
+        else:
+            names = ", ".join(f"'{name}'" for name in skill_names)
+            description = f"Available in skills {names}."
+
+        return tool.with_description(description)
+
+    def get_hds(self, name: str) -> HDS:
+        for hds in self.hds:
+            if hds.name == name:
+                return hds
+        available_hds = ", ".join(hds.name for hds in self.hds) or "none"
+        raise ValueError(f"HDS '{name}' not found. Available HDS: {available_hds}")
+
+    def get_exit_skill(self, name: str) -> ExitSkill:
+        for exit_skill in self.exit_skills:
+            if exit_skill.name == name:
+                return exit_skill
+        raise ValueError(f"Exit skill '{name}' not found")
+
+    def get_exit_tool_names(self, exit_skill_name: str) -> tuple[str, ...]:
+        return tuple(
+            exit_tool.name
+            for exit_tool in self.exit_tools
+            if exit_tool.get_exit_skill_name() == exit_skill_name
+        )
+
+    def get_skill_availability(self) -> dict[str, tuple[str, ...]]:
         availability: dict[str, list[str]] = {}
         skills = self.deep_skills + self.exit_skills
 
@@ -53,9 +110,7 @@ class CapabilitiesData:
             for tool_name in skill.get_direct_tool_names():
                 availability.setdefault(tool_name, []).append(skill.name)
 
-        for exit_tool in self.exit_tools:
-            availability.setdefault(exit_tool.name, []).append(
-                exit_tool.get_exit_skill_name()
-            )
-
-        return availability
+        return {
+            tool_name: tuple(skill_names)
+            for tool_name, skill_names in availability.items()
+        }

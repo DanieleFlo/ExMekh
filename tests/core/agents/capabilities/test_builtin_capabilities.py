@@ -89,6 +89,12 @@ def test_builtin_client_receives_contextual_tool_descriptions() -> None:
         "mock-tool": ("Restituisce il testo ricevuto come risultato dimostrativo."),
         "nested-sub-tool": "Available in skill 'nested-skill'.",
         "shared-tool": "Available in skills 'mock-skill', 'nested-skill'.",
-        "finish": "Termina l'esecuzione restituendo la risposta finale.",
-        "exit_agent": "Available in skill 'finish'.",
+        "finish": (
+            "Termina l'esecuzione restituendo la risposta finale. "
+            "Available in every skill."
+        ),
+        "exit_agent": (
+            "Termina l'esecuzione restituendo la risposta finale. "
+            "Available in every skill."
+        ),
     }

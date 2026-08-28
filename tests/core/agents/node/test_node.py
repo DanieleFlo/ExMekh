@@ -11,7 +11,7 @@ from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill
 from qs.core.agents.exit_skill.exit_skill import ExitSkill
 from qs.core.agents.node import Node
-from qs.core.agents.node.runtime import NodeRuntime
+from qs.core.agents.node.agentic_scope import AgenticScope
 from qs.core.agents.node.tool_call_executor import ToolCallExecutor
 from qs.core.agents.node.tool_call_resolver import ToolCallResolver
 from qs.core.models.assistant_message import (
@@ -124,6 +124,7 @@ def _write_nested_capabilities(parent: Path) -> Path:
     (deep_skill_path / "nested-skill.md").write_text(
         "---\n"
         "description: Nested skill\n"
+        "inherits-parent-tools: true\n"
         "sub-tools:\n"
         "  - nested-sub-tool\n"
         "  - shared-tool\n"
@@ -338,8 +339,8 @@ def test_tool_descriptions_reflect_hds_and_skill_availability(
         "nested-sub-tool": "Available in skill 'nested-skill'.",
         "shared-tool": "Available in skills 'mock-skill', 'nested-skill'.",
         "orphan-tool": "",
-        "finish": "Finish",
-        "exit_agent": "Available in skill 'finish'.",
+        "finish": "Finish Available in every skill.",
+        "exit_agent": "Exit agent Available in every skill.",
     }
 
 
@@ -363,18 +364,22 @@ def test_empty_provider_response_adds_error_message_and_retries(
     assert error_message.get_message() == Node.EMPTY_RESPONSE_MESSAGE
 
 
-@pytest.mark.parametrize("tool_calls", [(), "", 0])
-def test_rejects_wrong_tool_call_collection_type(tool_calls: object) -> None:
-    with pytest.raises(TypeError, match="tool_calls must be a list or None"):
-        NodeRuntime.validate_tool_calls(tool_calls)
+def test_empty_tool_call_list_is_treated_as_no_tool_calls(tmp_path: Path) -> None:
+    provider = SequenceProvider([AssistantMessage("Hello", tool_calls=[])])
+    node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
+    node.initialize(provider)
+
+    response = node.run("ciao")
+
+    assert response.get_message() == "Hello"
+    assert len(provider.requests) == 1
 
 
-def test_tool_call_helpers_reject_empty_lists() -> None:
+def test_tool_call_resolver_accepts_no_calls() -> None:
     resolver = ToolCallResolver(cast(CapabilitiesData, MagicMock()))
 
     assert resolver.resolve_all(None) == []
-    with pytest.raises(ValueError, match="Tool calls list cannot be empty"):
-        NodeRuntime.validate_tool_calls([])
+    assert resolver.resolve_all([]) == []
 
 
 def test_identify_tool_choice_rejects_unknown_and_unsupported_tools() -> None:
@@ -396,6 +401,7 @@ def test_executor_rejects_unsupported_mapped_capability() -> None:
         client=MagicMock(spec=Client),
         exit_skill=cast(ExitSkill, object()),
         initial_depth=0,
+        agentic_scope=MagicMock(spec=AgenticScope),
     )
 
     with pytest.raises(TypeError, match="Node supports only"):
@@ -412,6 +418,7 @@ def test_run_tool_delegates_execution_to_called_tool() -> None:
         client=client,
         exit_skill=cast(ExitSkill, object()),
         initial_depth=0,
+        agentic_scope=MagicMock(spec=AgenticScope),
     )
 
     executor.execute(called_tool)
@@ -468,6 +475,103 @@ def test_skill_increments_depth_adds_exit_body_and_requires_a_tool(
     )
     exit_message = cast(ToolMessage, provider.requests[2].get_messages()[-1])
     assert exit_message.get_message() == "done"
+
+
+def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:
+    provider = SequenceProvider(
+        [
+            AssistantMessage(
+                "",
+                tool_calls=[
+                    _function_call("mock-skill", {}, call_id="parent-skill-call")
+                ],
+            ),
+            AssistantMessage(
+                "",
+                tool_calls=[
+                    _function_call("nested-skill", {}, call_id="nested-skill-call")
+                ],
+            ),
+            AssistantMessage(
+                "",
+                tool_calls=[
+                    _function_call(
+                        "exit_agent",
+                        {"text": "nested done", "items": ["completed"]},
+                        call_id="nested-exit-call",
+                    )
+                ],
+            ),
+            AssistantMessage(
+                "",
+                tool_calls=[
+                    _function_call(
+                        "exit_agent",
+                        {"text": "parent done", "items": ["completed"]},
+                        call_id="parent-exit-call",
+                    )
+                ],
+            ),
+            AssistantMessage("final answer"),
+        ]
+    )
+    node = Node([_write_nested_capabilities(tmp_path)], name_hds="main")
+    node.initialize(provider)
+
+    node.run("start")
+
+    assert [request.get_extra() for request in provider.requests] == [
+        {
+            "agentic": {
+                "allowed_tools": ["mock-tool"],
+                "allowed_skills": ["mock-skill"],
+            }
+        },
+        {
+            "agentic": {
+                "allowed_tools": [
+                    "mock-sub-tool",
+                    "shared-tool",
+                    "finish",
+                    "exit_agent",
+                ],
+                "allowed_skills": ["nested-skill"],
+            }
+        },
+        {
+            "agentic": {
+                "allowed_tools": [
+                    "nested-sub-tool",
+                    "shared-tool",
+                    "mock-sub-tool",
+                    "finish",
+                    "exit_agent",
+                ],
+                "allowed_skills": [],
+            }
+        },
+        {
+            "agentic": {
+                "allowed_tools": [
+                    "mock-sub-tool",
+                    "shared-tool",
+                    "finish",
+                    "exit_agent",
+                ],
+                "allowed_skills": ["nested-skill"],
+                "operation": "return",
+                "skill_call_id": "nested-skill-call",
+            }
+        },
+        {
+            "agentic": {
+                "allowed_tools": ["mock-tool"],
+                "allowed_skills": ["mock-skill"],
+                "operation": "return",
+                "skill_call_id": "parent-skill-call",
+            }
+        },
+    ]
 
 
 def test_exit_skill_keeps_depth_at_zero(tmp_path: Path) -> None:

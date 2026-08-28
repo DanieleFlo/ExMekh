@@ -23,5 +23,16 @@ class CalledExitSkill:
         if not isinstance(tool_call, ToolCall):
             raise TypeError("tool_call must be a ToolCall")
 
-        self.exit_skill = exit_skill
-        self.tool_call = tool_call
+        self._exit_skill = exit_skill
+        self._tool_call = tool_call
+
+    @property
+    def name(self) -> str:
+        return self._exit_skill.name
+
+    @property
+    def call_id(self) -> str:
+        return self._tool_call.get_id()
+
+    def render_instructions(self) -> str:
+        return self._exit_skill.get_body()

@@ -5,6 +5,7 @@ import pytest
 
 from qs.core.agents.deep_skill.catalog import SkillCatalog
 from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill, DeepSkill
+from qs.core.agents.deep_skill.execution import DeepSkillExecutionTracker
 from qs.core.agents.deep_skill.metadata import DeepSkillMetadata
 from qs.core.models.assistant_message import FunctionCall, ToolCall
 
@@ -129,7 +130,15 @@ def test_called_deep_skill_validates_types_and_name(tmp_path: Path) -> None:
     )
     matching_call = ToolCall("call-1", FunctionCall("skill", {}))
 
-    assert CalledDeepSkill(skill, matching_call).name == "skill"
+    called = CalledDeepSkill(skill, matching_call)
+
+    assert called.name == "skill"
+    assert called.call_id == "call-1"
+    tracker = DeepSkillExecutionTracker()
+    called.open_execution(tracker, start_index=2)
+    assert tracker.depth == 1
+    assert tracker.current.skill is not skill
+    assert tracker.current.skill.name == skill.name
 
     with pytest.raises(TypeError, match="deep_skill must be DeepSkill"):
         CalledDeepSkill(cast(DeepSkill, object()), matching_call)

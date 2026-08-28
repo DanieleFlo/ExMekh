@@ -33,6 +33,7 @@ def test_tracks_nested_executions_and_copies_skills() -> None:
 
     assert tracker.depth == 2
     assert tracker.current is child
+    assert tracker.get_current_start_index() == 4
     assert tracker.roots == (parent,)
     assert parent.children == [child]
     assert parent.skill is not parent_skill

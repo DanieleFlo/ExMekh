@@ -71,9 +71,16 @@ def test_exit_tool_executes_and_validates_return_type(tmp_path: Path) -> None:
 
 def test_called_exit_tool_validates_types_and_exposes_call_id(tmp_path: Path) -> None:
     tool = _exit_tool(tmp_path)
-    tool_call = ToolCall("call-1", FunctionCall("exit_agent", {}))
+    tool_call = ToolCall(
+        "call-1",
+        FunctionCall("exit_agent", {"text": "done", "items": ["a"]}),
+    )
 
-    assert CalledExitTool(tool, tool_call).call_id == "call-1"
+    called = CalledExitTool(tool, tool_call)
+
+    assert called.name == "exit_agent"
+    assert called.call_id == "call-1"
+    assert called.execute() == {"text": "done", "items": ["a"]}
 
     with pytest.raises(TypeError, match="exit_tool must be an ExitTool"):
         CalledExitTool(cast(ExitTool, object()), tool_call)

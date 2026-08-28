@@ -10,6 +10,7 @@ from qs.core.agents.deep_skill.metadata import DeepSkillMetadata
 from qs.core.models.assistant_message import ToolCall
 
 if TYPE_CHECKING:
+    from qs.core.agents.deep_skill.execution import DeepSkillExecutionTracker
     from qs.core.agents.exit_skill.exit_skill import ExitSkill
 
 
@@ -44,6 +45,9 @@ class DeepSkill(MarkdownCapability[DeepSkillMetadata]):
     def render_instructions(self, exit_skill: ExitSkill) -> str:
         return self._render_with_exit_skill(self._render_body(), exit_skill)
 
+    def inherits_parent_tools(self) -> bool:
+        return self.metadata.get_inherits_parent_tools()
+
     def _render_body(self) -> str:
         return self._render_with_catalog(self.body)
 
@@ -74,17 +78,32 @@ class CalledDeepSkill:
         if not isinstance(tool_call, ToolCall):
             raise TypeError("tool_call must be ToolCall")
 
-        self.deep_skill = deep_skill
-        self.tool_call = tool_call
+        self._deep_skill = deep_skill
+        self._tool_call = tool_call
 
-        self.validate_matching()
+        self._validate_matching()
 
-    def validate_matching(self) -> None:
-        if self.tool_call.get_name() != self.deep_skill.name:
+    def _validate_matching(self) -> None:
+        if self._tool_call.get_name() != self._deep_skill.name:
             raise ValueError(
-                f"Tool call name '{self.tool_call.get_name()}' does not match deep skill name '{self.deep_skill.name}'"
+                f"Tool call name '{self._tool_call.get_name()}' does not match "
+                f"deep skill name '{self._deep_skill.name}'"
             )
 
     @property
     def name(self) -> str:
-        return self.deep_skill.name
+        return self._deep_skill.name
+
+    @property
+    def call_id(self) -> str:
+        return self._tool_call.get_id()
+
+    def render_instructions(self, exit_skill: ExitSkill) -> str:
+        return self._deep_skill.render_instructions(exit_skill)
+
+    def open_execution(
+        self,
+        tracker: DeepSkillExecutionTracker,
+        start_index: int,
+    ) -> None:
+        tracker.open(self._deep_skill, self.call_id, start_index)

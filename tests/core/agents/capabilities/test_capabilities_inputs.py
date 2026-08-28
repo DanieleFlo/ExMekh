@@ -254,6 +254,36 @@ def test_capabilities_data_returns_all_tool_types() -> None:
     assert data.get_all_tools() == (deep_skill, tool, exit_skill, exit_tool)
 
 
+def test_capabilities_data_resolves_runtime_capabilities() -> None:
+    hds = _hds()
+    deep_skill = _deep_skill()
+    exit_skill = ExitSkill(
+        name="finish",
+        markdown_path=Path("finish.md"),
+        metadata=deep_skill.metadata,
+        body="Finish",
+        references=(),
+    )
+    exit_tool = _exit_tool()
+    data = CapabilitiesData(
+        deep_skills=(),
+        tools=(),
+        hds=(hds,),
+        exit_skills=(exit_skill,),
+        exit_tools=(exit_tool,),
+    )
+
+    assert data.get_hds("hds") is hds
+    assert data.get_exit_skill("finish") is exit_skill
+    assert data.get_exit_tool_names("finish") == ("exit_agent",)
+    assert data.get_exit_tool_names("other") == ()
+
+    with pytest.raises(ValueError, match="HDS 'missing' not found"):
+        data.get_hds("missing")
+    with pytest.raises(ValueError, match="Exit skill 'missing' not found"):
+        data.get_exit_skill("missing")
+
+
 def test_capabilities_data_indexes_skill_availability() -> None:
     parent_skill = DeepSkill(
         name="parent",
@@ -286,9 +316,8 @@ def test_capabilities_data_indexes_skill_availability() -> None:
     )
 
     assert data.get_skill_availability() == {
-        "child": ["parent"],
-        "shared": ["parent", "child"],
-        "exit_agent": ["finish"],
+        "child": ("parent",),
+        "shared": ("parent", "child"),
     }
 
 

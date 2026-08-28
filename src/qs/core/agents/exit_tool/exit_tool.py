@@ -41,9 +41,16 @@ class CalledExitTool:
         if not isinstance(tool_call, ToolCall):
             raise TypeError("tool_call must be a ToolCall")
 
-        self.exit_tool = exit_tool
-        self.tool_call = tool_call
+        self._exit_tool = exit_tool
+        self._tool_call = tool_call
+
+    @property
+    def name(self) -> str:
+        return self._exit_tool.name
 
     @property
     def call_id(self) -> str:
-        return self.tool_call.id
+        return self._tool_call.get_id()
+
+    def execute(self) -> dict[str, str | list[str]]:
+        return self._exit_tool.execute(**self._tool_call.get_arguments())

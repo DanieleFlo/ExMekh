@@ -41,6 +41,14 @@ def test_tool_creates_copy_with_description() -> None:
     assert tool.description == "Search docs"
 
 
+def test_tool_creates_copy_with_description_suffix() -> None:
+    tool = Tool(documented_tool, name="search-docs", description="Search docs.")
+
+    described_tool = tool.with_description_suffix("Available in every skill.")
+
+    assert described_tool.description == "Search docs. Available in every skill."
+
+
 @pytest.mark.parametrize("name", ["", "contains spaces", "x" * 65])
 def test_tool_rejects_invalid_openai_name(name: str) -> None:
     with pytest.raises(ValueError, match="Tool name"):

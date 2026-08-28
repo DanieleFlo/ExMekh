@@ -28,6 +28,7 @@ def test_parses_and_normalizes_all_metadata_fields() -> None:
     assert metadata.get_sub_skill_names() == ("child",)
     assert metadata.get_sub_tool_names() == ("search", "write")
     assert metadata.get_direct_tool_names() == {"child", "search", "write"}
+    assert metadata.get_inherits_parent_tools() is True
 
 
 def test_defaults_inherits_parent_tools_to_false() -> None:
