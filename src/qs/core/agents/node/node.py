@@ -61,7 +61,7 @@ class Node:
         exit_skill = next(
             skill
             for skill in capabilities.exit_skills
-            if skill.name == hds.metadata.exit_skill
+            if skill.name == hds.get_exit_skill_name()
         )
         self._runtime = NodeRuntime(
             NodeRuntimeConfig(

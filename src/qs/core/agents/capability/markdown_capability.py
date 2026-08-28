@@ -32,12 +32,21 @@ class MarkdownCapability[MetadataType: CapabilityMetadata](Tool, ABC):
         super().__init__(
             tool=self._render_body,
             name=name,
-            description=metadata.description,
+            description=metadata.get_description(),
         )
 
     @abstractmethod
     def _render_body(self) -> str:
         pass  # pragma: no cover
+
+    def get_sub_skill_names(self) -> tuple[str, ...]:
+        return self.metadata.get_sub_skill_names()
+
+    def get_sub_tool_names(self) -> tuple[str, ...]:
+        return self.metadata.get_sub_tool_names()
+
+    def get_direct_tool_names(self) -> set[str]:
+        return self.metadata.get_direct_tool_names()
 
     @classmethod
     def from_markdown[MarkdownType: CapabilityMarkdown](

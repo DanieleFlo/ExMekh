@@ -107,6 +107,47 @@ def _write_runnable_capabilities(parent: Path) -> Path:
     return capabilities_path
 
 
+def _write_nested_capabilities(parent: Path) -> Path:
+    capabilities_path = _write_runnable_capabilities(parent)
+    deep_skill_path = capabilities_path / "deep-skill"
+    (deep_skill_path / "mock-skill.md").write_text(
+        "---\n"
+        "description: Mock skill\n"
+        "sub-skills:\n"
+        "  - nested-skill\n"
+        "sub-tools:\n"
+        "  - mock-sub-tool\n"
+        "  - shared-tool\n"
+        "---\n"
+        "Mock skill body"
+    )
+    (deep_skill_path / "nested-skill.md").write_text(
+        "---\n"
+        "description: Nested skill\n"
+        "sub-tools:\n"
+        "  - nested-sub-tool\n"
+        "  - shared-tool\n"
+        "---\n"
+        "Nested skill body"
+    )
+
+    for name, description in (
+        ("mock-sub-tool", "Mock sub-tool"),
+        ("nested-sub-tool", "Nested sub-tool"),
+        ("shared-tool", "Shared tool"),
+        ("orphan-tool", "Orphan tool"),
+    ):
+        tool_path = capabilities_path / "tools" / name
+        tool_path.mkdir()
+        (tool_path / "main.py").write_text(
+            "from qs.core.agents.tools.decorator import deep_tool\n\n"
+            f"@deep_tool(name='{name}', description='{description}')\n"
+            "def run(text: str) -> dict[str, str]:\n"
+            "    return {'echo': text}\n"
+        )
+    return capabilities_path
+
+
 def _function_call(
     name: str,
     arguments: dict[str, object],
@@ -275,6 +316,31 @@ def test_run_requires_an_initialized_node(tmp_path: Path) -> None:
 
     with pytest.raises(RuntimeError, match="must be initialized before run"):
         node.run("hello")
+
+
+def test_tool_descriptions_reflect_hds_and_skill_availability(
+    tmp_path: Path,
+) -> None:
+    provider = SequenceProvider([AssistantMessage("final answer")])
+    node = Node([_write_nested_capabilities(tmp_path)], name_hds="main")
+    node.initialize(provider)
+
+    node.run("start")
+
+    request_tools = provider.requests[0].get_tools()
+    assert request_tools is not None
+    descriptions = {tool.name: tool.description for tool in request_tools.get_tools()}
+    assert descriptions == {
+        "mock-skill": "Mock skill",
+        "nested-skill": "Available in skill 'mock-skill'.",
+        "mock-tool": "Mock tool",
+        "mock-sub-tool": "Available in skill 'mock-skill'.",
+        "nested-sub-tool": "Available in skill 'nested-skill'.",
+        "shared-tool": "Available in skills 'mock-skill', 'nested-skill'.",
+        "orphan-tool": "",
+        "finish": "Finish",
+        "exit_agent": "Available in skill 'finish'.",
+    }
 
 
 @pytest.mark.parametrize("invalid_content", [None, "", "   "])

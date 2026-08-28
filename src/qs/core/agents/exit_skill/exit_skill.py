@@ -7,10 +7,13 @@ from qs.core.models.assistant_message import ToolCall
 
 class ExitSkill(DeepSkill):
     resource_type = ResourceType.EXIT_SKILL
-    TAG = "exit-skill"
+    _TAG = "exit-skill"
 
     def get_body(self) -> str:
         return self.body.strip()
+
+    def render_prompt_section(self) -> str:
+        return f"<{self._TAG}>{self.get_body()}</{self._TAG}>"
 
 
 class CalledExitSkill:

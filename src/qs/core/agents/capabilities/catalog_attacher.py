@@ -12,24 +12,24 @@ class SkillCatalogAttacher:
     def __init__(self, index: CapabilitiesIndex) -> None:
         self._index = index
 
-    def attach(self, deep_skills: tuple[DeepSkill, ...]) -> None:
+    def attach_to_all(self, deep_skills: tuple[DeepSkill, ...]) -> None:
         for deep_skill in deep_skills:
             deep_skill.attach_catalog(self._build_catalog(deep_skill))
 
     def _build_catalog(self, deep_skill: DeepSkill) -> SkillCatalog:
         return SkillCatalog(
-            sub_skills=self._catalog_entries(
-                deep_skill.metadata.sub_skills,
+            sub_skills=self._build_entries(
+                deep_skill.get_sub_skill_names(),
                 self._index.deep_skills,
             ),
-            sub_tools=self._catalog_entries(
-                deep_skill.metadata.sub_tools,
+            sub_tools=self._build_entries(
+                deep_skill.get_sub_tool_names(),
                 self._index.tools,
             ),
         )
 
     @staticmethod
-    def _catalog_entries(
+    def _build_entries(
         names: tuple[str, ...],
         resources: Mapping[str, Tool],
     ) -> tuple[SkillCatalogEntry, ...]:

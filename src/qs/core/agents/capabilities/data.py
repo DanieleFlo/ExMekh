@@ -44,3 +44,18 @@ class CapabilitiesData:
 
     def get_all_tools(self) -> tuple[DeepSkill | Tool | ExitSkill | ExitTool, ...]:
         return self.deep_skills + self.tools + self.exit_skills + self.exit_tools
+
+    def get_skill_availability(self) -> dict[str, list[str]]:
+        availability: dict[str, list[str]] = {}
+        skills = self.deep_skills + self.exit_skills
+
+        for skill in skills:
+            for tool_name in skill.get_direct_tool_names():
+                availability.setdefault(tool_name, []).append(skill.name)
+
+        for exit_tool in self.exit_tools:
+            availability.setdefault(exit_tool.name, []).append(
+                exit_tool.get_exit_skill_name()
+            )
+
+        return availability

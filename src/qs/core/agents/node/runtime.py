@@ -7,10 +7,12 @@ from typing import Final
 from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.deep_agent.agent_response import AgentResponse
 from qs.core.agents.exit_skill.exit_skill import ExitSkill
+from qs.core.agents.hds.hds import HDS
 from qs.core.models.client import Client
 from qs.core.models.client_request import ClientRequest
 from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.system_message import SystemMessage
+from qs.core.models.tool import Tool
 from qs.core.models.tools import Tools
 from qs.core.models.user_message import ErrorUserMessage, UserMessage
 from qs.interfaces.provider import Provider
@@ -30,6 +32,36 @@ class NodeRuntimeConfig:
     exit_skill: ExitSkill
     persistent_history: bool
     initial_depth: int
+
+    def build_tools(self, hds: HDS) -> Tools:
+        direct_tool_names = hds.get_direct_tool_names()
+        skill_availability = self.capabilities.get_skill_availability()
+
+        tools = [
+            self._prepare_tool(tool, direct_tool_names, skill_availability)
+            for tool in self.capabilities.get_all_tools()
+        ]
+        return Tools(tools)
+
+    @staticmethod
+    def _prepare_tool(
+        tool: Tool,
+        direct_tool_names: set[str],
+        skill_availability: dict[str, list[str]],
+    ) -> Tool:
+        if tool.name in direct_tool_names:
+            return tool
+
+        skill_names = skill_availability.get(tool.name, [])
+        if not skill_names:
+            description = ""
+        elif len(skill_names) == 1:
+            description = f"Available in skill '{skill_names[0]}'."
+        else:
+            names = ", ".join(f"'{name}'" for name in skill_names)
+            description = f"Available in skills {names}."
+
+        return tool.with_description(description)
 
 
 class NodeRuntime:
@@ -86,9 +118,9 @@ class NodeRuntime:
             if tool_calls is not None:
                 self.validate_tool_calls(tool_calls)
                 self._executor.execute_all(self._resolver.resolve_all(tool_calls))
-                response = self._client.continue_after_tools(
-                    tool_choice=self._current_tool_choice()
-                )
+
+                tool_choice = self._current_tool_choice()
+                response = self._client.continue_after_tools(tool_choice=tool_choice)
                 continue
 
             content = response.get_message()
@@ -108,11 +140,16 @@ class NodeRuntime:
             for hds in self._config.capabilities.hds
             if hds.name == self._config.hds_name
         )
+
+        tools = self._config.build_tools(hds)
+        content = hds.get_hds()
+        system_message = SystemMessage(content=content)
         self._client = Client(
             provider=self._config.provider,
-            system_message=SystemMessage(content=hds.get_hds()),
-            tools=Tools(list(self._config.capabilities.get_all_tools())),
+            system_message=system_message,
+            tools=tools,
         )
+
         self._executor = ToolCallExecutor(
             client=self._client,
             exit_skill=self._config.exit_skill,

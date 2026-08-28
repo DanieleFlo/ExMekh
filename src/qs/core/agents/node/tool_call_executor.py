@@ -140,7 +140,7 @@ class ToolCallExecutor:
         )
 
     def _render_deep_skill(self, deep_skill: DeepSkill) -> str:
-        return deep_skill.get_skill(self._exit_skill)
+        return deep_skill.render_instructions(self._exit_skill)
 
     def _open_deep_skill(self, called_deep_skill: CalledDeepSkill) -> None:
         start_index = len(self._client.get_history()) - 1

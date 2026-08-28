@@ -102,6 +102,23 @@ def test_rejects_non_catalog_attachment(tmp_path: Path) -> None:
         skill.attach_catalog(cast(SkillCatalog, object()))
 
 
+def test_gets_direct_tool_names(tmp_path: Path) -> None:
+    skill = DeepSkill(
+        name="skill",
+        markdown_path=tmp_path / "skill.md",
+        metadata=DeepSkillMetadata(
+            description="Description",
+            inherits_parent_tools=False,
+            sub_skills=("child",),
+            sub_tools=("search",),
+        ),
+        body="Body",
+        references=(),
+    )
+
+    assert skill.get_direct_tool_names() == {"child", "search"}
+
+
 def test_called_deep_skill_validates_types_and_name(tmp_path: Path) -> None:
     skill = DeepSkill(
         name="skill",

@@ -46,6 +46,9 @@ class Tool:
     def execute(self, **arguments: Any) -> Any:
         return self.tool(**arguments)
 
+    def with_description(self, description: str) -> Tool:
+        return Tool(self.tool, name=self.name, description=description)
+
 
 class CalledTool:
     def __init__(self, tool: Tool, tool_call: ToolCall) -> None:

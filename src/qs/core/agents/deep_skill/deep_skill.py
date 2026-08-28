@@ -41,27 +41,21 @@ class DeepSkill(MarkdownCapability[DeepSkillMetadata]):
     def catalog(self) -> SkillCatalog | None:
         return self._catalog
 
-    def get_skill(self, exit_skill: ExitSkill) -> str:
-        body = self._render_body()
-        body_with_exit_skill = self._append_exit_skill(body, exit_skill)
-        return body_with_exit_skill
+    def render_instructions(self, exit_skill: ExitSkill) -> str:
+        return self._render_with_exit_skill(self._render_body(), exit_skill)
 
     def _render_body(self) -> str:
-        body = self.body.strip()
-        body = self._append_catalog(body)
-        return body
+        return self._render_with_catalog(self.body)
 
-    def _append_catalog(self, body: str) -> str:
+    def _render_with_catalog(self, body: str) -> str:
         body = body.strip()
         if self._catalog is None:
             return body
-        catalog_rendered = self._catalog.render()
-        return f"{body}\n\n<{SkillCatalog.TAG}>{catalog_rendered}</{SkillCatalog.TAG}>"
+        return f"{body}\n\n{self._catalog.render_prompt_section()}"
 
-    def _append_exit_skill(self, body: str, exit_skill: ExitSkill) -> str:
+    def _render_with_exit_skill(self, body: str, exit_skill: ExitSkill) -> str:
         body = body.strip()
-        exit_skill_rendered = exit_skill.body.strip()
-        return f"{body}\n\n<{exit_skill.TAG}>{exit_skill_rendered}</{exit_skill.TAG}>"
+        return f"{body}\n\n{exit_skill.render_prompt_section()}"
 
     def attach_catalog(self, catalog: SkillCatalog) -> None:
         if not isinstance(catalog, SkillCatalog):

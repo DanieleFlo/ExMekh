@@ -27,8 +27,11 @@ def _exit_skill(tmp_path: Path) -> ExitSkill:
     )
 
 
-def test_returns_stripped_body(tmp_path: Path) -> None:
-    assert _exit_skill(tmp_path).get_body() == "Finish now"
+def test_renders_exit_skill_content(tmp_path: Path) -> None:
+    exit_skill = _exit_skill(tmp_path)
+
+    assert exit_skill.get_body() == "Finish now"
+    assert exit_skill.render_prompt_section() == ("<exit-skill>Finish now</exit-skill>")
 
 
 def test_rejects_invalid_metadata(tmp_path: Path) -> None:

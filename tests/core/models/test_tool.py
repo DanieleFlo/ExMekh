@@ -29,6 +29,18 @@ def test_tool_accepts_explicit_metadata() -> None:
     assert tool.description == "Search docs"
 
 
+def test_tool_creates_copy_with_description() -> None:
+    tool = Tool(documented_tool, name="search-docs", description="Search docs")
+
+    described_tool = tool.with_description("Available in skill 'docs'.")
+
+    assert described_tool is not tool
+    assert described_tool.tool is documented_tool
+    assert described_tool.name == "search-docs"
+    assert described_tool.description == "Available in skill 'docs'."
+    assert tool.description == "Search docs"
+
+
 @pytest.mark.parametrize("name", ["", "contains spaces", "x" * 65])
 def test_tool_rejects_invalid_openai_name(name: str) -> None:
     with pytest.raises(ValueError, match="Tool name"):

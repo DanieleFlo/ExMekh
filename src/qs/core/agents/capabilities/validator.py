@@ -24,13 +24,13 @@ class CapabilitiesValidator:
         )
         self._validate_reference_group(
             resource,
-            resource.metadata.sub_skills,
+            resource.get_sub_skill_names(),
             self._index.deep_skills.keys(),
             "sub-skills",
         )
         self._validate_reference_group(
             resource,
-            resource.metadata.sub_tools,
+            resource.get_sub_tool_names(),
             self._index.tools.keys(),
             "sub-tools",
         )
@@ -38,7 +38,7 @@ class CapabilitiesValidator:
         if isinstance(resource, HDS):
             self._validate_reference_group(
                 resource,
-                (resource.metadata.exit_skill,),
+                (resource.get_exit_skill_name(),),
                 self._index.exit_skills.keys(),
                 "exit-skill",
             )

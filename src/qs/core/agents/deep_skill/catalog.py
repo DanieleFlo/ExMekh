@@ -13,9 +13,13 @@ class SkillCatalogEntry:
 class SkillCatalog:
     sub_skills: tuple[SkillCatalogEntry, ...] = ()
     sub_tools: tuple[SkillCatalogEntry, ...] = ()
-    TAG = "catalog"
+    _TAG = "catalog"
 
-    def render(self) -> str:
+    def render_prompt_section(self) -> str:
+        content = self._render_content()
+        return f"<{self._TAG}>{content}</{self._TAG}>"
+
+    def _render_content(self) -> str:
         sections = tuple(
             section
             for section in (

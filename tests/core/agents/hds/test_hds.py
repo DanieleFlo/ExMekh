@@ -29,6 +29,24 @@ def test_returns_only_body() -> None:
     assert hds.tool() == "Body"
 
 
+def test_exposes_node_configuration() -> None:
+    hds = HDS(
+        name="instructions",
+        markdown_path=Path("instructions.md"),
+        metadata=HDSMetadata(
+            description="Description",
+            sub_skills=("child",),
+            sub_tools=("search",),
+            exit_skill="finish",
+        ),
+        body="Body",
+        references=(),
+    )
+
+    assert hds.get_direct_tool_names() == {"child", "search", "finish"}
+    assert hds.get_exit_skill_name() == "finish"
+
+
 def test_rejects_non_hds_metadata() -> None:
     with pytest.raises(TypeError, match="metadata must be HDSMetadata"):
         HDS(

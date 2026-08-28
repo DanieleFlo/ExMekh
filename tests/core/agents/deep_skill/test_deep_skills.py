@@ -107,7 +107,7 @@ def test_loads_markdown_files_in_name_order(tmp_path: Path) -> None:
     skills = DeepSkills([folder_path]).load()
 
     assert tuple(skill.name for skill in skills) == ("first", "second")
-    assert skills[0].get_skill(_exit_skill(tmp_path)) == (
+    assert skills[0].render_instructions(_exit_skill(tmp_path)) == (
         "Body\n\n<exit-skill>Finish instructions</exit-skill>"
     )
     assert skills[0].catalog is None

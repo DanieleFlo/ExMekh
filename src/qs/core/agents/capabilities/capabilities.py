@@ -35,7 +35,7 @@ class Capabilities:
             data = self._load_data(deep_tools, exit_skills, exit_tools)
             index = CapabilitiesIndex.build(data)
             CapabilitiesValidator(index).validate((*data.hds, *data.deep_skills))
-            SkillCatalogAttacher(index).attach(data.deep_skills)
+            SkillCatalogAttacher(index).attach_to_all(data.deep_skills)
         except Exception:
             exit_tools.unload()
             deep_tools.unload()

@@ -31,9 +31,9 @@ class DeepSkillMetadataParser(CapabilityMetadataParser):
     def _build_metadata(self, data: dict[str, Any]) -> DeepSkillMetadata:
         common = super()._build_metadata(data)
         return DeepSkillMetadata(
-            description=common.description,
-            sub_skills=common.sub_skills,
-            sub_tools=common.sub_tools,
+            description=common.get_description(),
+            sub_skills=common.get_sub_skill_names(),
+            sub_tools=common.get_sub_tool_names(),
             inherits_parent_tools=self._parse_boolean(
                 data,
                 self.INHERITS_PARENT_TOOLS_FIELD,

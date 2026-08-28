@@ -26,7 +26,7 @@ def _exit_skill(tmp_path: Path) -> ExitSkill:
     )
 
 
-def test_render_includes_sub_skill_and_sub_tool_descriptions() -> None:
+def test_render_prompt_section_includes_descriptions() -> None:
     catalog = SkillCatalog(
         sub_skills=(
             SkillCatalogEntry(
@@ -42,15 +42,15 @@ def test_render_includes_sub_skill_and_sub_tool_descriptions() -> None:
         ),
     )
 
-    assert catalog.render() == (
-        "## Available sub-skills\n"
+    assert catalog.render_prompt_section() == (
+        "<catalog>## Available sub-skills\n"
         "- **research**: Research the requested topic.\n\n"
         "## Available sub-tools\n"
-        "- **search**: Search indexed documents."
+        "- **search**: Search indexed documents.</catalog>"
     )
 
 
-def test_attached_empty_catalog_does_not_change_skill_body(tmp_path: Path) -> None:
+def test_attached_empty_catalog_renders_empty_prompt_section(tmp_path: Path) -> None:
     skill = DeepSkill(
         name="skill",
         markdown_path=tmp_path / "skill.md",
@@ -66,7 +66,7 @@ def test_attached_empty_catalog_does_not_change_skill_body(tmp_path: Path) -> No
 
     skill.attach_catalog(SkillCatalog())
 
-    assert skill.get_skill(_exit_skill(tmp_path)) == (
+    assert skill.render_instructions(_exit_skill(tmp_path)) == (
         "Body\n\n<catalog></catalog>\n\n<exit-skill>Finish instructions</exit-skill>"
     )
 
@@ -74,7 +74,7 @@ def test_attached_empty_catalog_does_not_change_skill_body(tmp_path: Path) -> No
         skill.attach_catalog(SkillCatalog())
 
 
-def test_attached_catalog_is_appended_to_skill_body(tmp_path: Path) -> None:
+def test_attached_catalog_renders_prompt_section(tmp_path: Path) -> None:
     skill = DeepSkill(
         name="skill",
         markdown_path=tmp_path / "skill.md",
@@ -94,7 +94,7 @@ def test_attached_catalog_is_appended_to_skill_body(tmp_path: Path) -> None:
     skill.attach_catalog(catalog)
 
     assert skill.catalog is catalog
-    assert skill.get_skill(_exit_skill(tmp_path)) == (
+    assert skill.render_instructions(_exit_skill(tmp_path)) == (
         "Body\n\n<catalog>## Available sub-skills\n"
         "- **child**: Child description</catalog>\n\n"
         "<exit-skill>Finish instructions</exit-skill>"

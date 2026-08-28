@@ -24,6 +24,10 @@ def test_parses_and_normalizes_all_metadata_fields() -> None:
         sub_skills=("child",),
         sub_tools=("search", "write"),
     )
+    assert metadata.get_description() == "Description"
+    assert metadata.get_sub_skill_names() == ("child",)
+    assert metadata.get_sub_tool_names() == ("search", "write")
+    assert metadata.get_direct_tool_names() == {"child", "search", "write"}
 
 
 def test_defaults_inherits_parent_tools_to_false() -> None:

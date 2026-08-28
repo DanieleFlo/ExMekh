@@ -52,6 +52,7 @@ def test_exit_tool_data_strips_and_dumps_values() -> None:
 def test_exit_tool_executes_and_validates_return_type(tmp_path: Path) -> None:
     tool = _exit_tool(tmp_path)
 
+    assert tool.get_exit_skill_name() == "finish"
     assert tool.execute(" done ", [" item "]) == {
         "text": "done",
         "items": ["item"],

@@ -10,6 +10,18 @@ class CapabilityMetadata:
     sub_skills: tuple[str, ...]
     sub_tools: tuple[str, ...]
 
+    def get_description(self) -> str:
+        return self.description
+
+    def get_sub_skill_names(self) -> tuple[str, ...]:
+        return self.sub_skills
+
+    def get_sub_tool_names(self) -> tuple[str, ...]:
+        return self.sub_tools
+
+    def get_direct_tool_names(self) -> set[str]:
+        return {*self.sub_skills, *self.sub_tools}
+
 
 @dataclass(frozen=True, slots=True)
 class MetadataFieldSpec:

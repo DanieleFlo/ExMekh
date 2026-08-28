@@ -23,6 +23,9 @@ class ExitTool(Tool):
         self.folder_path = folder_path
         super().__init__(function, name=name, description=description)
 
+    def get_exit_skill_name(self) -> str:
+        return self.exit_skill_name
+
     def execute(self, *args: Any, **kwargs: Any) -> dict[str, str | list[str]]:
         result = self.tool(*args, **kwargs)
         if not isinstance(result, ExitToolData):

@@ -254,6 +254,44 @@ def test_capabilities_data_returns_all_tool_types() -> None:
     assert data.get_all_tools() == (deep_skill, tool, exit_skill, exit_tool)
 
 
+def test_capabilities_data_indexes_skill_availability() -> None:
+    parent_skill = DeepSkill(
+        name="parent",
+        markdown_path=Path("parent.md"),
+        metadata=DeepSkillMetadata(
+            description="Parent",
+            inherits_parent_tools=False,
+            sub_skills=("child",),
+            sub_tools=("shared",),
+        ),
+        body="Parent",
+        references=(),
+    )
+    child_skill = DeepSkill(
+        name="child",
+        markdown_path=Path("child.md"),
+        metadata=DeepSkillMetadata(
+            description="Child",
+            inherits_parent_tools=False,
+            sub_skills=(),
+            sub_tools=("shared",),
+        ),
+        body="Child",
+        references=(),
+    )
+    data = CapabilitiesData(
+        deep_skills=(parent_skill, child_skill),
+        tools=(),
+        exit_tools=(_exit_tool(),),
+    )
+
+    assert data.get_skill_availability() == {
+        "child": ["parent"],
+        "shared": ["parent", "child"],
+        "exit_agent": ["finish"],
+    }
+
+
 def test_index_rejects_non_capabilities_data() -> None:
     with pytest.raises(TypeError, match="data must be CapabilitiesData"):
         CapabilitiesIndex.build(cast(CapabilitiesData, object()))

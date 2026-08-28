@@ -35,3 +35,6 @@ class HDS(MarkdownCapability[HDSMetadata]):
 
     def get_hds(self) -> str:
         return self._render_body()
+
+    def get_exit_skill_name(self) -> str:
+        return self.metadata.get_exit_skill_name()
