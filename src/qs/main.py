@@ -5,7 +5,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from qs.core.agents.deep_agent.deep_agent import DeepAgent
-from qs.core.agents.graph.node import Node
+from qs.core.agents.node import Node
 from qs.providers.local import LocalProvider
 
 load_dotenv()

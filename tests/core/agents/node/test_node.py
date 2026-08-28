@@ -2,15 +2,18 @@ from collections.abc import Sequence
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from pydantic import BaseModel
 
-from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill, DeepSkill
-from qs.core.agents.exit_skill.exit_skill import CalledExitSkill
-from qs.core.agents.exit_tool.exit_tool import CalledExitTool, ExitTool
-from qs.core.agents.graph.node import Node
+from qs.core.agents.capabilities.data import CapabilitiesData
+from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill
+from qs.core.agents.exit_skill.exit_skill import ExitSkill
+from qs.core.agents.node import Node
+from qs.core.agents.node.runtime import NodeRuntime
+from qs.core.agents.node.tool_call_executor import ToolCallExecutor
+from qs.core.agents.node.tool_call_resolver import ToolCallResolver
 from qs.core.models.assistant_message import (
     AssistantMessage,
     FunctionCall,
@@ -274,30 +277,6 @@ def test_run_requires_an_initialized_node(tmp_path: Path) -> None:
         node.run("hello")
 
 
-def test_runtime_operations_require_an_initialized_node(tmp_path: Path) -> None:
-    node = Node([tmp_path / "capabilities"], name_hds="main")
-    response = ProviderResponse(AssistantMessage("answer"))
-
-    with pytest.raises(RuntimeError, match="before routing loop"):
-        node._routing_loop(response)
-    with pytest.raises(RuntimeError, match="before identifying tool choice"):
-        node._identify_tool_choice(_function_call("tool", {}, call_id="call"))
-    with pytest.raises(RuntimeError, match="before running a deep skill"):
-        node._run_deep_skill(cast(CalledDeepSkill, object()))
-    with pytest.raises(RuntimeError, match="before running a tool"):
-        node._run_tool(cast(CalledTool, object()))
-    with pytest.raises(RuntimeError, match="before running an exit skill"):
-        node._run_exit_skill(cast(CalledExitSkill, object()))
-    with pytest.raises(RuntimeError, match="before running an exit tool"):
-        node._run_exit_tool(cast(CalledExitTool, object()))
-    with pytest.raises(RuntimeError, match="Node has no exit skill"):
-        node._render_deep_skill(cast(DeepSkill, None))
-    with pytest.raises(RuntimeError, match="before opening a deep skill"):
-        node._open_deep_skill(cast(CalledDeepSkill, object()))
-    with pytest.raises(RuntimeError, match="before closing a deep skill"):
-        node._close_deep_skill("result")
-
-
 @pytest.mark.parametrize("invalid_content", [None, "", "   "])
 def test_empty_provider_response_adds_error_message_and_retries(
     tmp_path: Path,
@@ -321,62 +300,55 @@ def test_empty_provider_response_adds_error_message_and_retries(
 @pytest.mark.parametrize("tool_calls", [(), "", 0])
 def test_rejects_wrong_tool_call_collection_type(tool_calls: object) -> None:
     with pytest.raises(TypeError, match="tool_calls must be a list or None"):
-        Node._has_tool_calls(cast(list[ToolCall], tool_calls))
+        NodeRuntime.validate_tool_calls(tool_calls)
 
 
-def test_tool_call_helpers_handle_empty_values(tmp_path: Path) -> None:
-    node = Node([tmp_path / "capabilities"], name_hds="main")
+def test_tool_call_helpers_reject_empty_lists() -> None:
+    resolver = ToolCallResolver(cast(CapabilitiesData, MagicMock()))
 
-    assert node._map_tool_call_to_object(None) == []
-    assert Node._has_tool_calls(None) is False
-    assert Node._has_tool_calls([]) is False
+    assert resolver.resolve_all(None) == []
+    with pytest.raises(ValueError, match="Tool calls list cannot be empty"):
+        NodeRuntime.validate_tool_calls([])
 
 
-def test_identify_tool_choice_rejects_unknown_and_unsupported_tools(
-    tmp_path: Path,
-) -> None:
-    node = Node([tmp_path / "capabilities"], name_hds="main")
+def test_identify_tool_choice_rejects_unknown_and_unsupported_tools() -> None:
     capabilities = MagicMock()
-    node._loaded_capabilities = capabilities
-    node._exit_tool = cast(ExitTool, object())
+    resolver = ToolCallResolver(cast(CapabilitiesData, capabilities))
     tool_call = _function_call("missing", {}, call_id="call")
     capabilities.get_all_tools.return_value = ()
 
     with pytest.raises(ValueError, match="is not a valid deep skill"):
-        node._identify_tool_choice(tool_call)
+        resolver.resolve(tool_call)
 
     capabilities.get_all_tools.return_value = (SimpleNamespace(name="missing"),)
     with pytest.raises(TypeError, match="not a valid deep skill"):
-        node._identify_tool_choice(tool_call)
+        resolver.resolve(tool_call)
 
 
-def test_routing_rejects_unsupported_mapped_capability(tmp_path: Path) -> None:
-    node = Node([tmp_path / "capabilities"], name_hds="main")
-    node._client = MagicMock(spec=Client)
-    response = ProviderResponse(
-        AssistantMessage(
-            "",
-            tool_calls=[_function_call("unknown", {}, call_id="call")],
-        )
+def test_executor_rejects_unsupported_mapped_capability() -> None:
+    executor = ToolCallExecutor(
+        client=MagicMock(spec=Client),
+        exit_skill=cast(ExitSkill, object()),
+        initial_depth=0,
     )
 
-    with (
-        patch.object(node, "_map_tool_call_to_object", return_value=[object()]),
-        pytest.raises(TypeError, match="Node supports only"),
-    ):
-        node._routing_loop(response)
+    with pytest.raises(TypeError, match="Node supports only"):
+        executor.execute(cast(CalledDeepSkill, object()))
 
 
-def test_run_tool_delegates_execution_to_called_tool(tmp_path: Path) -> None:
-    node = Node([tmp_path / "capabilities"], name_hds="main")
+def test_run_tool_delegates_execution_to_called_tool() -> None:
     client = MagicMock(spec=Client)
     called_tool = MagicMock(spec=CalledTool)
     called_tool.execute.return_value = {"echo": "hello"}
     called_tool.call_id = "call-123"
     called_tool.name = "echo"
-    node._client = client
+    executor = ToolCallExecutor(
+        client=client,
+        exit_skill=cast(ExitSkill, object()),
+        initial_depth=0,
+    )
 
-    node._run_tool(called_tool)
+    executor.execute(called_tool)
 
     called_tool.execute.assert_called_once_with()
     response = cast(ToolMessage, client.add_tool_response.call_args.args[0])
@@ -486,11 +458,11 @@ def test_exit_skill_adds_its_instructions_without_changing_depth(
 @pytest.mark.parametrize("result", [None, {}, {"text": 1}, []])
 def test_rejects_invalid_exit_tool_result(result: object) -> None:
     with pytest.raises(TypeError, match="must contain a text string"):
-        Node._get_exit_output(result)
+        ToolCallExecutor.get_exit_output(result)
 
 
 def test_stringify_result_preserves_strings() -> None:
-    assert Node._stringify_result("plain result") == "plain result"
+    assert ToolCallExecutor.stringify_result("plain result") == "plain result"
 
 
 def test_nested_skills_require_tools_until_every_level_has_exited(

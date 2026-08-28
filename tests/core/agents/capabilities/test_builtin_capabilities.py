@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from qs.core.agents.capabilities.capabilities import Capabilities
-from qs.core.agents.graph.node import Node
+from qs.core.agents.node import Node
 
 CAPABILITIES_PATH = Path(__file__).resolve().parents[4] / "src" / "qs" / "capabilities"
 

@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from types import MappingProxyType
 
 from qs.core.agents.capabilities.data import CapabilitiesData
-from qs.core.agents.graph.node import Node, NodeUserMessage
+from qs.core.agents.node import Node, NodeUserMessage
 from qs.interfaces.provider import Provider
 
 from .agent_response import AgentResponse

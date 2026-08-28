@@ -6,7 +6,7 @@ import pytest
 from pydantic import BaseModel
 
 from qs.core.agents.deep_agent.deep_agent import DeepAgent
-from qs.core.agents.graph.node import Node
+from qs.core.agents.node import Node
 from qs.core.models.assistant_message import AssistantMessage
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
@@ -27,6 +27,7 @@ class StubProvider(Provider):
         self,
         request: StructuredProviderRequest[ResponseModel],
     ) -> StructuredProviderResponse[ResponseModel]:
+        del request
         raise NotImplementedError
 
 
@@ -176,5 +177,6 @@ def test_uses_root_hds_as_system_instructions(tmp_path: Path) -> None:
         "role": "system",
         "content": "root instructions",
     }
-    assert provider.last_request.get_tools() is not None
-    assert provider.last_request.get_tools().list_tools() == ["finish", "exit_agent"]
+    tools = provider.last_request.get_tools()
+    assert tools is not None
+    assert tools.list_tools() == ["finish", "exit_agent"]
