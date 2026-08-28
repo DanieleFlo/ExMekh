@@ -209,3 +209,42 @@ def test_dump_history_serializes_each_message_in_order() -> None:
         {"role": "system", "content": "custom rules"},
         {"role": "user", "content": "custom question"},
     ]
+
+
+def test_replace_from_compacts_history_and_validates_result() -> None:
+    opening = AssistantMessage("open skill")
+    history = MessageHistory(
+        [
+            SystemMessage("rules"),
+            UserMessage("question"),
+            opening,
+            ToolMessage("skill instructions", "skill-call"),
+            AssistantMessage("exit skill"),
+        ]
+    )
+    result = ToolMessage("skill result", "skill-call", "skill")
+
+    history.replace_from(3, [result])
+
+    assert history.get_history() == [
+        history.get_history()[0],
+        history.get_history()[1],
+        opening,
+        result,
+    ]
+
+
+@pytest.mark.parametrize("start_index", [-1, 2])
+def test_replace_from_rejects_out_of_bounds_index(start_index: int) -> None:
+    history = MessageHistory([SystemMessage("rules")])
+
+    with pytest.raises(IndexError, match="outside the history"):
+        history.replace_from(start_index, [])
+
+
+@pytest.mark.parametrize("start_index", [True, "0"])
+def test_replace_from_rejects_non_integer_index(start_index: object) -> None:
+    history = MessageHistory([SystemMessage("rules")])
+
+    with pytest.raises(TypeError, match="start_index must be an integer"):
+        history.replace_from(start_index, [])

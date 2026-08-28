@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from copy import deepcopy
 
 
 class Message[MessageContent](ABC):
@@ -15,3 +16,6 @@ class Message[MessageContent](ABC):
     @abstractmethod
     def message_dump(self) -> dict:
         pass  # pragma: no cover
+
+    def copy(self) -> Message[MessageContent]:
+        return deepcopy(self)

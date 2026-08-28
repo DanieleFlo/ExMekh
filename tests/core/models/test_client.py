@@ -59,6 +59,18 @@ def test_init_rejects_invalid_tools() -> None:
         )
 
 
+def test_create_history_checkpoint_is_independent() -> None:
+    provider = MagicMock(spec=Provider)
+    system_message = SystemMessage("rules")
+    client = Client(provider=provider, system_message=system_message)
+
+    checkpoint = client.create_history_checkpoint()
+    checkpoint.add(UserMessage("checkpoint-only"))
+
+    assert client.get_history() == [system_message]
+    assert checkpoint.get_history()[0] is not system_message
+
+
 @pytest.mark.parametrize(
     "malicious_input",
     [
@@ -100,7 +112,7 @@ def test_call_sends_history_and_records_response() -> None:
     result = client.call(ClientRequest(user_message))
 
     assert result is response
-    assert client.get_history() == [system_message, user_message, response.response]
+    assert client.get_history() == [system_message, user_message, response]
     assert client.dump_history() == [
         {"role": "system", "content": "strict custom rules"},
         {"role": "user", "content": "unusual request"},
@@ -117,29 +129,28 @@ def test_call_appends_subsequent_turn_to_history() -> None:
     first_response = AssistantMessage("first answer")
     second_user_message = UserMessage("second question")
     second_response = AssistantMessage("second answer")
-    provider.call.side_effect = [
-        ProviderResponse(first_response),
-        ProviderResponse(second_response),
-    ]
+    first_provider_response = ProviderResponse(first_response)
+    second_provider_response = ProviderResponse(second_response)
+    provider.call.side_effect = [first_provider_response, second_provider_response]
 
     client = Client(provider=provider, system_message=system_message)
 
     client.call(ClientRequest(first_user_message))
     result = client.call(ClientRequest(second_user_message))
 
-    assert result.response is second_response
+    assert result is second_provider_response
     assert client.get_history() == [
         system_message,
         first_user_message,
-        first_response,
+        first_provider_response,
         second_user_message,
-        second_response,
+        second_provider_response,
     ]
     second_request = provider.call.call_args_list[1].args[0]
     assert second_request.get_messages() == [
         system_message,
         first_user_message,
-        first_response,
+        first_provider_response,
         second_user_message,
     ]
 
@@ -216,8 +227,7 @@ def test_call_provider_failure_keeps_unanswered_request_in_history() -> None:
 
 def test_call_invalid_provider_response_keeps_request_in_history() -> None:
     provider = MagicMock(spec=Provider)
-    malformed_response = MagicMock(spec=ProviderResponse)
-    malformed_response.response = object()
+    malformed_response = object()
     provider.call.return_value = malformed_response
     system_message = SystemMessage("stable-rules")
     user_message = UserMessage("valid-request")
@@ -237,10 +247,9 @@ def test_continue_after_tools_sends_existing_history_without_new_message() -> No
     tool_request = AssistantMessage("")
     tool_response = ToolMessage('{"temperature":28}', "call-123")
     final_response = AssistantMessage("It is 28 degrees")
-    provider.call.side_effect = [
-        ProviderResponse(tool_request),
-        ProviderResponse(final_response),
-    ]
+    tool_provider_response = ProviderResponse(tool_request)
+    final_provider_response = ProviderResponse(final_response)
+    provider.call.side_effect = [tool_provider_response, final_provider_response]
     client = Client(provider=provider, system_message=system_message)
 
     client.call(ClientRequest(user_message))
@@ -255,18 +264,18 @@ def test_continue_after_tools_sends_existing_history_without_new_message() -> No
     assert provider_request.get_messages() == [
         system_message,
         user_message,
-        tool_request,
+        tool_provider_response,
         tool_response,
     ]
     assert provider_request.get_extra() == {"temperature": 0.2}
     assert provider_request.get_tool_choice() == "auto"
-    assert result.response is final_response
+    assert result.get_message() == final_response.get_message()
     assert client.get_history() == [
         system_message,
         user_message,
-        tool_request,
+        tool_provider_response,
         tool_response,
-        final_response,
+        final_provider_response,
     ]
 
 
@@ -318,15 +327,15 @@ def test_continue_after_tools_structured_builds_structured_request() -> None:
     assert provider_request.get_messages() == [
         system_message,
         user_message,
-        tool_request,
+        provider.call.return_value,
         tool_response,
     ]
     assert provider_request.get_response_model() is StructuredAnswer
     assert provider_request.get_strict() is False
     assert provider_request.get_extra() == {"temperature": 0.2}
     assert provider_request.get_tool_choice() == "auto"
-    assert result.response is structured_message
-    assert client.get_history()[-1] is structured_message
+    assert result.get_message() == structured_message.get_message()
+    assert client.get_history()[-1] is result
 
 
 def test_continue_after_tools_structured_requires_tool_response() -> None:
@@ -371,7 +380,7 @@ def test_call_structured_records_typed_response_and_uses_strict_default() -> Non
     assert provider_request.get_response_model() is StructuredAnswer
     assert provider_request.get_strict() is True
     assert result is response
-    assert result.response.get_message() == content
+    assert result.get_message() == content
     assert client.dump_history()[-1]["content"] == '{"value":42}'
 
 

@@ -27,4 +27,3 @@ class SystemMessage(Message[str]):
 
     def message_dump(self) -> dict[str, str]:
         return {"role": self._role, "content": self._content}
-

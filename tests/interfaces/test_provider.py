@@ -41,13 +41,13 @@ def test_complete_provider_implementation_satisfies_contract() -> None:
     provider = ConcreteProvider()
     request = ProviderRequest([SystemMessage("rules")])
 
-    assert provider.call(request).response.get_message() == "response"
+    assert provider.call(request).get_message() == "response"
 
 
 def test_provider_structured_contract_preserves_response_type() -> None:
     provider = ConcreteProvider()
     request = StructuredProviderRequest([SystemMessage("rules")], StructuredResponse)
 
-    content = provider.call_structured(request).response.get_message()
+    content = provider.call_structured(request).get_message()
 
     assert content == StructuredResponse(value=42)

@@ -59,7 +59,7 @@ class ChatCompletionOpenAI:
 
     def call(self, request: ProviderRequest) -> ProviderResponse:
         response = self._execute_request(request)
-        return self._parse_response(response)
+        return self._parse_response(response, request)
 
     def call_structured[ResponseModel: BaseModel](
         self,
@@ -136,12 +136,17 @@ class ChatCompletionOpenAI:
         request.execute_on_stream_event(ProviderStreamEvent(end_event))
         return response
 
-    def _parse_response(self, response: ChatCompletion) -> ProviderResponse:
+    def _parse_response(
+        self,
+        response: ChatCompletion,
+        request: ProviderRequest,
+    ) -> ProviderResponse:
         if not response.choices:
             raise RuntimeError("No choices returned from the provider")
 
         response_content = FromOpenAIChatCompletionMapper.map_assistant_message(
-            response.choices[0].message
+            response.choices[0].message,
+            tools=request.get_tools(),
         )
 
         usage = FromOpenAIChatCompletionMapper.extract_usage(response)
@@ -169,7 +174,8 @@ class ChatCompletionOpenAI:
         response_content = StructuredAssistantMessage(
             content,
             tool_calls=FromOpenAIChatCompletionMapper.map_tool_calls(
-                provider_message.tool_calls
+                provider_message.tool_calls,
+                tools=request.get_tools(),
             ),
         )
 

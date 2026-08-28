@@ -3,13 +3,11 @@ from typing import cast
 from unittest.mock import patch
 
 import pytest
-from openai.types.chat import ChatCompletionMessage
-from openai.types.chat.chat_completion_message_custom_tool_call import (
+from openai.types.chat import (
+    ChatCompletionMessage,
     ChatCompletionMessageCustomToolCall,
 )
-from openai.types.chat.chat_completion_message_custom_tool_call import (
-    Custom as OpenAICustom,
-)
+from openai.types.chat.chat_completion_message_custom_tool_call import Custom
 from openai.types.chat.chat_completion_message_function_tool_call import (
     ChatCompletionMessageFunctionToolCall,
 )
@@ -20,16 +18,15 @@ from pydantic import BaseModel
 
 from qs.core.models.assistant_message import (
     AssistantMessage,
-    CustomCall,
-    CustomToolCall,
     FunctionCall,
-    FunctionToolCall,
     ToolCall,
 )
 from qs.core.models.function_message import FunctionMessage
 from qs.core.models.structured_assistant_message import StructuredAssistantMessage
 from qs.core.models.system_message import SystemMessage
+from qs.core.models.tool import Tool
 from qs.core.models.tool_message import ToolMessage
+from qs.core.models.tools import Tools
 from qs.core.models.user_message import (
     DocumentUserMessage,
     FilesUserMessage,
@@ -47,6 +44,10 @@ from qs.core.providers.to_openai_chat_completion_mapper import (
 
 class StructuredAnswer(BaseModel):
     value: int
+
+
+def search(query: str) -> None:
+    pass
 
 
 def test_extract_usage_returns_empty_usage_when_provider_omits_it() -> None:
@@ -108,36 +109,6 @@ def test_map_provider_message_returns_assistant_message() -> None:
     assert result.get_tool_calls() is None
 
 
-def test_map_provider_message_maps_custom_tool_calls() -> None:
-    message = ChatCompletionMessage(
-        content=None,
-        role="assistant",
-        tool_calls=[
-            ChatCompletionMessageCustomToolCall(
-                id="call_123",
-                custom=OpenAICustom(
-                    name="execute_python",
-                    input="print(2 + 2)",
-                ),
-                type="custom",
-            )
-        ],
-    )
-
-    result = FromOpenAIChatCompletionMapper.map_assistant_message(message)
-
-    assert result.get_message() is None
-    assert result.get_tool_calls() == [
-        CustomToolCall(
-            id="call_123",
-            custom=CustomCall(
-                name="execute_python",
-                input="print(2 + 2)",
-            ),
-        )
-    ]
-
-
 @pytest.mark.parametrize("role", ["system", "developer"])
 def test_map_system_message_maps_supported_roles(role: str) -> None:
     message = SystemMessage("instructions", name="policy")
@@ -196,6 +167,29 @@ def test_map_assistant_message_maps_content_name_and_role() -> None:
     }
 
 
+def test_map_assistant_message_maps_tool_calls() -> None:
+    message = AssistantMessage(
+        "",
+        tool_calls=[ToolCall("call-123", FunctionCall("search", {"query": "docs"}))],
+    )
+
+    assert ToOpenAIChatCompletionMapper.map_assistant_message(message) == {
+        "content": "",
+        "role": "assistant",
+        "name": "",
+        "tool_calls": [
+            {
+                "id": "call-123",
+                "function": {
+                    "name": "search",
+                    "arguments": '{"query":"docs"}',
+                },
+                "type": "function",
+            }
+        ],
+    }
+
+
 def test_map_structured_assistant_message_serializes_pydantic_content() -> None:
     message = StructuredAssistantMessage(StructuredAnswer(value=42), name="agent")
 
@@ -230,9 +224,9 @@ def test_map_structured_assistant_message_maps_tool_calls() -> None:
     message = StructuredAssistantMessage(
         StructuredAnswer(value=42),
         tool_calls=[
-            FunctionToolCall(
+            ToolCall(
                 id="call_123",
-                function=FunctionCall(name="search", arguments="{}"),
+                function=FunctionCall(name="search", arguments={}),
             )
         ],
     )
@@ -247,46 +241,6 @@ def test_map_structured_assistant_message_maps_tool_calls() -> None:
                 "function": {"name": "search", "arguments": "{}"},
                 "type": "function",
             }
-        ],
-    }
-
-
-def test_map_assistant_message_maps_tool_calls() -> None:
-    message = AssistantMessage(
-        None,
-        tool_calls=[
-            FunctionToolCall(
-                id="call_123",
-                function=FunctionCall(name="search", arguments="{}"),
-            ),
-            CustomToolCall(
-                id="call_456",
-                custom=CustomCall(
-                    name="execute_python",
-                    input="print(2 + 2)",
-                ),
-            ),
-        ],
-    )
-
-    assert ToOpenAIChatCompletionMapper.map_assistant_message(message) == {
-        "content": None,
-        "role": "assistant",
-        "name": "",
-        "tool_calls": [
-            {
-                "id": "call_123",
-                "function": {"name": "search", "arguments": "{}"},
-                "type": "function",
-            },
-            {
-                "id": "call_456",
-                "custom": {
-                    "name": "execute_python",
-                    "input": "print(2 + 2)",
-                },
-                "type": "custom",
-            },
         ],
     }
 
@@ -310,47 +264,49 @@ def test_map_tool_calls_returns_none_when_provider_omits_them() -> None:
     assert FromOpenAIChatCompletionMapper.map_tool_calls(None) is None
 
 
-def test_map_tool_calls_maps_function_and_custom_calls() -> None:
-    tool_calls = [
-        ChatCompletionMessageFunctionToolCall(
-            id="call_123",
-            function=OpenAIFunction(name="search", arguments='{"query":"docs"}'),
-            type="function",
-        ),
-        ChatCompletionMessageCustomToolCall(
-            id="call_456",
-            custom=OpenAICustom(
-                name="execute_python",
-                input="print(2 + 2)",
-            ),
-            type="custom",
-        ),
-    ]
-
-    assert FromOpenAIChatCompletionMapper.map_tool_calls(tool_calls) == [
-        FunctionToolCall(
-            id="call_123",
-            function=FunctionCall(
-                name="search",
-                arguments='{"query":"docs"}',
-            ),
-        ),
-        CustomToolCall(
-            id="call_456",
-            custom=CustomCall(
-                name="execute_python",
-                input="print(2 + 2)",
-            ),
-        ),
-    ]
-
-
 def test_map_tool_calls_rejects_unsupported_provider_type() -> None:
     with pytest.raises(
         TypeError,
         match="Unsupported OpenAI tool call type: SimpleNamespace",
     ):
         FromOpenAIChatCompletionMapper.map_tool_calls([SimpleNamespace()])
+
+
+def test_map_tool_calls_resolves_registered_function_arguments() -> None:
+    tool_call = ChatCompletionMessageFunctionToolCall(
+        id="call-123",
+        type="function",
+        function=OpenAIFunction(name="search", arguments='{"query":"docs"}'),
+    )
+
+    mapped = FromOpenAIChatCompletionMapper.map_tool_calls(
+        [tool_call],
+        Tools([Tool(search)]),
+    )
+
+    assert mapped == [ToolCall("call-123", FunctionCall("search", {"query": "docs"}))]
+
+
+def test_map_tool_calls_requires_tools_for_function_call() -> None:
+    tool_call = ChatCompletionMessageFunctionToolCall(
+        id="call-123",
+        type="function",
+        function=OpenAIFunction(name="search", arguments="{}"),
+    )
+
+    with pytest.raises(ValueError, match="Tools are required"):
+        FromOpenAIChatCompletionMapper.map_tool_calls([tool_call])
+
+
+def test_map_tool_calls_rejects_deprecated_custom_call() -> None:
+    tool_call = ChatCompletionMessageCustomToolCall(
+        id="call-123",
+        type="custom",
+        custom=Custom(name="script", input="print('done')"),
+    )
+
+    with pytest.raises(DeprecationWarning, match="Custom tool calls are deprecated"):
+        FromOpenAIChatCompletionMapper.map_tool_calls([tool_call])
 
 
 def test_map_tool_message_maps_content_name_and_role() -> None:

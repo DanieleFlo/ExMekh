@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 
 from pydantic import BaseModel
@@ -16,6 +17,8 @@ from qs.core.models.tool_message import ToolMessage
 from qs.core.models.tools import Tools
 from qs.interfaces.message import Message
 from qs.interfaces.provider import Provider
+
+logger = logging.getLogger(__name__)
 
 
 class Client:
@@ -47,10 +50,30 @@ class Client:
     def dump_history(self) -> list[dict[str, str]]:
         return self._history.dump_history()
 
+    def copy_history(self) -> list[Message]:
+        return self._history.get_copy_of_history()
+
+    def replace_history_from(
+        self,
+        start_index: int,
+        messages: list[Message],
+    ) -> None:
+        self._history.replace_from(start_index, messages)
+
     def call(self, request: ClientRequest) -> ProviderResponse:
         provider_request = self._prepare_request(request)
+        logger.info(
+            "Calling provider: messages=%d tool_choice=%s",
+            len(provider_request.get_messages()),
+            request.tool_choice,
+        )
         response = self._provider.call(provider_request)
-        self._history.add(response.response)
+        self._history.add(response)
+        logger.info(
+            "Provider response recorded: tool_calls=%d history_size=%d",
+            len(response.get_tool_calls() or ()),
+            len(self._history.get_history()),
+        )
         return response
 
     def continue_after_tools(
@@ -70,8 +93,18 @@ class Client:
             stream=streaming,
             on_event=on_event,
         )
+        logger.info(
+            "Continuing after tools: messages=%d tool_choice=%s",
+            len(messages),
+            tool_choice,
+        )
         response = self._provider.call(provider_request)
-        self._history.add(response.response)
+        self._history.add(response)
+        logger.info(
+            "Continuation recorded: tool_calls=%d history_size=%d",
+            len(response.get_tool_calls() or ()),
+            len(self._history.get_history()),
+        )
         return response
 
     def call_structured[ResponseModel: BaseModel](
@@ -87,7 +120,7 @@ class Client:
             strict=strict,
         )
         response = self._provider.call_structured(provider_request)
-        self._history.add(response.response)
+        self._history.add(response)
         return response
 
     def continue_after_tools_structured[ResponseModel: BaseModel](
@@ -112,13 +145,19 @@ class Client:
             on_event=on_event,
         )
         response = self._provider.call_structured(provider_request)
-        self._history.add(response.response)
+        self._history.add(response)
         return response
 
     def add_tool_response(self, tool_response: ToolMessage) -> None:
         if not isinstance(tool_response, ToolMessage):
             raise TypeError("Expected a ToolMessage instance")
         self._history.add(tool_response)
+        logger.debug(
+            "Tool response recorded: name=%s call_id=%s history_size=%d",
+            tool_response.get_name(),
+            tool_response.get_tool_call_id(),
+            len(self._history.get_history()),
+        )
 
     def _get_tool_continuation_messages(self) -> list[Message]:
         messages = self._history.get_history()
@@ -175,3 +214,6 @@ class Client:
             on_event=request.on_event,
         )
         return provider_request
+
+    def create_history_checkpoint(self) -> MessageHistory:
+        return MessageHistory(history=self._history.get_copy_of_history())

@@ -2,7 +2,11 @@ from typing import cast
 
 import pytest
 
-from qs.core.models.tool import Tool
+from qs.core.models.assistant_message import (
+    FunctionCall,
+    ToolCall,
+)
+from qs.core.models.tool import CalledTool, Tool
 
 
 def documented_tool(query: str) -> str:
@@ -39,3 +43,57 @@ def test_tool_rejects_non_callable() -> None:
 def test_tool_rejects_non_string_description() -> None:
     with pytest.raises(TypeError, match="description must be a string"):
         Tool(documented_tool, description=cast(str, object()))
+
+
+def test_called_tool_executes_arguments_and_exposes_response_metadata() -> None:
+    called_tool = CalledTool(
+        Tool(documented_tool, name="search"),
+        ToolCall(
+            id="call-123",
+            function=FunctionCall(
+                name="search",
+                arguments={"query": "clean code"},
+            ),
+        ),
+    )
+
+    assert called_tool.execute() == "clean code"
+    assert called_tool.name == "search"
+    assert called_tool.call_id == "call-123"
+
+
+def test_called_tool_rejects_a_mismatched_name() -> None:
+    with pytest.raises(ValueError, match="does not match"):
+        CalledTool(
+            Tool(documented_tool, name="search"),
+            ToolCall(
+                id="call-123",
+                function=FunctionCall(name="other", arguments={}),
+            ),
+        )
+
+
+def test_called_tool_rejects_invalid_types() -> None:
+    tool = Tool(documented_tool)
+    tool_call = ToolCall(
+        id="call-123",
+        function=FunctionCall(name="documented_tool", arguments={}),
+    )
+
+    with pytest.raises(TypeError, match="tool must be a Tool"):
+        CalledTool(cast(Tool, object()), tool_call)
+    with pytest.raises(TypeError, match="tool_call must be a ToolCall"):
+        CalledTool.from_tool_call(tool, cast(ToolCall, object()))
+
+
+def test_called_tool_factory_returns_valid_wrapper() -> None:
+    tool = Tool(documented_tool)
+    tool_call = ToolCall(
+        id="call-123",
+        function=FunctionCall(
+            name="documented_tool",
+            arguments={"query": "docs"},
+        ),
+    )
+
+    assert CalledTool.from_tool_call(tool, tool_call).execute() == "docs"

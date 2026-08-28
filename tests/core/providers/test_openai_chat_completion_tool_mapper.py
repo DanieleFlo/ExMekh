@@ -8,12 +8,6 @@ from openai.types.chat.chat_completion_message_function_tool_call import (
     Function as OpenAIFunction,
 )
 
-from qs.core.models.assistant_message import (
-    CustomCall,
-    CustomToolCall,
-    FunctionCall,
-    FunctionToolCall,
-)
 from qs.core.models.tool import Tool
 from qs.core.models.tools import Tools
 from qs.core.providers.openai_chat_completion_tool_mapper import (
@@ -161,9 +155,10 @@ def test_resolve_tool_call_finds_tool_and_validates_arguments() -> None:
 
 
 def test_resolve_tool_call_rejects_unknown_tool() -> None:
-    tool_call = FunctionToolCall(
+    tool_call = ChatCompletionMessageFunctionToolCall(
         id="call_123",
-        function=FunctionCall(name="missing", arguments="{}"),
+        type="function",
+        function=OpenAIFunction(name="missing", arguments="{}"),
     )
 
     with pytest.raises(LookupError, match="not registered"):
@@ -173,11 +168,12 @@ def test_resolve_tool_call_rejects_unknown_tool() -> None:
         )
 
 
-def test_find_tool_supports_internal_tool_call() -> None:
+def test_find_tool_supports_openai_tool_call() -> None:
     registered = Tool(search)
-    tool_call = FunctionToolCall(
+    tool_call = ChatCompletionMessageFunctionToolCall(
         id="call_123",
-        function=FunctionCall(name="search", arguments="{}"),
+        type="function",
+        function=OpenAIFunction(name="search", arguments="{}"),
     )
 
     assert (
@@ -186,36 +182,11 @@ def test_find_tool_supports_internal_tool_call() -> None:
     )
 
 
-@pytest.mark.parametrize(
-    "tool_call",
-    [
-        object(),
-        CustomToolCall(
-            id="call_123",
-            custom=CustomCall(name="execute_python", input="print(2 + 2)"),
-        ),
-        FunctionToolCall(
-            id="call_123",
-            function=FunctionCall(name=cast(str, 42), arguments="{}"),
-        ),
-    ],
-)
-def test_find_tool_rejects_non_function_or_malformed_calls(tool_call) -> None:
-    with pytest.raises((TypeError, ValueError)):
+def test_find_tool_rejects_non_openai_function_call() -> None:
+    tool_call = cast(ChatCompletionMessageFunctionToolCall, object())
+
+    with pytest.raises(TypeError, match="OpenAI function tool call"):
         OpenAIChatCompletionToolMapper.find_tool(tool_call, Tools([Tool(search)]))
-
-
-def test_resolve_tool_call_rejects_non_string_internal_arguments() -> None:
-    tool_call = FunctionToolCall(
-        id="call_123",
-        function=FunctionCall(name="search", arguments=cast(str, object())),
-    )
-
-    with pytest.raises(TypeError, match="arguments must be a string"):
-        OpenAIChatCompletionToolMapper.resolve_tool_call(
-            tool_call,
-            Tools([Tool(search)]),
-        )
 
 
 @pytest.mark.parametrize(
@@ -236,9 +207,10 @@ def test_resolve_tool_call_rejects_invalid_arguments(
     error_type: type[Exception],
     message: str,
 ) -> None:
-    tool_call = FunctionToolCall(
+    tool_call = ChatCompletionMessageFunctionToolCall(
         id="call_123",
-        function=FunctionCall(name="search", arguments=arguments),
+        type="function",
+        function=OpenAIFunction(name="search", arguments=arguments),
     )
 
     with pytest.raises(error_type, match=message):

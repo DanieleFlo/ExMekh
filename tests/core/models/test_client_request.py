@@ -3,17 +3,11 @@ from dataclasses import FrozenInstanceError
 import pytest
 
 from qs.core.models.client_request import ClientRequest
-from qs.core.models.tool import Tool
-from qs.core.models.tools import Tools
 from qs.core.models.user_message import UserMessage
 
 
 def test_request_preserves_message_and_options() -> None:
-    def search(query: str) -> str:
-        return query
-
     message = UserMessage("question")
-    tools = Tools([Tool(search)])
     extra = {"temperature": 0.2}
 
     request = ClientRequest(

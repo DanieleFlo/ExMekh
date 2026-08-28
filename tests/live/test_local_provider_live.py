@@ -8,7 +8,7 @@ import pytest
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
-from qs.core.models.assistant_message import FunctionToolCall
+from qs.core.models.assistant_message import ToolCall
 from qs.core.models.client import Client
 from qs.core.models.client_request import ClientRequest
 from qs.core.models.provider_response import ProviderResponse
@@ -59,22 +59,22 @@ def build_live_client(system_prompt: str, tools: Tools | None = None) -> Client:
 def require_single_function_call(
     response: ProviderResponse,
     expected_ticket_id: str,
-) -> FunctionToolCall:
-    tool_calls = response.response.get_tool_calls()
+) -> ToolCall:
+    tool_calls = response.get_tool_calls()
     assert tool_calls is not None, "MODEL: expected one tool call, received none"
     assert len(tool_calls) == 1, (
         f"MODEL: expected one tool call, received {len(tool_calls)}"
     )
 
     tool_call = tool_calls[0]
-    assert isinstance(tool_call, FunctionToolCall), (
+    assert isinstance(tool_call, ToolCall), (
         f"CLIENT: expected a mapped function tool call, got {type(tool_call)!r}"
     )
     assert tool_call.function.name == "lookup_ticket", (
         f"MODEL: expected lookup_ticket, got {tool_call.function.name!r}"
     )
 
-    arguments = json.loads(tool_call.function.arguments)
+    arguments = tool_call.function.arguments
     assert arguments == {"ticket_id": expected_ticket_id}, (
         f"MODEL: unexpected tool arguments: {arguments!r}"
     )
@@ -95,7 +95,7 @@ def test_live_chained_messages_preserve_multiple_facts() -> None:
             tool_choice="none",
         )
     )
-    first_text = first_response.response.get_message()
+    first_text = first_response.get_message()
     assert isinstance(first_text, str) and first_text.strip(), (
         "MODEL: the acknowledgement response was empty"
     )
@@ -109,7 +109,7 @@ def test_live_chained_messages_preserve_multiple_facts() -> None:
             tool_choice="none",
         )
     )
-    second_text = second_response.response.get_message()
+    second_text = second_response.get_message()
     assert isinstance(second_text, str), "CLIENT: expected a text response"
     assert "ORBIT-17" in second_text and "Ada" in second_text, (
         f"MODEL: chained facts were not recalled: {second_text!r}"
@@ -122,7 +122,7 @@ def test_live_chained_messages_preserve_multiple_facts() -> None:
         ),
         RememberedFacts,
     )
-    assert structured_response.response.get_message() == RememberedFacts(
+    assert structured_response.get_message() == RememberedFacts(
         project_code="ORBIT-17",
         owner="Ada",
         retry_limit=4,
@@ -161,7 +161,7 @@ def test_live_two_tool_round_trips_keep_history_and_ids() -> None:
     client.add_tool_response(first_tool_message)
 
     first_continuation = client.continue_after_tools(tool_choice="none")
-    first_continuation_text = first_continuation.response.get_message()
+    first_continuation_text = first_continuation.get_message()
     assert isinstance(first_continuation_text, str), (
         "CLIENT: expected text after the first tool response"
     )
@@ -186,7 +186,7 @@ def test_live_two_tool_round_trips_keep_history_and_ids() -> None:
         TicketSummary,
         tool_choice="none",
     )
-    assert structured_response.response.get_message() == TicketSummary(
+    assert structured_response.get_message() == TicketSummary(
         ticket_id="QS-2048",
         state="ready",
         attempts=3,

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import List
 
 from qs.interfaces.message import Message
 
@@ -9,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class MessageHistory:
-    def __init__(self, history: List[Message] | None = None):
+    def __init__(self, history: list[Message] | None = None):
         if history is not None:
             self._history = list(history)
         else:
@@ -48,7 +47,7 @@ class MessageHistory:
 
         return True
 
-    def add(self, message: Message | List[Message]) -> MessageHistory:
+    def add(self, message: Message | list[Message]) -> MessageHistory:
         if isinstance(message, Message):
             return self._add_single_message(message)
         elif (
@@ -76,6 +75,28 @@ class MessageHistory:
 
     def get_history(self) -> list[Message]:
         return list(self._history)
+
+    def get_copy_of_history(self) -> list[Message]:
+        return [message.copy() for message in self._history]
+
+    def replace_from(self, start_index: int, messages: list[Message]) -> None:
+        if not isinstance(start_index, int) or isinstance(start_index, bool):
+            raise TypeError("start_index must be an integer")
+        if start_index < 0 or start_index > len(self._history):
+            raise IndexError("start_index is outside the history")
+
+        previous_size = len(self._history)
+        candidate = MessageHistory([*self._history[:start_index], *messages])
+        candidate.check_history()
+        self._history = candidate.get_history()
+        logger.info(
+            "Compacted message history: start_index=%d previous_size=%d "
+            "replacement_size=%d new_size=%d",
+            start_index,
+            previous_size,
+            len(messages),
+            len(self._history),
+        )
 
     def dump_history(self) -> list[dict[str, str]]:
         return [message.message_dump() for message in self._history]

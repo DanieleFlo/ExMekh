@@ -5,27 +5,32 @@ from qs.core.models.model_usage import ModelUsage
 from qs.core.models.structured_assistant_message import StructuredAssistantMessage
 
 
-class StructuredProviderResponse[ResponseContent: BaseModel]:
+class StructuredProviderResponse[ResponseContent: BaseModel](
+    StructuredAssistantMessage[ResponseContent]
+):
     def __init__(
         self,
         response: StructuredAssistantMessage[ResponseContent],
         thinking: ModelThinking | None = None,
         usage: ModelUsage | None = None,
     ) -> None:
-        self.response = response
-        self.thinking = thinking
-        self.usage = usage
-        self._check_inputs()
-
-    def _check_inputs(self) -> None:
-        if not isinstance(self.response, StructuredAssistantMessage):
+        if not isinstance(response, StructuredAssistantMessage):
             raise TypeError("Response must be a StructuredAssistantMessage")
 
-        if self.usage is not None and not isinstance(self.usage, ModelUsage):
+        if usage is not None and not isinstance(usage, ModelUsage):
             raise TypeError("Usage must be a ModelUsage instance")
 
-        if not issubclass(type(self.response.get_message()), BaseModel):
+        content = response.get_message()
+        if not isinstance(content, BaseModel):
             raise TypeError("Response content must be a Pydantic BaseModel")
 
-        if self.thinking is not None and not isinstance(self.thinking, ModelThinking):
+        if thinking is not None and not isinstance(thinking, ModelThinking):
             raise TypeError("Thinking must be a ModelThinking instance")
+
+        super().__init__(
+            content=content,
+            name=response.get_name(),
+            tool_calls=response.get_tool_calls(),
+        )
+        self.thinking = thinking
+        self.usage = usage

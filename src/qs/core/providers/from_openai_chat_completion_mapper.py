@@ -16,14 +16,15 @@ from openai.types.chat.chat_completion_message_function_tool_call import (
 
 from qs.core.models.assistant_message import (
     AssistantMessage,
-    CustomCall,
-    CustomToolCall,
     FunctionCall,
-    FunctionToolCall,
     ToolCall,
 )
 from qs.core.models.model_thinking import ModelThinking
 from qs.core.models.model_usage import ModelUsage
+from qs.core.models.tools import Tools
+from qs.core.providers.openai_chat_completion_tool_mapper import (
+    OpenAIChatCompletionToolMapper,
+)
 
 
 class FromOpenAIChatCompletionMapper:
@@ -67,10 +68,11 @@ class FromOpenAIChatCompletionMapper:
     def map_assistant_message(
         cls,
         message: ChatCompletionMessage,
+        tools: Tools | None = None,
     ) -> AssistantMessage:
         return AssistantMessage(
             content=message.content,
-            tool_calls=cls.map_tool_calls(message.tool_calls),
+            tool_calls=cls.map_tool_calls(message.tool_calls, tools),
         )
 
     @classmethod
@@ -90,19 +92,26 @@ class FromOpenAIChatCompletionMapper:
     def map_tool_calls(
         cls,
         tool_calls: list[ChatCompletionMessageToolCallUnion] | None,
+        tools: Tools | None = None,
     ) -> list[ToolCall] | None:
         if tool_calls is None:
             return None
 
-        return [cls._map_tool_call(tool_call) for tool_call in tool_calls]
+        return [cls._map_tool_call(tool_call, tools) for tool_call in tool_calls]
 
     @classmethod
-    def _map_tool_call(cls, tool_call: ChatCompletionMessageToolCallUnion) -> ToolCall:
+    def _map_tool_call(
+        cls,
+        tool_call: ChatCompletionMessageToolCallUnion,
+        tools: Tools | None,
+    ) -> ToolCall:
         if isinstance(tool_call, ChatCompletionMessageFunctionToolCall):
-            return cls._map_function_tool_call(tool_call)
+            return cls._map_function_tool_call(tool_call, tools)
 
         if isinstance(tool_call, ChatCompletionMessageCustomToolCall):
-            return cls._map_custom_tool_call(tool_call)
+            raise DeprecationWarning(
+                "Custom tool calls are deprecated and will be removed in a future version"
+            )
 
         raise TypeError(
             f"Unsupported OpenAI tool call type: {type(tool_call).__name__}"
@@ -110,24 +119,21 @@ class FromOpenAIChatCompletionMapper:
 
     @classmethod
     def _map_function_tool_call(
-        cls, tool_call: ChatCompletionMessageFunctionToolCall
-    ) -> FunctionToolCall:
-        return FunctionToolCall(
+        cls,
+        tool_call: ChatCompletionMessageFunctionToolCall,
+        tools: Tools | None,
+    ) -> ToolCall:
+        if tools is None:
+            raise ValueError("Tools are required to resolve a function tool call")
+
+        tool, arguments = OpenAIChatCompletionToolMapper.resolve_tool_call(
+            tool_call,
+            tools,
+        )
+        return ToolCall(
             id=tool_call.id,
             function=FunctionCall(
-                name=tool_call.function.name,
-                arguments=tool_call.function.arguments,
-            ),
-        )
-
-    @classmethod
-    def _map_custom_tool_call(
-        cls, tool_call: ChatCompletionMessageCustomToolCall
-    ) -> CustomToolCall:
-        return CustomToolCall(
-            id=tool_call.id,
-            custom=CustomCall(
-                name=tool_call.custom.name,
-                input=tool_call.custom.input,
+                name=tool.name,
+                arguments=arguments,
             ),
         )

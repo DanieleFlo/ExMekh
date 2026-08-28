@@ -3,14 +3,14 @@ from __future__ import annotations
 from typing import Any
 
 from openai.types.chat import ChatCompletionFunctionToolParam
+from openai.types.chat.chat_completion_message_function_tool_call import (
+    ChatCompletionMessageFunctionToolCall,
+)
 
 from qs.core.models.tool import Tool
 from qs.core.models.tools import Tools
 from qs.core.providers.openai_chat_completion_annotation_schema_builder import (
     OpenAIChatCompletionAnnotationSchemaBuilder,
-)
-from qs.core.providers.openai_chat_completion_tool_call_data import (
-    OpenAIChatCompletionToolCall,
 )
 from qs.core.providers.openai_chat_completion_tool_call_resolver import (
     OpenAIChatCompletionToolCallResolver,
@@ -45,7 +45,7 @@ class OpenAIChatCompletionToolMapper:
     @classmethod
     def find_tool(
         cls,
-        tool_call: OpenAIChatCompletionToolCall,
+        tool_call: ChatCompletionMessageFunctionToolCall,
         tools: Tools,
     ) -> Tool:
         return cls()._call_resolver.find_tool(tool_call, tools)
@@ -53,7 +53,7 @@ class OpenAIChatCompletionToolMapper:
     @classmethod
     def resolve_tool_call(
         cls,
-        tool_call: OpenAIChatCompletionToolCall,
+        tool_call: ChatCompletionMessageFunctionToolCall,
         tools: Tools,
     ) -> tuple[Tool, dict[str, Any]]:
         return cls()._call_resolver.resolve(tool_call, tools)

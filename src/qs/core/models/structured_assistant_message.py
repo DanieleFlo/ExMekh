@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import json
-from dataclasses import asdict
-
 from pydantic import BaseModel
 
 from qs.core.models.assistant_message import ToolCall
@@ -39,8 +36,7 @@ class StructuredAssistantMessage[MessageContent: BaseModel](Message[MessageConte
     def get_message(self) -> MessageContent:
         if not issubclass(type(self._content), BaseModel):
             raise TypeError(
-                f"content must be a subclass of BaseModel, "
-                f"got {type(self._content)!r}"
+                f"content must be a subclass of BaseModel, got {type(self._content)!r}"
             )
         return self._content
 
@@ -58,16 +54,9 @@ class StructuredAssistantMessage[MessageContent: BaseModel](Message[MessageConte
         if _tool_calls is None:
             tool_calls_content = "null"
         else:
-            tool_calls_content = self._dump_tool_calls(_tool_calls)
+            tool_calls_content = ToolCall.dump_many(_tool_calls)
         return {
             "role": self._role,
             "content": self._content.model_dump_json(),
             "tool_calls": tool_calls_content,
         }
-
-    def _dump_tool_calls(self, tool_calls_content: list[ToolCall]) -> str:
-        return json.dumps(
-            [asdict(tool_call) for tool_call in tool_calls_content],
-            indent=2,
-            ensure_ascii=False,
-        )

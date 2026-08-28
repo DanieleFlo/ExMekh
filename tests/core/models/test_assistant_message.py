@@ -5,10 +5,8 @@ import pytest
 
 from qs.core.models.assistant_message import (
     AssistantMessage,
-    CustomCall,
-    CustomToolCall,
     FunctionCall,
-    FunctionToolCall,
+    ToolCall,
 )
 
 
@@ -32,32 +30,14 @@ def test_get_name_returns_custom_name() -> None:
     assert message.get_name() == "agent"
 
 
-def test_get_tool_calls_returns_tool_calls() -> None:
-    tool_calls = [
-        FunctionToolCall(
-            id="call_123",
-            function=FunctionCall(name="search", arguments="{}"),
-        ),
-        CustomToolCall(
-            id="call_456",
-            custom=CustomCall(name="execute_python", input="print(2 + 2)"),
-        ),
-    ]
-    message = AssistantMessage(None, tool_calls=tool_calls)
-
-    assert message.get_tool_calls() is tool_calls
-    assert tool_calls[0].function.name == "search"
-    assert tool_calls[1].custom.name == "execute_python"
-
-
 def test_message_dump_returns_provider_fields() -> None:
     message = AssistantMessage(
         "answer",
         name="agent",
         tool_calls=[
-            FunctionToolCall(
+            ToolCall(
                 id="call_123",
-                function=FunctionCall(name="search", arguments="{}"),
+                function=FunctionCall(name="search", arguments={}),
             )
         ],
     )
@@ -70,7 +50,7 @@ def test_message_dump_returns_provider_fields() -> None:
     assert json.loads(dumped["tool_calls"]) == [
         {
             "id": "call_123",
-            "function": {"name": "search", "arguments": "{}"},
+            "function": {"name": "search", "arguments": {}},
             "type": "function",
         }
     ]
@@ -93,3 +73,17 @@ def test_init_rejects_non_string_content() -> None:
 def test_init_rejects_invalid_tool_calls(tool_calls: object) -> None:
     with pytest.raises(TypeError, match="list of ToolCall objects"):
         AssistantMessage(None, tool_calls=cast(list, tool_calls))
+
+
+def test_tool_call_exposes_function_data() -> None:
+    arguments = {"query": "docs"}
+    tool_call = ToolCall(
+        id="call-123",
+        function=FunctionCall(name="search", arguments=arguments),
+    )
+
+    assert tool_call.get_name() == "search"
+    assert tool_call.get_id() == "call-123"
+    assert tool_call.get_fun_name() == "search"
+    assert tool_call.get_type() == "function"
+    assert tool_call.get_arguments() is arguments

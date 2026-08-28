@@ -28,6 +28,12 @@ class OpenAIChatCompletionToolSchemaMapper:
     ) -> None:
         self._schema_builder = schema_builder
 
+    def map_all(self, tools: Tools) -> list[ChatCompletionFunctionToolParam]:
+        if not isinstance(tools, Tools):
+            raise TypeError("Expected a Tools instance")
+
+        return [self.map(tool) for tool in tools.get_tools()]
+
     def map(self, tool: Tool) -> ChatCompletionFunctionToolParam:
         self._ensure_tool(tool)
 
@@ -38,12 +44,6 @@ class OpenAIChatCompletionToolSchemaMapper:
             type="function",
             function=function,
         )
-
-    def map_all(self, tools: Tools) -> list[ChatCompletionFunctionToolParam]:
-        if not isinstance(tools, Tools):
-            raise TypeError("Expected a Tools instance")
-
-        return [self.map(tool) for tool in tools.get_tools()]
 
     def _build_parameters(self, tool: Tool) -> Schema:
         signature = inspect.signature(tool.tool)

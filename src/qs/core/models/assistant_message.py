@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-import json
-from dataclasses import asdict, dataclass, field
-from typing import Literal
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+from typing import Any, Literal
+
+from pydantic_core import to_json
 
 from qs.interfaces.message import Message
 
@@ -26,9 +28,11 @@ class AssistantMessage(Message[str | None]):
             raise TypeError("Assistant content must be a string")
         if self._tool_calls is not None:
             if not isinstance(self._tool_calls, list):
-                raise TypeError("Assistant tool_calls must be a list of ToolCall objects")
+                raise TypeError(
+                    "Assistant tool_calls must be a list of ToolCall objects"
+                )
             for tool_call in self._tool_calls:
-                if not isinstance(tool_call, (FunctionToolCall, CustomToolCall)):
+                if not isinstance(tool_call, ToolCall):
                     raise TypeError(
                         "Assistant tool_calls must be a list of ToolCall objects"
                     )
@@ -53,45 +57,41 @@ class AssistantMessage(Message[str | None]):
         if _tool_calls is None:
             tool_calls_content = "null"
         else:
-            tool_calls_content = self._dump_tool_calls(_tool_calls)
+            tool_calls_content = ToolCall.dump_many(_tool_calls)
         return {
             "role": self._role,
             "content": content,
             "tool_calls": tool_calls_content,
         }
 
-    def _dump_tool_calls(self, tool_calls_content: list[ToolCall]) -> str:
-        return json.dumps(
-            [asdict(tool_call) for tool_call in tool_calls_content],
-            indent=2,
-            ensure_ascii=False,
-        )
-
 
 @dataclass(frozen=True, slots=True)
 class FunctionCall:
     name: str
-    arguments: str
+    arguments: dict[str, Any]
 
 
 @dataclass(frozen=True, slots=True)
-class FunctionToolCall:
+class ToolCall:
     id: str
     function: FunctionCall
     type: Literal["function"] = field(default="function", init=False)
 
+    def get_name(self) -> str:
+        return self.function.name
 
-@dataclass(frozen=True, slots=True)
-class CustomCall:
-    name: str
-    input: str
+    def get_id(self) -> str:
+        return self.id
 
+    def get_fun_name(self) -> str | None:
+        return self.function.name
 
-@dataclass(frozen=True, slots=True)
-class CustomToolCall:
-    id: str
-    custom: CustomCall
-    type: Literal["custom"] = field(default="custom", init=False)
+    def get_type(self) -> str:
+        return self.type
 
+    def get_arguments(self) -> dict[str, Any]:
+        return self.function.arguments
 
-ToolCall = FunctionToolCall | CustomToolCall
+    @staticmethod
+    def dump_many(tool_calls: Sequence[ToolCall]) -> str:
+        return to_json(tool_calls, indent=2).decode()

@@ -134,7 +134,7 @@ def test_call_executes_and_parses_provider_response(openai_client) -> None:
 
     assert result is parsed_response
     execute.assert_called_once_with(request)
-    parse.assert_called_once_with(provider_response)
+    parse.assert_called_once_with(provider_response, request)
 
 
 def test_call_streams_mapped_events_and_returns_accumulated_response(
@@ -151,7 +151,7 @@ def test_call_streams_mapped_events_and_returns_accumulated_response(
 
     result = completion.call(request)
 
-    assert result.response.get_message() == "answer"
+    assert result.get_message() == "answer"
     assert result.thinking == ModelThinking("thinking")
     assert result.usage == ModelUsage(2, 3, 5)
     assert events == [
@@ -254,6 +254,7 @@ def test_parse_response_builds_response_with_content_usage_and_thinking(
     provider_message = SimpleNamespace(content="answer")
     choices = [SimpleNamespace(message=provider_message)]
     response = cast(ChatCompletion, SimpleNamespace(choices=choices))
+    request = ProviderRequest([SystemMessage("rules")])
     assistant_message = AssistantMessage("answer")
     usage = ModelUsage(10, 5, 15)
     thinking = ModelThinking("reasoning")
@@ -275,21 +276,27 @@ def test_parse_response_builds_response_with_content_usage_and_thinking(
             return_value=thinking,
         ) as extract_thinking,
     ):
-        result = completion._parse_response(response)
+        result = completion._parse_response(response, request)
 
-    assert result.response is assistant_message
+    assert result.get_message() == assistant_message.get_message()
+    assert result.get_name() == assistant_message.get_name()
+    assert result.get_tool_calls() is assistant_message.get_tool_calls()
     assert result.usage is usage
     assert result.thinking is thinking
-    map_assistant_message.assert_called_once_with(provider_message)
+    map_assistant_message.assert_called_once_with(provider_message, tools=None)
     extract_usage.assert_called_once_with(response)
     extract_thinking.assert_called_once_with(response)
 
 
 def test_parse_response_rejects_empty_choices(openai_client) -> None:
     completion = ChatCompletionOpenAI(openai_client, "model")
+    request = ProviderRequest([SystemMessage("rules")])
 
     with pytest.raises(RuntimeError, match="No choices returned from the provider"):
-        completion._parse_response(cast(ChatCompletion, SimpleNamespace(choices=[])))
+        completion._parse_response(
+            cast(ChatCompletion, SimpleNamespace(choices=[])),
+            request,
+        )
 
 
 def test_call_structured_executes_and_parses_provider_response(openai_client) -> None:
@@ -332,7 +339,7 @@ def test_call_structured_streams_and_parses_accumulated_json(openai_client) -> N
 
     result = completion.call_structured(request)
 
-    assert result.response.get_message() == StructuredAnswer(value=42)
+    assert result.get_message() == StructuredAnswer(value=42)
     assert [event.type for event in events] == [
         ProviderStreamEventType.START,
         ProviderStreamEventType.REASONING,
@@ -444,7 +451,7 @@ def test_parse_structured_response_returns_pydantic_content(
         request,
     )
 
-    content = result.response.get_message()
+    content = result.get_message()
     assert isinstance(content, StructuredAnswer)
     assert content.value == 42
 
@@ -471,7 +478,7 @@ def test_parse_structured_response_non_strict_mode_allows_coercion(
         request,
     )
 
-    assert result.response.get_message() == StructuredAnswer(value=42)
+    assert result.get_message() == StructuredAnswer(value=42)
 
 
 def test_parse_structured_response_rejects_empty_choices(openai_client) -> None:

@@ -10,7 +10,10 @@ def test_init_uses_optional_metadata_defaults() -> None:
     message = AssistantMessage("answer")
     response = ProviderResponse(message)
 
-    assert response.response is message
+    assert response.get_message() == "answer"
+    assert response.get_role_name() == message.get_role_name()
+    assert response.get_name() == message.get_name()
+    assert response.get_tool_calls() is message.get_tool_calls()
     assert response.thinking is None
     assert response.usage is None
 
@@ -22,7 +25,8 @@ def test_init_preserves_response_metadata() -> None:
 
     response = ProviderResponse(message, thinking=thinking, usage=usage)
 
-    assert response.response is message
+    assert isinstance(response, AssistantMessage)
+    assert response.get_message() == message.get_message()
     assert response.thinking is thinking
     assert response.usage is usage
 
