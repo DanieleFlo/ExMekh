@@ -48,7 +48,7 @@ def lookup_ticket(
 
 def build_live_client(system_prompt: str, tools: Tools | None = None) -> Client:
     load_dotenv()
-    model = os.getenv("QS_LIVE_MODEL", "qwen3.5-9b-mtp")
+    model = os.getenv("QS_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S")
     return Client(
         provider=LocalProvider(model=model, reasoning_effort=ReasoningEffortLMH.LOW),
         system_message=SystemMessage(system_prompt),

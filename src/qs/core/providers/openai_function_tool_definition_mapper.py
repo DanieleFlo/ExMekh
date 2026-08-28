@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import inspect
 import json
-from typing import Any, ClassVar, get_type_hints
+from dataclasses import dataclass
+from typing import Any, ClassVar
 
-from openai.types.chat import ChatCompletionFunctionToolParam
 from openai.types.shared_params.function_definition import FunctionDefinition
 
 from qs.core.models.tool import Tool
@@ -15,7 +15,32 @@ from qs.core.providers.openai_chat_completion_annotation_schema_builder import (
 )
 
 
-class OpenAIChatCompletionToolSchemaMapper:
+@dataclass(frozen=True)
+class OpenAIFunctionToolDefinition:
+    _name: str
+    _parameters: Schema
+    _description: str
+
+    def get_name(self) -> str:
+        return self._name
+
+    def get_parameters(self) -> Schema:
+        return self._parameters.copy()
+
+    def get_description(self) -> str:
+        return self._description
+
+    def to_openai(self) -> FunctionDefinition:
+        definition = FunctionDefinition(
+            name=self._name,
+            parameters=self._parameters,
+        )
+        if self._description:
+            definition["description"] = self._description
+        return definition
+
+
+class OpenAIFunctionToolDefinitionMapper:
     _UNSUPPORTED_PARAMETER_KINDS: ClassVar[set[Any]] = {
         inspect.Parameter.POSITIONAL_ONLY,
         inspect.Parameter.VAR_POSITIONAL,
@@ -28,41 +53,44 @@ class OpenAIChatCompletionToolSchemaMapper:
     ) -> None:
         self._schema_builder = schema_builder
 
-    def map_all(self, tools: Tools) -> list[ChatCompletionFunctionToolParam]:
+    def map_all(
+        self,
+        tools: Tools,
+        *,
+        strict: bool = False,
+    ) -> list[OpenAIFunctionToolDefinition]:
         if not isinstance(tools, Tools):
             raise TypeError("Expected a Tools instance")
+        return [self.map(tool, strict=strict) for tool in tools.get_tools()]
 
-        return [self.map(tool) for tool in tools.get_tools()]
-
-    def map(self, tool: Tool) -> ChatCompletionFunctionToolParam:
+    def map(
+        self,
+        tool: Tool,
+        *,
+        strict: bool = False,
+    ) -> OpenAIFunctionToolDefinition:
         self._ensure_tool(tool)
-
-        parameters = self._build_parameters(tool)
-        function = self._build_function_definition(tool, parameters)
-
-        return ChatCompletionFunctionToolParam(
-            type="function",
-            function=function,
+        return OpenAIFunctionToolDefinition(
+            _name=tool.get_name(),
+            _parameters=self._build_parameters(tool, strict=strict),
+            _description=tool.get_description(),
         )
 
-    def _build_parameters(self, tool: Tool) -> Schema:
-        signature = inspect.signature(tool.tool)
-        type_hints = get_type_hints(tool.tool, include_extras=True)
-
+    def _build_parameters(self, tool: Tool, *, strict: bool) -> Schema:
+        signature = tool.get_signature()
+        type_hints = tool.get_type_hints()
         properties: Schema = {}
         required: list[str] = []
 
         for parameter in signature.parameters.values():
             self._ensure_supported_parameter(tool, parameter)
-
-            annotation = self._parameter_annotation(parameter, type_hints)
-            schema = self._schema_builder.build(annotation)
-
-            self._add_default(schema, parameter)
-
+            schema = self._schema_builder.build(
+                self._parameter_annotation(parameter, type_hints)
+            )
+            if not strict:
+                self._add_default(schema, parameter)
             properties[parameter.name] = schema
-
-            if self._is_required(parameter):
+            if strict or self._is_required(parameter):
                 required.append(parameter.name)
 
         return self._object_schema(properties, required)
@@ -73,12 +101,10 @@ class OpenAIChatCompletionToolSchemaMapper:
         type_hints: dict[str, Any],
     ) -> Any:
         annotation = type_hints.get(parameter.name, parameter.annotation)
-
         if annotation is inspect.Parameter.empty:
             raise TypeError(
                 f"Tool parameter '{parameter.name}' must have a type annotation"
             )
-
         return annotation
 
     @classmethod
@@ -89,9 +115,8 @@ class OpenAIChatCompletionToolSchemaMapper:
     ) -> None:
         if parameter.kind not in cls._UNSUPPORTED_PARAMETER_KINDS:
             return
-
         raise TypeError(
-            f"Tool '{tool.name}' has unsupported parameter '{parameter.name}'"
+            f"Tool '{tool.get_name()}' has unsupported parameter '{parameter.name}'"
         )
 
     @staticmethod
@@ -102,44 +127,22 @@ class OpenAIChatCompletionToolSchemaMapper:
     def _add_default(schema: Schema, parameter: inspect.Parameter) -> None:
         if parameter.default is inspect.Parameter.empty:
             return
-
         try:
             json.dumps(parameter.default)
         except (TypeError, ValueError):
             return
-
         schema["default"] = parameter.default
 
     @staticmethod
-    def _object_schema(
-        properties: Schema,
-        required: list[str],
-    ) -> Schema:
+    def _object_schema(properties: Schema, required: list[str]) -> Schema:
         schema: Schema = {
             "type": "object",
             "properties": properties,
             "additionalProperties": False,
         }
-
         if required:
             schema["required"] = required
-
         return schema
-
-    @staticmethod
-    def _build_function_definition(
-        tool: Tool,
-        parameters: Schema,
-    ) -> FunctionDefinition:
-        definition = FunctionDefinition(
-            name=tool.name,
-            parameters=parameters,
-        )
-
-        if tool.description:
-            definition["description"] = tool.description
-
-        return definition
 
     @staticmethod
     def _ensure_tool(tool: Tool) -> None:

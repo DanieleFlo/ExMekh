@@ -3,7 +3,8 @@ from __future__ import annotations
 import inspect
 import re
 from collections.abc import Callable
-from typing import Any, Literal
+from functools import partial
+from typing import Any, Literal, get_type_hints
 
 from qs.core.models.assistant_message import ToolCall
 
@@ -45,6 +46,19 @@ class Tool:
 
     def execute(self, **arguments: Any) -> Any:
         return self.tool(**arguments)
+
+    def get_name(self) -> str:
+        return self.name
+
+    def get_description(self) -> str:
+        return self.description
+
+    def get_signature(self) -> inspect.Signature:
+        return inspect.signature(self.tool)
+
+    def get_type_hints(self) -> dict[str, Any]:
+        callable_tool = self.tool.func if isinstance(self.tool, partial) else self.tool
+        return get_type_hints(callable_tool, include_extras=True)
 
     def with_description(self, description: str) -> Tool:
         return Tool(self.tool, name=self.name, description=description)

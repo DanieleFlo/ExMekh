@@ -12,14 +12,15 @@ from qs.core.models.tools import Tools
 from qs.core.providers.openai_chat_completion_annotation_schema_builder import (
     OpenAIChatCompletionAnnotationSchemaBuilder,
 )
-from qs.core.providers.openai_chat_completion_tool_call_resolver import (
-    OpenAIChatCompletionToolCallResolver,
-)
-from qs.core.providers.openai_chat_completion_tool_schema_mapper import (
-    OpenAIChatCompletionToolSchemaMapper,
-)
 from qs.core.providers.openai_chat_completion_value_coercer import (
     OpenAIChatCompletionValueCoercer,
+)
+from qs.core.providers.openai_function_tool_call import OpenAIFunctionToolCall
+from qs.core.providers.openai_function_tool_call_resolver import (
+    OpenAIFunctionToolCallResolver,
+)
+from qs.core.providers.openai_function_tool_definition_mapper import (
+    OpenAIFunctionToolDefinitionMapper,
 )
 
 
@@ -28,19 +29,30 @@ class OpenAIChatCompletionToolMapper:
         schema_builder = OpenAIChatCompletionAnnotationSchemaBuilder()
         coercer = OpenAIChatCompletionValueCoercer()
 
-        self._tool_mapper = OpenAIChatCompletionToolSchemaMapper(schema_builder)
-        self._call_resolver = OpenAIChatCompletionToolCallResolver(coercer)
+        self._definition_mapper = OpenAIFunctionToolDefinitionMapper(schema_builder)
+        self._call_resolver = OpenAIFunctionToolCallResolver(coercer)
 
     @classmethod
     def map_tool(cls, tool: Tool) -> ChatCompletionFunctionToolParam:
-        return cls()._tool_mapper.map(tool)
+        definition = cls()._definition_mapper.map(tool)
+        return ChatCompletionFunctionToolParam(
+            type="function",
+            function=definition.to_openai(),
+        )
 
     @classmethod
     def map_tools(
         cls,
         tools: Tools,
     ) -> list[ChatCompletionFunctionToolParam]:
-        return cls()._tool_mapper.map_all(tools)
+        definitions = cls()._definition_mapper.map_all(tools)
+        return [
+            ChatCompletionFunctionToolParam(
+                type="function",
+                function=definition.to_openai(),
+            )
+            for definition in definitions
+        ]
 
     @classmethod
     def find_tool(
@@ -48,7 +60,8 @@ class OpenAIChatCompletionToolMapper:
         tool_call: ChatCompletionMessageFunctionToolCall,
         tools: Tools,
     ) -> Tool:
-        return cls()._call_resolver.find_tool(tool_call, tools)
+        call = cls._read_tool_call(tool_call)
+        return cls()._call_resolver.find_tool(call, tools)
 
     @classmethod
     def resolve_tool_call(
@@ -56,4 +69,16 @@ class OpenAIChatCompletionToolMapper:
         tool_call: ChatCompletionMessageFunctionToolCall,
         tools: Tools,
     ) -> tuple[Tool, dict[str, Any]]:
-        return cls()._call_resolver.resolve(tool_call, tools)
+        call = cls._read_tool_call(tool_call)
+        return cls()._call_resolver.resolve(call, tools)
+
+    @staticmethod
+    def _read_tool_call(
+        tool_call: ChatCompletionMessageFunctionToolCall,
+    ) -> OpenAIFunctionToolCall:
+        if not isinstance(tool_call, ChatCompletionMessageFunctionToolCall):
+            raise TypeError("tool_call must be an OpenAI function tool call")
+        return OpenAIFunctionToolCall(
+            name=tool_call.function.name,
+            arguments=tool_call.function.arguments,
+        )

@@ -27,6 +27,10 @@ def test_tool_accepts_explicit_metadata() -> None:
 
     assert tool.name == "search-docs"
     assert tool.description == "Search docs"
+    assert tool.get_name() == "search-docs"
+    assert tool.get_description() == "Search docs"
+    assert tuple(tool.get_signature().parameters) == ("query",)
+    assert tool.get_type_hints() == {"query": str, "return": str}
 
 
 def test_tool_creates_copy_with_description() -> None:

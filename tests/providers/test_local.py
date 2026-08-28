@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from typing import Literal
 from unittest.mock import MagicMock, patch
 
 import openai
@@ -17,6 +18,7 @@ from qs.core.models.reasoning_effort import (
 from qs.core.models.structured_assistant_message import StructuredAssistantMessage
 from qs.core.models.structured_provider_request import StructuredProviderRequest
 from qs.core.models.structured_provider_response import StructuredProviderResponse
+from qs.core.providers.response_openai import ResponseOpenAI
 from qs.providers.local import LocalProvider
 
 
@@ -27,12 +29,17 @@ class StructuredAnswer(BaseModel):
 def make_provider(
     model: str = "local-model",
     reasoning_effort: ReasoningEffort | None = None,
+    api: Literal["chat_completions", "responses"] = "chat_completions",
 ) -> LocalProvider:
     with (
         patch.object(LocalProvider, "_build_client", return_value=MagicMock()),
         patch.object(LocalProvider, "_check_provider"),
     ):
-        return LocalProvider(model=model, reasoning_effort=reasoning_effort)
+        return LocalProvider(
+            model=model,
+            reasoning_effort=reasoning_effort,
+            api=api,
+        )
 
 
 def test_init_builds_client_and_checks_provider() -> None:
@@ -53,6 +60,7 @@ def test_init_builds_client_and_checks_provider() -> None:
     assert provider._api_key_env_var == "CUSTOM_KEY"
     assert provider._base_url_env_var == "CUSTOM_URL"
     assert provider._reasoning_effort is None
+    assert provider._api == "chat_completions"
     assert provider.client is client
     check_inputs.assert_called_once_with()
     build.assert_called_once_with()
@@ -70,6 +78,7 @@ def test_init_builds_client_and_checks_provider() -> None:
         ({"base_url_env_var": ""}, ValueError),
         ({"base_url_env_var": 7}, TypeError),
         ({"reasoning_effort": 7}, TypeError),
+        ({"api": "unknown"}, ValueError),
     ],
 )
 def test_init_rejects_malformed_settings(overrides, error_type) -> None:
@@ -78,6 +87,7 @@ def test_init_rejects_malformed_settings(overrides, error_type) -> None:
         "api_key_env_var": "VALID_KEY",
         "base_url_env_var": "VALID_URL",
         "reasoning_effort": ReasoningEffortLMH.LOW,
+        "api": "chat_completions",
     }
     values.update(overrides)
 
@@ -259,6 +269,39 @@ def test_call_delegates_to_chat_completion() -> None:
     completion.call.assert_called_once_with(request)
 
 
+def test_call_delegates_to_responses_api() -> None:
+    provider = make_provider(
+        reasoning_effort=ReasoningEffortLMH.HIGH,
+        api="responses",
+    )
+    request = ProviderRequest([AssistantMessage("question")])
+    expected = ProviderResponse(AssistantMessage("answer"))
+    completion = MagicMock(spec=ResponseOpenAI)
+    completion.call.return_value = expected
+
+    with patch(
+        "qs.providers.local.ResponseOpenAI",
+        return_value=completion,
+    ) as completion_class:
+        result = provider.call(request)
+
+    assert result is expected
+    completion_class.assert_called_once_with(
+        client=provider.client,
+        model="local-model",
+        reasoning_effort=ReasoningEffortLMH.HIGH,
+    )
+    completion.call.assert_called_once_with(request)
+
+
+def test_create_api_adapter_rejects_corrupted_api() -> None:
+    provider = make_provider()
+    provider._api = "unknown"
+
+    with pytest.raises(ValueError, match="API must be"):
+        provider._create_api_adapter()
+
+
 def test_call_translates_openai_api_error_to_runtime_error() -> None:
     provider = make_provider()
     request = MagicMock(spec=ProviderRequest)
@@ -287,6 +330,33 @@ def test_call_structured_delegates_to_chat_completion() -> None:
 
     with patch(
         "qs.providers.local.ChatCompletionOpenAI", return_value=completion
+    ) as completion_class:
+        result = provider.call_structured(request)
+
+    assert result is expected
+    completion_class.assert_called_once_with(
+        client=provider.client,
+        model="local-model",
+        reasoning_effort="high",
+    )
+    completion.call_structured.assert_called_once_with(request)
+
+
+def test_call_structured_delegates_to_responses_api() -> None:
+    provider = make_provider(reasoning_effort="high", api="responses")
+    request = StructuredProviderRequest(
+        [AssistantMessage("question")],
+        StructuredAnswer,
+    )
+    expected = StructuredProviderResponse(
+        StructuredAssistantMessage(StructuredAnswer(value=42)),
+    )
+    completion = MagicMock(spec=ResponseOpenAI)
+    completion.call_structured.return_value = expected
+
+    with patch(
+        "qs.providers.local.ResponseOpenAI",
+        return_value=completion,
     ) as completion_class:
         result = provider.call_structured(request)
 

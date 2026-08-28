@@ -1,3 +1,5 @@
+from functools import partial
+from pathlib import Path
 from typing import Annotated, Literal, TypedDict, cast
 
 import pytest
@@ -82,6 +84,22 @@ def test_map_tools_preserves_registry_order() -> None:
     )
 
     assert [item["function"]["name"] for item in mapped] == ["search", "count"]
+
+
+def test_map_tool_supports_bound_partial_parameters(tmp_path: Path) -> None:
+    def run(work_root: Path, query: Annotated[str, "Query to run"]) -> str:
+        return str(work_root / query)
+
+    mapped = OpenAIChatCompletionToolMapper.map_tool(
+        Tool(partial(run, tmp_path), name="run")
+    )
+
+    assert mapped["function"]["parameters"] == {
+        "type": "object",
+        "properties": {"query": {"type": "string", "description": "Query to run"}},
+        "additionalProperties": False,
+        "required": ["query"],
+    }
 
 
 def test_map_tool_omits_non_json_default_and_empty_required_list() -> None:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from typing import Literal
 from urllib.parse import urlparse
 
 import openai
@@ -13,6 +14,7 @@ from qs.core.models.reasoning_effort import ReasoningEffort
 from qs.core.models.structured_provider_request import StructuredProviderRequest
 from qs.core.models.structured_provider_response import StructuredProviderResponse
 from qs.core.providers.chat_completion_openai import ChatCompletionOpenAI
+from qs.core.providers.response_openai import ResponseOpenAI
 from qs.interfaces.provider import Provider
 
 
@@ -23,11 +25,13 @@ class LocalProvider(Provider):
         api_key_env_var: str = "API_KEY",
         base_url_env_var: str = "BASE_URL",
         reasoning_effort: ReasoningEffort | None = None,
+        api: Literal["chat_completions", "responses"] = "chat_completions",
     ) -> None:
         self._model = model
         self._api_key_env_var = api_key_env_var
         self._base_url_env_var = base_url_env_var
         self._reasoning_effort = reasoning_effort
+        self._api = api
 
         self._check_inputs()
         self.client = self._build_client()
@@ -44,6 +48,8 @@ class LocalProvider(Provider):
             self._reasoning_effort, ReasoningEffort
         ):
             raise TypeError("Reasoning effort must be a ReasoningEffort or None")
+        if self._api not in {"chat_completions", "responses"}:
+            raise ValueError("API must be 'chat_completions' or 'responses'")
 
         if not self._model.strip():
             raise ValueError("Model must be a non-empty string")
@@ -111,26 +117,33 @@ class LocalProvider(Provider):
 
     def call(self, request: ProviderRequest) -> ProviderResponse:
         try:
-            chat_completion = ChatCompletionOpenAI(
+            api_adapter = self._create_api_adapter()
+            return api_adapter.call(request)
+        except openai.APIError as error:
+            raise RuntimeError("Local provider request failed") from error
+
+    def _create_api_adapter(self) -> ChatCompletionOpenAI | ResponseOpenAI:
+        if self._api == "chat_completions":
+            return ChatCompletionOpenAI(
                 client=self.client,
                 model=self._model,
                 reasoning_effort=self._reasoning_effort,
             )
-            response = chat_completion.call(request)
-            return response
-        except openai.APIError as error:
-            raise RuntimeError("Local provider request failed") from error
+        elif self._api == "responses":
+            return ResponseOpenAI(
+                client=self.client,
+                model=self._model,
+                reasoning_effort=self._reasoning_effort,
+            )
+        else:
+            raise ValueError("API must be 'chat_completions' or 'responses'")
 
     def call_structured[ResponseModel: BaseModel](
         self,
         request: StructuredProviderRequest[ResponseModel],
     ) -> StructuredProviderResponse[ResponseModel]:
         try:
-            chat_completion = ChatCompletionOpenAI(
-                client=self.client,
-                model=self._model,
-                reasoning_effort=self._reasoning_effort,
-            )
-            return chat_completion.call_structured(request)
+            api_adapter = self._create_api_adapter()
+            return api_adapter.call_structured(request)
         except openai.APIError as error:
             raise RuntimeError("Local provider request failed") from error
