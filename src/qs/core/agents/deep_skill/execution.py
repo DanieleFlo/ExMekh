@@ -48,12 +48,20 @@ class DeepSkillExecution:
         self.output = output
         self.history = history
 
-    def history_tree(self) -> dict[str, Any]:
+    def history_tree(
+        self,
+        current_history: list[Message] | None = None,
+    ) -> dict[str, Any]:
+        history = self.history
+        if self.output is None and current_history is not None:
+            history = current_history[self.start_index :]
         return {
             "skill": self.skill.name,
             "output": self.output,
-            "history": [message.message_dump() for message in self.history],
-            "children": [child.history_tree() for child in self.children],
+            "history": [message.message_dump() for message in history],
+            "children": [
+                child.history_tree(current_history) for child in self.children
+            ],
         }
 
 
@@ -73,6 +81,16 @@ class DeepSkillExecutionTracker:
     @property
     def active_skills(self) -> tuple[DeepSkill, ...]:
         return tuple(execution.skill for execution in self._active)
+
+    @property
+    def active_path(self) -> str:
+        return "/" + "/".join(skill.name for skill in self.active_skills)
+
+    def history_tree(
+        self,
+        current_history: list[Message] | None = None,
+    ) -> list[dict[str, Any]]:
+        return [execution.history_tree(current_history) for execution in self._roots]
 
     def get_current_start_index(self) -> int:
         return self.current.start_index

@@ -312,8 +312,9 @@ def test_load_builds_deep_skill_tool_with_sub_skill_catalog(
     assert parent.name == "parent"
     assert parent.description == "parent description"
     assert parent.tool() == (
-        "Parent body\n\n<catalog>## Available sub-skills\n"
-        "- **child**: child description</catalog>"
+        "Parent body\n\n<catalog><sub-skills>\n"
+        '<skill name="child">child description</skill>\n'
+        "</sub-skills></catalog>"
     )
 
 
@@ -371,8 +372,9 @@ def test_load_resolves_tool_references_and_builds_sub_tool_catalog(
 
     assert tuple(tool.name for tool in data.tools) == ("search",)
     assert data.deep_skills[0].tool() == (
-        "Use search\n\n<catalog>## Available sub-tools\n"
-        "- **search**: Search indexed documents.</catalog>"
+        "Use search\n\n<catalog><sub-tools>\n"
+        '<tool name="search">Search indexed documents.</tool>\n'
+        "</sub-tools></catalog>"
     )
 
 

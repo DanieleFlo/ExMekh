@@ -6,6 +6,7 @@ from typing import Final
 
 from qs.core.agents.capabilities.catalog_attacher import SkillCatalogAttacher
 from qs.core.agents.capabilities.data import CapabilitiesData
+from qs.core.agents.capabilities.exit_tool_attacher import ExitToolAttacher
 from qs.core.agents.capabilities.index import CapabilitiesIndex
 from qs.core.agents.capabilities.layout import CapabilitiesLayout
 from qs.core.agents.capabilities.validator import CapabilitiesValidator
@@ -36,6 +37,7 @@ class Capabilities:
             index = CapabilitiesIndex.build(data)
             CapabilitiesValidator(index).validate((*data.hds, *data.deep_skills))
             SkillCatalogAttacher(index).attach_to_all(data.deep_skills)
+            ExitToolAttacher(data.exit_tools).attach_to_all(data.exit_skills)
         except Exception:
             exit_tools.unload()
             deep_tools.unload()

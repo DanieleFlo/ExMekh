@@ -8,20 +8,32 @@ from qs.core.agents.node import Node, NodeUserMessage
 from qs.interfaces.provider import Provider
 
 from .agent_response import AgentResponse
+from .stream_event import DeepAgentEventHandler
 
 
 class DeepAgent:
     """Initializes a node hierarchy and delegates execution to its root."""
 
-    def __init__(self, provider: Provider, node: Node) -> None:
+    def __init__(
+        self,
+        provider: Provider,
+        node: Node,
+        on_stream: DeepAgentEventHandler | None = None,
+    ) -> None:
         if not isinstance(provider, Provider):
             raise TypeError("provider must be a Provider")
 
         if not isinstance(node, Node):
             raise TypeError("node must be a Node")
+        if on_stream is not None and not callable(on_stream):
+            raise TypeError("on_stream must be a callable if provided")
 
         self._root_node = node
-        self._capabilities_by_node = self._initialize_node_tree(provider, node)
+        self._capabilities_by_node = self._initialize_node_tree(
+            provider,
+            node,
+            on_stream,
+        )
 
     @property
     def root_node(self) -> Node:
@@ -38,6 +50,7 @@ class DeepAgent:
     def _initialize_node_tree(
         provider: Provider,
         root_node: Node,
+        on_stream: DeepAgentEventHandler | None,
     ) -> MappingProxyType[Node, CapabilitiesData]:
         """Recursive function to initialize the node tree.
 
@@ -62,7 +75,7 @@ class DeepAgent:
                 return
 
             active_nodes.add(node)
-            capabilities_by_node[node] = node.initialize(provider)
+            capabilities_by_node[node] = node.initialize(provider, on_stream=on_stream)
             for child in node.children:
                 initialize(child)
             active_nodes.remove(node)

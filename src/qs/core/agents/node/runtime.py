@@ -1,16 +1,24 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Final
 
 from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.deep_agent.agent_response import AgentResponse
+from qs.core.agents.deep_agent.stream_event import (
+    DeepAgentEventHandler,
+    DeepAgentExecutionEvent,
+    DeepAgentExecutionEventType,
+    DeepAgentStreamEvent,
+)
 from qs.core.agents.exit_skill.exit_skill import ExitSkill
 from qs.core.agents.hds.hds import HDS
 from qs.core.models.client import Client
 from qs.core.models.client_request import ClientRequest
 from qs.core.models.provider_response import ProviderResponse
+from qs.core.models.provider_stream_event import ProviderStreamEvent
 from qs.core.models.system_message import SystemMessage
 from qs.core.models.tools import Tools
 from qs.core.models.user_message import ErrorUserMessage, UserMessage
@@ -32,11 +40,26 @@ class NodeRuntimeConfig:
     exit_skill: ExitSkill
     persistent_history: bool
     initial_depth: int
+    on_stream: DeepAgentEventHandler | None = None
+
+    @property
+    def streaming(self) -> bool:
+        return self.on_stream is not None
+
+    def emit_stream(
+        self, event: DeepAgentStreamEvent | DeepAgentExecutionEvent
+    ) -> None:
+        if self.on_stream is not None:
+            self.on_stream(event)
 
     def build_tools(self) -> Tools:
         return Tools(list(self.capabilities.get_contextual_tools(self.hds)))
 
-    def build_executor(self, client: Client) -> ToolCallExecutor:
+    def build_executor(
+        self,
+        client: Client,
+        on_state: Callable[[str, str, bool], None] | None = None,
+    ) -> ToolCallExecutor:
         agentic_scope = AgenticScope(
             hds=self.hds,
             exit_skill_name=self.exit_skill.name,
@@ -47,6 +70,7 @@ class NodeRuntimeConfig:
             exit_skill=self.exit_skill,
             initial_depth=self.initial_depth,
             agentic_scope=agentic_scope,
+            on_state=on_state,
         )
 
     def get_hds_name(self) -> str:
@@ -90,6 +114,8 @@ class NodeRuntime:
                 message=UserMessage(content=user_message),
                 extra=self._executor.build_agentic_extra(),
                 tool_choice=self._current_tool_choice(),
+                streaming=self._config.streaming,
+                on_event=self._emit_stream_event,
             )
         )
         response = self._route_until_complete(response)
@@ -118,6 +144,8 @@ class NodeRuntime:
                 response = self._client.continue_after_tools(
                     extra=self._executor.build_agentic_extra(),
                     tool_choice=tool_choice,
+                    streaming=self._config.streaming,
+                    on_event=self._emit_stream_event,
                 )
                 self._executor.acknowledge_agentic_extra()
                 continue
@@ -131,6 +159,8 @@ class NodeRuntime:
                     message=ErrorUserMessage(self.EMPTY_RESPONSE_MESSAGE),
                     extra=self._executor.build_agentic_extra(),
                     tool_choice=self._current_tool_choice(),
+                    streaming=self._config.streaming,
+                    on_event=self._emit_stream_event,
                 )
             )
 
@@ -142,9 +172,42 @@ class NodeRuntime:
             tools=tools,
         )
 
-        self._executor = self._config.build_executor(self._client)
+        self._executor = self._config.build_executor(
+            self._client,
+            on_state=self._emit_tool_state,
+        )
 
     def _current_tool_choice(self) -> str | None:
         if self.depth > 0:
             return self.REQUIRED_TOOL_CHOICE
         return None
+
+    def _emit_stream_event(self, event: ProviderStreamEvent) -> None:
+        self._config.emit_stream(
+            DeepAgentStreamEvent(
+                provider_event=event,
+                depth=self.depth,
+                skill_path=self._executor.skill_path,
+            )
+        )
+
+    def _emit_tool_state(self, name: str, call_id: str, running: bool) -> None:
+        if not self._config.streaming:
+            return
+
+        snapshot = self._executor.snapshot()
+        self._config.emit_stream(
+            DeepAgentExecutionEvent(
+                type=(
+                    DeepAgentExecutionEventType.TOOL_START
+                    if running
+                    else DeepAgentExecutionEventType.TOOL_END
+                ),
+                depth=snapshot.depth,
+                skill_path=snapshot.skill_path,
+                history=snapshot.history,
+                history_tree=snapshot.history_tree,
+                tool_name=name,
+                tool_call_id=call_id,
+            )
+        )

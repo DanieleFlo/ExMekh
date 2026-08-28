@@ -108,6 +108,6 @@ def test_loads_markdown_files_in_name_order(tmp_path: Path) -> None:
 
     assert tuple(skill.name for skill in skills) == ("first", "second")
     assert skills[0].render_instructions(_exit_skill(tmp_path)) == (
-        "Body\n\n<exit-skill>Finish instructions</exit-skill>"
+        'Body\n\n<exit-skill tools="">Finish instructions</exit-skill>'
     )
     assert skills[0].catalog is None

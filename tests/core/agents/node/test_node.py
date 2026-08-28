@@ -8,10 +8,18 @@ import pytest
 from pydantic import BaseModel
 
 from qs.core.agents.capabilities.data import CapabilitiesData
+from qs.core.agents.deep_agent.deep_agent import DeepAgent
+from qs.core.agents.deep_agent.stream_event import (
+    DeepAgentEvent,
+    DeepAgentExecutionEvent,
+    DeepAgentStreamEvent,
+)
 from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill
 from qs.core.agents.exit_skill.exit_skill import ExitSkill
+from qs.core.agents.hds.hds import HDS
 from qs.core.agents.node import Node
 from qs.core.agents.node.agentic_scope import AgenticScope
+from qs.core.agents.node.runtime import NodeRuntimeConfig
 from qs.core.agents.node.tool_call_executor import ToolCallExecutor
 from qs.core.agents.node.tool_call_resolver import ToolCallResolver
 from qs.core.models.assistant_message import (
@@ -22,6 +30,10 @@ from qs.core.models.assistant_message import (
 from qs.core.models.client import Client
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
+from qs.core.models.provider_stream_event import (
+    ProviderStreamEvent,
+    ProviderStreamEventType,
+)
 from qs.core.models.structured_provider_request import StructuredProviderRequest
 from qs.core.models.structured_provider_response import StructuredProviderResponse
 from qs.core.models.tool import CalledTool
@@ -37,6 +49,19 @@ class SequenceProvider(Provider):
 
     def call(self, request: ProviderRequest) -> ProviderResponse:
         self.requests.append(request)
+        if request.get_streaming():
+            request.execute_on_stream_event(
+                ProviderStreamEvent(ProviderStreamEventType.START)
+            )
+            request.execute_on_stream_event(
+                ProviderStreamEvent(
+                    ProviderStreamEventType.RESPONSE,
+                    content=f"chunk-{len(self.requests)}",
+                )
+            )
+            request.execute_on_stream_event(
+                ProviderStreamEvent(ProviderStreamEventType.END)
+            )
         return ProviderResponse(self._responses.pop(0))
 
     def call_structured[ResponseModel: BaseModel](
@@ -312,6 +337,32 @@ def test_initialize_rejects_non_provider(tmp_path: Path) -> None:
         node.initialize(cast(Provider, object()))
 
 
+def test_initialize_rejects_non_callable_stream_handler(tmp_path: Path) -> None:
+    node = Node([tmp_path / "capabilities"], name_hds="main")
+
+    with pytest.raises(TypeError, match="on_stream must be a callable"):
+        node.initialize(SequenceProvider([]), on_stream=cast(object, "invalid"))
+
+
+def test_runtime_config_ignores_stream_events_without_a_handler() -> None:
+    config = NodeRuntimeConfig(
+        provider=cast(Provider, object()),
+        capabilities=cast(CapabilitiesData, object()),
+        hds=cast(HDS, object()),
+        exit_skill=cast(ExitSkill, object()),
+        persistent_history=True,
+        initial_depth=0,
+    )
+    event = DeepAgentStreamEvent(
+        ProviderStreamEvent(ProviderStreamEventType.START),
+        depth=0,
+        skill_path="/",
+    )
+
+    assert config.streaming is False
+    assert config.emit_stream(event) is None
+
+
 def test_run_requires_an_initialized_node(tmp_path: Path) -> None:
     node = Node([tmp_path / "capabilities"], name_hds="main")
 
@@ -430,6 +481,29 @@ def test_run_tool_delegates_execution_to_called_tool() -> None:
     assert response.get_name() == "echo"
 
 
+def test_tool_failure_still_emits_the_end_state() -> None:
+    called_tool = MagicMock(spec=CalledTool)
+    called_tool.execute.side_effect = RuntimeError("tool failed")
+    called_tool.call_id = "call-123"
+    called_tool.name = "echo"
+    states: list[tuple[str, str, bool]] = []
+    executor = ToolCallExecutor(
+        client=MagicMock(spec=Client),
+        exit_skill=cast(ExitSkill, object()),
+        initial_depth=0,
+        agentic_scope=MagicMock(spec=AgenticScope),
+        on_state=lambda name, call_id, running: states.append((name, call_id, running)),
+    )
+
+    with pytest.raises(RuntimeError, match="tool failed"):
+        executor.execute(called_tool)
+
+    assert states == [
+        ("echo", "call-123", True),
+        ("echo", "call-123", False),
+    ]
+
+
 def test_skill_increments_depth_adds_exit_body_and_requires_a_tool(
     tmp_path: Path,
 ) -> None:
@@ -471,7 +545,7 @@ def test_skill_increments_depth_adds_exit_body_and_requires_a_tool(
     assert skill_message.get_tool_call_id() == "skill-call"
     assert skill_message.get_message() == (
         "Mock skill body\n\n<catalog></catalog>\n\n"
-        "<exit-skill>Finish the agent</exit-skill>"
+        '<exit-skill tools="exit_agent">Finish the agent</exit-skill>'
     )
     exit_message = cast(ToolMessage, provider.requests[2].get_messages()[-1])
     assert exit_message.get_message() == "done"
@@ -572,6 +646,129 @@ def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:
             }
         },
     ]
+
+
+def test_streams_context_across_nested_skills_and_tools(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    snapshot_calls = 0
+    original_snapshot = ToolCallExecutor.snapshot
+
+    def count_snapshot(executor: ToolCallExecutor):
+        nonlocal snapshot_calls
+        snapshot_calls += 1
+        return original_snapshot(executor)
+
+    monkeypatch.setattr(ToolCallExecutor, "snapshot", count_snapshot)
+    provider = SequenceProvider(
+        [
+            AssistantMessage(
+                "",
+                tool_calls=[
+                    _function_call("mock-skill", {}, call_id="parent-skill-call")
+                ],
+            ),
+            AssistantMessage(
+                "",
+                tool_calls=[
+                    _function_call("nested-skill", {}, call_id="nested-skill-call")
+                ],
+            ),
+            AssistantMessage(
+                "",
+                tool_calls=[
+                    _function_call(
+                        "nested-sub-tool",
+                        {"text": "work"},
+                        call_id="tool-call",
+                    )
+                ],
+            ),
+            AssistantMessage(
+                "",
+                tool_calls=[
+                    _function_call(
+                        "exit_agent",
+                        {"text": "nested done", "items": ["completed"]},
+                        call_id="nested-exit-call",
+                    )
+                ],
+            ),
+            AssistantMessage(
+                "",
+                tool_calls=[
+                    _function_call(
+                        "exit_agent",
+                        {"text": "parent done", "items": ["completed"]},
+                        call_id="parent-exit-call",
+                    )
+                ],
+            ),
+            AssistantMessage("final answer"),
+        ]
+    )
+    events: list[DeepAgentEvent] = []
+    agent = DeepAgent(
+        provider=provider,
+        node=Node([_write_nested_capabilities(tmp_path)], name_hds="main"),
+        on_stream=events.append,
+    )
+
+    response = agent.run("start")
+
+    assert response.get_message() == "final answer"
+    assert all(request.get_streaming() for request in provider.requests)
+    chunks = [
+        (event.provider_event.content, event.depth, event.skill_path)
+        for event in events
+        if isinstance(event, DeepAgentStreamEvent)
+        and event.provider_event.type is ProviderStreamEventType.RESPONSE
+    ]
+    assert chunks == [
+        ("chunk-1", 0, "/"),
+        ("chunk-2", 1, "/mock-skill"),
+        ("chunk-3", 2, "/mock-skill/nested-skill"),
+        ("chunk-4", 2, "/mock-skill/nested-skill"),
+        ("chunk-5", 1, "/mock-skill"),
+        ("chunk-6", 0, "/"),
+    ]
+
+    tool_events = [
+        event for event in events if isinstance(event, DeepAgentExecutionEvent)
+    ]
+    assert snapshot_calls == len(tool_events)
+    assert [
+        (event.tool_name, event.is_tool_running, event.depth, event.skill_path)
+        for event in tool_events
+    ] == [
+        ("mock-skill", True, 0, "/"),
+        ("mock-skill", False, 1, "/mock-skill"),
+        ("nested-skill", True, 1, "/mock-skill"),
+        ("nested-skill", False, 2, "/mock-skill/nested-skill"),
+        ("nested-sub-tool", True, 2, "/mock-skill/nested-skill"),
+        ("nested-sub-tool", False, 2, "/mock-skill/nested-skill"),
+        ("exit_agent", True, 2, "/mock-skill/nested-skill"),
+        ("exit_agent", False, 1, "/mock-skill"),
+        ("exit_agent", True, 1, "/mock-skill"),
+        ("exit_agent", False, 0, "/"),
+    ]
+
+    nested_tool_end = tool_events[5]
+    assert nested_tool_end.history[-1] == {
+        "role": "tool",
+        "content": '{"echo": "work"}',
+    }
+    parent_tree = nested_tool_end.history_tree[0]
+    assert parent_tree["skill"] == "mock-skill"
+    assert parent_tree["output"] is None
+    assert parent_tree["children"][0]["skill"] == "nested-skill"
+    assert parent_tree["children"][0]["output"] is None
+
+    parent_exit_end = tool_events[-1]
+    assert parent_exit_end.depth == 0
+    assert parent_exit_end.skill_path == "/"
+    assert parent_exit_end.history_tree[0]["output"] == "parent done"
 
 
 def test_exit_skill_keeps_depth_at_zero(tmp_path: Path) -> None:

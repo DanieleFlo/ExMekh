@@ -1,4 +1,5 @@
 from pathlib import Path
+from xml.etree import ElementTree
 
 import pytest
 
@@ -43,11 +44,31 @@ def test_render_prompt_section_includes_descriptions() -> None:
     )
 
     assert catalog.render_prompt_section() == (
-        "<catalog>## Available sub-skills\n"
-        "- **research**: Research the requested topic.\n\n"
-        "## Available sub-tools\n"
-        "- **search**: Search indexed documents.</catalog>"
+        "<catalog><sub-skills>\n"
+        '<skill name="research">Research the requested topic.</skill>\n'
+        "</sub-skills>\n\n"
+        "<sub-tools>\n"
+        '<tool name="search">Search indexed documents.</tool>\n'
+        "</sub-tools></catalog>"
     )
+
+
+def test_render_prompt_section_escapes_xml_content() -> None:
+    catalog = SkillCatalog(
+        sub_tools=(
+            SkillCatalogEntry(
+                name='search&"docs',
+                description='Search <docs> & "references".',
+            ),
+        )
+    )
+
+    root = ElementTree.fromstring(catalog.render_prompt_section())
+    tool = root.find("./sub-tools/tool")
+
+    assert tool is not None
+    assert tool.attrib == {"name": 'search&"docs'}
+    assert tool.text == 'Search <docs> & "references".'
 
 
 def test_attached_empty_catalog_renders_empty_prompt_section(tmp_path: Path) -> None:
@@ -67,7 +88,8 @@ def test_attached_empty_catalog_renders_empty_prompt_section(tmp_path: Path) -> 
     skill.attach_catalog(SkillCatalog())
 
     assert skill.render_instructions(_exit_skill(tmp_path)) == (
-        "Body\n\n<catalog></catalog>\n\n<exit-skill>Finish instructions</exit-skill>"
+        "Body\n\n<catalog></catalog>\n\n"
+        '<exit-skill tools="">Finish instructions</exit-skill>'
     )
 
     with pytest.raises(RuntimeError, match="Catalog already attached"):
@@ -95,7 +117,8 @@ def test_attached_catalog_renders_prompt_section(tmp_path: Path) -> None:
 
     assert skill.catalog is catalog
     assert skill.render_instructions(_exit_skill(tmp_path)) == (
-        "Body\n\n<catalog>## Available sub-skills\n"
-        "- **child**: Child description</catalog>\n\n"
-        "<exit-skill>Finish instructions</exit-skill>"
+        "Body\n\n<catalog><sub-skills>\n"
+        '<skill name="child">Child description</skill>\n'
+        "</sub-skills></catalog>\n\n"
+        '<exit-skill tools="">Finish instructions</exit-skill>'
     )

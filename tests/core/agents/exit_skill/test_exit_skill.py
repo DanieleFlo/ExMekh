@@ -29,9 +29,38 @@ def _exit_skill(tmp_path: Path) -> ExitSkill:
 
 def test_renders_exit_skill_content(tmp_path: Path) -> None:
     exit_skill = _exit_skill(tmp_path)
+    exit_skill.attach_tool_names(("exit_agent",))
 
     assert exit_skill.get_body() == "Finish now"
-    assert exit_skill.render_prompt_section() == ("<exit-skill>Finish now</exit-skill>")
+    assert exit_skill.render_prompt_section() == (
+        '<exit-skill tools="exit_agent">Finish now</exit-skill>'
+    )
+
+
+@pytest.mark.parametrize("tool_names", [[], ("",), (1,)])
+def test_rejects_invalid_exit_tool_names(
+    tmp_path: Path,
+    tool_names: object,
+) -> None:
+    exit_skill = _exit_skill(tmp_path)
+
+    with pytest.raises(TypeError, match="tool_names"):
+        exit_skill.attach_tool_names(cast(tuple[str, ...], tool_names))
+
+
+def test_rejects_duplicate_exit_tool_names(tmp_path: Path) -> None:
+    exit_skill = _exit_skill(tmp_path)
+
+    with pytest.raises(ValueError, match="cannot contain duplicates"):
+        exit_skill.attach_tool_names(("exit_agent", "exit_agent"))
+
+
+def test_exit_tools_can_be_attached_only_once(tmp_path: Path) -> None:
+    exit_skill = _exit_skill(tmp_path)
+    exit_skill.attach_tool_names(())
+
+    with pytest.raises(RuntimeError, match="already attached"):
+        exit_skill.attach_tool_names(("exit_agent",))
 
 
 def test_rejects_invalid_metadata(tmp_path: Path) -> None:

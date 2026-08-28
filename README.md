@@ -1,5 +1,54 @@
 # qs
 
+## Deep-agent streaming
+
+Pass an `on_stream` callback to `DeepAgent` to enable provider streaming. The
+callback receives lightweight provider events separately from contextual tool
+and skill execution events. Provider events include only the current depth and
+skill path; execution events also include history and history-tree snapshots.
+
+```python
+from qs.core.agents.deep_agent import (
+    DeepAgentEvent,
+    DeepAgentExecutionEvent,
+    DeepAgentStreamEvent,
+)
+from qs.core.agents.deep_agent.deep_agent import DeepAgent
+from qs.core.models.provider_stream_event import ProviderStreamEventType
+
+
+def handle_stream(event: DeepAgentEvent) -> None:
+    if isinstance(event, DeepAgentStreamEvent):
+        provider_event = event.provider_event
+        if provider_event.type is not ProviderStreamEventType.RESPONSE:
+            return
+        send_token(
+            content=provider_event.content,
+            depth=event.depth,
+            skill_path=event.skill_path,
+        )
+        return
+
+    if isinstance(event, DeepAgentExecutionEvent):
+        send_tool_state(
+            name=event.tool_name,
+            call_id=event.tool_call_id,
+            is_running=event.is_tool_running,
+            depth=event.depth,
+            skill_path=event.skill_path,
+            history=event.history,
+            history_tree=event.history_tree,
+        )
+
+
+agent = DeepAgent(provider=provider, node=root_node, on_stream=handle_stream)
+```
+
+`skill_path` is `/` while the HDS is active, `/mock-skill` inside a root skill,
+and `/mock-skill/nested-skill` inside a nested skill. History snapshots are not
+copied for each generated token. Tool end events are emitted even when tool
+execution raises an exception.
+
 ## Function tools
 
 Register typed Python functions with `Tool` and include the registry in a

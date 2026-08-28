@@ -7,6 +7,7 @@ from typing import Final
 from qs.core.agents.capabilities.capabilities import Capabilities
 from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.deep_agent.agent_response import AgentResponse
+from qs.core.agents.deep_agent.stream_event import DeepAgentEventHandler
 from qs.interfaces.provider import Provider
 
 from .runtime import NodeRuntime, NodeRuntimeConfig
@@ -52,9 +53,16 @@ class Node:
             return self._initial_depth
         return self._runtime.depth
 
-    def initialize(self, provider: Provider) -> CapabilitiesData:
+    def initialize(
+        self,
+        provider: Provider,
+        *,
+        on_stream: DeepAgentEventHandler | None = None,
+    ) -> CapabilitiesData:
         if not isinstance(provider, Provider):
             raise TypeError("provider must be a Provider")
+        if on_stream is not None and not callable(on_stream):
+            raise TypeError("on_stream must be a callable if provided")
 
         capabilities = self.load_capabilities()
         hds = capabilities.get_hds(self._name_hds)
@@ -68,6 +76,7 @@ class Node:
                 exit_skill=exit_skill,
                 persistent_history=self._persistent_history,
                 initial_depth=self._initial_depth,
+                on_stream=on_stream,
             )
         )
         return capabilities

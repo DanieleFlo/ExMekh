@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill
@@ -17,6 +18,7 @@ from qs.core.models.tool_message import ToolMessage
 
 from .agentic_scope import AgenticScope
 from .tool_call_resolver import ResolvedToolCall
+from .types import NodeExecutionSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -30,20 +32,35 @@ class ToolCallExecutor:
         exit_skill: ExitSkill,
         initial_depth: int,
         agentic_scope: AgenticScope,
+        on_state: Callable[[str, str, bool], None] | None = None,
     ) -> None:
         self._client = client
         self._exit_skill = exit_skill
         self._depth = initial_depth
         self._agentic_scope = agentic_scope
         self._skill_executions = DeepSkillExecutionTracker()
+        self._on_state = on_state
 
     @property
     def depth(self) -> int:
         return self._depth
 
     @property
+    def skill_path(self) -> str:
+        return self._skill_executions.active_path
+
+    @property
     def skill_executions(self) -> tuple[DeepSkillExecution, ...]:
         return self._skill_executions.roots
+
+    def snapshot(self) -> NodeExecutionSnapshot:
+        history = self._client.copy_history()
+        return NodeExecutionSnapshot(
+            depth=self._depth,
+            skill_path=self._skill_executions.active_path,
+            history=[message.message_dump() for message in history],
+            history_tree=self._skill_executions.history_tree(history),
+        )
 
     def build_agentic_extra(self) -> dict[str, dict[str, object]]:
         return self._agentic_scope.build_extra(
@@ -64,6 +81,19 @@ class ToolCallExecutor:
             self.execute(tool_call)
 
     def execute(self, tool_call: ResolvedToolCall) -> None:
+        supported_types = (CalledExitSkill, CalledDeepSkill, CalledExitTool, CalledTool)
+        if not isinstance(tool_call, supported_types):
+            raise TypeError(
+                "Node supports only deep skills, exit skills, exit tools, and tools"
+            )
+
+        self._emit_state(tool_call, running=True)
+        try:
+            self._execute(tool_call)
+        finally:
+            self._emit_state(tool_call, running=False)
+
+    def _execute(self, tool_call: ResolvedToolCall) -> None:
         if isinstance(tool_call, CalledExitSkill):
             self._run_exit_skill(tool_call)
             return
@@ -73,12 +103,11 @@ class ToolCallExecutor:
         if isinstance(tool_call, CalledExitTool):
             self._run_exit_tool(tool_call)
             return
-        if isinstance(tool_call, CalledTool):
-            self._run_tool(tool_call)
-            return
-        raise TypeError(
-            "Node supports only deep skills, exit skills, exit tools, and tools"
-        )
+        self._run_tool(tool_call)
+
+    def _emit_state(self, tool_call: ResolvedToolCall, *, running: bool) -> None:
+        if self._on_state is not None:
+            self._on_state(tool_call.name, tool_call.call_id, running)
 
     def _run_deep_skill(self, called_deep_skill: CalledDeepSkill) -> None:
         self._open_deep_skill(called_deep_skill)

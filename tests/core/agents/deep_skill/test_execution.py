@@ -32,6 +32,7 @@ def test_tracks_nested_executions_and_copies_skills() -> None:
     child = tracker.open(child_skill, "child-call", 4)
 
     assert tracker.depth == 2
+    assert tracker.active_path == "/parent/child"
     assert tracker.current is child
     assert tracker.get_current_start_index() == 4
     assert tracker.roots == (parent,)
@@ -64,6 +65,7 @@ def test_rejects_closing_when_no_execution_is_active() -> None:
     tracker = DeepSkillExecutionTracker()
 
     assert tracker.depth == 0
+    assert tracker.active_path == "/"
     assert tracker.roots == ()
     with pytest.raises(RuntimeError, match="No deep skill execution is active"):
         _ = tracker.current
@@ -104,3 +106,4 @@ def test_serializes_nested_history_tree() -> None:
             }
         ],
     }
+    assert tracker.history_tree() == [parent.history_tree()]

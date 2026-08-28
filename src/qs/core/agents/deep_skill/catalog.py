@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from html import escape
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,11 +25,13 @@ class SkillCatalog:
             section
             for section in (
                 self._render_section(
-                    "Available sub-skills",
+                    "sub-skills",
+                    "skill",
                     self.sub_skills,
                 ),
                 self._render_section(
-                    "Available sub-tools",
+                    "sub-tools",
+                    "tool",
                     self.sub_tools,
                 ),
             )
@@ -39,14 +42,17 @@ class SkillCatalog:
 
     @staticmethod
     def _render_section(
-        title: str,
+        tag: str,
+        entry_tag: str,
         entries: tuple[SkillCatalogEntry, ...],
     ) -> str:
         if not entries:
             return ""
 
         items = "\n".join(
-            f"- **{entry.name}**: {entry.description}" for entry in entries
+            f'<{entry_tag} name="{escape(entry.name, quote=True)}">'
+            f"{escape(entry.description)}</{entry_tag}>"
+            for entry in entries
         )
 
-        return f"## {title}\n{items}"
+        return f"<{tag}>\n{items}\n</{tag}>"
