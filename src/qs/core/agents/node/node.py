@@ -57,6 +57,7 @@ class Node:
         self,
         provider: Provider,
         *,
+        work_root: Path,
         on_stream: DeepAgentEventHandler | None = None,
     ) -> CapabilitiesData:
         if not isinstance(provider, Provider):
@@ -64,7 +65,7 @@ class Node:
         if on_stream is not None and not callable(on_stream):
             raise TypeError("on_stream must be a callable if provided")
 
-        capabilities = self.load_capabilities()
+        capabilities = self.load_capabilities(work_root=work_root)
         hds = capabilities.get_hds(self._name_hds)
         exit_skill_name = hds.get_exit_skill_name()
         exit_skill = capabilities.get_exit_skill(exit_skill_name)
@@ -81,8 +82,8 @@ class Node:
         )
         return capabilities
 
-    def load_capabilities(self) -> CapabilitiesData:
-        capabilities = self._capability_loader.load()
+    def load_capabilities(self, *, work_root: Path) -> CapabilitiesData:
+        capabilities = self._capability_loader.load(work_root=work_root)
         capabilities.get_hds(self._name_hds)
         return capabilities
 

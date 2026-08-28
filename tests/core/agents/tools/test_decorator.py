@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, cast
 
 import pytest
@@ -38,8 +39,31 @@ def test_rejects_multiple_decorators_on_same_function() -> None:
     decorator = deep_tool(description="Description.")
 
     @decorator
-    def entrypoint() -> None:
-        pass
+    def entrypoint(work_root: Path) -> Path:
+        return work_root
 
     with pytest.raises(ValueError, match="already decorated"):
         decorator(entrypoint)
+
+
+def test_passes_work_root_to_decorated_function(tmp_path: Path) -> None:
+    @deep_tool(description="Description.")
+    def entrypoint(work_root: Path, value: str) -> tuple[Path, str]:
+        return work_root, value
+
+    assert entrypoint(tmp_path, "value") == (tmp_path, "value")
+
+
+@pytest.mark.parametrize(
+    "entrypoint",
+    [
+        lambda: None,
+        lambda root: None,
+        lambda *, work_root: None,
+    ],
+)
+def test_requires_work_root_as_first_positional_parameter(
+    entrypoint: Callable[..., None],
+) -> None:
+    with pytest.raises(TypeError, match="work_root as its first positional parameter"):
+        deep_tool(description="Description.")(entrypoint)

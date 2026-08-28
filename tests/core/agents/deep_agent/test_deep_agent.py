@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from types import MappingProxyType
 from typing import cast
@@ -70,7 +71,7 @@ def test_loads_and_validates_every_node_depth_first(tmp_path: Path) -> None:
         children=[child],
     )
 
-    agent = DeepAgent(provider=StubProvider(), node=root)
+    agent = DeepAgent(provider=StubProvider(), node=root, work_root=tmp_path)
 
     assert agent.root_node is root
     assert isinstance(agent.capabilities_by_node, MappingProxyType)
@@ -92,7 +93,7 @@ def test_rejects_invalid_hds_in_a_descendant(tmp_path: Path) -> None:
     )
 
     with pytest.raises(ValueError, match="HDS 'missing' not found"):
-        DeepAgent(provider=StubProvider(), node=root)
+        DeepAgent(provider=StubProvider(), node=root, work_root=tmp_path)
 
 
 def test_shared_descendant_is_loaded_only_once(
@@ -118,14 +119,18 @@ def test_shared_descendant_is_loaded_only_once(
     loaded_nodes: list[Node] = []
     original_load_capabilities = Node.load_capabilities
 
-    def load_capabilities(node: Node):
+    def load_capabilities(node: Node, *, work_root: Path):
         loaded_nodes.append(node)
+        assert work_root == tmp_path.resolve()
         valid_path = _write_capabilities(tmp_path / node.name_hds, node.name_hds)
-        return original_load_capabilities(Node([valid_path], node.name_hds))
+        return original_load_capabilities(
+            Node([valid_path], node.name_hds),
+            work_root=work_root,
+        )
 
     monkeypatch.setattr(Node, "load_capabilities", load_capabilities)
 
-    DeepAgent(provider=StubProvider(), node=root)
+    DeepAgent(provider=StubProvider(), node=root, work_root=tmp_path)
 
     assert loaded_nodes == [root, first, shared, second]
 
@@ -138,26 +143,37 @@ def test_rejects_cycle_in_node_hierarchy(
     root._children = (root,)
     original_load_capabilities = Node.load_capabilities
 
-    def load_capabilities(node: Node):
+    def load_capabilities(node: Node, *, work_root: Path):
         valid_path = _write_capabilities(tmp_path / "valid", node.name_hds)
-        return original_load_capabilities(Node([valid_path], node.name_hds))
+        return original_load_capabilities(
+            Node([valid_path], node.name_hds),
+            work_root=work_root,
+        )
 
     monkeypatch.setattr(Node, "load_capabilities", load_capabilities)
 
     with pytest.raises(ValueError, match="hierarchy cannot contain cycles"):
-        DeepAgent(provider=StubProvider(), node=root)
+        DeepAgent(provider=StubProvider(), node=root, work_root=tmp_path)
 
 
-def test_rejects_non_node_root() -> None:
+def test_rejects_non_node_root(tmp_path: Path) -> None:
     with pytest.raises(TypeError, match="node must be a Node"):
-        DeepAgent(provider=StubProvider(), node=cast(Node, object()))
+        DeepAgent(
+            provider=StubProvider(),
+            node=cast(Node, object()),
+            work_root=tmp_path,
+        )
 
 
 def test_rejects_non_provider_before_loading_node(tmp_path: Path) -> None:
     node = Node([tmp_path / "capabilities"], name_hds="root")
 
     with pytest.raises(TypeError, match="provider must be a Provider"):
-        DeepAgent(provider=cast(Provider, object()), node=node)
+        DeepAgent(
+            provider=cast(Provider, object()),
+            node=node,
+            work_root=tmp_path,
+        )
 
 
 def test_rejects_non_callable_stream_handler(tmp_path: Path) -> None:
@@ -167,8 +183,63 @@ def test_rejects_non_callable_stream_handler(tmp_path: Path) -> None:
         DeepAgent(
             provider=StubProvider(),
             node=node,
+            work_root=tmp_path,
             on_stream=cast(object, "invalid"),
         )
+
+
+def test_rejects_non_path_work_root(tmp_path: Path) -> None:
+    node = Node([tmp_path / "capabilities"], name_hds="root")
+
+    with pytest.raises(TypeError, match="work_root must be a Path"):
+        DeepAgent(
+            provider=StubProvider(),
+            node=node,
+            work_root=cast(Path, str(tmp_path)),
+        )
+
+
+def test_rejects_missing_work_root(tmp_path: Path) -> None:
+    node = Node([tmp_path / "capabilities"], name_hds="root")
+
+    with pytest.raises(FileNotFoundError, match="work_root does not exist"):
+        DeepAgent(
+            provider=StubProvider(),
+            node=node,
+            work_root=tmp_path / "missing",
+        )
+
+
+def test_rejects_work_root_that_is_not_a_directory(tmp_path: Path) -> None:
+    work_root = tmp_path / "file.txt"
+    work_root.write_text("content")
+    node = Node([tmp_path / "capabilities"], name_hds="root")
+
+    with pytest.raises(ValueError, match="work_root must be a directory"):
+        DeepAgent(provider=StubProvider(), node=node, work_root=work_root)
+
+
+def test_rejects_work_root_without_required_permissions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    node = Node([tmp_path / "capabilities"], name_hds="root")
+    checked_modes: list[int] = []
+
+    def deny_access(path: Path, mode: int) -> bool:
+        assert path == tmp_path
+        checked_modes.append(mode)
+        return False
+
+    monkeypatch.setattr(os, "access", deny_access)
+
+    with pytest.raises(
+        PermissionError,
+        match="work_root must be readable, writable, and traversable",
+    ):
+        DeepAgent(provider=StubProvider(), node=node, work_root=tmp_path)
+
+    assert checked_modes == [os.R_OK | os.W_OK | os.X_OK]
 
 
 def test_uses_root_hds_as_system_instructions(tmp_path: Path) -> None:
@@ -177,7 +248,7 @@ def test_uses_root_hds_as_system_instructions(tmp_path: Path) -> None:
         [_write_capabilities(tmp_path, "root")],
         name_hds="root",
     )
-    agent = DeepAgent(provider=provider, node=root)
+    agent = DeepAgent(provider=provider, node=root, work_root=tmp_path)
 
     response = agent.run("hello")
 

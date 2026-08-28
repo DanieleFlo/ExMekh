@@ -71,7 +71,7 @@ def main() -> None:
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    provider = LocalProvider(model="qwen3.5-9b-mtp")
+    provider = LocalProvider(model="Qwen3.8-27B-UD-Q4_K_S")  # qwen3.5-9b-mtp
     capabilities_paths = [Path(__file__).parent / "capabilities"]
     root_node = Node(
         capabilities_paths=capabilities_paths,
@@ -80,6 +80,7 @@ def main() -> None:
     deep_agent = DeepAgent(
         provider=provider,
         node=root_node,
+        work_root=Path.cwd(),
         on_stream=create_stream_printer(),
     )
     while True:

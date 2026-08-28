@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from qs.core.agents.tools.decorator import deep_tool
 
 
@@ -5,5 +7,6 @@ from qs.core.agents.tools.decorator import deep_tool
     name="mock-sub-tool",
     description="Restituisce un risultato disponibile solo nella mock skill.",
 )
-def run(text: str) -> str:
+def run(work_root: Path, text: str) -> str:
+    del work_root
     return f"Mock sub-tool result: {text}"

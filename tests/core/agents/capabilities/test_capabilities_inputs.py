@@ -95,7 +95,7 @@ def test_rejects_symbolic_link_capabilities_path(tmp_path: Path) -> None:
     capabilities_path.symlink_to(target_path, target_is_directory=True)
 
     with pytest.raises(ValueError, match="must not be a symbolic link"):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
 def test_rejects_symbolic_link_capability_type_folder(tmp_path: Path) -> None:
@@ -109,7 +109,7 @@ def test_rejects_symbolic_link_capability_type_folder(tmp_path: Path) -> None:
     )
 
     with pytest.raises(ValueError, match="must not be a symbolic link"):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
 def test_validates_all_roots_before_creating_type_folders(
@@ -121,7 +121,7 @@ def test_validates_all_roots_before_creating_type_folders(
     invalid_path.mkdir(parents=True)
 
     with pytest.raises(ValueError, match="must be named 'capabilities'"):
-        Capabilities([valid_path, invalid_path]).load()
+        Capabilities([valid_path, invalid_path]).load(work_root=tmp_path)
 
     assert tuple(valid_path.iterdir()) == ()
 
@@ -134,14 +134,14 @@ def test_rejects_wrong_capabilities_folder_name(tmp_path: Path) -> None:
         ValueError,
         match="Capabilities folder must be named 'capabilities'",
     ):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
 def test_rejects_missing_capabilities_path(tmp_path: Path) -> None:
     capabilities_path = tmp_path / "capabilities"
 
     with pytest.raises(FileNotFoundError, match="does not exist"):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
 def test_rejects_capabilities_path_that_is_not_directory(
@@ -151,7 +151,7 @@ def test_rejects_capabilities_path_that_is_not_directory(
     capabilities_path.write_text("not a directory")
 
     with pytest.raises(ValueError, match="must be a directory"):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
 def test_rejects_unexpected_capabilities_entry(tmp_path: Path) -> None:
@@ -163,7 +163,7 @@ def test_rejects_unexpected_capabilities_entry(tmp_path: Path) -> None:
         ValueError,
         match="Unexpected entry inside capabilities folder",
     ):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
 def test_rejects_capability_type_that_is_not_directory(
@@ -174,7 +174,7 @@ def test_rejects_capability_type_that_is_not_directory(
     (capabilities_path / "tools").write_text("not a directory")
 
     with pytest.raises(ValueError, match="entry 'tools' must be a directory"):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
 def test_returns_exit_skill_and_hds_children(tmp_path: Path) -> None:

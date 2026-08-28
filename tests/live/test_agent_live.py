@@ -28,7 +28,7 @@ def build_live_agent() -> DeepAgent:
         name_hds="main",
         persistent_history=False,
     )
-    return DeepAgent(provider=provider, node=node)
+    return DeepAgent(provider=provider, node=node, work_root=Path.cwd())
 
 
 def test_live_agent_answers_a_greeting() -> None:

@@ -126,7 +126,8 @@ def _write_runnable_capabilities(parent: Path) -> Path:
     (tool_path / "main.py").write_text(
         "from qs.core.agents.tools.decorator import deep_tool\n\n"
         "@deep_tool(name='mock-tool', description='Mock tool')\n"
-        "def run(text: str) -> dict[str, str]:\n"
+        "def run(work_root, text: str) -> dict[str, str]:\n"
+        "    del work_root\n"
         "    return {'echo': text}\n"
     )
     return capabilities_path
@@ -168,7 +169,8 @@ def _write_nested_capabilities(parent: Path) -> Path:
         (tool_path / "main.py").write_text(
             "from qs.core.agents.tools.decorator import deep_tool\n\n"
             f"@deep_tool(name='{name}', description='{description}')\n"
-            "def run(text: str) -> dict[str, str]:\n"
+            "def run(work_root, text: str) -> dict[str, str]:\n"
+            "    del work_root\n"
             "    return {'echo': text}\n"
         )
     return capabilities_path
@@ -190,7 +192,7 @@ def test_loads_capabilities_and_accepts_an_existing_hds(tmp_path: Path) -> None:
     capabilities_path = _write_capabilities(tmp_path, ("main",))
     node = Node([capabilities_path], name_hds="main")
 
-    capabilities = node.load_capabilities()
+    capabilities = node.load_capabilities(work_root=tmp_path)
 
     assert node.name_hds == "main"
     assert node.children == ()
@@ -223,7 +225,7 @@ def test_accepts_hds_from_any_configured_capabilities_path(
     capabilities = Node(
         [first_path, second_path],
         name_hds="second",
-    ).load_capabilities()
+    ).load_capabilities(work_root=tmp_path)
 
     assert tuple(hds.name for hds in capabilities.hds) == ("first", "second")
 
@@ -236,7 +238,7 @@ def test_rejects_unknown_hds_and_lists_available_names(tmp_path: Path) -> None:
         ValueError,
         match="HDS 'missing' not found. Available HDS: first, second",
     ):
-        node.load_capabilities()
+        node.load_capabilities(work_root=tmp_path)
 
 
 def test_rejects_hds_name_when_no_hds_is_available(tmp_path: Path) -> None:
@@ -248,7 +250,7 @@ def test_rejects_hds_name_when_no_hds_is_available(tmp_path: Path) -> None:
         ValueError,
         match="HDS 'missing' not found. Available HDS: none",
     ):
-        node.load_capabilities()
+        node.load_capabilities(work_root=tmp_path)
 
 
 @pytest.mark.parametrize("name_hds", ["", "   "])
@@ -334,14 +336,18 @@ def test_initialize_rejects_non_provider(tmp_path: Path) -> None:
     node = Node([tmp_path / "capabilities"], name_hds="main")
 
     with pytest.raises(TypeError, match="provider must be a Provider"):
-        node.initialize(cast(Provider, object()))
+        node.initialize(cast(Provider, object()), work_root=tmp_path)
 
 
 def test_initialize_rejects_non_callable_stream_handler(tmp_path: Path) -> None:
     node = Node([tmp_path / "capabilities"], name_hds="main")
 
     with pytest.raises(TypeError, match="on_stream must be a callable"):
-        node.initialize(SequenceProvider([]), on_stream=cast(object, "invalid"))
+        node.initialize(
+            SequenceProvider([]),
+            work_root=tmp_path,
+            on_stream=cast(object, "invalid"),
+        )
 
 
 def test_runtime_config_ignores_stream_events_without_a_handler() -> None:
@@ -375,7 +381,7 @@ def test_tool_descriptions_reflect_hds_and_skill_availability(
 ) -> None:
     provider = SequenceProvider([AssistantMessage("final answer")])
     node = Node([_write_nested_capabilities(tmp_path)], name_hds="main")
-    node.initialize(provider)
+    node.initialize(provider, work_root=tmp_path)
 
     node.run("start")
 
@@ -404,7 +410,7 @@ def test_empty_provider_response_adds_error_message_and_retries(
         [AssistantMessage(invalid_content), AssistantMessage("recovered answer")]
     )
     node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
-    node.initialize(provider)
+    node.initialize(provider, work_root=tmp_path)
 
     response = node.run("start")
 
@@ -418,7 +424,7 @@ def test_empty_provider_response_adds_error_message_and_retries(
 def test_empty_tool_call_list_is_treated_as_no_tool_calls(tmp_path: Path) -> None:
     provider = SequenceProvider([AssistantMessage("Hello", tool_calls=[])])
     node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
-    node.initialize(provider)
+    node.initialize(provider, work_root=tmp_path)
 
     response = node.run("ciao")
 
@@ -530,7 +536,7 @@ def test_skill_increments_depth_adds_exit_body_and_requires_a_tool(
         [_write_runnable_capabilities(tmp_path)],
         name_hds="main",
     )
-    node.initialize(provider)
+    node.initialize(provider, work_root=tmp_path)
 
     response = node.run("start")
 
@@ -590,7 +596,7 @@ def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:
         ]
     )
     node = Node([_write_nested_capabilities(tmp_path)], name_hds="main")
-    node.initialize(provider)
+    node.initialize(provider, work_root=tmp_path)
 
     node.run("start")
 
@@ -712,6 +718,7 @@ def test_streams_context_across_nested_skills_and_tools(
     agent = DeepAgent(
         provider=provider,
         node=Node([_write_nested_capabilities(tmp_path)], name_hds="main"),
+        work_root=tmp_path,
         on_stream=events.append,
     )
 
@@ -791,7 +798,7 @@ def test_exit_skill_keeps_depth_at_zero(tmp_path: Path) -> None:
         [_write_runnable_capabilities(tmp_path)],
         name_hds="main",
     )
-    node.initialize(provider)
+    node.initialize(provider, work_root=tmp_path)
 
     node.run("start")
 
@@ -812,7 +819,7 @@ def test_exit_skill_adds_its_instructions_without_changing_depth(
         ]
     )
     node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
-    node.initialize(provider)
+    node.initialize(provider, work_root=tmp_path)
 
     node.run("start")
 
@@ -856,7 +863,7 @@ def test_nested_skills_require_tools_until_every_level_has_exited(
         [_write_runnable_capabilities(tmp_path)],
         name_hds="main",
     )
-    node.initialize(provider)
+    node.initialize(provider, work_root=tmp_path)
 
     node.run("start")
 
@@ -892,7 +899,7 @@ def test_regular_tool_does_not_change_depth_and_serializes_its_result(
         [_write_runnable_capabilities(tmp_path)],
         name_hds="main",
     )
-    node.initialize(provider)
+    node.initialize(provider, work_root=tmp_path)
 
     node.run("start")
 
@@ -910,7 +917,7 @@ def test_positive_initial_depth_requires_a_tool_on_first_request(
         name_hds="main",
         depth=1,
     )
-    node.initialize(provider)
+    node.initialize(provider, work_root=tmp_path)
 
     node.run("start")
 
@@ -927,7 +934,7 @@ def test_non_persistent_node_starts_each_run_with_fresh_history(
         name_hds="main",
         persistent_history=False,
     )
-    node.initialize(provider)
+    node.initialize(provider, work_root=tmp_path)
 
     node.run("first request")
     node.run("second request")

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Sequence
+from functools import partial
 from pathlib import Path
 from types import ModuleType
 from typing import Final
@@ -18,8 +19,14 @@ from qs.core.models.tool import Tool
 class DeepTools:
     ENTRYPOINT_FILENAME: Final[str] = "main.py"
 
-    def __init__(self, tool_paths: Sequence[Path]) -> None:
+    def __init__(
+        self,
+        tool_paths: Sequence[Path],
+        *,
+        work_root: Path,
+    ) -> None:
         self._tool_paths = self._validate_tool_paths(tool_paths)
+        self._work_root = work_root
         self._module_importer = ToolModuleImporter()
         self._load_attempted = False
 
@@ -86,8 +93,10 @@ class DeepTools:
                     f"Tool entrypoint '{entrypoint_path}' must have a description"
                 )
 
+            bound_function = partial(function, self._work_root)
+            bound_function.__doc__ = ""
             return Tool(
-                function,
+                bound_function,
                 name=definition.name or tool_path.name,
                 description=description,
             )

@@ -30,8 +30,8 @@ class RecordingProvider(Provider):
         raise NotImplementedError
 
 
-def test_loads_builtin_assistant_capabilities() -> None:
-    capabilities = Capabilities([CAPABILITIES_PATH]).load()
+def test_loads_builtin_assistant_capabilities(tmp_path: Path) -> None:
+    capabilities = Capabilities([CAPABILITIES_PATH]).load(work_root=tmp_path)
 
     assert tuple(hds.name for hds in capabilities.hds) == ("main",)
     assert {skill.name for skill in capabilities.deep_skills} == {
@@ -52,8 +52,8 @@ def test_loads_builtin_assistant_capabilities() -> None:
     assert main_hds.get_exit_skill_name() == "finish"
 
 
-def test_builtin_mock_tool_returns_a_deterministic_result() -> None:
-    capabilities = Capabilities([CAPABILITIES_PATH]).load()
+def test_builtin_mock_tool_returns_a_deterministic_result(tmp_path: Path) -> None:
+    capabilities = Capabilities([CAPABILITIES_PATH]).load(work_root=tmp_path)
     mock_tool = next(tool for tool in capabilities.tools if tool.name == "mock-tool")
 
     result = mock_tool.execute(text="example")
@@ -61,19 +61,19 @@ def test_builtin_mock_tool_returns_a_deterministic_result() -> None:
     assert result == "Mock tool result: example"
 
 
-def test_builtin_capabilities_configure_the_main_node() -> None:
+def test_builtin_capabilities_configure_the_main_node(tmp_path: Path) -> None:
     capabilities = Node(
         capabilities_paths=[CAPABILITIES_PATH],
         name_hds="main",
-    ).load_capabilities()
+    ).load_capabilities(work_root=tmp_path)
 
     assert capabilities.hds[0].get_hds().startswith("Sei un assistente semplice")
 
 
-def test_builtin_client_receives_contextual_tool_descriptions() -> None:
+def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) -> None:
     provider = RecordingProvider()
     node = Node(capabilities_paths=[CAPABILITIES_PATH], name_hds="main")
-    node.initialize(provider)
+    node.initialize(provider, work_root=tmp_path)
 
     node.run("test descriptions")
 

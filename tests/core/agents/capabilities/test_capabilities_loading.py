@@ -115,7 +115,8 @@ def _write_tool(
     (tool_path / "main.py").write_text(
         "from qs.core.agents.tools.decorator import deep_tool\n\n"
         f"@deep_tool(description={description!r})\n"
-        "def run() -> str:\n"
+        "def run(work_root) -> str:\n"
+        "    del work_root\n"
         "    return 'result'\n"
     )
 
@@ -129,7 +130,7 @@ def test_load_validates_references_after_loading_all_deep_skills(
     _write_skill(deep_skill_path, "first", body="Use {{!second}}")
     _write_skill(deep_skill_path, "second")
 
-    data = Capabilities([capabilities_path]).load()
+    data = Capabilities([capabilities_path]).load(work_root=tmp_path)
 
     assert tuple(skill.name for skill in data.deep_skills) == (
         "first",
@@ -146,7 +147,7 @@ def test_load_validates_hds_exit_skill_reference(tmp_path: Path) -> None:
     hds_path.mkdir(parents=True)
     _write_hds(hds_path, "instructions", exit_skill="custom-exit")
 
-    data = Capabilities([capabilities_path]).load()
+    data = Capabilities([capabilities_path]).load(work_root=tmp_path)
 
     assert data.hds[0].metadata.exit_skill == "custom-exit"
     assert data.exit_skills[0].name == "custom-exit"
@@ -164,7 +165,7 @@ def test_load_rejects_missing_hds_exit_skill(tmp_path: Path) -> None:
         ValueError,
         match="HDS 'instructions' has invalid exit-skill: finish",
     ):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
 def test_free_reference_can_resolve_exit_skill(tmp_path: Path) -> None:
@@ -174,7 +175,7 @@ def test_free_reference_can_resolve_exit_skill(tmp_path: Path) -> None:
     _write_hds(hds_path, "instructions", body="Use {{!finish}}")
     _write_exit_skill(capabilities_path, "finish")
 
-    data = Capabilities([capabilities_path]).load()
+    data = Capabilities([capabilities_path]).load(work_root=tmp_path)
 
     assert data.hds[0].references == ("finish",)
 
@@ -187,7 +188,7 @@ def test_loads_hds_with_exit_skill_and_returns_only_body(
     hds_path.mkdir(parents=True)
     _write_hds(hds_path, "instructions", body="Instruction body")
 
-    data = Capabilities([capabilities_path]).load()
+    data = Capabilities([capabilities_path]).load(work_root=tmp_path)
 
     assert tuple(hds.name for hds in data.hds) == ("instructions",)
     assert data.hds[0].description == "instructions description"
@@ -214,7 +215,7 @@ def test_load_validates_hds_sub_resources_after_loading_everything(
     _write_skill(deep_skill_path, "child")
     _write_tool(capabilities_path, "search")
 
-    data = Capabilities([capabilities_path]).load()
+    data = Capabilities([capabilities_path]).load(work_root=tmp_path)
 
     assert data.hds[0].references == ("child", "search")
     assert data.hds[0].tool() == "Use child and search"
@@ -235,7 +236,7 @@ def test_markdown_capability_siblings_can_reference_each_other(
         body="Use {{!instructions}}",
     )
 
-    data = Capabilities([capabilities_path]).load()
+    data = Capabilities([capabilities_path]).load(work_root=tmp_path)
 
     assert isinstance(data.deep_skills[0], MarkdownCapability)
     assert not isinstance(data.deep_skills[0], HDS)
@@ -253,7 +254,7 @@ def test_load_rejects_unknown_hds_reference(tmp_path: Path) -> None:
         ValueError,
         match="HDS 'instructions' has invalid references: missing",
     ):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
 def test_load_rejects_hds_sub_skill_that_resolves_to_tool(
@@ -269,7 +270,7 @@ def test_load_rejects_hds_sub_skill_that_resolves_to_tool(
         ValueError,
         match="HDS 'instructions' has invalid sub-skills: search",
     ):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
 def test_load_rejects_hds_sub_tool_that_resolves_to_skill(
@@ -287,7 +288,7 @@ def test_load_rejects_hds_sub_tool_that_resolves_to_skill(
         ValueError,
         match="HDS 'instructions' has invalid sub-tools: child",
     ):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
 def test_load_builds_deep_skill_tool_with_sub_skill_catalog(
@@ -305,7 +306,7 @@ def test_load_builds_deep_skill_tool_with_sub_skill_catalog(
     _write_skill(deep_skill_path, "child")
 
     raw_parent = DeepSkills([deep_skill_path]).load()[1]
-    parent = Capabilities([capabilities_path]).load().deep_skills[1]
+    parent = Capabilities([capabilities_path]).load(work_root=tmp_path).deep_skills[1]
 
     assert raw_parent.catalog is None
     assert parent.catalog is not None
@@ -330,7 +331,7 @@ def test_load_rejects_unknown_deep_skill_references(
         ValueError,
         match="Deep skill 'first' has invalid references: missing",
     ):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
 def test_load_unloads_tools_when_reference_validation_fails(
@@ -344,7 +345,7 @@ def test_load_unloads_tools_when_reference_validation_fails(
     modules_before_load = _dynamic_tool_modules()
 
     with pytest.raises(ValueError, match="invalid references"):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)
 
     assert _dynamic_tool_modules() == modules_before_load
 
@@ -368,7 +369,7 @@ def test_load_resolves_tool_references_and_builds_sub_tool_catalog(
         description="Search indexed documents.",
     )
 
-    data = Capabilities([capabilities_path]).load()
+    data = Capabilities([capabilities_path]).load(work_root=tmp_path)
 
     assert tuple(tool.name for tool in data.tools) == ("search",)
     assert data.deep_skills[0].tool() == (
@@ -395,7 +396,7 @@ def test_load_rejects_sub_skill_that_resolves_to_tool(
         ValueError,
         match="Deep skill 'parent' has invalid sub-skills: search",
     ):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
 def test_load_rejects_sub_tool_that_resolves_to_deep_skill(
@@ -415,7 +416,7 @@ def test_load_rejects_sub_tool_that_resolves_to_deep_skill(
         ValueError,
         match="Deep skill 'parent' has invalid sub-tools: child",
     ):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
 def test_load_rejects_duplicate_deep_skill_names_across_capabilities(
@@ -434,7 +435,7 @@ def test_load_rejects_duplicate_deep_skill_names_across_capabilities(
         ValueError,
         match="Duplicate deep-skill name: 'shared'",
     ):
-        Capabilities(capabilities_paths).load()
+        Capabilities(capabilities_paths).load(work_root=tmp_path)
 
 
 def test_load_rejects_name_shared_by_skill_and_tool(
@@ -450,7 +451,7 @@ def test_load_rejects_name_shared_by_skill_and_tool(
         ValueError,
         match="Names shared by deep skills and tools: search",
     ):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
 def test_load_rejects_duplicate_hds_names_across_capabilities(
@@ -466,7 +467,7 @@ def test_load_rejects_duplicate_hds_names_across_capabilities(
         capabilities_paths.append(capabilities_path)
 
     with pytest.raises(ValueError, match="Duplicate HDS name: 'shared'"):
-        Capabilities(capabilities_paths).load()
+        Capabilities(capabilities_paths).load(work_root=tmp_path)
 
 
 def test_load_rejects_name_shared_by_hds_and_tool(tmp_path: Path) -> None:
@@ -480,7 +481,7 @@ def test_load_rejects_name_shared_by_hds_and_tool(tmp_path: Path) -> None:
         ValueError,
         match="Names shared by HDS and other capabilities: search",
     ):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
 def test_load_rejects_name_shared_by_hds_and_deep_skill(
@@ -498,7 +499,7 @@ def test_load_rejects_name_shared_by_hds_and_deep_skill(
         ValueError,
         match="Names shared by HDS and other capabilities: shared",
     ):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
 def test_load_rejects_duplicate_exit_skill_names_across_capabilities(
@@ -513,7 +514,7 @@ def test_load_rejects_duplicate_exit_skill_names_across_capabilities(
         capabilities_paths.append(capabilities_path)
 
     with pytest.raises(ValueError, match="Duplicate exit-skill name: 'finish'"):
-        Capabilities(capabilities_paths).load()
+        Capabilities(capabilities_paths).load(work_root=tmp_path)
 
 
 def test_load_rejects_name_shared_by_exit_skill_and_tool(
@@ -528,4 +529,4 @@ def test_load_rejects_name_shared_by_exit_skill_and_tool(
         ValueError,
         match="Names shared by exit skills and other capabilities: finish",
     ):
-        Capabilities([capabilities_path]).load()
+        Capabilities([capabilities_path]).load(work_root=tmp_path)

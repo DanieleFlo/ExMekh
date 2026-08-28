@@ -26,9 +26,12 @@ class Capabilities:
     ) -> None:
         self._layout = CapabilitiesLayout(capabilities_paths)
 
-    def load(self) -> CapabilitiesData:
+    def load(self, *, work_root: Path) -> CapabilitiesData:
         self.format_capabilities_folders()
-        deep_tools = DeepTools(self.get_tool_paths())
+        deep_tools = DeepTools(
+            self.get_tool_paths(),
+            work_root=work_root,
+        )
         exit_skills = ExitSkills(self.get_exit_skill_folder_paths())
         exit_tools = ExitTools(self.get_exit_tool_paths())
 

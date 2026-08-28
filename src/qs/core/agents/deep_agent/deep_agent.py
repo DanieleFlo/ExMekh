@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
+from pathlib import Path
 from types import MappingProxyType
 
 from qs.core.agents.capabilities.data import CapabilitiesData
@@ -18,6 +20,7 @@ class DeepAgent:
         self,
         provider: Provider,
         node: Node,
+        work_root: Path,
         on_stream: DeepAgentEventHandler | None = None,
     ) -> None:
         if not isinstance(provider, Provider):
@@ -25,6 +28,7 @@ class DeepAgent:
 
         if not isinstance(node, Node):
             raise TypeError("node must be a Node")
+        work_root = self._validate_work_root(work_root)
         if on_stream is not None and not callable(on_stream):
             raise TypeError("on_stream must be a callable if provided")
 
@@ -32,6 +36,7 @@ class DeepAgent:
         self._capabilities_by_node = self._initialize_node_tree(
             provider,
             node,
+            work_root,
             on_stream,
         )
 
@@ -50,6 +55,7 @@ class DeepAgent:
     def _initialize_node_tree(
         provider: Provider,
         root_node: Node,
+        work_root: Path,
         on_stream: DeepAgentEventHandler | None,
     ) -> MappingProxyType[Node, CapabilitiesData]:
         """Recursive function to initialize the node tree.
@@ -75,10 +81,28 @@ class DeepAgent:
                 return
 
             active_nodes.add(node)
-            capabilities_by_node[node] = node.initialize(provider, on_stream=on_stream)
+            capabilities_by_node[node] = node.initialize(
+                provider,
+                work_root=work_root,
+                on_stream=on_stream,
+            )
             for child in node.children:
                 initialize(child)
             active_nodes.remove(node)
 
         initialize(root_node)
         return MappingProxyType(capabilities_by_node)
+
+    @staticmethod
+    def _validate_work_root(work_root: Path) -> Path:
+        if not isinstance(work_root, Path):
+            raise TypeError("work_root must be a Path")
+        if not work_root.exists():
+            raise FileNotFoundError(f"work_root does not exist: {work_root}")
+        if not work_root.is_dir():
+            raise ValueError(f"work_root must be a directory: {work_root}")
+        if not os.access(work_root, os.R_OK | os.W_OK | os.X_OK):
+            raise PermissionError(
+                f"work_root must be readable, writable, and traversable: {work_root}"
+            )
+        return work_root.resolve()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from collections.abc import Sequence
 from pathlib import Path
 from types import ModuleType
 from typing import get_type_hints
@@ -16,6 +17,9 @@ from qs.core.agents.tools.deep_tools import DeepTools
 
 
 class ExitTools(DeepTools):
+    def __init__(self, tool_paths: Sequence[Path]) -> None:
+        super().__init__(tool_paths, work_root=Path.cwd())
+
     def _load_tool(self, tool_path: Path) -> ExitTool:
         entrypoint_path = self._validate_tool_path(tool_path)
         module = self._module_importer.import_module(tool_path, entrypoint_path)

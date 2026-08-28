@@ -3,6 +3,8 @@ from __future__ import annotations
 import inspect
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import wraps
+from pathlib import Path
 from typing import Any, Final
 
 type ToolFunction = Callable[..., Any]
@@ -37,8 +39,14 @@ def deep_tool(
                 f"Function '{function.__name__}' is already decorated with @deep_tool"
             )
 
-        setattr(function, _ENTRYPOINT_ATTRIBUTE, definition)
-        return function
+        _validate_work_root_parameter(function)
+
+        @wraps(function)
+        def decorated(work_root: Path, *args: Any, **kwargs: Any) -> Any:
+            return function(work_root, *args, **kwargs)
+
+        setattr(decorated, _ENTRYPOINT_ATTRIBUTE, definition)
+        return decorated
 
     return decorate
 
@@ -55,6 +63,24 @@ def _validate_definition(
 
     if description is not None and not description.strip():
         raise ValueError("Tool description cannot be blank")
+
+
+def _validate_work_root_parameter(function: ToolFunction) -> None:
+    parameters = tuple(inspect.signature(function).parameters.values())
+
+    if (
+        not parameters
+        or parameters[0].name != "work_root"
+        or parameters[0].kind
+        not in (
+            inspect.Parameter.POSITIONAL_ONLY,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        )
+    ):
+        raise TypeError(
+            "@deep_tool entrypoint must define work_root as its first "
+            "positional parameter"
+        )
 
 
 def get_tool_definition(
