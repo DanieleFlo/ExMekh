@@ -48,6 +48,7 @@ def test_init_rejects_invalid_metadata(metadata: dict, message: str) -> None:
         ProviderResponse(AssistantMessage("answer"), **metadata)
 
 
-def test_init_rejects_response_without_text_content() -> None:
-    with pytest.raises(TypeError, match="content must be a string"):
-        ProviderResponse(AssistantMessage(None))
+def test_init_preserves_response_without_content() -> None:
+    response = ProviderResponse(AssistantMessage(None))
+
+    assert response.get_message() is None

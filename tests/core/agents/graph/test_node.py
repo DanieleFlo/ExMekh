@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pydantic import BaseModel
 
-from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill
+from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill, DeepSkill
 from qs.core.agents.exit_skill.exit_skill import CalledExitSkill
 from qs.core.agents.exit_tool.exit_tool import CalledExitTool, ExitTool
 from qs.core.agents.graph.node import Node
@@ -23,6 +23,7 @@ from qs.core.models.structured_provider_request import StructuredProviderRequest
 from qs.core.models.structured_provider_response import StructuredProviderResponse
 from qs.core.models.tool import CalledTool
 from qs.core.models.tool_message import ToolMessage
+from qs.core.models.user_message import ErrorUserMessage
 from qs.interfaces.provider import Provider
 
 
@@ -39,6 +40,7 @@ class SequenceProvider(Provider):
         self,
         request: StructuredProviderRequest[ResponseModel],
     ) -> StructuredProviderResponse[ResponseModel]:
+        del request
         raise NotImplementedError
 
 
@@ -289,22 +291,31 @@ def test_runtime_operations_require_an_initialized_node(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match="before running an exit tool"):
         node._run_exit_tool(cast(CalledExitTool, object()))
     with pytest.raises(RuntimeError, match="Node has no exit skill"):
-        node._render_deep_skill(cast(object, None))
+        node._render_deep_skill(cast(DeepSkill, None))
     with pytest.raises(RuntimeError, match="before opening a deep skill"):
         node._open_deep_skill(cast(CalledDeepSkill, object()))
     with pytest.raises(RuntimeError, match="before closing a deep skill"):
         node._close_deep_skill("result")
 
 
-def test_rejects_non_string_provider_message(tmp_path: Path) -> None:
-    node = Node([tmp_path / "capabilities"], name_hds="main")
-    node._client = MagicMock(spec=Client)
-    response = MagicMock(spec=ProviderResponse)
-    response.get_tool_calls.return_value = None
-    response.get_message.return_value = object()
+@pytest.mark.parametrize("invalid_content", [None, "", "   "])
+def test_empty_provider_response_adds_error_message_and_retries(
+    tmp_path: Path,
+    invalid_content: str | None,
+) -> None:
+    provider = SequenceProvider(
+        [AssistantMessage(invalid_content), AssistantMessage("recovered answer")]
+    )
+    node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
+    node.initialize(provider)
 
-    with pytest.raises(TypeError, match="message must be a string"):
-        node._routing_loop(response)
+    response = node.run("start")
+
+    assert response.get_message() == "recovered answer"
+    assert len(provider.requests) == 2
+    error_message = provider.requests[1].get_messages()[-1]
+    assert isinstance(error_message, ErrorUserMessage)
+    assert error_message.get_message() == Node.EMPTY_RESPONSE_MESSAGE
 
 
 @pytest.mark.parametrize("tool_calls", [(), "", 0])

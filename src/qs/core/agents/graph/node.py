@@ -22,6 +22,7 @@ from qs.core.models.tool import CalledTool, Tool
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.tools import Tools
 from qs.core.models.user_message import (
+    ErrorUserMessage,
     FilesUserMessage,
     ImagesUserMessage,
     TextsUserMessage,
@@ -38,6 +39,10 @@ class Node:
     """Configuration and conversational runtime of one agent node."""
 
     REQUIRED_TOOL_CHOICE: Final[str] = "required"
+    EMPTY_RESPONSE_MESSAGE: Final[str] = (
+        "A response without a tool call and without content is not allowed. "
+        "Respond with either a tool call or non-empty content."
+    )
 
     def __init__(
         self,
@@ -132,41 +137,53 @@ class Node:
             response=response,
             usage=response.usage,
             thinking=response.thinking,
-            history=self._client.dump_history(),
+            history=client.dump_history(),
             skill_executions=self._skill_executions.roots,
         )
 
     def _routing_loop(self, response: ProviderResponse) -> ProviderResponse:
         if self._client is None:
             raise RuntimeError("Node must be initialized before routing loop")
-        while self._has_tool_calls(response.get_tool_calls()):
+
+        while True:
             tool_calls = response.get_tool_calls()
-            logger.info(
-                "Routing assistant tool calls: count=%d depth=%d",
-                len(tool_calls or ()),
-                self._depth,
+            if self._has_tool_calls(tool_calls):
+                self._route_tool_calls(tool_calls=tool_calls)
+                response = self._client.continue_after_tools(
+                    tool_choice=self._current_tool_choice()
+                )
+                continue
+
+            content = response.get_message()
+            if isinstance(content, str) and content.strip():
+                return response
+
+            response = self._client.call(
+                ClientRequest(
+                    message=ErrorUserMessage(self.EMPTY_RESPONSE_MESSAGE),
+                    tool_choice=self._current_tool_choice(),
+                )
             )
-            list_of_tool_calls = self._map_tool_call_to_object(tool_calls)
-            for capability in list_of_tool_calls:
-                if isinstance(capability, CalledDeepSkill):
-                    self._run_deep_skill(capability)
-                elif isinstance(capability, CalledTool):
-                    self._run_tool(capability)
-                elif isinstance(capability, CalledExitSkill):
-                    self._run_exit_skill(capability)
-                elif isinstance(capability, CalledExitTool):
-                    self._run_exit_tool(capability)
-                else:
-                    raise TypeError(
-                        "Node supports only deep skills, exit skills, exit tools, and tools"
-                    )
-            response = self._client.continue_after_tools(
-                tool_choice=self._current_tool_choice()
-            )
-        message = response.get_message()
-        if not isinstance(message, str):
-            raise TypeError("provider response message must be a string")
-        return response
+
+    def _route_tool_calls(self, tool_calls: list[ToolCall]) -> None:
+        logger.info(
+            "Routing assistant tool calls: count=%d depth=%d",
+            len(tool_calls),
+            self._depth,
+        )
+        for capability in self._map_tool_call_to_object(tool_calls):
+            if isinstance(capability, CalledDeepSkill):
+                self._run_deep_skill(capability)
+            elif isinstance(capability, CalledTool):
+                self._run_tool(capability)
+            elif isinstance(capability, CalledExitSkill):
+                self._run_exit_skill(capability)
+            elif isinstance(capability, CalledExitTool):
+                self._run_exit_tool(capability)
+            else:
+                raise TypeError(
+                    "Node supports only deep skills, exit skills, exit tools, and tools"
+                )
 
     def _map_tool_call_to_object(
         self, tool_calls: list[ToolCall] | None

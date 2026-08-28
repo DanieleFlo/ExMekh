@@ -14,9 +14,6 @@ class ProviderResponse(AssistantMessage):
             raise TypeError("Response must be an AssistantMessage")
 
         content = response.get_message()
-        if not isinstance(content, str):
-            raise TypeError("Response content must be a string")
-
         if usage is not None and not isinstance(usage, ModelUsage):
             raise TypeError("Usage must be a ModelUsage instance")
 
