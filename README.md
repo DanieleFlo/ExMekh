@@ -1,173 +1,174 @@
-# qs
+# `qs` — Hierarchical LLM Agent Framework
 
-## Deep-agent streaming
+`qs` is a modular, strongly-typed Python framework for building structured, reliable, and hierarchical Large Language Model (LLM) agents. It combines dynamic function tool calling, Pydantic structured outputs, filesystem-driven capabilities (HDS system prompts, skills, and tools), and multi-depth agent execution with real-time streaming and history tree snapshotting.
 
-Pass an `on_stream` callback to `DeepAgent` to enable provider streaming. The
-callback receives lightweight provider events separately from contextual tool
-and skill execution events. Provider events include only the current depth and
-skill path; execution events also include history and history-tree snapshots.
+---
 
-```python
-from pathlib import Path
+## Key Features
 
-from qs.core.agents.deep_agent import (
-    DeepAgentEvent,
-    DeepAgentExecutionEvent,
-    DeepAgentStreamEvent,
-)
-from qs.core.agents.deep_agent.deep_agent import DeepAgent
-from qs.core.models.provider_stream_event import ProviderStreamEventType
+- **Hierarchical Agent Engine ([`DeepAgent`](file:///c:/Users/danie/Desktop/qs/qs/docs/05-deep-agent-and-execution.md))**: Execute multi-depth, scoped agent hierarchies with dynamic skill tree navigation, history snapshotting, and cycle detection.
+- **Filesystem Capabilities ([`Capabilities`](file:///c:/Users/danie/Desktop/qs/qs/docs/04-capabilities-and-catalog.md))**: Define system prompts (HDS), skills, exit skills, and Python function tools directly in Markdown and Python files inside a modular `capabilities/` directory.
+- **Typed Function Tools & Auto Schema ([`Tool`](file:///c:/Users/danie/Desktop/qs/qs/docs/03-tools-and-structured-outputs.md))**: Register annotated Python functions. Automatic JSON schema generation, type hint reflection, and value coercion (handling dates, UUIDs, enums, literals, dataclasses, and Pydantic models).
+- **Structured Outputs**: Validate model completions directly into Pydantic models via `client.call_structured(...)` with optional strict schema enforcement.
+- **Real-Time Token & Event Streaming**: Stream raw provider tokens (including reasoning/thinking tokens) alongside structured execution events (`tool_start`, `tool_end`, depth, and skill path).
+- **Flexible Provider Backend ([`LocalProvider`](file:///c:/Users/danie/Desktop/qs/qs/docs/06-providers-and-configuration.md))**: Native integration with local LLM servers (llama.cpp, Ollama, vLLM, LM Studio) and OpenAI-compatible Chat Completions or Responses endpoints.
 
+---
 
-def handle_stream(event: DeepAgentEvent) -> None:
-    if isinstance(event, DeepAgentStreamEvent):
-        provider_event = event.provider_event
-        if provider_event.type is not ProviderStreamEventType.RESPONSE:
-            return
-        send_token(
-            content=provider_event.content,
-            depth=event.depth,
-            skill_path=event.skill_path,
-        )
-        return
+## Documentation Index
 
-    if isinstance(event, DeepAgentExecutionEvent):
-        send_tool_state(
-            name=event.tool_name,
-            call_id=event.tool_call_id,
-            is_running=event.is_tool_running,
-            depth=event.depth,
-            skill_path=event.skill_path,
-            history=event.history,
-            history_tree=event.history_tree,
-        )
+Explore the detailed documentation in the [`docs/`](file:///c:/Users/danie/Desktop/qs/qs/docs) directory:
 
+1. **[Architecture & Core Concepts](file:///c:/Users/danie/Desktop/qs/qs/docs/01-architecture-and-concepts.md)**: High-level design, core building blocks, and system lifecycle.
+2. **[Client & Messaging Model](file:///c:/Users/danie/Desktop/qs/qs/docs/02-client-and-models.md)**: `Client` API, message data structures (`UserMessage`, `AssistantMessage`, `SystemMessage`, `ToolMessage`), and history rules.
+3. **[Function Tools & Structured Outputs](file:///c:/Users/danie/Desktop/qs/qs/docs/03-tools-and-structured-outputs.md)**: Function tool registration, type coercion, `@deep_tool` binding, and Pydantic validation.
+4. **[Capabilities System & Catalog](file:///c:/Users/danie/Desktop/qs/qs/docs/04-capabilities-and-catalog.md)**: Directory layout, HDS prompts, Markdown skills, exit tools, and dynamic catalog attachment.
+5. **[DeepAgent & Hierarchical Execution](file:///c:/Users/danie/Desktop/qs/qs/docs/05-deep-agent-and-execution.md)**: Multi-depth execution, skill path tracking (`/`, `/skill-a`), linear vs. tree history, and workspace root isolation.
+6. **[Providers & Configuration](file:///c:/Users/danie/Desktop/qs/qs/docs/06-providers-and-configuration.md)**: `LocalProvider` configuration, Chat Completions vs. Responses APIs, and `.env` setup.
+7. **[CLI, Testing & Live Verification](file:///c:/Users/danie/Desktop/qs/qs/docs/07-cli-and-testing.md)**: Interactive REPL CLI (`qs`), running offline `pytest` suites, and running live model tests.
 
-agent = DeepAgent(
-    provider=provider,
-    node=root_node,
-    work_root=Path.cwd(),
-    on_stream=handle_stream,
-)
+---
+
+## Installation & Requirements
+
+### Requirements
+- Python `>= 3.13`
+- [`uv`](https://github.com/astral-sh/uv) (recommended package manager)
+
+### Installation
+Clone the repository and sync project dependencies using `uv`:
+
+```shell
+git clone <repository-url>
+cd qs
+uv sync
 ```
 
-`work_root` must be an existing readable, writable, and traversable directory.
-Each `@deep_tool` entrypoint declares it as the first positional parameter. The
-agent binds this parameter internally, so it is available to the implementation
-but is not included in the arguments generated by the model.
+---
 
-```python
-@deep_tool(description="Read a project file.")
-def read_project_file(work_root: Path, relative_path: str) -> str:
-    return (work_root / relative_path).read_text()
-```
+## Quickstart
 
-`skill_path` is `/` while the HDS is active, `/mock-skill` inside a root skill,
-and `/mock-skill/nested-skill` inside a nested skill. History snapshots are not
-copied for each generated token. Tool end events are emitted even when tool
-execution raises an exception.
-
-## Function tools
-
-Register typed Python functions with `Tool` and include the registry in a
-`ClientRequest`. The OpenAI payload schema is generated from the function
-annotations and its docstring.
+### 1. Simple Client & Function Tool Calling
 
 ```python
 from typing import Literal
-
 from qs.core.models.client import Client
 from qs.core.models.client_request import ClientRequest
 from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool import Tool
 from qs.core.models.tools import Tools
 from qs.core.models.user_message import UserMessage
-from qs.core.providers.openai_tool_mapper import OpenAIToolMapper
+from qs.providers.local import LocalProvider
 
 
-def weather(city: str, units: Literal["celsius", "fahrenheit"] = "celsius") -> str:
-    """Return the weather for a city."""
-    return f"Weather for {city} in {units}"
+# Define a typed python tool
+def get_weather(city: str, units: Literal["celsius", "fahrenheit"] = "celsius") -> str:
+    """Return weather information for a specified city."""
+    return f"Weather in {city}: 22° {units}"
 
 
-tools = Tools([Tool(weather)])
+# Instantiate provider and client
+provider = LocalProvider(model="Qwen3.8-27B-UD-Q4_K_S")
 client = Client(
     provider=provider,
-    system_message=SystemMessage("Use tools when needed."),
+    system_message=SystemMessage("You are a helpful assistant."),
+    tools=Tools([Tool(get_weather)]),
 )
-request = ClientRequest(
-    UserMessage("Weather in Rome?"),
-    tools=tools,
-    tool_choice="auto",
-)
-response = client.call(request)
 
-assistant_message = response.response
-for tool_call in assistant_message.get_tool_calls() or []:
-    if tool_call["type"] == "function":
-        selected_tool, arguments = OpenAIToolMapper.resolve_tool_call(
-            tool_call,
-            tools,
-        )
-        result = selected_tool.tool(**arguments)
+# Make request
+response = client.call(ClientRequest(UserMessage("What is the weather in Rome?")))
+print("Assistant:", response.get_message())
 ```
 
-Parameters must be named and annotated. The mapper supports JSON primitives,
-unions and optional values, `Literal`, enums, lists, sets, tuples, mappings,
-`TypedDict`, dataclasses, `Annotated`, `NewType`, dates, UUIDs, decimals, and
-paths. Positional-only and variadic parameters are rejected because OpenAI
-function arguments are JSON objects.
+---
 
-## Structured responses
-
-Use `call_structured` with a Pydantic model type when the assistant response
-must be a validated object instead of a string. Strict schema generation and
-strict Pydantic validation are enabled by default.
+### 2. Hierarchical `DeepAgent` with Real-Time Event Streaming
 
 ```python
-from pydantic import BaseModel, ValidationError
+from pathlib import Path
+from qs.core.agents.deep_agent import (
+    DeepAgent,
+    DeepAgentEvent,
+    DeepAgentExecutionEvent,
+    DeepAgentStreamEvent,
+)
+from qs.core.agents.node import Node
+from qs.core.models.provider_stream_event import ProviderStreamEventType
+from qs.providers.local import LocalProvider
 
+
+def handle_stream_events(event: DeepAgentEvent) -> None:
+    if isinstance(event, DeepAgentStreamEvent):
+        if event.provider_event.type is ProviderStreamEventType.RESPONSE:
+            print(event.provider_event.content, end="", flush=True)
+    elif isinstance(event, DeepAgentExecutionEvent):
+        print(
+            f"\n[Tool Execution]: {event.tool_name} (depth={event.depth}, path={event.skill_path})"
+        )
+
+
+provider = LocalProvider(model="Qwen3.8-27B-UD-Q4_K_S")
+capabilities_path = Path.cwd() / "src" / "qs" / "capabilities"
+
+root_node = Node(
+    capabilities_paths=[capabilities_path],
+    name_hds="main",
+)
+
+agent = DeepAgent(
+    provider=provider,
+    node=root_node,
+    work_root=Path.cwd(),
+    on_stream=handle_stream_events,
+)
+
+response = agent.run("Perform workspace maintenance and check capabilities.")
+```
+
+---
+
+### 3. Structured Output Parsing (Pydantic)
+
+```python
+from pydantic import BaseModel
+from qs.core.models.client import Client
 from qs.core.models.client_request import ClientRequest
+from qs.core.models.system_message import SystemMessage
 from qs.core.models.user_message import UserMessage
 
 
-class Answer(BaseModel):
-    summary: str
-    confidence: float
+class TaskSummary(BaseModel):
+    title: str
+    completed: bool
+    estimated_hours: float
 
 
-try:
-    response = client.call_structured(
-        ClientRequest(UserMessage("Summarize the document.")),
-        Answer,
-    )
-    answer = response.response.get_message()
-except ValidationError as error:
-    print(error.errors())
+client = Client(provider=provider, system_message=SystemMessage("Extract task info."))
+response = client.call_structured(
+    ClientRequest(
+        UserMessage("Analyze task: Fix login bug, 3.5 hours estimated, status done")
+    ),
+    TaskSummary,
+)
+
+summary: TaskSummary = response.response.get_message()
+print(f"Task '{summary.title}' - Completed: {summary.completed}")
 ```
 
-Pass `strict=False` to allow Pydantic coercion while still validating the
-returned JSON against the model. Invalid JSON and incompatible values raise
-the original `ValidationError`, including every field location and error
-detail.
+---
 
-## Live tests
+## Running Tests
 
-Live tests use `BASE_URL` and `API_KEY` from the environment or `.env`. They
-target `qwen3.5-9b-mtp` by default; set `QS_LIVE_MODEL` to use another model.
-The normal `uv run pytest` command collects these tests but skips them.
+### Unit Tests
+Run offline unit test suite:
 
-Opt in with the pytest boolean flag:
+```shell
+uv run pytest
+```
+
+### Live Provider Integration Tests
+Opt-in to contact a live model provider endpoint (requires `BASE_URL` set in `.env`):
 
 ```shell
 uv run pytest --run-live tests/live
 ```
-
-Alternatively, enable them through an environment variable:
-
-```shell
-QS_RUN_LIVE_TESTS=1 uv run pytest tests/live
-```
-
-Live assertion messages start with `CLIENT` for protocol or history failures
-and `MODEL` for failures in the requested model behavior.

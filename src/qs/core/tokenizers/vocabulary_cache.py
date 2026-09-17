@@ -1,0 +1,85 @@
+from __future__ import annotations
+
+import json
+import re
+import logging
+from collections.abc import Callable, Iterable
+from pathlib import Path
+
+from qs.utils.file import write_json_atomically
+
+logger = logging.getLogger(__name__)
+
+class VocabularyCache:
+    _TOKEN_PATTERN = re.compile(r"[a-zA-Z0-9]+")
+
+    def __init__(self, directory: Path, identity: str) -> None:
+        self._directory = directory
+        self._identity = identity
+        self._path = directory / "vocabulary.json"
+
+    def load_or_build(
+        self,
+        load_vocabulary_tokens: Callable[[], Iterable[str]],
+    ) -> tuple[str, ...]:
+        if self._path.exists():
+            tokens = self._read_cached_vocabulary()
+            logger.info(
+                "Loaded cached vocabulary: identity=%s tokens=%d path=%s",
+                self._identity,
+                len(tokens),
+                self._path,
+            )
+            return tokens
+        tokens = tuple(
+            sorted(
+                {
+                    token
+                    for token in load_vocabulary_tokens()
+                    if self._TOKEN_PATTERN.fullmatch(token)
+                }
+            )
+        )
+        if not tokens:
+            raise ValueError("Tokenizer has no ASCII alphanumeric tokens")
+        self._directory.mkdir(parents=True, exist_ok=True)
+        write_json_atomically(
+            self._path,
+            {
+                "version": 1,
+                "identity": self._identity,
+                "tokens": tokens,
+            },
+        )
+        logger.info(
+            "Built and cached vocabulary: identity=%s tokens=%d path=%s",
+            self._identity,
+            len(tokens),
+            self._path,
+        )
+        return tokens
+
+    def _read_cached_vocabulary(self) -> tuple[str, ...]:
+        try:
+            data = json.loads(self._path.read_text(encoding="utf-8"))
+            if (
+                not isinstance(data, dict)
+                or data.get("version") != 1
+                or data.get("identity") != self._identity
+            ):
+                raise ValueError("Invalid cache metadata")
+            tokens = data.get("tokens")
+            if (
+                not isinstance(tokens, list)
+                or not tokens
+                or any(
+                    not isinstance(token, str)
+                    or not self._TOKEN_PATTERN.fullmatch(token)
+                    for token in tokens
+                )
+                or tokens != sorted(set(tokens))
+            ):
+                raise ValueError("Invalid cached vocabulary")
+        except (ValueError, UnicodeError) as error:
+            raise ValueError(f"Invalid tokenizer cache: {self._path}") from error
+        return tuple(tokens)

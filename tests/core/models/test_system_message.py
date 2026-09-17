@@ -38,6 +38,7 @@ def test_message_dump_returns_provider_fields() -> None:
     [
         (object(), "", "content must be a string"),
         ("instructions", object(), "name must be a string"),
+        ("", "", "The content must not be empty!"),
     ],
 )
 def test_init_rejects_invalid_fields(

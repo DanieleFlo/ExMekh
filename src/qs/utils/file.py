@@ -1,5 +1,30 @@
 import base64
+import json
 from pathlib import Path
+from tempfile import NamedTemporaryFile
+
+
+def write_json_atomically(file_path: Path, value: object) -> None:
+    """Replace a JSON file only after serialization succeeds.
+
+    The parent directory must already exist. Temporary files are created beside
+    the destination to keep replacement on the same filesystem.
+    """
+    with NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=file_path.parent,
+        suffix=".tmp",
+        delete=False,
+    ) as stream:
+        temporary_path = Path(stream.name)
+        try:
+            json.dump(value, stream, ensure_ascii=True)
+            stream.close()
+            temporary_path.replace(file_path)
+        finally:
+            stream.close()
+            temporary_path.unlink(missing_ok=True)
 
 
 def convert_bytes_to_base64(file_bytes: bytes) -> str:

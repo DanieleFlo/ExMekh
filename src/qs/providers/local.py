@@ -16,6 +16,8 @@ from qs.core.models.structured_provider_response import StructuredProviderRespon
 from qs.core.providers.chat_completion_openai import ChatCompletionOpenAI
 from qs.core.providers.response_openai import ResponseOpenAI
 from qs.interfaces.provider import Provider
+from qs.interfaces.tokenizer import Tokenizer
+from qs.tokenizers.qwen import QwenTokenizer
 
 
 class LocalProvider(Provider):
@@ -26,7 +28,11 @@ class LocalProvider(Provider):
         base_url_env_var: str = "BASE_URL",
         reasoning_effort: ReasoningEffort | None = None,
         api: Literal["chat_completions", "responses"] = "chat_completions",
+        tokenizer: Tokenizer | None = None,
     ) -> None:
+        super().__init__(
+            tokenizer=tokenizer if tokenizer is not None else QwenTokenizer()
+        )
         self._model = model
         self._api_key_env_var = api_key_env_var
         self._base_url_env_var = base_url_env_var

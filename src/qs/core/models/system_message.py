@@ -15,6 +15,8 @@ class SystemMessage(Message[str]):
             raise TypeError("System content must be a string")
         if not isinstance(self._name, str):
             raise TypeError("System name must be a string")
+        if not self._content:
+            raise TypeError("The content must not be empty!")
 
     def get_message(self) -> str:
         return self._content

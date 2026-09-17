@@ -15,6 +15,7 @@ from qs.core.agents.exit_tool.exit_tool import CalledExitTool
 from qs.core.models.client import Client
 from qs.core.models.tool import CalledTool
 from qs.core.models.tool_message import ToolMessage
+from qs.core.models.xml_header import XmlHeader
 
 from .agentic_scope import AgenticScope
 from .tool_call_resolver import ResolvedToolCall
@@ -111,9 +112,10 @@ class ToolCallExecutor:
 
     def _run_deep_skill(self, called_deep_skill: CalledDeepSkill) -> None:
         self._open_deep_skill(called_deep_skill)
+        content = called_deep_skill.render_instructions(self._exit_skill)
         self._client.add_tool_response(
             ToolMessage(
-                content=called_deep_skill.render_instructions(self._exit_skill),
+                content=content,
                 tool_call_id=called_deep_skill.call_id,
                 name=called_deep_skill.name,
             )
@@ -126,9 +128,19 @@ class ToolCallExecutor:
             called_tool.call_id,
             self._depth,
         )
+        content = self.stringify_result(called_tool.execute())
+        try:
+            xml_header = XmlHeader(
+                source="Tool", 
+                name=called_tool.name,
+                id=self._client.generate_id()
+            )
+            content = xml_header.prepend_to(content)
+        except Exception as e:
+            logging.error(e)
         self._client.add_tool_response(
             ToolMessage(
-                content=self.stringify_result(called_tool.execute()),
+                content=content,
                 tool_call_id=called_tool.call_id,
                 name=called_tool.name,
             )
@@ -141,9 +153,10 @@ class ToolCallExecutor:
             called_exit_skill.call_id,
             self._depth,
         )
+        content = called_exit_skill.render_instructions()
         self._client.add_tool_response(
             ToolMessage(
-                content=called_exit_skill.render_instructions(),
+                content=content,
                 tool_call_id=called_exit_skill.call_id,
                 name=called_exit_skill.name,
             )
@@ -159,7 +172,17 @@ class ToolCallExecutor:
         )
         result = called_exit_tool.execute()
         content = self.get_exit_output(result)
+
         if self._skill_executions.depth:
+            try:
+                xml_header = XmlHeader(
+                    source="DeepSkill", 
+                    name=called_exit_tool.name,
+                    id=self._client.generate_id()
+                )
+                content = xml_header.prepend_to(content)
+            except Exception as e:
+                logging.error(e)
             self._close_deep_skill(content)
             return
 

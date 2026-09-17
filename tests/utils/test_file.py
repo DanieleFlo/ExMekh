@@ -1,11 +1,44 @@
 import base64
+import json
 from pathlib import Path
 from typing import cast
 from unittest.mock import patch
 
 import pytest
 
-from qs.utils.file import convert_bytes_to_base64, read_file_from_path
+from qs.utils.file import (
+    convert_bytes_to_base64,
+    read_file_from_path,
+    write_json_atomically,
+)
+
+
+def test_write_json_atomically_replaces_file(tmp_path: Path) -> None:
+    target = tmp_path / "data.json"
+    target.write_text("original")
+
+    write_json_atomically(target, {"value": "caffè"})
+
+    assert json.loads(target.read_text(encoding="utf-8")) == {"value": "caffè"}
+    assert list(tmp_path.iterdir()) == [target]
+
+
+def test_failed_atomic_replace_preserves_file_and_cleans_up(tmp_path: Path) -> None:
+    target = tmp_path / "data.json"
+    target.write_text("original")
+    with patch.object(Path, "replace", side_effect=OSError), pytest.raises(OSError):
+        write_json_atomically(target, {"value": 1})
+    assert target.read_text() == "original"
+    assert list(tmp_path.iterdir()) == [target]
+
+
+def test_failed_json_serialization_preserves_file_and_cleans_up(tmp_path: Path) -> None:
+    target = tmp_path / "data.json"
+    target.write_text("original")
+    with pytest.raises(TypeError):
+        write_json_atomically(target, {"value": object()})
+    assert target.read_text() == "original"
+    assert list(tmp_path.iterdir()) == [target]
 
 
 @pytest.mark.parametrize(

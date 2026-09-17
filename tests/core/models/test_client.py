@@ -443,3 +443,18 @@ def test_call_structured_propagates_validation_error_with_details() -> None:
 
     assert error.value.errors()[0]["loc"] == ("value",)
     assert error.value.errors()[0]["type"] == "int_type"
+
+
+def test_client_delegates_tokenizer_and_id_generation_to_provider() -> None:
+    provider = MagicMock(spec=Provider)
+    mock_tokenizer = MagicMock()
+    provider.get_tokenizer.return_value = mock_tokenizer
+    provider.generate_id.return_value = "generated-id"
+    client = Client(provider=provider, system_message=SystemMessage("rules"))
+
+    assert client.get_tokenizer() is mock_tokenizer
+    provider.get_tokenizer.assert_called_once_with()
+
+    assert client.generate_id() == "generated-id"
+    provider.generate_id.assert_called_once_with()
+

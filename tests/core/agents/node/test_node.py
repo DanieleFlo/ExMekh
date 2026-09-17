@@ -39,6 +39,7 @@ from qs.core.models.structured_provider_response import StructuredProviderRespon
 from qs.core.models.tool import CalledTool
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.user_message import ErrorUserMessage
+from qs.core.models.xml_header import XmlHeader
 from qs.interfaces.provider import Provider
 
 
@@ -487,6 +488,30 @@ def test_run_tool_delegates_execution_to_called_tool() -> None:
     assert response.get_name() == "echo"
 
 
+def test_run_tool_prepends_xml_header_when_client_generates_id() -> None:
+    client = MagicMock(spec=Client)
+    client.generate_id.return_value = "id-tool"
+    called_tool = MagicMock(spec=CalledTool)
+    called_tool.execute.return_value = {"echo": "hello"}
+    called_tool.call_id = "call-123"
+    called_tool.name = "echo"
+    executor = ToolCallExecutor(
+        client=client,
+        exit_skill=cast(ExitSkill, object()),
+        initial_depth=0,
+        agentic_scope=MagicMock(spec=AgenticScope),
+    )
+
+    executor.execute(called_tool)
+
+    called_tool.execute.assert_called_once_with()
+    response = cast(ToolMessage, client.add_tool_response.call_args.args[0])
+    expected_header = XmlHeader(source="Tool", name="echo", id="id-tool").to_xml()
+    assert response.get_message() == f"{expected_header}\n{{\"echo\": \"hello\"}}"
+    assert response.get_tool_call_id() == "call-123"
+    assert response.get_name() == "echo"
+
+
 def test_tool_failure_still_emits_the_end_state() -> None:
     called_tool = MagicMock(spec=CalledTool)
     called_tool.execute.side_effect = RuntimeError("tool failed")
@@ -555,6 +580,47 @@ def test_skill_increments_depth_adds_exit_body_and_requires_a_tool(
     )
     exit_message = cast(ToolMessage, provider.requests[2].get_messages()[-1])
     assert exit_message.get_message() == "done"
+
+
+def test_skill_increments_depth_prepends_xml_header_on_exit(tmp_path: Path) -> None:
+    class ProviderWithId(SequenceProvider):
+        def generate_id(self) -> str:
+            return "exit-id-456"
+
+    provider = ProviderWithId(
+        [
+            AssistantMessage(
+                "",
+                tool_calls=[_function_call("mock-skill", {}, call_id="skill-call")],
+            ),
+            AssistantMessage(
+                "",
+                tool_calls=[
+                    _function_call(
+                        "exit_agent",
+                        {"text": "done", "items": ["completed"]},
+                        call_id="exit-call",
+                    )
+                ],
+            ),
+            AssistantMessage("final answer"),
+        ]
+    )
+    node = Node(
+        [_write_runnable_capabilities(tmp_path)],
+        name_hds="main",
+    )
+    node.initialize(provider, work_root=tmp_path)
+
+    response = node.run("start")
+
+    assert response.get_message() == "final answer"
+    assert node.depth == 0
+    exit_message = cast(ToolMessage, provider.requests[2].get_messages()[-1])
+    expected_header = XmlHeader(
+        source="DeepSkill", name="exit_agent", id="exit-id-456"
+    ).to_xml()
+    assert exit_message.get_message() == f"{expected_header}\ndone"
 
 
 def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:

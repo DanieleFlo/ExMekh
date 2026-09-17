@@ -17,6 +17,7 @@ from qs.core.models.tool_message import ToolMessage
 from qs.core.models.tools import Tools
 from qs.interfaces.message import Message
 from qs.interfaces.provider import Provider
+from qs.interfaces.tokenizer import Tokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,12 @@ class Client:
     def _validate_provider(self) -> None:
         if not isinstance(self._provider, Provider):
             raise TypeError("Expected a Provider instance")
+        
+    def get_tokenizer(self) -> Tokenizer:
+        return self._provider.get_tokenizer()
+
+    def generate_id(self) -> str:
+        return self._provider.generate_id()
 
     def get_history(self) -> list[Message]:
         return self._history.get_history()
