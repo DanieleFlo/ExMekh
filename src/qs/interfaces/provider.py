@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
@@ -9,6 +10,9 @@ from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.structured_provider_request import StructuredProviderRequest
 from qs.core.models.structured_provider_response import StructuredProviderResponse
 from qs.interfaces.tokenizer import Tokenizer
+
+if TYPE_CHECKING:
+    from qs.core.cache.session_cache import SessionCache
 
 
 class Provider(ABC):
@@ -22,6 +26,10 @@ class Provider(ABC):
 
     def generate_id(self) -> str:
         return self._tokenizer.generate_id()
+
+    def get_session(self) -> SessionCache:
+        """Access the runtime session cache of the underlying tokenizer."""
+        return self._tokenizer.get_session()
 
     @abstractmethod
     def call(self, request: ProviderRequest) -> ProviderResponse:

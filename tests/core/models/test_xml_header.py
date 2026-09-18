@@ -96,7 +96,9 @@ def test_remove_field() -> None:
 
 def test_to_xml_without_fields() -> None:
     header = XmlHeader(source="Tool", name="echo", id="id-1")
-    expected = "<header>\n  <name>echo</name>\n  <type>Tool</type>\n  <id>id-1</id>\n</header>"
+    expected = (
+        "<header>\n  <name>echo</name>\n  <type>Tool</type>\n  <id>id-1</id>\n</header>"
+    )
     assert header.to_xml() == expected
 
 
@@ -124,4 +126,4 @@ def test_to_xml_with_fields_and_none_filtering() -> None:
 def test_prepend_to() -> None:
     header = XmlHeader(source="Tool", name="echo", id="id-1")
     result = header.prepend_to('{"result": "success"}')
-    assert result == f"{header.to_xml()}\n{{\"result\": \"success\"}}"
+    assert result == f'{header.to_xml()}\n{{"result": "success"}}'

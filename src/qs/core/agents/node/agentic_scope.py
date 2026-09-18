@@ -18,6 +18,10 @@ class AgenticScope:
         self._exit_tool_names = exit_tool_names
         self._pending_return_skill_call_id: str | None = None
 
+    @property
+    def node_id(self) -> str:
+        return self._hds.get_name()
+
     def build_extra(
         self,
         active_skills: tuple[DeepSkill, ...],

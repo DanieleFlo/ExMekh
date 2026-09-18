@@ -448,8 +448,10 @@ def test_call_structured_propagates_validation_error_with_details() -> None:
 def test_client_delegates_tokenizer_and_id_generation_to_provider() -> None:
     provider = MagicMock(spec=Provider)
     mock_tokenizer = MagicMock()
+    mock_session = MagicMock()
     provider.get_tokenizer.return_value = mock_tokenizer
     provider.generate_id.return_value = "generated-id"
+    provider.get_session.return_value = mock_session
     client = Client(provider=provider, system_message=SystemMessage("rules"))
 
     assert client.get_tokenizer() is mock_tokenizer
@@ -458,3 +460,5 @@ def test_client_delegates_tokenizer_and_id_generation_to_provider() -> None:
     assert client.generate_id() == "generated-id"
     provider.generate_id.assert_called_once_with()
 
+    assert client.get_session() is mock_session
+    provider.get_session.assert_called_once_with()

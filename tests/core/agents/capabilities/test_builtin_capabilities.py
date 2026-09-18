@@ -4,18 +4,35 @@ from pydantic import BaseModel
 
 from qs.core.agents.capabilities.capabilities import Capabilities
 from qs.core.agents.node import Node
+from qs.core.cache.cache_manager import CacheManager
+from qs.core.cache.session_cache import SessionCache
 from qs.core.models.assistant_message import AssistantMessage
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.structured_provider_request import StructuredProviderRequest
 from qs.core.models.structured_provider_response import StructuredProviderResponse
 from qs.interfaces.provider import Provider
+from qs.interfaces.tokenizer import Tokenizer
 
 CAPABILITIES_PATH = Path(__file__).resolve().parents[4] / "src" / "qs" / "capabilities"
 
 
+class _StubTokenizer(Tokenizer):
+    def initialize(self) -> None:
+        pass
+
+    def generate_id(self) -> str:
+        return "stub-id"
+
+    def get_session(self) -> SessionCache:
+        return CacheManager.get_session(
+            "stub-capabilities", "default", Path(".qs/tokenizers")
+        )
+
+
 class RecordingProvider(Provider):
     def __init__(self) -> None:
+        super().__init__(_StubTokenizer())
         self.requests: list[ProviderRequest] = []
 
     def call(self, request: ProviderRequest) -> ProviderResponse:

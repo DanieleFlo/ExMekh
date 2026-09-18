@@ -11,6 +11,7 @@ from qs.core.tokenizers.tokenizer_session_registry import TokenizerSessionRegist
 from qs.interfaces.tokenizer import Tokenizer
 from qs.providers.local import LocalProvider
 from qs.tokenizers.qwen import QwenTokenizer
+from qs.utils.file import read_json_from_path
 
 
 class SampleTokenizer(SequentialTokenizer):
@@ -25,11 +26,10 @@ class SampleTokenizer(SequentialTokenizer):
 
 
 @pytest.fixture(autouse=True)
-def isolated_sessions(monkeypatch):
-    monkeypatch.setattr(TokenizerSessionRegistry, "_sessions", {})
+def isolated_sessions():
+    TokenizerSessionRegistry.close_all()
     yield
-    for session in TokenizerSessionRegistry._sessions.values():
-        session.close()
+    TokenizerSessionRegistry.close_all()
 
 
 def test_filter_sequence_and_exhaustion(tmp_path):
@@ -57,7 +57,7 @@ def test_filter_sequence_and_exhaustion(tmp_path):
         tokenizer.generate_id()
     assert tokenizer.loads == 1
     counter = next(tmp_path.glob("*/temp/session-*/counter.json"))
-    assert json.loads(counter.read_text()) == {"next_index": 27}
+    assert read_json_from_path(counter) == {"next_index": 27}
 
 
 def test_cache_reused_without_source_and_session_shared(tmp_path):
@@ -89,9 +89,7 @@ def test_tokenizer_identities_have_separate_paths_and_counters(tmp_path):
 def test_new_process_session_reuses_cache_but_restarts_sequence(tmp_path):
     tokenizer = SampleTokenizer(tmp_path)
     assert tokenizer.generate_id() == "2_2_2"
-    with patch(
-        "qs.core.tokenizers.tokenizer_session_registry.os.getpid", return_value=-1
-    ):
+    with patch("qs.core.cache.session_pool.os.getpid", return_value=-1):
         assert tokenizer.generate_id() == "2_2_2"
     assert tokenizer.loads == 1
     assert len(list(tmp_path.glob("*/temp/session-*"))) == 2
@@ -102,7 +100,7 @@ def test_failed_counter_write_does_not_reissue_reserved_id(tmp_path):
     tokenizer.initialize()
     with (
         patch(
-            "qs.core.tokenizers.tokenizer_session.write_json_atomically",
+            "qs.core.cache.session_cache.write_json_atomically",
             side_effect=OSError,
         ),
         pytest.raises(OSError),

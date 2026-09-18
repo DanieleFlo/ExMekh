@@ -51,9 +51,16 @@ def create_stream_printer() -> DeepAgentEventHandler:
                     if provider_event.type is ProviderStreamEventType.REASONING
                     else "Response"
                 )
-                print(f"\n{label}: ", end="", flush=True)
+                try:
+                    print(f"\n{label}: ", end="", flush=True)
+                except Exception as e:
+                    logger.error(e)
+
                 current_section = provider_event.type
-            print(provider_event.content, end="", flush=True)
+            try:
+                print(provider_event.content, end="", flush=True)
+            except Exception as e:
+                logger.error(e)
             return
 
         if isinstance(event, DeepAgentExecutionEvent):

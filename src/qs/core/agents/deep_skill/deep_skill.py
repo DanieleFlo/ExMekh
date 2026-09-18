@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from qs.core.agents.capabilities.resource_type import ResourceType
 from qs.core.agents.capability.markdown_capability import MarkdownCapability
 from qs.core.agents.deep_skill.catalog import SkillCatalog
 from qs.core.agents.deep_skill.metadata import DeepSkillMetadata
 from qs.core.models.assistant_message import ToolCall
+from qs.core.models.tool_message import ToolMessage
 
 if TYPE_CHECKING:
     from qs.core.agents.deep_skill.execution import DeepSkillExecutionTracker
@@ -98,6 +99,14 @@ class CalledDeepSkill:
     def call_id(self) -> str:
         return self._tool_call.get_id()
 
+    @property
+    def arguments(self) -> dict[str, Any]:
+        return self._tool_call.get_arguments()
+
+    @property
+    def tool_call(self) -> ToolCall:
+        return self._tool_call
+
     def render_instructions(self, exit_skill: ExitSkill) -> str:
         return self._deep_skill.render_instructions(exit_skill)
 
@@ -105,5 +114,11 @@ class CalledDeepSkill:
         self,
         tracker: DeepSkillExecutionTracker,
         start_index: int,
+        preceding_tool_responses: tuple[ToolMessage, ...] = (),
     ) -> None:
-        tracker.open(self._deep_skill, self.call_id, start_index)
+        tracker.open(
+            self._deep_skill,
+            self.call_id,
+            start_index,
+            preceding_tool_responses,
+        )

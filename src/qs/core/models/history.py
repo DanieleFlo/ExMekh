@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from qs.interfaces.message import Message
+
+if TYPE_CHECKING:
+    from .type_of_message import TypeOfMessage
 
 logger = logging.getLogger(__name__)
 
 
 class MessageHistory:
-    def __init__(self, history: list[Message] | None = None):
+    def __init__(self, history: list[TypeOfMessage] | None = None):
         if history is not None:
             self._history = list(history)
         else:
@@ -29,7 +33,9 @@ class MessageHistory:
                     f"{previous.get_role_name()} -> {current.get_role_name()}"
                 )
 
-    def _is_valid_transition(self, previous: Message, current: Message) -> bool:
+    def _is_valid_transition(
+        self, previous: Message[TypeOfMessage], current: Message[TypeOfMessage]
+    ) -> bool:
         previous_role = previous.get_role_name()
         current_role = current.get_role_name()
 
@@ -37,7 +43,9 @@ class MessageHistory:
             return current_role == "assistant"
 
         if previous_role in {"tool", "function"}:
-            return current_role == "assistant"
+            # A single assistant turn may request multiple tools. Their responses
+            # are consecutive messages before the next assistant continuation.
+            return current_role in {"assistant", "tool", "function"}
 
         if previous_role == "assistant":
             return current_role in {"user", "tool", "function"}
@@ -47,7 +55,9 @@ class MessageHistory:
 
         return True
 
-    def add(self, message: Message | list[Message]) -> MessageHistory:
+    def add(
+        self, message: Message[TypeOfMessage] | list[Message[TypeOfMessage]]
+    ) -> MessageHistory:
         if isinstance(message, Message):
             return self._add_single_message(message)
         elif (
@@ -61,25 +71,29 @@ class MessageHistory:
                 "Item must be an instance of Message or a list of Message instances"
             )
 
-    def _add_single_message(self, message: Message) -> MessageHistory:
+    def _add_single_message(self, message: Message[TypeOfMessage]) -> MessageHistory:
         candidate = MessageHistory([*self._history, message])
         candidate.check_history()
         self._history = candidate.get_history()
         return MessageHistory(self._history)
 
-    def _add_multiple_messages(self, messages: list[Message]) -> MessageHistory:
+    def _add_multiple_messages(
+        self, messages: list[Message[TypeOfMessage]]
+    ) -> MessageHistory:
         candidate = MessageHistory([*self._history, *messages])
         candidate.check_history()
         self._history = candidate.get_history()
         return MessageHistory(self._history)
 
-    def get_history(self) -> list[Message]:
+    def get_history(self) -> list[Message[TypeOfMessage]]:
         return list(self._history)
 
-    def get_copy_of_history(self) -> list[Message]:
+    def get_copy_of_history(self) -> list[Message[TypeOfMessage]]:
         return [message.copy() for message in self._history]
 
-    def replace_from(self, start_index: int, messages: list[Message]) -> None:
+    def replace_from(
+        self, start_index: int, messages: list[Message[TypeOfMessage]]
+    ) -> None:
         if not isinstance(start_index, int) or isinstance(start_index, bool):
             raise TypeError("start_index must be an integer")
         if start_index < 0 or start_index > len(self._history):

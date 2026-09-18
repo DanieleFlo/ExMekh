@@ -166,6 +166,7 @@ def test_check_history_accepts_all_supported_transitions(caplog) -> None:
             UserMessage("question"),
             AssistantMessage("tool request"),
             ToolMessage("tool result", "call-id"),
+            ToolMessage("parallel tool result", "parallel-call-id"),
             AssistantMessage("function request"),
             FunctionMessage("function result", "calculate"),
             AssistantMessage("answer"),

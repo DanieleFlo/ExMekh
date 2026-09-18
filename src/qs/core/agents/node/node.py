@@ -10,7 +10,7 @@ from qs.core.agents.deep_agent.agent_response import AgentResponse
 from qs.core.agents.deep_agent.stream_event import DeepAgentEventHandler
 from qs.interfaces.provider import Provider
 
-from .runtime import NodeRuntime, NodeRuntimeConfig
+from .node_runtime import NodeRuntime, NodeRuntimeConfig
 from .types import NodeUserMessage
 
 

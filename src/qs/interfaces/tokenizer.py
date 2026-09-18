@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from qs.core.cache.session_cache import SessionCache
 
 
 class Tokenizer(ABC):
@@ -11,3 +15,7 @@ class Tokenizer(ABC):
     @abstractmethod
     def generate_id(self) -> str:  # pragma: no cover
         """Return a new three-component ID in the current session."""
+
+    @abstractmethod
+    def get_session(self) -> SessionCache:  # pragma: no cover
+        """Return the active runtime session cache."""

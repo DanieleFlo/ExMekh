@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
@@ -18,6 +19,10 @@ from qs.core.models.tools import Tools
 from qs.interfaces.message import Message
 from qs.interfaces.provider import Provider
 from qs.interfaces.tokenizer import Tokenizer
+
+if TYPE_CHECKING:
+    from qs.core.cache.session_cache import SessionCache
+    from .type_of_message import TypeOfMessage
 
 logger = logging.getLogger(__name__)
 
@@ -44,26 +49,29 @@ class Client:
     def _validate_provider(self) -> None:
         if not isinstance(self._provider, Provider):
             raise TypeError("Expected a Provider instance")
-        
+
     def get_tokenizer(self) -> Tokenizer:
         return self._provider.get_tokenizer()
 
     def generate_id(self) -> str:
         return self._provider.generate_id()
 
-    def get_history(self) -> list[Message]:
+    def get_session(self) -> SessionCache:
+        return self._provider.get_session()
+
+    def get_history(self) -> list[Message[TypeOfMessage]]:
         return self._history.get_history()
 
     def dump_history(self) -> list[dict[str, str]]:
         return self._history.dump_history()
 
-    def copy_history(self) -> list[Message]:
+    def copy_history(self) -> list[Message[TypeOfMessage]]:
         return self._history.get_copy_of_history()
 
     def replace_history_from(
         self,
         start_index: int,
-        messages: list[Message],
+        messages: list[TypeOfMessage],
     ) -> None:
         self._history.replace_from(start_index, messages)
 
@@ -86,7 +94,7 @@ class Client:
     def continue_after_tools(
         self,
         *,
-        extra: dict | None = None,
+        extra: dict[str, dict[str, object]] | None = None,
         tool_choice: str | None = None,
         streaming: bool = False,
         on_event: Callable[[ProviderStreamEvent], None] | None = None,
@@ -166,7 +174,7 @@ class Client:
             len(self._history.get_history()),
         )
 
-    def _get_tool_continuation_messages(self) -> list[Message]:
+    def _get_tool_continuation_messages(self) -> list[Message[TypeOfMessage]]:
         messages = self._history.get_history()
         if not isinstance(messages[-1], ToolMessage):
             raise TypeError("The last message must be a tool response")

@@ -14,7 +14,7 @@ class Message[MessageContent](ABC):
         pass  # pragma: no cover
 
     @abstractmethod
-    def message_dump(self) -> dict:
+    def message_dump(self) -> dict[str, str]:
         pass  # pragma: no cover
 
     def copy(self) -> Message[MessageContent]:

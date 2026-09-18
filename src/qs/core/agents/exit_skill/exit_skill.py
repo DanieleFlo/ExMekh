@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from qs.core.agents.capabilities.resource_type import ResourceType
 from qs.core.agents.deep_skill.deep_skill import DeepSkill
@@ -70,6 +71,14 @@ class CalledExitSkill:
     @property
     def call_id(self) -> str:
         return self._tool_call.get_id()
+
+    @property
+    def arguments(self) -> dict[str, Any]:
+        return self._tool_call.get_arguments()
+
+    @property
+    def tool_call(self) -> ToolCall:
+        return self._tool_call
 
     def render_instructions(self) -> str:
         return self._exit_skill.get_body()

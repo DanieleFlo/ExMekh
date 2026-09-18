@@ -92,6 +92,14 @@ class CalledTool:
     def call_id(self) -> str:
         return self._tool_call.id
 
+    @property
+    def arguments(self) -> dict[str, Any]:
+        return self._tool_call.get_arguments()
+
+    @property
+    def tool_call(self) -> ToolCall:
+        return self._tool_call
+
     def execute(self) -> Any:
         return self._tool.execute(**self._tool_call.function.arguments)
 

@@ -1,0 +1,134 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any, Protocol, Self, runtime_checkable
+
+from qs.core.models.assistant_message import ToolCall
+from qs.utils.json import to_json_value
+
+
+@runtime_checkable
+class CalledToolMetadata(Protocol):
+    """Metadata shared by resolved tool, skill and exit calls."""
+
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def call_id(self) -> str: ...
+
+    @property
+    def arguments(self) -> dict[str, Any]: ...
+
+
+@dataclass(frozen=True, slots=True)
+class ToolCallRecord:
+    """Tool output and its invocation metadata; field bindings are immutable."""
+
+    name: str
+    id: str
+    args: dict[str, Any]
+    result: Any
+    skill_path: str = "/"
+    tool_call_id: str | None = None
+    thinking: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str):
+            raise TypeError("ToolCallRecord 'name' must be a string")
+        clean_name = self.name.strip()
+        if not clean_name:
+            raise ValueError("ToolCallRecord 'name' cannot be empty")
+        object.__setattr__(self, "name", clean_name)
+
+        if not isinstance(self.id, str):
+            raise TypeError("ToolCallRecord 'id' must be a string")
+        clean_id = self.id.strip()
+        if not clean_id:
+            raise ValueError("ToolCallRecord 'id' cannot be empty")
+        object.__setattr__(self, "id", clean_id)
+
+        if self.tool_call_id is not None and (
+            not isinstance(self.tool_call_id, str) or not self.tool_call_id.strip()
+        ):
+            raise ValueError("tool_call_id must be a non-empty string or None")
+
+        if self.thinking is not None and not isinstance(self.thinking, str):
+            raise TypeError("thinking must be a string or None")
+
+        if not isinstance(self.args, dict):
+            raise TypeError("ToolCallRecord 'args' must be a dictionary")
+
+        object.__setattr__(self, "args", to_json_value(self.args))
+        object.__setattr__(self, "result", to_json_value(self.result))
+
+        if not isinstance(self.skill_path, str):
+            raise TypeError("skill_path must be a string")
+        if not self.skill_path.startswith("/"):
+            raise ValueError("skill_path must be an absolute skill path")
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to a JSON-serializable dictionary."""
+        return {
+            "name": self.name,
+            "id": self.id,
+            "args": to_json_value(self.args),
+            "result": to_json_value(self.result),
+            "skill_path": self.skill_path,
+            "tool_call_id": self.tool_call_id,
+            "thinking": self.thinking,
+        }
+
+    @classmethod
+    def from_dict(cls, record_dict: dict[str, Any]) -> Self:
+        """Construct a ToolCallRecord from a serialized dictionary."""
+        if not isinstance(record_dict, dict):
+            raise TypeError("record_dict must be a dictionary")
+        required_keys = {"name", "id", "args", "result"}
+        missing = required_keys - record_dict.keys()
+        if missing:
+            raise ValueError(
+                f"Missing required keys in tool call record: {sorted(missing)}"
+            )
+        return cls(
+            name=record_dict["name"],
+            id=record_dict["id"],
+            args=record_dict["args"],
+            result=record_dict["result"],
+            skill_path=record_dict.get("skill_path", "/"),
+            tool_call_id=record_dict.get("tool_call_id"),
+            thinking=record_dict.get("thinking"),
+        )
+
+    @classmethod
+    def from_call(
+        cls,
+        tool_call: CalledToolMetadata | ToolCall,
+        result: Any,
+        id: str | None = None,
+        *,
+        skill_path: str = "/",
+        thinking: str | None = None,
+    ) -> Self:
+        """Adapt the two supported call interfaces without guessing attributes."""
+        if isinstance(tool_call, ToolCall):
+            name = tool_call.get_name()
+            call_id = tool_call.get_id()
+            arguments = tool_call.get_arguments()
+        elif isinstance(tool_call, CalledToolMetadata):
+            name = tool_call.name
+            call_id = tool_call.call_id
+            arguments = tool_call.arguments
+        else:
+            raise TypeError(
+                "tool_call must be ToolCall or implement CalledToolMetadata"
+            )
+        return cls(
+            name=name,
+            id=call_id if id is None else id,
+            tool_call_id=call_id,
+            args=arguments,
+            result=result,
+            skill_path=skill_path,
+            thinking=thinking,
+        )

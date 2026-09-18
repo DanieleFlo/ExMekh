@@ -5,10 +5,14 @@ from collections.abc import Iterable
 from hashlib import sha256
 from pathlib import Path
 from threading import Lock
+from typing import TYPE_CHECKING
 
 from qs.core.tokenizers.tokenizer_session_registry import TokenizerSessionRegistry
 from qs.core.tokenizers.vocabulary_cache import VocabularyCache
 from qs.interfaces.tokenizer import Tokenizer
+
+if TYPE_CHECKING:
+    from qs.core.cache.session_cache import SessionCache
 
 
 class SequentialTokenizer(Tokenizer):
@@ -35,6 +39,10 @@ class SequentialTokenizer(Tokenizer):
         self._tokens: tuple[str, ...] | None = None
         self._vocabulary_fingerprint: str | None = None
 
+    @property
+    def cache_identity(self) -> str:
+        return self._identity
+
     @abstractmethod
     def _load_vocabulary_tokens(self) -> Iterable[str]:  # pragma: no cover
         """Load raw vocabulary entries; do not strip or normalize them."""
@@ -49,17 +57,23 @@ class SequentialTokenizer(Tokenizer):
                 ).hexdigest()
                 self._tokens = tokens
 
+    def get_session(self) -> SessionCache:
+        """Access or create the shared runtime SessionCache for this tokenizer."""
+        if self._tokens is None:
+            self.initialize()
+        assert self._vocabulary_fingerprint is not None
+        return TokenizerSessionRegistry.get_session(
+            self._identity,
+            self._vocabulary_fingerprint,
+            self._directory / "temp",
+        )
+
     def generate_id(self) -> str:
         if self._tokens is None:
             self.initialize()
         tokens = self._tokens
-        fingerprint = self._vocabulary_fingerprint
-        assert tokens is not None and fingerprint is not None
-        session = TokenizerSessionRegistry.get_session(
-            self._identity,
-            fingerprint,
-            self._directory / "temp",
-        )
+        assert tokens is not None
+        session = self.get_session()
         size = len(tokens)
         index = session.reserve_next_index(size**3)
         prefix, third = divmod(index, size)

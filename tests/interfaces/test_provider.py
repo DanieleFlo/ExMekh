@@ -1,6 +1,10 @@
+from pathlib import Path
+
 import pytest
 from pydantic import BaseModel
 
+from qs.core.cache.cache_manager import CacheManager
+from qs.core.cache.session_cache import SessionCache
 from qs.core.models.assistant_message import AssistantMessage
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
@@ -18,6 +22,11 @@ class StubTokenizer(Tokenizer):
 
     def generate_id(self) -> str:
         return "one_two_three"
+
+    def get_session(self) -> SessionCache:
+        return CacheManager.get_session(
+            "stub-provider", "default", Path(".qs/tokenizers")
+        )
 
 
 class StructuredResponse(BaseModel):

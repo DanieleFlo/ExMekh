@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from qs.core.agents.deep_skill.deep_skill import DeepSkill
+from qs.core.models.tool_message import ToolMessage
 from qs.interfaces.message import Message
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,7 @@ class DeepSkillExecution:
     output: str | None = None
     history: list[Message] = field(default_factory=list)
     children: list[DeepSkillExecution] = field(default_factory=list)
+    preceding_tool_responses: tuple[ToolMessage, ...] = ()
 
     @classmethod
     def open(
@@ -27,11 +29,13 @@ class DeepSkillExecution:
         skill: DeepSkill,
         opening_tool_call_id: str,
         start_index: int,
+        preceding_tool_responses: tuple[ToolMessage, ...] = (),
     ) -> DeepSkillExecution:
         return cls(
             skill=deepcopy(skill),
             opening_tool_call_id=opening_tool_call_id,
             start_index=start_index,
+            preceding_tool_responses=deepcopy(preceding_tool_responses),
         )
 
     def close(
@@ -89,7 +93,7 @@ class DeepSkillExecutionTracker:
     def history_tree(
         self,
         current_history: list[Message] | None = None,
-    ) -> list[dict[str, Any]]:
+    ) -> list[dict[str, str]]:
         return [execution.history_tree(current_history) for execution in self._roots]
 
     def get_current_start_index(self) -> int:
@@ -106,11 +110,13 @@ class DeepSkillExecutionTracker:
         skill: DeepSkill,
         opening_tool_call_id: str,
         start_index: int,
+        preceding_tool_responses: tuple[ToolMessage, ...] = (),
     ) -> DeepSkillExecution:
         execution = DeepSkillExecution.open(
             skill,
             opening_tool_call_id,
             start_index,
+            preceding_tool_responses,
         )
         if self._active:
             self._active[-1].children.append(execution)

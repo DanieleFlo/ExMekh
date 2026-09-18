@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import json
-import re
 import logging
+import re
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
-from qs.utils.file import write_json_atomically
+from qs.utils.file import read_json_from_path, write_json_atomically
 
 logger = logging.getLogger(__name__)
+
 
 class VocabularyCache:
     _TOKEN_PATTERN = re.compile(r"[a-zA-Z0-9]+")
@@ -43,14 +43,12 @@ class VocabularyCache:
         if not tokens:
             raise ValueError("Tokenizer has no ASCII alphanumeric tokens")
         self._directory.mkdir(parents=True, exist_ok=True)
-        write_json_atomically(
-            self._path,
-            {
-                "version": 1,
-                "identity": self._identity,
-                "tokens": tokens,
-            },
-        )
+        value = {
+            "version": 1,
+            "identity": self._identity,
+            "tokens": tokens,
+        }
+        write_json_atomically(self._path, value)
         logger.info(
             "Built and cached vocabulary: identity=%s tokens=%d path=%s",
             self._identity,
@@ -61,7 +59,7 @@ class VocabularyCache:
 
     def _read_cached_vocabulary(self) -> tuple[str, ...]:
         try:
-            data = json.loads(self._path.read_text(encoding="utf-8"))
+            data = read_json_from_path(self._path)
             if (
                 not isinstance(data, dict)
                 or data.get("version") != 1

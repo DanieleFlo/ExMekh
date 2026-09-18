@@ -2,6 +2,7 @@ import base64
 import json
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import Any
 
 
 def write_json_atomically(file_path: Path, value: object) -> None:
@@ -47,3 +48,9 @@ def read_file_from_path(file_path: Path) -> str:
             return file.read()
     except Exception as error:
         raise OSError(f"An error occurred while reading the file: {error}") from error
+
+
+def read_json_from_path(file_path: Path) -> Any:
+    """Read and deserialize JSON content from a file path."""
+    content = read_file_from_path(file_path)
+    return json.loads(content)

@@ -12,7 +12,7 @@ class ProviderRequest:
         self,
         messages: list[Message],
         *,
-        extra: dict | None = None,
+        extra: dict[str, dict[str, dict[str, object]]] | None = None,
         tool_choice: str | None = None,
         tools: Tools | None = None,
         stream: bool = False,

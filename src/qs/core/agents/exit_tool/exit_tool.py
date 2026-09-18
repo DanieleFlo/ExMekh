@@ -52,5 +52,13 @@ class CalledExitTool:
     def call_id(self) -> str:
         return self._tool_call.get_id()
 
+    @property
+    def arguments(self) -> dict[str, Any]:
+        return self._tool_call.get_arguments()
+
+    @property
+    def tool_call(self) -> ToolCall:
+        return self._tool_call
+
     def execute(self) -> dict[str, str | list[str]]:
         return self._exit_tool.execute(**self._tool_call.get_arguments())
