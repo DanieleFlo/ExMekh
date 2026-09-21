@@ -8,7 +8,7 @@ from qs.core.agents.hds.hds_collection import HDSCollection
 def test_loads_hds_markdown_files_in_name_order(tmp_path: Path) -> None:
     folder_path = tmp_path / "hds"
     folder_path.mkdir()
-    markdown = "---\ndescription: Instructions\nexit-skill: finish\n---\nBody"
+    markdown = "---\ndescription: Instructions\nexit-tool: finish\n---\nBody"
     (folder_path / "second.md").write_text(markdown)
     (folder_path / "first.MD").write_text(markdown)
 

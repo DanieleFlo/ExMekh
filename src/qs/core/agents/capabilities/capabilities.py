@@ -6,12 +6,10 @@ from typing import Final
 
 from qs.core.agents.capabilities.catalog_attacher import SkillCatalogAttacher
 from qs.core.agents.capabilities.data import CapabilitiesData
-from qs.core.agents.capabilities.exit_tool_attacher import ExitToolAttacher
 from qs.core.agents.capabilities.index import CapabilitiesIndex
 from qs.core.agents.capabilities.layout import CapabilitiesLayout
 from qs.core.agents.capabilities.validator import CapabilitiesValidator
 from qs.core.agents.deep_skill.deep_skills import DeepSkills
-from qs.core.agents.exit_skill.exit_skills import ExitSkills
 from qs.core.agents.exit_tool.exit_tools import ExitTools
 from qs.core.agents.hds.hds_collection import HDSCollection
 from qs.core.agents.tools.deep_tools import DeepTools
@@ -32,15 +30,13 @@ class Capabilities:
             self.get_tool_paths(),
             work_root=work_root,
         )
-        exit_skills = ExitSkills(self.get_exit_skill_folder_paths())
         exit_tools = ExitTools(self.get_exit_tool_paths())
 
         try:
-            data = self._load_data(deep_tools, exit_skills, exit_tools)
+            data = self._load_data(deep_tools, exit_tools)
             index = CapabilitiesIndex.build(data)
             CapabilitiesValidator(index).validate((*data.hds, *data.deep_skills))
             SkillCatalogAttacher(index).attach_to_all(data.deep_skills)
-            ExitToolAttacher(data.exit_tools).attach_to_all(data.exit_skills)
         except Exception:
             exit_tools.unload()
             deep_tools.unload()
@@ -51,14 +47,12 @@ class Capabilities:
     def _load_data(
         self,
         deep_tools: DeepTools,
-        exit_skills: ExitSkills,
         exit_tools: ExitTools,
     ) -> CapabilitiesData:
         return CapabilitiesData(
             deep_skills=DeepSkills(self.get_deep_skill_folder_paths()).load(),
             tools=deep_tools.load(),
             hds=HDSCollection(self.get_hds_folder_paths()).load(),
-            exit_skills=exit_skills.load(),
             exit_tools=exit_tools.load_exit_tools(),
         )
 
@@ -70,9 +64,6 @@ class Capabilities:
 
     def get_tool_paths(self) -> list[Path]:
         return list(self._layout.tool_paths())
-
-    def get_exit_skill_folder_paths(self) -> tuple[Path, ...]:
-        return self._layout.exit_skill_folder_paths()
 
     def get_exit_tool_paths(self) -> list[Path]:
         return list(self._layout.exit_tool_paths())

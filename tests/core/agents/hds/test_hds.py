@@ -12,7 +12,7 @@ def _metadata() -> HDSMetadata:
         description="Description",
         sub_skills=(),
         sub_tools=(),
-        exit_skill="finish",
+        exit_tool="finish",
     )
 
 
@@ -37,14 +37,14 @@ def test_exposes_node_configuration() -> None:
             description="Description",
             sub_skills=("child",),
             sub_tools=("search",),
-            exit_skill="finish",
+            exit_tool="finish",
         ),
         body="Body",
         references=(),
     )
 
-    assert hds.get_direct_tool_names() == {"child", "search", "finish"}
-    assert hds.get_exit_skill_name() == "finish"
+    assert hds.get_direct_tool_names() == {"child", "search"}
+    assert hds.get_exit_tool_name() == "finish"
 
 
 def test_rejects_non_hds_metadata() -> None:

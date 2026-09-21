@@ -6,4 +6,4 @@ sub-tools:
 ---
 Genera un risultato annidato coerente con la richiesta dell'utente.
 Usa i sub-tool disponibili quando servono dati dimostrativi e termina tramite
-l'exit skill configurata.
+l'exit tool configurato.

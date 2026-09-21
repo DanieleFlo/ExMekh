@@ -15,8 +15,6 @@ capabilities/
 ├── deep-skill/
 │   ├── mock-skill.md           # Domain skill definition
 │   └── nested-skill.md         # Nested sub-skill definition
-├── exit-skill/
-│   └── finish.md               # Skill to exit or complete an agent run
 ├── tools/
 │   ├── mock-tool/
 │   │   └── main.py             # Entrypoint with @deep_tool function
@@ -24,7 +22,8 @@ capabilities/
 │       └── main.py
 └── exit-tool/
     └── finish/
-        └── main.py             # Entrypoint with @exit_tool function
+        ├── main.py             # Entrypoint with @exit_tool function
+        └── instructions.md     # Plain Markdown exit instructions
 ```
 
 The [`CapabilitiesLayout`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/agents/capabilities/layout.py) class verifies directory integrity and automatically creates missing subfolders when initialized.
@@ -38,13 +37,12 @@ HDS files are Markdown files located in `capabilities/hds/`. They define the bas
 
 ```markdown
 ---
-name: main
 description: Main agent system prompt.
-tools:
+sub-tools:
   - mock-tool
-skills:
+sub-skills:
   - mock-skill
-exit-skill: finish
+exit-tool: exit_agent
 ---
 # Main System Agent
 
@@ -56,13 +54,11 @@ Deep skills in `capabilities/deep-skill/` allow an agent to switch into a focuse
 
 ```markdown
 ---
-name: mock-skill
 description: Performs refactoring and codebase analysis.
-tools:
+sub-tools:
   - read_workspace_file
-skills:
+sub-skills:
   - nested-skill
-exit-skill: finish
 ---
 # Refactoring Skill Instructions
 
@@ -71,19 +67,40 @@ Follow these guidelines when refactoring code:
 2. Run test suites before and after changes.
 ```
 
-### 3. Exit Skills & Exit Tools (`exit-skill`, `exit-tool`)
-Exit mechanisms allow an agent to terminate its current execution loop or signal task completion.
-- **Exit Skill**: Defined in `capabilities/exit-skill/*.md`.
-- **Exit Tool**: Defined in `capabilities/exit-tool/*/main.py` using the `@exit_tool` decorator.
+### 3. Exit Tools (`exit-tool`)
+Each HDS must select exactly one exit tool by its exposed name (`exit-tool: exit_agent`). Multiple HDS files can select the same exit tool. The folder name is only the default tool name when `name` is omitted from the decorator.
 
 ```python
-from qs.core.agents.exit_tool import exit_tool
+from qs.core.agents.exit_tool import ExitToolData, exit_tool
 
 
-@exit_tool(description="Signals that the agent task is finished.")
-def finish(reason: str) -> str:
-    return f"Task completed: {reason}"
+@exit_tool(
+    name="exit_agent",
+    description="Return the current skill result to its caller.",
+    instructions_path="instructions.md",
+)
+def finish(text: str, items: list[str]) -> ExitToolData:
+    return ExitToolData(text=text, items=items)
 ```
+
+`instructions_path` is required and accepts a string or `Path`. Relative paths are relative to `main.py`, not the working directory; absolute paths are also supported. The loader requires a readable `.md` file, rejects symbolic links and blank or whitespace-only content, and reads it once during capability loading. File errors abort loading and unload imported modules.
+
+The file is plain Markdown, without YAML parsing or skill metadata:
+
+```markdown
+When the current skill is complete, call {{!exit_agent}}.
+Put its result in text and the produced items in items.
+```
+
+References such as `{{!exit_agent}}` are replaced by capability names and validated after all configured capability roots have loaded. Unknown references fail loading. References do not grant permission to call a capability.
+
+The selected tool's instructions are appended after each normal skill's body and catalog, inside `<exit-tool name="exit_agent">...</exit-tool>`. For nodes initialized at positive depth, they also appear in the initial system prompt. Instructions have no callable capability or separate catalog entry, and are not added to the tool's parameter schema.
+
+Only the selected exit tool is added to `allowed_tools`, and only at `depth > 0`. It returns from the current skill; it does not terminate every enclosing skill. `ExitToolData`, history compaction, and saved tool results keep their existing behavior.
+
+#### Migration from exit skills
+
+Move the instruction body into the exit tool directory, remove the old YAML front matter, set `instructions_path` on the decorator, and replace the HDS field `exit-skill` with `exit-tool` using the tool's exposed name. Remove the old `exit-skill` directory and any calls that requested its instructions. The loader rejects the legacy directory with a migration hint. Exit tool names must be unique across all roots and must not collide with tools, deep skills, or HDS names.
 
 ---
 
@@ -97,15 +114,14 @@ flowchart TD
     B --> C[Build CapabilitiesIndex]
     C --> D[CapabilitiesValidator]
     D --> E[SkillCatalogAttacher]
-    E --> F[ExitToolAttacher]
-    F --> G[Return CapabilitiesData]
+    E --> G[Return CapabilitiesData]
 ```
 
-1. **Discovery & Parsing**: Scans filesystem, parses YAML frontmatter in Markdown files, and imports Python modules under `tools/` and `exit-tool/`.
-2. **Index Building**: Indexes resources by name, type, and path using `CapabilitiesIndex`.
+1. **Discovery & Parsing**: Scans filesystem, parses YAML frontmatter in HDS and deep-skill files, reads plain exit instruction Markdown, and imports Python modules under `tools/` and `exit-tool/`.
+2. **Index Building**: Indexes resources by exposed name within each capability type using `CapabilitiesIndex`.
 3. **Validation (`CapabilitiesValidator`)**: Ensures:
    - Referenced tools and skills exist in the index.
    - No duplicate tool or skill names across capability folders.
-   - Skill graphs are acyclic.
-4. **Catalog Attachment (`SkillCatalogAttacher`)**: Injects dynamic descriptions of accessible sub-skills into HDS and skill system prompts.
-5. **Exit Tool Attachment (`ExitToolAttacher`)**: Attaches declared exit tools to corresponding exit skills.
+   - Each HDS selects an existing exit tool; exit instruction references resolve.
+4. **Catalog Attachment (`SkillCatalogAttacher`)**: Adds descriptions of declared sub-skills and tools to deep-skill catalogs.
+5. **Runtime Composition**: The HDS-selected exit tool supplies instructions when a skill is opened.

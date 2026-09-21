@@ -45,7 +45,8 @@ As the agent executes, it transitions between skills based on the active HDS and
 | Nested Sub-Skill | `/mock-skill/nested-skill` | `2` |
 
 - **Skill Entry**: Triggered when the agent calls a skill tool.
-- **Skill Exit**: Triggered when an exit tool or exit skill is executed.
+- **Exit Instructions**: The selected exit tool provides plain Markdown instructions, appended after each skill catalog. They have no separate callable capability.
+- **Skill Exit**: The HDS-selected exit tool is allowed only at positive depth and returns the current skill result to its caller.
 
 ---
 

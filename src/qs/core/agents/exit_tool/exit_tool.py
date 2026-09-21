@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from qs.core.agents.capability.references import parse_references
 from qs.core.agents.exit_tool.data import ExitToolData
 from qs.core.agents.exit_tool.decorator import ExitToolFunction
 from qs.core.models.assistant_message import ToolCall
@@ -16,15 +17,25 @@ class ExitTool(Tool):
         *,
         name: str,
         description: str,
-        exit_skill_name: str,
+        instructions_path: Path,
+        instructions: str,
         folder_path: Path,
     ) -> None:
-        self.exit_skill_name = exit_skill_name
+        if not isinstance(instructions_path, Path):
+            raise TypeError("instructions_path must be a Path")
+        if not isinstance(instructions, str):
+            raise TypeError("instructions must be a string")
+        if not instructions.strip():
+            raise ValueError(
+                f"Exit-tool instructions cannot be blank: {instructions_path}"
+            )
+        self.instructions_path = instructions_path
+        self.instructions, self.references = parse_references(instructions.strip())
         self.folder_path = folder_path
         super().__init__(function, name=name, description=description)
 
-    def get_exit_skill_name(self) -> str:
-        return self.exit_skill_name
+    def render_prompt_section(self) -> str:
+        return f'<exit-tool name="{self.name}">{self.instructions}</exit-tool>'
 
     def execute(self, *args: Any, **kwargs: Any) -> dict[str, str | list[str]]:
         result = self.tool(*args, **kwargs)

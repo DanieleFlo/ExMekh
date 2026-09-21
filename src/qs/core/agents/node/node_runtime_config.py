@@ -8,7 +8,7 @@ from qs.core.agents.deep_agent.stream_event import (
     DeepAgentExecutionEvent,
     DeepAgentStreamEvent,
 )
-from qs.core.agents.exit_skill.exit_skill import ExitSkill
+from qs.core.agents.exit_tool.exit_tool import ExitTool
 from qs.core.agents.hds.hds import HDS
 from qs.core.cache.node_cache import NodeCache
 from qs.core.models.client import Client
@@ -25,7 +25,7 @@ class NodeRuntimeConfig:
     provider: Provider
     capabilities: CapabilitiesData
     hds: HDS
-    exit_skill: ExitSkill
+    exit_tool: ExitTool
     persistent_history: bool
     initial_depth: int
     on_stream: DeepAgentEventHandler | None = None
@@ -55,12 +55,11 @@ class NodeRuntimeConfig:
     ) -> ToolCallExecutor:
         agentic_scope = AgenticScope(
             hds=self.hds,
-            exit_skill_name=self.exit_skill.name,
-            exit_tool_names=self.capabilities.get_exit_tool_names(self.exit_skill.name),
+            exit_tool_name=self.exit_tool.name,
         )
         return ToolCallExecutor(
             client=client,
-            exit_skill=self.exit_skill,
+            exit_tool=self.exit_tool,
             initial_depth=self.initial_depth,
             agentic_scope=agentic_scope,
         )
@@ -69,4 +68,7 @@ class NodeRuntimeConfig:
         return self.hds.get_name()
 
     def build_system_message(self) -> SystemMessage:
-        return SystemMessage(content=self.hds.get_hds())
+        content = self.hds.get_hds()
+        if self.initial_depth > 0:
+            content = f"{content}\n\n{self.exit_tool.render_prompt_section()}"
+        return SystemMessage(content=content)

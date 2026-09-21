@@ -67,14 +67,14 @@ class Node:
 
         capabilities = self.load_capabilities(work_root=work_root)
         hds = capabilities.get_hds(self._name_hds)
-        exit_skill_name = hds.get_exit_skill_name()
-        exit_skill = capabilities.get_exit_skill(exit_skill_name)
+        exit_tool_name = hds.get_exit_tool_name()
+        exit_tool = capabilities.get_exit_tool(exit_tool_name)
         self._runtime = NodeRuntime(
             NodeRuntimeConfig(
                 provider=provider,
                 capabilities=capabilities,
                 hds=hds,
-                exit_skill=exit_skill,
+                exit_tool=exit_tool,
                 persistent_history=self._persistent_history,
                 initial_depth=self._initial_depth,
                 on_stream=on_stream,

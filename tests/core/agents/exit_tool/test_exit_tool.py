@@ -17,7 +17,8 @@ def _exit_tool(tmp_path: Path) -> ExitTool:
         _function,
         name="exit_agent",
         description="Exit",
-        exit_skill_name="finish",
+        instructions_path=tmp_path / "instructions.md",
+        instructions="Finish now",
         folder_path=tmp_path,
     )
 
@@ -52,7 +53,10 @@ def test_exit_tool_data_strips_and_dumps_values() -> None:
 def test_exit_tool_executes_and_validates_return_type(tmp_path: Path) -> None:
     tool = _exit_tool(tmp_path)
 
-    assert tool.get_exit_skill_name() == "finish"
+    assert (
+        tool.render_prompt_section()
+        == '<exit-tool name="exit_agent">Finish now</exit-tool>'
+    )
     assert tool.execute(" done ", [" item "]) == {
         "text": "done",
         "items": ["item"],
@@ -62,7 +66,8 @@ def test_exit_tool_executes_and_validates_return_type(tmp_path: Path) -> None:
         lambda: "wrong",
         name="invalid",
         description="Invalid",
-        exit_skill_name="finish",
+        instructions_path=tmp_path / "instructions.md",
+        instructions="Finish now",
         folder_path=tmp_path,
     )
     with pytest.raises(TypeError, match="must return ExitToolData"):
@@ -80,9 +85,31 @@ def test_called_exit_tool_validates_types_and_exposes_call_id(tmp_path: Path) ->
 
     assert called.name == "exit_agent"
     assert called.call_id == "call-1"
+    assert called.tool_call is tool_call
+    assert called.arguments == {"text": "done", "items": ["a"]}
     assert called.execute() == {"text": "done", "items": ["a"]}
 
     with pytest.raises(TypeError, match="exit_tool must be an ExitTool"):
         CalledExitTool(cast(ExitTool, object()), tool_call)
     with pytest.raises(TypeError, match="tool_call must be a ToolCall"):
         CalledExitTool(tool, cast(ToolCall, object()))
+
+
+@pytest.mark.parametrize(
+    ("path", "instructions", "error", "message"),
+    [
+        ("instructions.md", "Finish", TypeError, "instructions_path must be a Path"),
+        (Path("instructions.md"), None, TypeError, "instructions must be a string"),
+        (Path("instructions.md"), " \t\n", ValueError, "cannot be blank"),
+    ],
+)
+def test_rejects_invalid_instruction_inputs(path, instructions, error, message):
+    with pytest.raises(error, match=message):
+        ExitTool(
+            _function,
+            name="exit_agent",
+            description="Exit",
+            folder_path=Path("."),
+            instructions_path=path,
+            instructions=instructions,
+        )

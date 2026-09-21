@@ -12,23 +12,19 @@ from qs.core.agents.capability.metadata import (
 
 @dataclass(frozen=True, slots=True)
 class HDSMetadata(CapabilityMetadata):
-    exit_skill: str
+    exit_tool: str
 
-    def get_direct_tool_names(self) -> set[str]:
-        direct_tool_names = CapabilityMetadata.get_direct_tool_names(self)
-        return {*direct_tool_names, self.exit_skill}
-
-    def get_exit_skill_name(self) -> str:
-        return self.exit_skill
+    def get_exit_tool_name(self) -> str:
+        return self.exit_tool
 
 
-EXIT_SKILL_FIELD = MetadataFieldSpec("exit-skill", required=True)
+EXIT_TOOL_FIELD = MetadataFieldSpec("exit-tool", required=True)
 
 
 class HDSMetadataParser(CapabilityMetadataParser):
     @property
     def field_specs(self) -> tuple[MetadataFieldSpec, ...]:
-        return (*super().field_specs, EXIT_SKILL_FIELD)
+        return (*super().field_specs, EXIT_TOOL_FIELD)
 
     def parse(self, data: dict[str, Any]) -> HDSMetadata:
         return cast(HDSMetadata, super().parse(data))
@@ -39,5 +35,5 @@ class HDSMetadataParser(CapabilityMetadataParser):
             description=common.get_description(),
             sub_skills=common.get_sub_skill_names(),
             sub_tools=common.get_sub_tool_names(),
-            exit_skill=self._parse_string(data, EXIT_SKILL_FIELD),
+            exit_tool=self._parse_string(data, EXIT_TOOL_FIELD),
         )

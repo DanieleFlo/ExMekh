@@ -10,12 +10,10 @@ class AgenticScope:
     def __init__(
         self,
         hds: HDS,
-        exit_skill_name: str,
-        exit_tool_names: tuple[str, ...],
+        exit_tool_name: str,
     ) -> None:
         self._hds = hds
-        self._exit_skill_name = exit_skill_name
-        self._exit_tool_names = exit_tool_names
+        self._exit_tool_name = exit_tool_name
         self._pending_return_skill_call_id: str | None = None
 
     @property
@@ -32,7 +30,7 @@ class AgenticScope:
         allowed_skills = list(capability.get_sub_skill_names())
 
         if depth > 0:
-            allowed_tools.extend((self._exit_skill_name, *self._exit_tool_names))
+            allowed_tools.append(self._exit_tool_name)
 
         agentic: dict[str, object] = {
             "allowed_tools": allowed_tools,

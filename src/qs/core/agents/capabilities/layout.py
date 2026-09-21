@@ -9,7 +9,6 @@ from typing import Final
 class CapabilityType(StrEnum):
     DEEP_SKILL = "deep-skill"
     TOOLS = "tools"
-    EXIT_SKILL = "exit-skill"
     EXIT_TOOL = "exit-tool"
     HDS = "hds"
 
@@ -57,9 +56,6 @@ class CapabilitiesLayout:
 
     def tool_paths(self) -> tuple[Path, ...]:
         return self._child_paths(CapabilityType.TOOLS)
-
-    def exit_skill_folder_paths(self) -> tuple[Path, ...]:
-        return self._type_folder_paths(CapabilityType.EXIT_SKILL)
 
     def exit_tool_paths(self) -> tuple[Path, ...]:
         return self._child_paths(CapabilityType.EXIT_TOOL)
@@ -134,6 +130,11 @@ class CapabilitiesLayout:
             )
 
     def _capability_type(self, entry: Path) -> CapabilityType:
+        if entry.name == "exit-skill":
+            raise ValueError(
+                "The exit-skill directory is no longer supported; "
+                "move instructions into exit-tool and set instructions_path on @exit_tool"
+            )
         try:
             return CapabilityType(entry.name)
         except ValueError:

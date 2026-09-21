@@ -1,7 +1,7 @@
 # Cache dei risultati dei tool
 
 `NodeRuntime` decide quali risultati salvare: solo tool ed exit tool. Le
-istruzioni di deep skill ed exit skill rimangono nella cronologia. Il runtime
+istruzioni delle deep skill, incluse quelle del relativo exit tool, rimangono nella cronologia. Il runtime
 riceve una `NodeCache` dalla configurazione al primo salvataggio e la riutilizza;
 la ricrea se la sessione viene chiusa. L'esecutore non accede allo storage.
 

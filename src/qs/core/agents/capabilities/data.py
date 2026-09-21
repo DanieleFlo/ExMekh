@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 from qs.core.agents.capability.markdown_capability import MarkdownCapability
 from qs.core.agents.deep_skill.deep_skill import DeepSkill
-from qs.core.agents.exit_skill.exit_skill import ExitSkill
 from qs.core.agents.exit_tool.exit_tool import ExitTool
 from qs.core.agents.hds.hds import HDS
 from qs.core.models.tool import Tool
@@ -17,18 +16,14 @@ class CapabilitiesData:
     deep_skills: tuple[DeepSkill, ...]
     tools: tuple[Tool, ...]
     hds: tuple[HDS, ...] = ()
-    exit_skills: tuple[ExitSkill, ...] = ()
     exit_tools: tuple[ExitTool, ...] = ()
 
     def __post_init__(self) -> None:
         self._validate_items(self.deep_skills, "deep_skills", DeepSkill)
         self._validate_items(self.tools, "tools", Tool)
-        if any(
-            isinstance(tool, (MarkdownCapability, ExitSkill)) for tool in self.tools
-        ):
+        if any(isinstance(tool, (MarkdownCapability, ExitTool)) for tool in self.tools):
             raise TypeError("tools must contain only Tool instances")
         self._validate_items(self.hds, "hds", HDS)
-        self._validate_items(self.exit_skills, "exit_skills", ExitSkill)
         self._validate_items(self.exit_tools, "exit_tools", ExitTool)
 
     @staticmethod
@@ -44,8 +39,8 @@ class CapabilitiesData:
                 f"{field_name} must contain only {item_type.__name__} instances"
             )
 
-    def get_all_tools(self) -> tuple[DeepSkill | Tool | ExitSkill | ExitTool, ...]:
-        return self.deep_skills + self.tools + self.exit_skills + self.exit_tools
+    def get_all_tools(self) -> tuple[Tool, ...]:
+        return self.deep_skills + self.tools + self.exit_tools
 
     def get_contextual_tools(self, hds: HDS) -> tuple[Tool, ...]:
         direct_tool_names = hds.get_direct_tool_names()
@@ -65,7 +60,7 @@ class CapabilitiesData:
         direct_tool_names: set[str],
         skill_availability: dict[str, tuple[str, ...]],
     ) -> Tool:
-        if isinstance(tool, (ExitSkill, ExitTool)):
+        if isinstance(tool, ExitTool):
             return tool.with_description_suffix(self._SKILL_ONLY_AVAILABILITY)
 
         if tool.name in direct_tool_names:
@@ -89,24 +84,15 @@ class CapabilitiesData:
         available_hds = ", ".join(hds.name for hds in self.hds) or "none"
         raise ValueError(f"HDS '{name}' not found. Available HDS: {available_hds}")
 
-    def get_exit_skill(self, name: str) -> ExitSkill:
-        for exit_skill in self.exit_skills:
-            if exit_skill.name == name:
-                return exit_skill
-        raise ValueError(f"Exit skill '{name}' not found")
-
-    def get_exit_tool_names(self, exit_skill_name: str) -> tuple[str, ...]:
-        return tuple(
-            exit_tool.name
-            for exit_tool in self.exit_tools
-            if exit_tool.get_exit_skill_name() == exit_skill_name
-        )
+    def get_exit_tool(self, name: str) -> ExitTool:
+        for tool in self.exit_tools:
+            if tool.name == name:
+                return tool
+        raise ValueError(f"Exit tool '{name}' not found")
 
     def get_skill_availability(self) -> dict[str, tuple[str, ...]]:
         availability: dict[str, list[str]] = {}
-        skills = self.deep_skills + self.exit_skills
-
-        for skill in skills:
+        for skill in self.deep_skills:
             for tool_name in skill.get_direct_tool_names():
                 availability.setdefault(tool_name, []).append(skill.name)
 

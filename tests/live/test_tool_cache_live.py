@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -35,6 +36,7 @@ class RecordingLocalProvider(LocalProvider):
 
     def __init__(self, directory: Path) -> None:
         self.responses: list[ProviderResponse] = []
+        self.requests: list[ProviderRequest] = []
         super().__init__(
             model=os.getenv("QS_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S"),
             reasoning_effort=ReasoningEffortLMH.LOW,
@@ -47,7 +49,15 @@ class RecordingLocalProvider(LocalProvider):
         return client.with_options(timeout=60.0, max_retries=0)
 
     def call(self, request: ProviderRequest) -> ProviderResponse:
-        assert len(self.responses) < 16, "MODEL: exceeded the live test turn budget"
+        if len(self.responses) >= 16:
+            calls = [
+                [call.get_name() for call in response.get_tool_calls() or []]
+                for response in self.responses
+            ]
+            raise AssertionError(
+                f"MODEL: exceeded the live test turn budget; calls={calls}"
+            )
+        self.requests.append(request)
         response = super().call(request)
         self.responses.append(response)
         return response
@@ -95,7 +105,7 @@ def verify_saved_calls(
         call.id: (call, response.thinking.thoughts if response.thinking else None)
         for response in responses
         for call in response.get_tool_calls() or []
-        if call.get_name() not in {"mock-skill", "nested-skill", "finish"}
+        if call.get_name() not in {"mock-skill", "nested-skill"}
     }
     assert expected, "MODEL: expected at least one executable tool call"
     cache = saved_cache(node)
@@ -157,7 +167,7 @@ def test_live_nested_tools_save_path_and_each_turn_thinking(
     node.run(
         "Esegui questa sequenza senza saltare passaggi: apri mock-skill, poi nested-skill; "
         f"chiama nested-sub-tool una sola volta con text='{token}'; "
-        "chiama finish per leggerne le istruzioni, poi exit_agent con text='nested done' "
+        "chiama exit_agent con text='nested done' "
         "e items=['nested']; nella skill padre chiama exit_agent con text='parent done' "
         "e items=['parent']. Infine rispondi brevemente senza altri tool."
     )
@@ -175,10 +185,7 @@ def test_live_nested_tools_save_path_and_each_turn_thinking(
     }
     assert all(record.result == record.args for record in exits)
     assert node.depth == 0
-    assert all(
-        record.name not in {"mock-skill", "nested-skill", "finish"}
-        for record in records
-    )
+    assert all(record.name not in {"mock-skill", "nested-skill"} for record in records)
 
 
 def test_live_cache_isolates_same_named_nodes_and_retains_previous_runs(
@@ -233,3 +240,53 @@ def test_live_reported_capability_check(live_provider, tmp_path):
     verify_saved_calls(node, live_provider.responses)
     assert node.depth == 0
     assert response.get_message()
+
+
+@pytest.mark.parametrize("streaming", [False, True], ids=["non-streaming", "streaming"])
+def test_live_exit_uses_instructions_available_only_in_markdown(
+    live_provider, tmp_path, streaming
+):
+    root = tmp_path / "capabilities"
+    shutil.copytree(Path(qs.__file__).parent / "capabilities", root)
+    token = "EXIT-MARKDOWN-7319"
+    (root / "exit-tool" / "finish" / "instructions.md").write_text(
+        f"Concludi la skill chiamando {{{{!exit_agent}}}} con text='{token}' e items=['verified']. "
+        "Il token è il risultato richiesto per questa prova.",
+        encoding="utf-8",
+    )
+    node = Node([root], name_hds="main", persistent_history=False)
+    node.initialize(
+        live_provider,
+        work_root=tmp_path,
+        on_stream=(lambda event: None) if streaming else None,
+    )
+    response = node.run(
+        "Apri mock-skill una sola volta. Per concluderla segui le istruzioni di uscita fornite dalla skill. Poi rispondi brevemente senza altri tool."
+    )
+    exits = [
+        record
+        for record in verify_saved_calls(node, live_provider.responses)
+        if record.name == "exit_agent"
+    ]
+    assert len(exits) == 1
+    assert exits[0].result == {"text": token, "items": ["verified"]}
+    assert node.depth == 0
+    assert response.get_message()
+    assert (
+        "exit_agent"
+        not in live_provider.requests[0].get_extra()["agentic"]["allowed_tools"]
+    )
+    assert (
+        "exit_agent"
+        not in live_provider.requests[-1].get_extra()["agentic"]["allowed_tools"]
+    )
+    for request in live_provider.requests:
+        assert "finish" not in request.get_tools().list_tools()
+    skill_messages = [
+        message.get_message()
+        for request in live_provider.requests
+        for message in request.get_messages()
+        if message.get_role_name() == "tool" and "<exit-tool" in message.get_message()
+    ]
+    assert skill_messages
+    assert all(token in message and "{{!" not in message for message in skill_messages)

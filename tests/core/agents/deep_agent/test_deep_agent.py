@@ -52,20 +52,18 @@ class StubProvider(Provider):
 def _write_capabilities(parent: Path, hds_name: str) -> Path:
     capabilities_path = parent / "capabilities"
     hds_path = capabilities_path / "hds"
-    exit_skill_path = capabilities_path / "exit-skill" / "finish.md"
     exit_tool_path = capabilities_path / "exit-tool" / "finish"
     hds_path.mkdir(parents=True)
-    exit_skill_path.parent.mkdir(parents=True)
     exit_tool_path.mkdir(parents=True)
     (hds_path / f"{hds_name}.md").write_text(
-        f"---\ndescription: {hds_name}\nexit-skill: finish\n---\n"
+        f"---\ndescription: {hds_name}\nexit-tool: exit_agent\n---\n"
         f"{hds_name} instructions"
     )
-    exit_skill_path.write_text("---\ndescription: Finish\n---\nFinish the agent")
+    (exit_tool_path / "instructions.md").write_text("Finish the agent")
     (exit_tool_path / "main.py").write_text(
         "from qs.core.agents.exit_tool.data import ExitToolData\n"
         "from qs.core.agents.exit_tool.decorator import exit_tool\n\n"
-        "@exit_tool(name='exit_agent', description='Exit agent')\n"
+        "@exit_tool(instructions_path='instructions.md', name='exit_agent', description='Exit agent')\n"
         "def exit_agent(text: str, items: list[str]) -> ExitToolData:\n"
         "    return ExitToolData(text=text, items=items)\n"
     )
@@ -278,4 +276,4 @@ def test_uses_root_hds_as_system_instructions(tmp_path: Path) -> None:
     }
     tools = provider.last_request.get_tools()
     assert tools is not None
-    assert tools.list_tools() == ["finish", "exit_agent"]
+    assert tools.list_tools() == ["exit_agent"]

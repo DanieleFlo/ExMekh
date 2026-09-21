@@ -61,12 +61,12 @@ def test_loads_builtin_assistant_capabilities(tmp_path: Path) -> None:
         "nested-sub-tool",
         "shared-tool",
     }
-    assert tuple(skill.name for skill in capabilities.exit_skills) == ("finish",)
+    assert tuple(skill.name for skill in capabilities.exit_tools) == ("exit_agent",)
 
     main_hds = capabilities.hds[0]
     assert main_hds.get_sub_skill_names() == ("mock-skill",)
     assert main_hds.get_sub_tool_names() == ("mock-tool",)
-    assert main_hds.get_exit_skill_name() == "finish"
+    assert main_hds.get_exit_tool_name() == "exit_agent"
 
 
 def test_builtin_mock_tool_returns_a_deterministic_result(tmp_path: Path) -> None:
@@ -106,12 +106,8 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
         "mock-tool": ("Restituisce il testo ricevuto come risultato dimostrativo."),
         "nested-sub-tool": "Available in skill 'nested-skill'.",
         "shared-tool": "Available in skills 'mock-skill', 'nested-skill'.",
-        "finish": (
-            "Termina l'esecuzione restituendo la risposta finale. "
-            "Available in every skill."
-        ),
         "exit_agent": (
-            "Termina l'esecuzione restituendo la risposta finale. "
+            "Conclude la skill corrente restituendo il risultato al chiamante. "
             "Available in every skill."
         ),
     }

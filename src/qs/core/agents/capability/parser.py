@@ -9,6 +9,7 @@ from qs.core.agents.capability.markdown import CapabilityMarkdown
 from qs.core.agents.capability.metadata import (
     CapabilityMetadata,
 )
+from qs.core.agents.capability.references import parse_references
 
 
 class MetadataParser[MetadataType: CapabilityMetadata](Protocol):
@@ -28,9 +29,6 @@ class CapabilityMarkdownParser[
         r"(?P<body>.*)"
         r"\Z",
         re.DOTALL,
-    )
-    REFERENCE_PATTERN: Final[re.Pattern[str]] = re.compile(
-        r"{{\s*!([A-Za-z0-9][A-Za-z0-9_-]*)\s*}}"
     )
 
     def __init__(
@@ -85,14 +83,4 @@ class CapabilityMarkdownParser[
         return data
 
     def _parse_body(self, body: str) -> tuple[str, tuple[str, ...]]:
-        references: list[str] = []
-        parsed_body = self.REFERENCE_PATTERN.sub(
-            lambda match: self._resolve_reference(match.group(1), references),
-            body,
-        )
-        return parsed_body, tuple(dict.fromkeys(references))
-
-    @staticmethod
-    def _resolve_reference(reference: str, references: list[str]) -> str:
-        references.append(reference)
-        return reference
+        return parse_references(body)

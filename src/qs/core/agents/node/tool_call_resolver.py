@@ -1,11 +1,10 @@
 from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill, DeepSkill
-from qs.core.agents.exit_skill.exit_skill import CalledExitSkill, ExitSkill
 from qs.core.agents.exit_tool.exit_tool import CalledExitTool, ExitTool
 from qs.core.models.assistant_message import ToolCall
 from qs.core.models.tool import CalledTool, Tool
 
-type ResolvedToolCall = CalledDeepSkill | CalledTool | CalledExitSkill | CalledExitTool
+type ResolvedToolCall = CalledDeepSkill | CalledTool | CalledExitTool
 
 
 class ToolCallResolver:
@@ -24,8 +23,6 @@ class ToolCallResolver:
         for tool in self._capabilities.get_all_tools():
             if tool.name != tool_name:
                 continue
-            if isinstance(tool, ExitSkill):
-                return CalledExitSkill(exit_skill=tool, tool_call=tool_call)
             if isinstance(tool, DeepSkill):
                 return CalledDeepSkill(deep_skill=tool, tool_call=tool_call)
             if isinstance(tool, ExitTool):
@@ -33,10 +30,9 @@ class ToolCallResolver:
             if isinstance(tool, Tool):
                 return CalledTool(tool=tool, tool_call=tool_call)
             raise TypeError(
-                f"Tool '{tool_name}' is not a valid deep skill, exit skill, "
+                f"Tool '{tool_name}' is not a valid deep skill, "
                 "exit tool, or tool instance"
             )
         raise ValueError(
-            f"Tool '{tool_name}' is not a valid deep skill, exit skill, exit tool, "
-            "or tool"
+            f"Tool '{tool_name}' is not a valid deep skill, exit tool, or tool"
         )

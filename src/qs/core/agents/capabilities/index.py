@@ -6,7 +6,7 @@ from typing import TypeVar
 
 from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.deep_skill.deep_skill import DeepSkill
-from qs.core.agents.exit_skill.exit_skill import ExitSkill
+from qs.core.agents.exit_tool.exit_tool import ExitTool
 from qs.core.agents.hds.hds import HDS
 from qs.core.models.tool import Tool
 
@@ -18,7 +18,7 @@ class CapabilitiesIndex:
     deep_skills: MappingProxyType[str, DeepSkill]
     tools: MappingProxyType[str, Tool]
     hds: MappingProxyType[str, HDS]
-    exit_skills: MappingProxyType[str, ExitSkill]
+    exit_tools: MappingProxyType[str, ExitTool]
     reference_names: frozenset[str]
 
     @classmethod
@@ -29,15 +29,15 @@ class CapabilitiesIndex:
         deep_skills = cls._index_by_name(data.deep_skills, "deep-skill")
         tools = cls._index_by_name(data.tools, "tool")
         hds = cls._index_by_name(data.hds, "HDS")
-        exit_skills = cls._index_by_name(data.exit_skills, "exit-skill")
-        cls._validate_distinct_names(deep_skills, tools, hds, exit_skills)
+        exit_tools = cls._index_by_name(data.exit_tools, "exit-tool")
+        cls._validate_distinct_names(deep_skills, tools, hds, exit_tools)
 
         return cls(
             deep_skills=MappingProxyType(deep_skills),
             tools=MappingProxyType(tools),
             hds=MappingProxyType(hds),
-            exit_skills=MappingProxyType(exit_skills),
-            reference_names=frozenset(deep_skills | tools | hds | exit_skills),
+            exit_tools=MappingProxyType(exit_tools),
+            reference_names=frozenset(deep_skills | tools | hds | exit_tools),
         )
 
     @staticmethod
@@ -60,7 +60,7 @@ class CapabilitiesIndex:
         deep_skills: dict[str, DeepSkill],
         tools: dict[str, Tool],
         hds: dict[str, HDS],
-        exit_skills: dict[str, ExitSkill],
+        exit_tools: dict[str, ExitTool],
     ) -> None:
         duplicate_names = set(deep_skills) & set(tools)
 
@@ -76,10 +76,10 @@ class CapabilitiesIndex:
                 f"Names shared by HDS and other capabilities: {duplicates}"
             )
 
-        duplicate_names = set(exit_skills) & (set(deep_skills) | set(tools) | set(hds))
+        duplicate_names = set(exit_tools) & (set(deep_skills) | set(tools) | set(hds))
 
         if duplicate_names:
             duplicates = ", ".join(sorted(duplicate_names))
             raise ValueError(
-                f"Names shared by exit skills and other capabilities: {duplicates}"
+                f"Names shared by exit tools and other capabilities: {duplicates}"
             )

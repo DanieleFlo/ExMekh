@@ -4,23 +4,10 @@ from typing import cast
 import pytest
 
 from qs.core.agents.deep_skill.deep_skills import DeepSkills
-from qs.core.agents.deep_skill.metadata import DeepSkillMetadata
-from qs.core.agents.exit_skill.exit_skill import ExitSkill
 
 
-def _exit_skill(tmp_path: Path) -> ExitSkill:
-    return ExitSkill(
-        name="finish",
-        markdown_path=tmp_path / "finish.md",
-        metadata=DeepSkillMetadata(
-            description="Finish",
-            sub_skills=(),
-            sub_tools=(),
-            inherits_parent_tools=False,
-        ),
-        body="Finish instructions",
-        references=(),
-    )
+def _exit_instructions() -> str:
+    return '<exit-tool name="finish">Finish instructions</exit-tool>'
 
 
 def test_rejects_string_as_folder_collection() -> None:
@@ -107,7 +94,7 @@ def test_loads_markdown_files_in_name_order(tmp_path: Path) -> None:
     skills = DeepSkills([folder_path]).load()
 
     assert tuple(skill.name for skill in skills) == ("first", "second")
-    assert skills[0].render_instructions(_exit_skill(tmp_path)) == (
-        'Body\n\n<exit-skill tools="">Finish instructions</exit-skill>'
+    assert skills[0].render_instructions(_exit_instructions()) == (
+        'Body\n\n<exit-tool name="finish">Finish instructions</exit-tool>'
     )
     assert skills[0].catalog is None

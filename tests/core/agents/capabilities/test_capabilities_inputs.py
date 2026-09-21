@@ -9,7 +9,6 @@ from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.capabilities.index import CapabilitiesIndex
 from qs.core.agents.deep_skill.deep_skill import DeepSkill
 from qs.core.agents.deep_skill.metadata import DeepSkillMetadata
-from qs.core.agents.exit_skill.exit_skill import ExitSkill
 from qs.core.agents.exit_tool.data import ExitToolData
 from qs.core.agents.exit_tool.exit_tool import ExitTool
 from qs.core.agents.hds.hds import HDS
@@ -25,7 +24,7 @@ def _hds() -> HDS:
             description="Description",
             sub_skills=(),
             sub_tools=(),
-            exit_skill="finish",
+            exit_tool="exit_agent",
         ),
         body="Body",
         references=(),
@@ -55,7 +54,8 @@ def _exit_tool() -> ExitTool:
         finish,
         name="exit_agent",
         description="Exit",
-        exit_skill_name="finish",
+        instructions_path=Path("finish/instructions.md"),
+        instructions="Finish",
         folder_path=Path("finish"),
     )
 
@@ -177,11 +177,11 @@ def test_rejects_capability_type_that_is_not_directory(
         Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
-def test_returns_exit_skill_and_hds_children(tmp_path: Path) -> None:
+def test_returns_exit_tool_and_hds_children(tmp_path: Path) -> None:
     capabilities_path = tmp_path / "capabilities"
-    exit_skill_path = capabilities_path / "exit-skill" / "finish"
+    exit_tool_path = capabilities_path / "exit-tool" / "finish"
     hds_path = capabilities_path / "hds" / "document"
-    exit_skill_path.mkdir(parents=True)
+    exit_tool_path.mkdir(parents=True)
     hds_path.mkdir(parents=True)
     capabilities = Capabilities([capabilities_path])
 
@@ -189,99 +189,46 @@ def test_returns_exit_skill_and_hds_children(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("deep_skills", "tools", "hds", "exit_skills", "exit_tools", "message"),
+    ("field", "value", "message"),
     [
-        (
-            cast(tuple[DeepSkill, ...], []),
-            (),
-            (),
-            (),
-            (),
-            "deep_skills must be a tuple",
-        ),
-        ((cast(DeepSkill, object()),), (), (), (), (), "deep_skills must contain only"),
-        ((), cast(tuple[Tool, ...], []), (), (), (), "tools must be a tuple"),
-        ((), (cast(Tool, object()),), (), (), (), "tools must contain only"),
-        ((), (_hds(),), (), (), (), "tools must contain only"),
-        ((), (), cast(tuple[HDS, ...], []), (), (), "hds must be a tuple"),
-        ((), (), (cast(HDS, object()),), (), (), "hds must contain only"),
-        ((), (), (_deep_skill(),), (), (), "hds must contain only"),
-        (
-            (),
-            (),
-            (),
-            cast(tuple[ExitSkill, ...], []),
-            (),
-            "exit_skills must be a tuple",
-        ),
-        ((), (), (), (cast(ExitSkill, object()),), (), "exit_skills must contain only"),
-        ((), (), (), (), cast(tuple[ExitTool, ...], []), "exit_tools must be a tuple"),
-        ((), (), (), (), (cast(ExitTool, object()),), "exit_tools must contain only"),
+        ("deep_skills", [], "deep_skills must be a tuple"),
+        ("deep_skills", (object(),), "deep_skills must contain only"),
+        ("tools", [], "tools must be a tuple"),
+        ("tools", (object(),), "tools must contain only"),
+        ("tools", (_hds(),), "tools must contain only"),
+        ("tools", (_exit_tool(),), "tools must contain only"),
+        ("hds", [], "hds must be a tuple"),
+        ("hds", (object(),), "hds must contain only"),
+        ("hds", (_deep_skill(),), "hds must contain only"),
+        ("exit_tools", [], "exit_tools must be a tuple"),
+        ("exit_tools", (object(),), "exit_tools must contain only"),
     ],
 )
-def test_capabilities_data_rejects_invalid_collections(
-    deep_skills: tuple[DeepSkill, ...],
-    tools: tuple[Tool, ...],
-    hds: tuple[HDS, ...],
-    exit_skills: tuple[ExitSkill, ...],
-    exit_tools: tuple[ExitTool, ...],
-    message: str,
-) -> None:
+def test_capabilities_data_rejects_invalid_collections(field, value, message):
+    values = {"deep_skills": (), "tools": (), field: value}
     with pytest.raises(TypeError, match=message):
-        CapabilitiesData(
-            deep_skills=deep_skills,
-            tools=tools,
-            hds=hds,
-            exit_skills=exit_skills,
-            exit_tools=exit_tools,
-        )
+        CapabilitiesData(**values)
 
 
 def test_capabilities_data_returns_all_tool_types() -> None:
-    deep_skill = _deep_skill()
-    tool = Tool(lambda: None, name="tool")
-    exit_skill = ExitSkill(
-        name="finish",
-        markdown_path=Path("finish.md"),
-        metadata=deep_skill.metadata,
-        body="Finish",
-        references=(),
+    skill, tool, exit_tool = (
+        _deep_skill(),
+        Tool(lambda: None, name="tool"),
+        _exit_tool(),
     )
-    exit_tool = _exit_tool()
-
-    data = CapabilitiesData((deep_skill,), (tool,), (), (exit_skill,), (exit_tool,))
-
-    assert data.get_all_tools() == (deep_skill, tool, exit_skill, exit_tool)
+    data = CapabilitiesData((skill,), (tool,), exit_tools=(exit_tool,))
+    assert data.get_all_tools() == (skill, tool, exit_tool)
 
 
 def test_capabilities_data_resolves_runtime_capabilities() -> None:
-    hds = _hds()
-    deep_skill = _deep_skill()
-    exit_skill = ExitSkill(
-        name="finish",
-        markdown_path=Path("finish.md"),
-        metadata=deep_skill.metadata,
-        body="Finish",
-        references=(),
-    )
-    exit_tool = _exit_tool()
-    data = CapabilitiesData(
-        deep_skills=(),
-        tools=(),
-        hds=(hds,),
-        exit_skills=(exit_skill,),
-        exit_tools=(exit_tool,),
-    )
-
+    hds, exit_tool = _hds(), _exit_tool()
+    data = CapabilitiesData((), (), hds=(hds,), exit_tools=(exit_tool,))
     assert data.get_hds("hds") is hds
-    assert data.get_exit_skill("finish") is exit_skill
-    assert data.get_exit_tool_names("finish") == ("exit_agent",)
-    assert data.get_exit_tool_names("other") == ()
-
+    assert data.get_exit_tool("exit_agent") is exit_tool
     with pytest.raises(ValueError, match="HDS 'missing' not found"):
         data.get_hds("missing")
-    with pytest.raises(ValueError, match="Exit skill 'missing' not found"):
-        data.get_exit_skill("missing")
+    with pytest.raises(ValueError, match="Exit tool 'missing' not found"):
+        data.get_exit_tool("missing")
 
 
 def test_capabilities_data_indexes_skill_availability() -> None:

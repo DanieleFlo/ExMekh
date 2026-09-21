@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Final
 
 type ExitToolFunction = Callable[..., Any]
@@ -12,17 +13,24 @@ _EXIT_TOOL_ATTRIBUTE: Final[str] = "__qs_exit_tool__"
 
 @dataclass(frozen=True, slots=True)
 class ExitToolDefinition:
+    instructions_path: Path
     name: str | None
     description: str | None
 
 
 def exit_tool(
     *,
+    instructions_path: str | Path,
     name: str | None = None,
     description: str | None = None,
 ) -> Callable[[ExitToolFunction], ExitToolFunction]:
+    if not isinstance(instructions_path, (str, Path)):
+        raise TypeError("instructions_path must be a string or Path")
+    if isinstance(instructions_path, str) and not instructions_path.strip():
+        raise ValueError("instructions_path cannot be blank")
     _validate_definition(name, description)
     definition = ExitToolDefinition(
+        instructions_path=Path(instructions_path),
         name=name,
         description=description.strip() if description is not None else None,
     )

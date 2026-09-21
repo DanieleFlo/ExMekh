@@ -15,7 +15,7 @@ from qs.core.agents.deep_agent.stream_event import (
     DeepAgentStreamEvent,
 )
 from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill
-from qs.core.agents.exit_skill.exit_skill import ExitSkill
+from qs.core.agents.exit_tool.exit_tool import ExitTool
 from qs.core.agents.hds.hds import HDS
 from qs.core.agents.node import Node
 from qs.core.agents.node.agentic_scope import AgenticScope
@@ -99,22 +99,20 @@ def _write_capabilities(
 ) -> Path:
     capabilities_path = parent / "capabilities"
     hds_path = capabilities_path / "hds"
-    exit_skill_path = capabilities_path / "exit-skill" / "finish.md"
     exit_tool_path = capabilities_path / "exit-tool" / "finish"
     hds_path.mkdir(parents=True)
-    exit_skill_path.parent.mkdir(parents=True)
     exit_tool_path.mkdir(parents=True)
 
     for name in hds_names:
         (hds_path / f"{name}.md").write_text(
-            f"---\ndescription: {name}\nexit-skill: finish\n---\n{name} body"
+            f"---\ndescription: {name}\nexit-tool: exit_agent\n---\n{name} body"
         )
 
-    exit_skill_path.write_text("---\ndescription: Finish\n---\nFinish the agent")
+    (exit_tool_path / "instructions.md").write_text("Finish the agent")
     (exit_tool_path / "main.py").write_text(
         "from qs.core.agents.exit_tool.data import ExitToolData\n"
         "from qs.core.agents.exit_tool.decorator import exit_tool\n\n"
-        "@exit_tool(name='exit_agent', description='Exit agent')\n"
+        "@exit_tool(instructions_path='instructions.md', name='exit_agent', description='Exit agent')\n"
         "def exit_agent(text: str, items: list[str]) -> ExitToolData:\n"
         "    return ExitToolData(text=text, items=items)\n"
     )
@@ -127,7 +125,7 @@ def _write_runnable_capabilities(parent: Path) -> Path:
     hds_path.write_text(
         "---\n"
         "description: Main instructions\n"
-        "exit-skill: finish\n"
+        "exit-tool: exit_agent\n"
         "sub-skills:\n"
         "  - mock-skill\n"
         "sub-tools:\n"
@@ -226,23 +224,15 @@ def test_accepts_hds_from_any_configured_capabilities_path(
 ) -> None:
     first_path = _write_capabilities(tmp_path / "first", ("first",))
     second_path = _write_capabilities(tmp_path / "second", ("second",))
-    first_exit_skill = first_path / "exit-skill" / "finish.md"
-    second_exit_skill = second_path / "exit-skill" / "finish.md"
-    first_exit_skill.rename(first_exit_skill.with_name("finish-first.md"))
-    second_exit_skill.rename(second_exit_skill.with_name("finish-second.md"))
-    (first_path / "exit-tool" / "finish").rename(
-        first_path / "exit-tool" / "finish-first"
-    )
-    (second_path / "exit-tool" / "finish").rename(
-        second_path / "exit-tool" / "finish-second"
-    )
-    (first_path / "hds" / "first.md").write_text(
-        "---\ndescription: First\nexit-skill: finish-first\n---\nFirst body"
-    )
-    (second_path / "hds" / "second.md").write_text(
-        "---\ndescription: Second\nexit-skill: finish-second\n---\nSecond body"
-    )
-
+    for path, name in [(first_path, "first"), (second_path, "second")]:
+        entrypoint = path / "exit-tool" / "finish" / "main.py"
+        entrypoint.write_text(
+            entrypoint.read_text().replace("name='exit_agent'", f"name='exit_{name}'")
+        )
+        hds = path / "hds" / f"{name}.md"
+        hds.write_text(
+            f"---\ndescription: {name}\nexit-tool: exit_{name}\n---\n{name} body"
+        )
     capabilities = Node(
         [first_path, second_path],
         name_hds="second",
@@ -376,7 +366,7 @@ def test_runtime_config_ignores_stream_events_without_a_handler() -> None:
         provider=cast(Provider, object()),
         capabilities=cast(CapabilitiesData, object()),
         hds=cast(HDS, object()),
-        exit_skill=cast(ExitSkill, object()),
+        exit_tool=cast(ExitTool, object()),
         persistent_history=True,
         initial_depth=0,
     )
@@ -417,7 +407,6 @@ def test_tool_descriptions_reflect_hds_and_skill_availability(
         "nested-sub-tool": "Available in skill 'nested-skill'.",
         "shared-tool": "Available in skills 'mock-skill', 'nested-skill'.",
         "orphan-tool": "",
-        "finish": "Finish Available in every skill.",
         "exit_agent": "Exit agent Available in every skill.",
     }
 
@@ -477,7 +466,7 @@ def test_identify_tool_choice_rejects_unknown_and_unsupported_tools() -> None:
 def test_executor_rejects_unsupported_mapped_capability() -> None:
     executor = ToolCallExecutor(
         client=MagicMock(spec=Client),
-        exit_skill=cast(ExitSkill, object()),
+        exit_tool=cast(ExitTool, object()),
         initial_depth=0,
         agentic_scope=MagicMock(spec=AgenticScope),
     )
@@ -494,7 +483,7 @@ def test_run_tool_delegates_execution_to_called_tool() -> None:
     called_tool.name = "echo"
     executor = ToolCallExecutor(
         client=client,
-        exit_skill=cast(ExitSkill, object()),
+        exit_tool=cast(ExitTool, object()),
         initial_depth=0,
         agentic_scope=MagicMock(spec=AgenticScope),
     )
@@ -519,7 +508,7 @@ def test_run_tool_prepends_xml_header_when_client_generates_id() -> None:
     called_tool.name = "echo"
     executor = ToolCallExecutor(
         client=client,
-        exit_skill=cast(ExitSkill, object()),
+        exit_tool=cast(ExitTool, object()),
         initial_depth=0,
         agentic_scope=MagicMock(spec=AgenticScope),
     )
@@ -544,7 +533,7 @@ def test_tool_failure_still_emits_the_end_state() -> None:
     client = MagicMock(spec=Client)
     executor = ToolCallExecutor(
         client=client,
-        exit_skill=cast(ExitSkill, object()),
+        exit_tool=cast(ExitTool, object()),
         initial_depth=0,
         agentic_scope=MagicMock(spec=AgenticScope),
     )
@@ -605,7 +594,7 @@ def test_skill_increments_depth_adds_exit_body_and_requires_a_tool(
     assert skill_message.get_tool_call_id() == "skill-call"
     assert skill_message.get_message() == (
         "Mock skill body\n\n<catalog></catalog>\n\n"
-        '<exit-skill tools="exit_agent">Finish the agent</exit-skill>'
+        '<exit-tool name="exit_agent">Finish the agent</exit-tool>'
     )
     exit_message = cast(ToolMessage, provider.requests[2].get_messages()[-1])
     assert exit_message.get_message() == "done"
@@ -711,7 +700,6 @@ def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:
                 "allowed_tools": [
                     "mock-sub-tool",
                     "shared-tool",
-                    "finish",
                     "exit_agent",
                 ],
                 "allowed_skills": ["nested-skill"],
@@ -723,7 +711,6 @@ def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:
                     "nested-sub-tool",
                     "shared-tool",
                     "mock-sub-tool",
-                    "finish",
                     "exit_agent",
                 ],
                 "allowed_skills": [],
@@ -734,7 +721,6 @@ def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:
                 "allowed_tools": [
                     "mock-sub-tool",
                     "shared-tool",
-                    "finish",
                     "exit_agent",
                 ],
                 "allowed_skills": ["nested-skill"],
@@ -905,26 +891,18 @@ def test_exit_tool_is_rejected_at_root(tmp_path: Path) -> None:
     assert len(provider.requests) == 1
 
 
-def test_exit_skill_adds_its_instructions_without_changing_depth(
-    tmp_path: Path,
-) -> None:
+def test_removed_exit_skill_cannot_be_called(tmp_path: Path) -> None:
     provider = SequenceProvider(
         [
             AssistantMessage(
-                "",
-                tool_calls=[_function_call("finish", {}, call_id="skill-call")],
+                "", tool_calls=[_function_call("finish", {}, call_id="instructions")]
             ),
-            AssistantMessage("final answer"),
         ]
     )
     node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main", depth=1)
     node.initialize(provider, work_root=tmp_path)
-
-    node.run("start")
-
-    response = cast(ToolMessage, provider.requests[1].get_messages()[-1])
-    assert response.get_message() == "Finish the agent"
-    assert response.get_tool_call_id() == "skill-call"
+    with pytest.raises(ValueError, match="'finish' is not allowed"):
+        node.run("start")
     assert node.depth == 1
 
 
@@ -1063,7 +1041,7 @@ def test_executor_returns_raw_result_without_saving() -> None:
     )
     executor = ToolCallExecutor(
         client=client,
-        exit_skill=cast(ExitSkill, object()),
+        exit_tool=cast(ExitTool, object()),
         initial_depth=0,
         agentic_scope=MagicMock(spec=AgenticScope),
     )
@@ -1137,7 +1115,6 @@ def test_runtime_saves_only_tools_with_their_original_skill_path(
             AssistantMessage(
                 "",
                 tool_calls=[
-                    _function_call("finish", {}, call_id="instructions"),
                     _function_call(
                         "exit_agent",
                         {"text": "done", "items": ["completed"]},
@@ -1453,7 +1430,7 @@ def test_runtime_saves_none_result(tmp_path: Path) -> None:
     runtime._emit_tool_state = MagicMock()
     runtime._executor = ToolCallExecutor(
         client=client,
-        exit_skill=cast(ExitSkill, object()),
+        exit_tool=cast(ExitTool, object()),
         initial_depth=0,
         agentic_scope=MagicMock(spec=AgenticScope),
     )
@@ -1598,7 +1575,7 @@ def test_runtime_captures_arguments_before_tool_mutates_them(tmp_path: Path) -> 
         runtime._emit_tool_state = MagicMock()
         runtime._executor = ToolCallExecutor(
             client=client,
-            exit_skill=cast(ExitSkill, object()),
+            exit_tool=cast(ExitTool, object()),
             initial_depth=0,
             agentic_scope=MagicMock(spec=AgenticScope),
         )
@@ -1693,3 +1670,91 @@ def test_runtime_saves_thinking_from_the_exact_tool_calling_turn(tmp_path, strea
             "third": "/mock-skill",
             "exit": "/mock-skill",
         }
+
+
+def _write_alternative_exit_tool(capabilities_path: Path) -> None:
+    selected = capabilities_path / "exit-tool" / "finish"
+    alternative = capabilities_path / "exit-tool" / "other"
+    alternative.mkdir()
+    source = (selected / "main.py").read_text()
+    (alternative / "main.py").write_text(
+        source.replace("name='exit_agent'", "name='other_exit'")
+    )
+    (alternative / "instructions.md").write_text("Unselected instructions")
+
+
+@pytest.mark.parametrize("depth", [0, 1, 3])
+def test_initial_scope_and_instructions_use_the_selected_exit(tmp_path, depth):
+    root = _write_runnable_capabilities(tmp_path)
+    _write_alternative_exit_tool(root)
+    provider = SequenceProvider([AssistantMessage("done")])
+    node = Node([root], name_hds="main", depth=depth)
+    data = node.initialize(provider, work_root=tmp_path)
+    node.run("start")
+    request = provider.requests[0]
+    allowed = request.get_extra()["agentic"]["allowed_tools"]
+    assert ("exit_agent" in allowed) == (depth > 0)
+    assert "other_exit" not in allowed
+    assert "finish" not in request.get_tools().list_tools()
+    system = request.get_messages()[0].get_message()
+    assert ("Finish the agent" in system) == (depth > 0)
+    assert "Unselected instructions" not in system
+    assert set(data.get_exit_tool("exit_agent").get_signature().parameters) == {
+        "text",
+        "items",
+    }
+
+
+def test_unselected_exit_tool_cannot_close_a_skill(tmp_path):
+    root = _write_runnable_capabilities(tmp_path)
+    _write_alternative_exit_tool(root)
+    provider = SequenceProvider(
+        [
+            AssistantMessage(
+                "",
+                tool_calls=[
+                    _function_call(
+                        "other_exit",
+                        {"text": "done", "items": ["done"]},
+                        call_id="forbidden-exit",
+                    )
+                ],
+            )
+        ]
+    )
+    node = Node([root], name_hds="main", depth=1)
+    node.initialize(provider, work_root=tmp_path)
+    with pytest.raises(ValueError, match="'other_exit' is not allowed"):
+        node.run("start")
+    assert node.depth == 1
+
+
+def test_exit_from_positive_initial_depth_returns_to_root_without_open_skill(tmp_path):
+    provider = SequenceProvider(
+        [
+            AssistantMessage(
+                "",
+                tool_calls=[
+                    _function_call(
+                        "exit_agent",
+                        {"text": "done", "items": ["result"]},
+                        call_id="initial-exit",
+                    )
+                ],
+            ),
+            AssistantMessage("final"),
+        ]
+    )
+    node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main", depth=1)
+    node.initialize(provider, work_root=tmp_path)
+    response = node.run("start")
+    assert node.depth == 0
+    assert response.skill_executions == ()
+    assert provider.requests[0].get_tool_choice() == "required"
+    continuation = provider.requests[1]
+    assert continuation.get_tool_choice() is None
+    assert "exit_agent" not in continuation.get_extra()["agentic"]["allowed_tools"]
+    output = continuation.get_messages()[-1]
+    assert output.get_tool_call_id() == "initial-exit"
+    assert output.get_message() == "done"
+    assert response.get_message() == "final"

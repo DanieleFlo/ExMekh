@@ -43,22 +43,16 @@ def _write_skill(
     )
 
 
-def _write_exit_skill(capabilities_path: Path, name: str) -> None:
-    exit_skill_path = capabilities_path / "exit-skill" / f"{name}.md"
-
-    if exit_skill_path.exists():
-        return
-
-    exit_skill_path.parent.mkdir(parents=True)
-    exit_skill_path.write_text(
-        f"---\ndescription: {name} description\n---\n{name} instructions"
-    )
+def _write_exit_tool(capabilities_path: Path, name: str) -> None:
     exit_tool_path = capabilities_path / "exit-tool" / name
+    if exit_tool_path.exists():
+        return
     exit_tool_path.mkdir(parents=True)
+    (exit_tool_path / "instructions.md").write_text(f"{name} instructions")
     (exit_tool_path / "main.py").write_text(
         "from qs.core.agents.exit_tool.data import ExitToolData\n"
         "from qs.core.agents.exit_tool.decorator import exit_tool\n\n"
-        "@exit_tool(name='exit_agent', description='Exit agent')\n"
+        f"@exit_tool(instructions_path='instructions.md', name={name!r}, description='Exit agent')\n"
         "def exit_agent(text: str, items: list[str]) -> ExitToolData:\n"
         "    return ExitToolData(text=text, items=items)\n"
     )
@@ -71,9 +65,9 @@ def _write_hds(
     body: str = "HDS body",
     sub_skills: tuple[str, ...] = (),
     sub_tools: tuple[str, ...] = (),
-    exit_skill: str = "finish",
+    exit_tool: str = "finish",
 ) -> None:
-    _write_exit_skill(folder_path.parent, exit_skill)
+    _write_exit_tool(folder_path.parent, exit_tool)
     metadata_collections = _metadata_collection(
         "sub-skills", sub_skills
     ) + _metadata_collection("sub-tools", sub_tools)
@@ -82,7 +76,7 @@ def _write_hds(
             (
                 "---",
                 f"description: {name} description",
-                f"exit-skill: {exit_skill}",
+                f"exit-tool: {exit_tool}",
                 *metadata_collections,
                 "---",
                 body,
@@ -137,50 +131,52 @@ def test_load_validates_references_after_loading_all_deep_skills(
         "second",
     )
     assert data.deep_skills[0].references == ("second",)
-    assert not hasattr(data.deep_skills[0].metadata, "exit_skill")
-    assert data.exit_skills == ()
+    assert not hasattr(data.deep_skills[0].metadata, "exit_tool")
+    assert data.exit_tools == ()
 
 
-def test_load_validates_hds_exit_skill_reference(tmp_path: Path) -> None:
+def test_load_validates_hds_exit_tool_reference(tmp_path: Path) -> None:
     capabilities_path = tmp_path / "capabilities"
     hds_path = capabilities_path / "hds"
     hds_path.mkdir(parents=True)
-    _write_hds(hds_path, "instructions", exit_skill="custom-exit")
+    _write_hds(hds_path, "instructions", exit_tool="custom-exit")
 
     data = Capabilities([capabilities_path]).load(work_root=tmp_path)
 
-    assert data.hds[0].metadata.exit_skill == "custom-exit"
-    assert data.exit_skills[0].name == "custom-exit"
+    assert data.hds[0].metadata.exit_tool == "custom-exit"
+    assert data.exit_tools[0].name == "custom-exit"
 
 
-def test_load_rejects_missing_hds_exit_skill(tmp_path: Path) -> None:
+def test_load_rejects_missing_hds_exit_tool(tmp_path: Path) -> None:
     capabilities_path = tmp_path / "capabilities"
     hds_path = capabilities_path / "hds"
     hds_path.mkdir(parents=True)
     _write_hds(hds_path, "instructions")
-    exit_skill_path = capabilities_path / "exit-skill" / "finish.md"
-    exit_skill_path.unlink()
+    hds_file = hds_path / "instructions.md"
+    hds_file.write_text(
+        hds_file.read_text().replace("exit-tool: finish", "exit-tool: missing")
+    )
 
     with pytest.raises(
         ValueError,
-        match="HDS 'instructions' has invalid exit-skill: finish",
+        match="HDS 'instructions' has invalid exit-tool: missing",
     ):
         Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
-def test_free_reference_can_resolve_exit_skill(tmp_path: Path) -> None:
+def test_free_reference_can_resolve_exit_tool(tmp_path: Path) -> None:
     capabilities_path = tmp_path / "capabilities"
     hds_path = capabilities_path / "hds"
     hds_path.mkdir(parents=True)
     _write_hds(hds_path, "instructions", body="Use {{!finish}}")
-    _write_exit_skill(capabilities_path, "finish")
+    _write_exit_tool(capabilities_path, "finish")
 
     data = Capabilities([capabilities_path]).load(work_root=tmp_path)
 
     assert data.hds[0].references == ("finish",)
 
 
-def test_loads_hds_with_exit_skill_and_returns_only_body(
+def test_loads_hds_with_exit_tool_and_returns_only_body(
     tmp_path: Path,
 ) -> None:
     capabilities_path = tmp_path / "capabilities"
@@ -192,7 +188,7 @@ def test_loads_hds_with_exit_skill_and_returns_only_body(
 
     assert tuple(hds.name for hds in data.hds) == ("instructions",)
     assert data.hds[0].description == "instructions description"
-    assert data.hds[0].metadata.exit_skill == "finish"
+    assert data.hds[0].metadata.exit_tool == "finish"
     assert data.hds[0].tool() == "Instruction body"
     assert not hasattr(data.hds[0], "catalog")
 
@@ -502,7 +498,7 @@ def test_load_rejects_name_shared_by_hds_and_deep_skill(
         Capabilities([capabilities_path]).load(work_root=tmp_path)
 
 
-def test_load_rejects_duplicate_exit_skill_names_across_capabilities(
+def test_load_rejects_duplicate_exit_tool_names_across_capabilities(
     tmp_path: Path,
 ) -> None:
     capabilities_paths: list[Path] = []
@@ -510,23 +506,115 @@ def test_load_rejects_duplicate_exit_skill_names_across_capabilities(
     for parent_name in ("first", "second"):
         capabilities_path = tmp_path / parent_name / "capabilities"
         capabilities_path.mkdir(parents=True)
-        _write_exit_skill(capabilities_path, "finish")
+        _write_exit_tool(capabilities_path, "finish")
         capabilities_paths.append(capabilities_path)
 
-    with pytest.raises(ValueError, match="Duplicate exit-skill name: 'finish'"):
+    with pytest.raises(ValueError, match="Duplicate exit-tool name: 'finish'"):
         Capabilities(capabilities_paths).load(work_root=tmp_path)
 
 
-def test_load_rejects_name_shared_by_exit_skill_and_tool(
+def test_load_rejects_name_shared_by_exit_tool_and_tool(
     tmp_path: Path,
 ) -> None:
     capabilities_path = tmp_path / "capabilities"
     capabilities_path.mkdir()
-    _write_exit_skill(capabilities_path, "finish")
+    _write_exit_tool(capabilities_path, "finish")
     _write_tool(capabilities_path, "finish")
 
     with pytest.raises(
         ValueError,
-        match="Names shared by exit skills and other capabilities: finish",
+        match="Names shared by exit tools and other capabilities: finish",
     ):
         Capabilities([capabilities_path]).load(work_root=tmp_path)
+
+
+@pytest.mark.parametrize("kind", ["deep-skill", "hds"])
+def test_exit_tool_name_collisions_include_markdown_capabilities(tmp_path, kind):
+    root = tmp_path / "capabilities"
+    folder = root / kind
+    folder.mkdir(parents=True)
+    _write_exit_tool(root, "finish")
+    if kind == "hds":
+        _write_hds(folder, "finish")
+    else:
+        _write_skill(folder, "finish")
+    with pytest.raises(ValueError, match="Names shared by exit tools"):
+        Capabilities([root]).load(work_root=tmp_path)
+
+
+def test_exit_tool_collision_uses_decorated_name_not_folder(tmp_path):
+    root = tmp_path / "capabilities"
+    _write_exit_tool(root, "first-folder")
+    _write_exit_tool(root, "second-folder")
+    for folder in ("first-folder", "second-folder"):
+        entrypoint = root / "exit-tool" / folder / "main.py"
+        entrypoint.write_text(
+            entrypoint.read_text().replace(f"name='{folder}'", "name='shared-exit'")
+        )
+    with pytest.raises(ValueError, match="Duplicate exit-tool name: 'shared-exit'"):
+        Capabilities([root]).load(work_root=tmp_path)
+
+
+def test_multiple_hds_can_share_one_exit_tool(tmp_path):
+    root = tmp_path / "capabilities"
+    hds = root / "hds"
+    hds.mkdir(parents=True)
+    _write_hds(hds, "first")
+    _write_hds(hds, "second")
+    data = Capabilities([root]).load(work_root=tmp_path)
+    assert len(data.exit_tools) == 1
+    assert all(
+        data.get_exit_tool(item.get_exit_tool_name()) is data.exit_tools[0]
+        for item in data.hds
+    )
+
+
+@pytest.mark.parametrize("kind", ["tools", "deep-skill"])
+def test_hds_exit_reference_must_resolve_to_an_exit_tool(tmp_path, kind):
+    root = tmp_path / "capabilities"
+    hds = root / "hds"
+    hds.mkdir(parents=True)
+    _write_hds(hds, "main")
+    if kind == "tools":
+        _write_tool(root, "ordinary")
+    else:
+        (root / kind).mkdir()
+        _write_skill(root / kind, "ordinary")
+    file = hds / "main.md"
+    file.write_text(
+        file.read_text().replace("exit-tool: finish", "exit-tool: ordinary")
+    )
+    with pytest.raises(ValueError, match="invalid exit-tool: ordinary"):
+        Capabilities([root]).load(work_root=tmp_path)
+
+
+def test_validates_exit_instruction_references_after_all_roots_are_loaded(tmp_path):
+    first = tmp_path / "first" / "capabilities"
+    second = tmp_path / "second" / "capabilities"
+    _write_exit_tool(first, "finish")
+    instructions = first / "exit-tool" / "finish" / "instructions.md"
+    instructions.write_text("Use {{!later}} then {{!finish}} and {{!later}}")
+    _write_tool(second, "later")
+    data = Capabilities([first, second]).load(work_root=tmp_path)
+    assert data.exit_tools[0].references == ("later", "finish")
+    assert data.exit_tools[0].instructions == "Use later then finish and later"
+
+
+def test_missing_exit_instruction_reference_unloads_all_modules(tmp_path):
+    root = tmp_path / "capabilities"
+    _write_tool(root, "ordinary")
+    _write_exit_tool(root, "finish")
+    (root / "exit-tool" / "finish" / "instructions.md").write_text("Use {{!missing}}")
+    before = _dynamic_tool_modules()
+    with pytest.raises(
+        ValueError, match="Exit tool 'finish' has invalid references: missing"
+    ):
+        Capabilities([root]).load(work_root=tmp_path)
+    assert _dynamic_tool_modules() == before
+
+
+def test_rejects_legacy_exit_skill_directory_with_migration_hint(tmp_path):
+    root = tmp_path / "capabilities"
+    (root / "exit-skill").mkdir(parents=True)
+    with pytest.raises(ValueError, match="move instructions into exit-tool"):
+        Capabilities([root]).load(work_root=tmp_path)

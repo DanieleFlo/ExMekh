@@ -9,8 +9,7 @@ from qs.core.agents.deep_skill.execution import (
     DeepSkillExecution,
     DeepSkillExecutionTracker,
 )
-from qs.core.agents.exit_skill.exit_skill import CalledExitSkill, ExitSkill
-from qs.core.agents.exit_tool.exit_tool import CalledExitTool
+from qs.core.agents.exit_tool.exit_tool import CalledExitTool, ExitTool
 from qs.core.models.client import Client
 from qs.core.models.tool import CalledTool
 from qs.core.models.tool_message import ToolMessage
@@ -29,12 +28,12 @@ class ToolCallExecutor:
     def __init__(
         self,
         client: Client,
-        exit_skill: ExitSkill,
+        exit_tool: ExitTool,
         initial_depth: int,
         agentic_scope: AgenticScope,
     ) -> None:
         self._client = client
-        self._exit_skill = exit_skill
+        self._exit_tool = exit_tool
         self._depth = initial_depth
         self._agentic_scope = agentic_scope
         self._skill_executions = DeepSkillExecutionTracker()
@@ -79,30 +78,23 @@ class ToolCallExecutor:
     def execute(
         self, tool_call: ResolvedToolCall, *, close_scope: bool = True
     ) -> ToolExecutionResult:
-        supported_types = (CalledExitSkill, CalledDeepSkill, CalledExitTool, CalledTool)
+        supported_types = (CalledDeepSkill, CalledExitTool, CalledTool)
         if not isinstance(tool_call, supported_types):
-            raise TypeError(
-                "Node supports only deep skills, exit skills, exit tools, and tools"
-            )
+            raise TypeError("Node supports only deep skills, exit tools, and tools")
 
         if isinstance(tool_call, CalledExitTool):
             return self._run_exit_tool(tool_call, close_scope=close_scope)
-        return self._execute(tool_call)
-
-    def _execute(self, tool_call: ResolvedToolCall) -> ToolExecutionResult:
-        if isinstance(tool_call, CalledExitSkill):
-            return self._run_exit_skill(tool_call)
         if isinstance(tool_call, CalledDeepSkill):
             return self._run_deep_skill(tool_call)
-        if isinstance(tool_call, CalledExitTool):
-            return self._run_exit_tool(tool_call)
         return self._run_tool(tool_call)
 
     def _run_deep_skill(
         self, called_deep_skill: CalledDeepSkill
     ) -> ToolExecutionResult:
         self._open_deep_skill(called_deep_skill)
-        content = called_deep_skill.render_instructions(self._exit_skill)
+        content = called_deep_skill.render_instructions(
+            self._exit_tool.render_prompt_section()
+        )
         tool_response = ToolMessage(
             content=content,
             tool_call_id=called_deep_skill.call_id,
@@ -144,23 +136,6 @@ class ToolCallExecutor:
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             logger.error(error)
             return content, None
-
-    def _run_exit_skill(
-        self, called_exit_skill: CalledExitSkill
-    ) -> ToolExecutionResult:
-        logger.info(
-            "Rendering exit skill: name=%s call_id=%s depth=%d",
-            called_exit_skill.name,
-            called_exit_skill.call_id,
-            self._depth,
-        )
-        content = called_exit_skill.render_instructions()
-        tool_response = ToolMessage(
-            content=content,
-            tool_call_id=called_exit_skill.call_id,
-            name=called_exit_skill.name,
-        )
-        return ToolExecutionResult(response=tool_response)
 
     def _run_exit_tool(
         self, called_exit_tool: CalledExitTool, *, close_scope: bool = True

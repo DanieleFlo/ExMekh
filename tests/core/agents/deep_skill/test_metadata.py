@@ -112,11 +112,11 @@ def test_rejects_invalid_metadata(
         DeepSkillMetadataParser().parse(data)
 
 
-def test_rejects_hds_only_exit_skill() -> None:
-    with pytest.raises(ValueError, match="Unknown metadata fields: exit-skill"):
+def test_rejects_hds_only_exit_tool() -> None:
+    with pytest.raises(ValueError, match="Unknown metadata fields: exit-tool"):
         DeepSkillMetadataParser().parse(
             {
                 "description": "Skill",
-                "exit-skill": "finish",
+                "exit-tool": "finish",
             }
         )

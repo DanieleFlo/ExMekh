@@ -6,6 +6,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import get_type_hints
 
+from qs.core.agents.capability.loader import MarkdownLoader
 from qs.core.agents.exit_tool.data import ExitToolData
 from qs.core.agents.exit_tool.decorator import (
     ExitToolDefinition,
@@ -33,11 +34,14 @@ class ExitTools(DeepTools):
                 raise ValueError(
                     f"Exit-tool entrypoint '{entrypoint_path}' must have a description"
                 )
+            instructions_path = tool_path / definition.instructions_path
+            instructions = MarkdownLoader(instructions_path).load()
             return ExitTool(
                 function,
                 name=definition.name or tool_path.name,
                 description=definition.description,
-                exit_skill_name=tool_path.name,
+                instructions_path=instructions_path,
+                instructions=instructions,
                 folder_path=tool_path,
             )
         except Exception:

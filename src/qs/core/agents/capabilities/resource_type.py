@@ -5,4 +5,3 @@ class ResourceType(StrEnum):
     MARKDOWN_CAPABILITY = "Markdown capability"
     DEEP_SKILL = "Deep skill"
     HDS = "HDS"
-    EXIT_SKILL = "Exit skill"

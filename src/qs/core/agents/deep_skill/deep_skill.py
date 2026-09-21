@@ -12,7 +12,6 @@ from qs.core.models.tool_message import ToolMessage
 
 if TYPE_CHECKING:
     from qs.core.agents.deep_skill.execution import DeepSkillExecutionTracker
-    from qs.core.agents.exit_skill.exit_skill import ExitSkill
 
 
 class DeepSkill(MarkdownCapability[DeepSkillMetadata]):
@@ -43,8 +42,8 @@ class DeepSkill(MarkdownCapability[DeepSkillMetadata]):
     def catalog(self) -> SkillCatalog | None:
         return self._catalog
 
-    def render_instructions(self, exit_skill: ExitSkill) -> str:
-        return self._render_with_exit_skill(self._render_body(), exit_skill)
+    def render_instructions(self, exit_instructions: str) -> str:
+        return f"{self._render_body()}\n\n{exit_instructions}"
 
     def inherits_parent_tools(self) -> bool:
         return self.metadata.get_inherits_parent_tools()
@@ -57,10 +56,6 @@ class DeepSkill(MarkdownCapability[DeepSkillMetadata]):
         if self._catalog is None:
             return body
         return f"{body}\n\n{self._catalog.render_prompt_section()}"
-
-    def _render_with_exit_skill(self, body: str, exit_skill: ExitSkill) -> str:
-        body = body.strip()
-        return f"{body}\n\n{exit_skill.render_prompt_section()}"
 
     def attach_catalog(self, catalog: SkillCatalog) -> None:
         if not isinstance(catalog, SkillCatalog):
@@ -107,8 +102,8 @@ class CalledDeepSkill:
     def tool_call(self) -> ToolCall:
         return self._tool_call
 
-    def render_instructions(self, exit_skill: ExitSkill) -> str:
-        return self._deep_skill.render_instructions(exit_skill)
+    def render_instructions(self, exit_instructions: str) -> str:
+        return self._deep_skill.render_instructions(exit_instructions)
 
     def open_execution(
         self,

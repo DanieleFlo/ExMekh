@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import cast
 
 import pytest
@@ -10,11 +11,14 @@ from qs.core.agents.exit_tool.decorator import (
 
 
 def test_decorates_function_and_normalizes_description() -> None:
-    @exit_tool(name="finish", description=" Finish work ")
+    @exit_tool(
+        instructions_path="instructions.md", name="finish", description=" Finish work "
+    )
     def finish() -> None:
         pass
 
     assert get_exit_tool_definition(finish) == ExitToolDefinition(
+        instructions_path=Path("instructions.md"),
         name="finish",
         description="Finish work",
     )
@@ -36,11 +40,13 @@ def test_rejects_invalid_definition(
     message: str,
 ) -> None:
     with pytest.raises(error_type, match=message):
-        exit_tool(name=name, description=description)
+        exit_tool(
+            instructions_path="instructions.md", name=name, description=description
+        )
 
 
 def test_rejects_non_function_and_duplicate_decoration() -> None:
-    decorator = exit_tool()
+    decorator = exit_tool(instructions_path="instructions.md")
 
     with pytest.raises(TypeError, match="can decorate only functions"):
         decorator(cast(object, lambda: None).__class__)
@@ -51,3 +57,34 @@ def test_rejects_non_function_and_duplicate_decoration() -> None:
 
     with pytest.raises(ValueError, match="already decorated"):
         decorator(finish)
+
+
+@pytest.mark.parametrize(
+    ("path", "error"),
+    [
+        (None, TypeError),
+        (1, TypeError),
+        ([], TypeError),
+        ("", ValueError),
+        (" \t", ValueError),
+    ],
+)
+def test_rejects_invalid_instruction_path(path, error):
+    with pytest.raises(error, match="instructions_path"):
+        exit_tool(instructions_path=path)
+
+
+def test_instruction_path_is_required():
+    with pytest.raises(TypeError, match="instructions_path"):
+        exit_tool()
+
+
+def test_decorator_accepts_path_without_reading_file(tmp_path):
+    path = tmp_path / "not-created-yet.md"
+
+    @exit_tool(instructions_path=path)
+    def finish():
+        pass
+
+    assert get_exit_tool_definition(finish).instructions_path == path
+    assert not path.exists()

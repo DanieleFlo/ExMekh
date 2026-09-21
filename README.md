@@ -7,7 +7,7 @@
 ## Key Features
 
 - **Hierarchical Agent Engine ([`DeepAgent`](file:///c:/Users/danie/Desktop/qs/qs/docs/05-deep-agent-and-execution.md))**: Execute multi-depth, scoped agent hierarchies with dynamic skill tree navigation, history snapshotting, and cycle detection.
-- **Filesystem Capabilities ([`Capabilities`](file:///c:/Users/danie/Desktop/qs/qs/docs/04-capabilities-and-catalog.md))**: Define system prompts (HDS), skills, exit skills, and Python function tools directly in Markdown and Python files inside a modular `capabilities/` directory.
+- **Filesystem Capabilities ([`Capabilities`](file:///c:/Users/danie/Desktop/qs/qs/docs/04-capabilities-and-catalog.md))**: Define system prompts (HDS), skills, exit tools, and Python function tools directly in Markdown and Python files inside a modular `capabilities/` directory.
 - **Typed Function Tools & Auto Schema ([`Tool`](file:///c:/Users/danie/Desktop/qs/qs/docs/03-tools-and-structured-outputs.md))**: Register annotated Python functions. Automatic JSON schema generation, type hint reflection, and value coercion (handling dates, UUIDs, enums, literals, dataclasses, and Pydantic models).
 - **Structured Outputs**: Validate model completions directly into Pydantic models via `client.call_structured(...)` with optional strict schema enforcement.
 - **Real-Time Token & Event Streaming**: Stream raw provider tokens (including reasoning/thinking tokens) alongside structured execution events (`tool_start`, `tool_end`, depth, and skill path).
