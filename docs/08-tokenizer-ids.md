@@ -46,7 +46,8 @@ Writes use a temporary file and atomic replacement, so failures do not publish
 partially written JSON.
 
 A session lasts for one Python process. Instances and providers sharing the same
-identity and vocabulary share a counter, including concurrent threads. Different
+identity, vocabulary fingerprint and resolved cache directory share a counter,
+including concurrent threads. Different
 tokenizer identities have separate namespaces and counters, even when their
 vocabularies overlap. **Uniqueness is scoped to a tokenizer and process**, not
 across different tokenizers or executions. Keep that namespace when using IDs
@@ -80,7 +81,21 @@ class OtherTokenizer(SequentialTokenizer):
 ```
 
 Implement `Tokenizer` directly only when providing your own ID allocation logic.
-Its public contract consists of `initialize()` and `generate_id()`.
+Its public contract consists of `initialize()`, `generate_id()` and
+`get_session() -> SessionCache`. The session returned by `get_session()` is also
+used by the node runtime to save tool outputs; a custom tokenizer must implement
+this method even if it uses a different ID allocation strategy.
+
+```python
+session = provider.get_session()
+# Equivalent: provider.get_tokenizer().get_session()
+application_cache = session.node("application-owned-node")
+```
+
+The explicit node ID above addresses an application-owned cache. Runtime nodes
+use generated IDs, so an HDS name alone does not identify their cache. See
+[Tool output caching](09-tool-call-cache.md) for storage layout, lifecycle,
+search, and standalone archives.
 
 ## Responsibilities and dependencies
 
@@ -92,8 +107,10 @@ Its public contract consists of `initialize()` and `generate_id()`.
 - `SequentialTokenizer` orchestrates vocabulary preparation and ID generation.
 - `VocabularyCache.load_or_build()` owns vocabulary filtering, validation and
   persistent caching.
-- `TokenizerSessionRegistry.get_session()` owns process-specific session sharing.
-- `TokenizerSession.reserve_next_index()` owns counter synchronization and
+- `TokenizerSessionRegistry.get_session()` delegates session sharing to
+  `CacheManager` and its synchronized `SessionPool`.
+- `TokenizerSession` is a compatibility alias for `SessionCache`.
+  `SessionCache.reserve_next_index()` owns counter synchronization and
   temporary storage. Callers do not access its counter, lock or filesystem layout.
 - `qs.utils.file.write_json_atomically()` provides generic JSON persistence used
   independently by the vocabulary cache and the session counter.

@@ -38,3 +38,6 @@ class HDS(MarkdownCapability[HDSMetadata]):
 
     def get_exit_tool_name(self) -> str:
         return self.metadata.get_exit_tool_name()
+
+    def __str__(self) -> str:
+        return f"Name: {self.name}\nType: HDS\nBody: {self.body[:50]}...\nDescription: {self.description[:50]}..."

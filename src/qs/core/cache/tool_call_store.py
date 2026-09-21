@@ -45,7 +45,7 @@ class ToolCallStore:
 
     def get_all(self) -> list[ToolCallRecord]:
         records: dict[str, ToolCallRecord] = {}
-        for path in sorted(self.directory.glob("*.json")):
+        for path in self.directory.glob("*.json"):
             record = self._read(path)
             if record is None:
                 continue

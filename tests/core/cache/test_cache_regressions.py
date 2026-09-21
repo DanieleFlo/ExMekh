@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 
 from qs.core.cache import SessionCache, SessionPool, ToolCallRecord
+from qs.core.cache.paths import cache_component
 from qs.core.cache.tool_call_store import ToolCallStore
 from qs.core.models.assistant_message import FunctionCall, ToolCall
 from qs.core.tool_calls import (
@@ -157,6 +158,7 @@ def test_reader_and_session_share_one_record_format(tmp_path):
         node = session.node("node")
         record = node.record("tool", "id", {}, {"value": 1}, skill_path="/parent/child")
         reader = ToolCallReader(directory=session.session_dir / "tool_calls" / "node")
+        assert reader.directory == session.session_dir / "tool_calls" / "node"
         assert reader.get("id") == record
         assert ToolCallData is ToolCallRecord
 
@@ -314,3 +316,94 @@ def test_record_rejects_non_text_thinking(thinking):
 
     with pytest.raises(TypeError, match="thinking must be a string or None"):
         ToolCallRecord("tool", "call", {}, None, thinking=thinking)
+
+
+@pytest.mark.parametrize("call_id", ["", "  ", 1, False])
+def test_record_rejects_invalid_provider_call_id(call_id):
+    with pytest.raises(ValueError, match="tool_call_id"):
+        ToolCallRecord("tool", "call", {}, None, tool_call_id=call_id)
+
+
+@pytest.mark.parametrize("identifier", [None, "", "  ", 1])
+def test_invalid_identifiers_cannot_create_cache_storage(tmp_path, identifier):
+    with pytest.raises(ValueError):
+        cache_component(identifier)
+    with SessionCache(tmp_path) as session:
+        with pytest.raises(ValueError, match="node_id"):
+            session.node(identifier)
+        assert not list(session.session_dir.iterdir())
+    store = ToolCallStore(tmp_path / "archive")
+    assert store.get(identifier) is None
+    assert not store.directory.exists()
+
+
+def test_store_rejects_invalid_record_before_creating_directory(tmp_path):
+    store = ToolCallStore(tmp_path / "archive")
+    with pytest.raises(TypeError, match="ToolCallRecord"):
+        store.save({"id": "call"})
+    assert not store.directory.exists()
+
+
+def test_session_rejects_non_path_directory():
+    with pytest.raises(TypeError, match="directory"):
+        SessionCache("cache")
+
+
+def test_pool_rejects_key_for_another_directory(tmp_path):
+    pool = SessionPool()
+    key = pool.make_key("model", "v1", tmp_path / "first")
+    with pytest.raises(ValueError, match="session key"):
+        pool.create_session(key, tmp_path / "second")
+    assert pool.sessions == {}
+    assert not (tmp_path / "second").exists()
+
+
+def test_session_refuses_redirected_node_directory(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    with SessionCache(tmp_path / "sessions") as session:
+        node_directory = session.session_dir / "tool_calls" / "node"
+        node_directory.parent.mkdir()
+        node_directory.symlink_to(outside, target_is_directory=True)
+        try:
+            with pytest.raises(ValueError, match="redirect"):
+                session.node("node").record("tool", "call", {}, "value")
+            assert list(outside.iterdir()) == []
+        finally:
+            node_directory.unlink()
+
+
+def test_store_does_not_follow_record_symlinks(tmp_path):
+    outside = ToolCallStore(tmp_path / "outside")
+    record = ToolCallRecord("tool", "call", {}, "private")
+    original = outside.save(record)
+    archive = tmp_path / "archive"
+    archive.mkdir()
+    link = archive / original.name
+    link.symlink_to(original)
+    try:
+        store = ToolCallStore(archive)
+        assert store.get("call") is None
+        assert store.get_all() == []
+        assert outside.get("call") == record
+    finally:
+        link.unlink()
+
+
+@pytest.mark.parametrize("canonical_first", [False, True])
+def test_canonical_record_wins_regardless_of_directory_order(tmp_path, canonical_first):
+    from qs.utils.file import write_json_atomically
+
+    legacy = ToolCallRecord("tool", "a/b", {}, "old")
+    legacy_path = tmp_path / "a_b.json"
+    write_json_atomically(legacy_path, legacy.to_dict())
+    store = ToolCallStore(tmp_path)
+    current = ToolCallRecord("tool", "a/b", {}, "new")
+    canonical_path = store.save(current)
+    paths = (
+        [canonical_path, legacy_path]
+        if canonical_first
+        else [legacy_path, canonical_path]
+    )
+    with patch.object(Path, "glob", return_value=iter(paths)):
+        assert store.get_all() == [current]

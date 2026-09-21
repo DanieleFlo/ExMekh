@@ -115,4 +115,38 @@ agent = DeepAgent(
 `work_root` MUST be a valid, readable, and writable directory on disk:
 - It is validated by `DeepAgent._validate_work_root(work_root)`.
 - Automatically passed as the positional `work_root: Path` parameter to any function decorated with `@deep_tool`.
-- Ensures tools can safely perform file operations constrained to the declared project root.
+- Supplies the tools' working directory. Each tool must enforce any filesystem
+  boundaries it requires; passing `work_root` is not an operating-system sandbox.
+
+## 6. Runtime and Saved Tool Outputs
+
+`Node.initialize()` composes a `NodeRuntimeConfig` and a `NodeRuntime`.
+The configuration builds the client tools, system prompt, executor and node
+cache. `ToolCallExecutor` runs a resolved call and returns a
+`ToolExecutionResult`; the runtime applies its history update, saves eligible
+results, and emits execution events.
+
+Ordinary tools and exit tools produce cache records. Deep skill instructions,
+including the selected exit tool instructions, remain conversational messages. Records capture arguments before
+execution, the active skill path before an exit, the function result, and the
+provider's thinking from the calling turn. This keeps the result accessible
+after skill history compaction. See [Tool output caching](09-tool-call-cache.md)
+for executable examples and retrieval APIs.
+
+`persistent_history=False` rebuilds the client and execution state before each
+run; it does not erase saved outputs. Each runtime has its own generated node ID,
+including when several nodes share the same HDS and tokenizer session.
+
+### Multiple calls in one provider response
+
+The runtime validates all requested capability names against the scope that
+generated the response before executing the batch. Ordinary tools execute first
+in that scope, followed by deep skills in their requested order, then exit tools.
+Opening a deep skill suspends sibling skills and exits until execution returns
+to the original depth; deferred calls retain their original turn's thinking.
+Deferred calls appear in a separate assistant message when resumed, so provider
+continuations never contain unanswered sibling call IDs. History compaction
+preserves ordinary tool responses from the opening batch.
+
+The session cache synchronizes storage operations across threads. It does not
+make concurrent `run()` calls on the same runtime safe.

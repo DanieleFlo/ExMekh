@@ -14,7 +14,7 @@ from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill
 from qs.core.agents.exit_tool.exit_tool import CalledExitTool
 from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.tool_call_record import ToolCallRecord
-from qs.core.models.assistant_message import ToolCall
+from qs.core.models.assistant_message import AssistantMessage, ToolCall
 from qs.core.models.client import Client
 from qs.core.models.client_request import ClientRequest
 from qs.core.models.provider_response import ProviderResponse
@@ -97,6 +97,14 @@ class NodeRuntime:
                     self._pending_batches and self._pending_batches[-1][0] == self.depth
                 ):
                     _, pending, pending_thinking = self._pending_batches.pop()
+                    self._client.replace_history_from(
+                        len(self._client.get_history()),
+                        messages=[
+                            AssistantMessage(
+                                None, tool_calls=[call.tool_call for call in pending]
+                            )
+                        ],
+                    )
                     self._execute_batch(pending, pending_thinking)
 
                 tool_choice = self._current_tool_choice()
@@ -140,27 +148,43 @@ class NodeRuntime:
                     )
             resolved = self._resolver.resolve_all(tool_calls)
             return resolved
-        raise ValueError(
-            f"Agentic scope configuration ('agentic') is missing"
-        )
+        raise ValueError("Agentic scope configuration ('agentic') is missing")
 
     def _execute_batch(
         self, calls: list[ResolvedToolCall], thinking: str | None
     ) -> None:
-        origin_depth = self.depth
-        for index, call in enumerate(calls):
+        tools = [
+            call
+            for call in calls
+            if not isinstance(call, (CalledDeepSkill, CalledExitTool))
+        ]
+        skills = [call for call in calls if isinstance(call, CalledDeepSkill)]
+        exits = [call for call in calls if isinstance(call, CalledExitTool)]
+        active_calls = tools + skills[:1] if skills else tools + exits
+        deferred_calls = skills[1:] + exits if skills else []
+
+        if deferred_calls:
+            # Deferred siblings must not appear as unanswered calls in the child scope.
+            history = self._client.get_history()
+            opening_message = history[-1]
+            self._client.replace_history_from(
+                len(history) - 1,
+                messages=[
+                    AssistantMessage(
+                        opening_message.get_message(),
+                        name=opening_message.get_name(),
+                        tool_calls=[call.tool_call for call in active_calls],
+                    )
+                ],
+            )
+            self._pending_batches.append((self.depth, deferred_calls, thinking))
+
+        for index, call in enumerate(active_calls):
             self._execute_tool_call(
                 call,
                 thinking=thinking,
-                close_scope=not isinstance(call, CalledExitTool)
-                or index == len(calls) - 1,
+                close_scope=index == len(active_calls) - 1,
             )
-            if isinstance(call, CalledDeepSkill):
-                if index + 1 < len(calls):
-                    self._pending_batches.append(
-                        (origin_depth, calls[index + 1 :], thinking)
-                    )
-                return
 
     def _execute_tool_call(
         self,
@@ -174,11 +198,11 @@ class NodeRuntime:
         self._emit_tool_state(tool_call.name, tool_call.call_id, running=True)
         try:
             logger.info(
-    "Starting tool execution: name=%s call_id=%s path=%s",
-    tool_call.name,
-    tool_call.call_id,
-    self._executor.skill_path,
-)
+                "Starting tool execution: name=%s call_id=%s path=%s",
+                tool_call.name,
+                tool_call.call_id,
+                self._executor.skill_path,
+            )
             result = self._executor.execute(tool_call, close_scope=close_scope)
             if result.replace_history_from is None:
                 self._client.add_tool_response(result.response)

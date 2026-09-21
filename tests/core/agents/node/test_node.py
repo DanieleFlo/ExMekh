@@ -1250,8 +1250,8 @@ def test_sibling_skills_are_not_silently_opened_as_nested_skills(tmp_path):
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "second done", "items": ["second"]},
-                        call_id="exit-second",
+                        {"text": "first done", "items": ["first"]},
+                        call_id="exit-first",
                     )
                 ],
             ),
@@ -1260,8 +1260,8 @@ def test_sibling_skills_are_not_silently_opened_as_nested_skills(tmp_path):
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "first done", "items": ["first"]},
-                        call_id="exit-first",
+                        {"text": "second done", "items": ["second"]},
+                        call_id="exit-second",
                     )
                 ],
             ),
@@ -1276,13 +1276,13 @@ def test_sibling_skills_are_not_silently_opened_as_nested_skills(tmp_path):
     assert len(response.skill_executions) == 2
     assert all(not skill.children for skill in response.skill_executions)
     assert [skill.opening_tool_call_id for skill in response.skill_executions] == [
-        "second",
         "first",
+        "second",
     ]
     scopes = [request.get_extra()["agentic"] for request in provider.requests]
-    assert scopes[2]["skill_call_id"] == "second"
+    assert scopes[2]["skill_call_id"] == "first"
     assert scopes[2]["allowed_skills"] == ["nested-skill"]
-    assert scopes[3]["skill_call_id"] == "first"
+    assert scopes[3]["skill_call_id"] == "second"
     assert scopes[3]["allowed_skills"] == ["mock-skill"]
     final_outputs = [
         m.get_tool_call_id()
@@ -1758,3 +1758,163 @@ def test_exit_from_positive_initial_depth_returns_to_root_without_open_skill(tmp
     assert output.get_tool_call_id() == "initial-exit"
     assert output.get_message() == "done"
     assert response.get_message() == "final"
+
+
+@pytest.mark.parametrize("skill_count", [2, 3])
+def test_sibling_batches_have_complete_history_and_preserve_request_order(
+    tmp_path, skill_count
+):
+    calls = [
+        _function_call("mock-skill", {}, call_id=f"skill-{index}")
+        for index in range(skill_count)
+    ]
+    provider = SequenceProvider(
+        [
+            AssistantMessage("Open siblings", tool_calls=calls),
+            *[
+                AssistantMessage(
+                    None,
+                    tool_calls=[
+                        _function_call(
+                            "exit_agent",
+                            {"text": f"result-{index}", "items": [str(index)]},
+                            call_id=f"exit-{index}",
+                        )
+                    ],
+                )
+                for index in range(skill_count)
+            ],
+            AssistantMessage("done"),
+        ]
+    )
+    node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
+    node.initialize(provider, work_root=tmp_path)
+    response = node.run("start")
+    assert [execution.output for execution in response.skill_executions] == [
+        f"result-{index}" for index in range(skill_count)
+    ]
+    assert all(not execution.children for execution in response.skill_executions)
+    for request in provider.requests:
+        messages = request.get_messages()
+        requested = [
+            call.id
+            for message in messages
+            if isinstance(message, AssistantMessage)
+            for call in message.get_tool_calls() or []
+        ]
+        answered = [
+            message.get_tool_call_id()
+            for message in messages
+            if isinstance(message, ToolMessage)
+        ]
+        assert sorted(requested) == sorted(answered)
+    assert [call.id for call in calls] == [
+        f"skill-{index}" for index in range(skill_count)
+    ]
+
+
+@pytest.mark.parametrize("exit_first", [False, True])
+def test_exit_waits_for_other_tools_in_the_same_batch(tmp_path, exit_first):
+    calls = [
+        _function_call("mock-sub-tool", {"text": "work"}, call_id="work"),
+        _function_call(
+            "exit_agent", {"text": "done", "items": ["work"]}, call_id="exit"
+        ),
+    ]
+    if exit_first:
+        calls.reverse()
+    provider = SequenceProvider(
+        [
+            AssistantMessage(
+                None, tool_calls=[_function_call("mock-skill", {}, call_id="open")]
+            ),
+            AssistantMessage(None, tool_calls=calls),
+            AssistantMessage("final"),
+        ]
+    )
+    node = Node([_write_nested_capabilities(tmp_path)], name_hds="main")
+    node.initialize(provider, work_root=tmp_path)
+    response = node.run("start")
+    assert node.depth == 0
+    records = node._runtime._tool_cache.get_all()
+    assert {record.tool_call_id: record.skill_path for record in records} == {
+        "work": "/mock-skill",
+        "exit": "/mock-skill",
+    }
+    assert response.skill_executions[0].output == "done"
+
+
+def test_missing_agentic_scope_fails_before_executing_calls(tmp_path):
+    node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
+    node.initialize(SequenceProvider([]), work_root=tmp_path)
+    runtime = node._runtime
+    assert runtime._executor._agentic_scope.node_id == "main"
+    runtime._executor.build_agentic_extra = dict
+    with pytest.raises(ValueError, match="scope configuration"):
+        runtime._prepare_tool_batch(
+            [_function_call("mock-tool", {"text": "x"}, call_id="work")]
+        )
+    assert runtime._tool_cache is None
+
+
+def test_parent_exit_waits_for_child_and_keeps_original_thinking(tmp_path):
+    from qs.core.models.model_thinking import ModelThinking
+
+    class ThinkingProvider(SequenceProvider):
+        def call(self, request):
+            response = super().call(request)
+            return ProviderResponse(
+                response, thinking=ModelThinking(f"turn-{len(self.requests)}")
+            )
+
+    provider = ThinkingProvider(
+        [
+            AssistantMessage(
+                None, tool_calls=[_function_call("mock-skill", {}, call_id="parent")]
+            ),
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "exit_agent",
+                        {"text": "parent done", "items": ["parent"]},
+                        call_id="parent-exit",
+                    ),
+                    _function_call("nested-skill", {}, call_id="child"),
+                ],
+            ),
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "exit_agent",
+                        {"text": "child done", "items": ["child"]},
+                        call_id="child-exit",
+                    )
+                ],
+            ),
+            AssistantMessage("final"),
+        ]
+    )
+    node = Node([_write_nested_capabilities(tmp_path)], name_hds="main")
+    node.initialize(provider, work_root=tmp_path)
+    response = node.run("start")
+    assert node.depth == 0
+    parent = response.skill_executions[0]
+    assert parent.output == "parent done"
+    assert parent.children[0].output == "child done"
+    records = node._runtime._tool_cache.get_all()
+    assert {
+        record.tool_call_id: (record.skill_path, record.thinking) for record in records
+    } == {
+        "child-exit": ("/mock-skill/nested-skill", "turn-3"),
+        "parent-exit": ("/mock-skill", "turn-2"),
+    }
+    child_request = provider.requests[2]
+    assert all(
+        call.id != "parent-exit"
+        for message in child_request.get_messages()
+        if isinstance(message, AssistantMessage)
+        for call in message.get_tool_calls() or []
+    )
+    assert provider.requests[-1].get_extra()["agentic"]["skill_call_id"] == "parent"

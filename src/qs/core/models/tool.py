@@ -67,6 +67,12 @@ class Tool:
         description = " ".join(part for part in (self.description, suffix) if part)
         return self.with_description(description)
 
+    def __str__(self) -> str:
+        return f"Name: {self.name}\nType: Tool\nDescription: {self.description[:50]}..."
+
+    def __repr__(self) -> str:
+        return "\n---\n" + str(self)
+
 
 class CalledTool:
     def __init__(self, tool: Tool, tool_call: ToolCall) -> None:

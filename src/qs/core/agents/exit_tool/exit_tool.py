@@ -44,6 +44,9 @@ class ExitTool(Tool):
 
         return result.dump()
 
+    def __str__(self) -> str:
+        return f"Name: {self.name}\nType: ExitTool\nInstructions: {self.instructions[:50]}..."
+
 
 class CalledExitTool:
     def __init__(self, exit_tool: ExitTool, tool_call: ToolCall) -> None:

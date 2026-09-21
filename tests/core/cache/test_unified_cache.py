@@ -15,6 +15,7 @@ from qs.core.cache import (
 from qs.core.models.assistant_message import FunctionCall, ToolCall
 from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
 from qs.core.tokenizers.tokenizer_session import TokenizerSession
+from qs.core.tokenizers.tokenizer_session_registry import TokenizerSessionRegistry
 from qs.utils.file import read_json_from_path
 
 
@@ -41,6 +42,59 @@ class DummyTool:
         self.tool_call = ToolCall(
             id=call_id, function=FunctionCall(name=name, arguments=arguments)
         )
+
+
+@pytest.mark.parametrize("identity,error", [(None, TypeError), ("  ", ValueError)])
+def test_namespace_rejects_invalid_identity(identity, error):
+    with pytest.raises(error):
+        CacheManager.compute_namespace(identity)
+
+
+def test_cache_root_requires_path():
+    with pytest.raises(TypeError, match="cache_directory"):
+        CacheManager.resolve_root("cache")
+
+
+def test_manager_adapters_preserve_scope_thinking_and_node_isolation(tmp_path):
+    options = {
+        "tokenizer_identity": "model",
+        "vocabulary_fingerprint": "v1",
+        "cache_directory": tmp_path,
+    }
+    record = ToolCallRecord("tool", "saved", {}, "value", "/child", thinking="reason")
+    path = CacheManager.store_tool_call("node", record, **options)
+    assert path.is_file()
+    assert CacheManager.get_tool_call("node", "saved", **options) == record
+    call = ToolCall("provider-call", FunctionCall("tool", {"value": 3}))
+    recorded = CacheManager.record_call(
+        "node",
+        call,
+        6,
+        id="recorded",
+        skill_path="/child",
+        thinking="thought",
+        **options,
+    )
+    assert recorded.tool_call_id == "provider-call"
+    assert recorded.args == {"value": 3}
+    assert recorded.result == 6
+    assert recorded.skill_path == "/child"
+    assert recorded.thinking == "thought"
+    assert CacheManager.get_node_tool_calls("node", **options) == [recorded, record]
+    assert CacheManager.get_node_tool_calls("other", **options) == []
+    assert CacheManager.get_node_cache("node", **options).node_id == "node"
+
+
+def test_get_session_initializes_tokenizer_and_registry_reset_invalidates_it(tmp_path):
+    tokenizer = MockTokenizer(tmp_path)
+    session = tokenizer.get_session()
+    assert tokenizer.get_session() is session
+    assert tokenizer.generate_id() == "alpha_alpha_alpha"
+    TokenizerSessionRegistry.reset()
+    assert session.is_closed
+    assert not session.session_dir.exists()
+    assert tokenizer.get_session() is not session
+    assert tokenizer.generate_id() == "alpha_alpha_alpha"
 
 
 # --- ToolCallRecord Tests ---

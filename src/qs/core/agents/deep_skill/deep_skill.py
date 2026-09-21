@@ -66,6 +66,9 @@ class DeepSkill(MarkdownCapability[DeepSkillMetadata]):
 
         self._catalog = catalog
 
+    def __str__(self) -> str:
+        return f"Name: {self.name}\nType: DeepSkill\nBody: {self.body[:50]}...\nDescription: {self.description[:50]}..."
+
 
 class CalledDeepSkill:
     def __init__(self, deep_skill: DeepSkill, tool_call: ToolCall) -> None:

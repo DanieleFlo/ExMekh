@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from qs.core.agents.capability.markdown_capability import MarkdownCapability
@@ -7,6 +8,8 @@ from qs.core.agents.deep_skill.deep_skill import DeepSkill
 from qs.core.agents.exit_tool.exit_tool import ExitTool
 from qs.core.agents.hds.hds import HDS
 from qs.core.models.tool import Tool
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,19 +43,31 @@ class CapabilitiesData:
             )
 
     def get_all_tools(self) -> tuple[Tool, ...]:
-        return self.deep_skills + self.tools + self.exit_tools
+        all_tools = self.deep_skills + self.tools + self.exit_tools
+        logger.debug("Available tools: %r", all_tools)
+        return all_tools
 
     def get_contextual_tools(self, hds: HDS) -> tuple[Tool, ...]:
         direct_tool_names = hds.get_direct_tool_names()
         skill_availability = self.get_skill_availability()
-        return tuple(
+        tools = self.get_all_tools()
+        contextual_tools = tuple(
             self._prepare_contextual_tool(
                 tool,
                 direct_tool_names,
                 skill_availability,
             )
-            for tool in self.get_all_tools()
+            for tool in tools
         )
+        for original, contextual in zip(tools, contextual_tools):
+            logger.debug(
+                "Contextual capability: hds=%s type=%s name=%s description=%s",
+                hds.name,
+                type(original).__name__,
+                contextual.name,
+                contextual.description,
+            )
+        return contextual_tools
 
     def _prepare_contextual_tool(
         self,
@@ -74,7 +89,6 @@ class CapabilitiesData:
         else:
             names = ", ".join(f"'{name}'" for name in skill_names)
             description = f"Available in skills {names}."
-
         return tool.with_description(description)
 
     def get_hds(self, name: str) -> HDS:
@@ -100,3 +114,12 @@ class CapabilitiesData:
             tool_name: tuple(skill_names)
             for tool_name, skill_names in availability.items()
         }
+
+    def __str__(self) -> str:
+        description = f"""
+        HDS: {self.hds}
+        DeepSkills: {self.deep_skills}
+        Tools: {self.tools}
+        ExitTools: {self.exit_tools}
+        """
+        return description

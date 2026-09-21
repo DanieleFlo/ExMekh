@@ -6,26 +6,31 @@
 
 ## Key Features
 
-- **Hierarchical Agent Engine ([`DeepAgent`](file:///c:/Users/danie/Desktop/qs/qs/docs/05-deep-agent-and-execution.md))**: Execute multi-depth, scoped agent hierarchies with dynamic skill tree navigation, history snapshotting, and cycle detection.
-- **Filesystem Capabilities ([`Capabilities`](file:///c:/Users/danie/Desktop/qs/qs/docs/04-capabilities-and-catalog.md))**: Define system prompts (HDS), skills, exit tools, and Python function tools directly in Markdown and Python files inside a modular `capabilities/` directory.
-- **Typed Function Tools & Auto Schema ([`Tool`](file:///c:/Users/danie/Desktop/qs/qs/docs/03-tools-and-structured-outputs.md))**: Register annotated Python functions. Automatic JSON schema generation, type hint reflection, and value coercion (handling dates, UUIDs, enums, literals, dataclasses, and Pydantic models).
+- **[Node-scoped Tool Output Cache](docs/09-tool-call-cache.md)**: Save tool results with arguments, skill paths, and calling-turn thinking. Search saved records by text and exact skill path through an explicitly registered search tool.
+
+- **Hierarchical Agent Engine ([`DeepAgent`](docs/05-deep-agent-and-execution.md))**: Execute multi-depth, scoped agent hierarchies with dynamic skill tree navigation, history snapshotting, and cycle detection.
+- **Filesystem Capabilities ([`Capabilities`](docs/04-capabilities-and-catalog.md))**: Define system prompts (HDS), skills, exit tools, and Python function tools directly in Markdown and Python files inside a modular `capabilities/` directory.
+- **Typed Function Tools & Auto Schema ([`Tool`](docs/03-tools-and-structured-outputs.md))**: Register annotated Python functions. Automatic JSON schema generation, type hint reflection, and value coercion (handling dates, UUIDs, enums, literals, dataclasses, and Pydantic models).
 - **Structured Outputs**: Validate model completions directly into Pydantic models via `client.call_structured(...)` with optional strict schema enforcement.
 - **Real-Time Token & Event Streaming**: Stream raw provider tokens (including reasoning/thinking tokens) alongside structured execution events (`tool_start`, `tool_end`, depth, and skill path).
-- **Flexible Provider Backend ([`LocalProvider`](file:///c:/Users/danie/Desktop/qs/qs/docs/06-providers-and-configuration.md))**: Native integration with local LLM servers (llama.cpp, Ollama, vLLM, LM Studio) and OpenAI-compatible Chat Completions or Responses endpoints.
+- **Flexible Provider Backend ([`LocalProvider`](docs/06-providers-and-configuration.md))**: Native integration with local LLM servers (llama.cpp, Ollama, vLLM, LM Studio) and OpenAI-compatible Chat Completions or Responses endpoints.
 
 ---
 
 ## Documentation Index
 
-Explore the detailed documentation in the [`docs/`](file:///c:/Users/danie/Desktop/qs/qs/docs) directory:
+Explore the detailed documentation in the [`docs/`](docs) directory:
 
-1. **[Architecture & Core Concepts](file:///c:/Users/danie/Desktop/qs/qs/docs/01-architecture-and-concepts.md)**: High-level design, core building blocks, and system lifecycle.
-2. **[Client & Messaging Model](file:///c:/Users/danie/Desktop/qs/qs/docs/02-client-and-models.md)**: `Client` API, message data structures (`UserMessage`, `AssistantMessage`, `SystemMessage`, `ToolMessage`), and history rules.
-3. **[Function Tools & Structured Outputs](file:///c:/Users/danie/Desktop/qs/qs/docs/03-tools-and-structured-outputs.md)**: Function tool registration, type coercion, `@deep_tool` binding, and Pydantic validation.
-4. **[Capabilities System & Catalog](file:///c:/Users/danie/Desktop/qs/qs/docs/04-capabilities-and-catalog.md)**: Directory layout, HDS prompts, Markdown skills, exit tools, and dynamic catalog attachment.
-5. **[DeepAgent & Hierarchical Execution](file:///c:/Users/danie/Desktop/qs/qs/docs/05-deep-agent-and-execution.md)**: Multi-depth execution, skill path tracking (`/`, `/skill-a`), linear vs. tree history, and workspace root isolation.
-6. **[Providers & Configuration](file:///c:/Users/danie/Desktop/qs/qs/docs/06-providers-and-configuration.md)**: `LocalProvider` configuration, Chat Completions vs. Responses APIs, and `.env` setup.
-7. **[CLI, Testing & Live Verification](file:///c:/Users/danie/Desktop/qs/qs/docs/07-cli-and-testing.md)**: Interactive REPL CLI (`qs`), running offline `pytest` suites, and running live model tests.
+1. **[Architecture & Core Concepts](docs/01-architecture-and-concepts.md)**: High-level design, core building blocks, and system lifecycle.
+2. **[Client & Messaging Model](docs/02-client-and-models.md)**: `Client` API, message data structures (`UserMessage`, `AssistantMessage`, `SystemMessage`, `ToolMessage`), and history rules.
+3. **[Function Tools & Structured Outputs](docs/03-tools-and-structured-outputs.md)**: Function tool registration, type coercion, `@deep_tool` binding, and Pydantic validation.
+4. **[Capabilities System & Catalog](docs/04-capabilities-and-catalog.md)**: Directory layout, HDS prompts, Markdown skills, exit tools, and dynamic catalog attachment.
+5. **[DeepAgent & Hierarchical Execution](docs/05-deep-agent-and-execution.md)**: Multi-depth execution, skill path tracking (`/`, `/skill-a`), linear vs. tree history, and workspace root isolation.
+6. **[Providers & Configuration](docs/06-providers-and-configuration.md)**: `LocalProvider` configuration, Chat Completions vs. Responses APIs, and `.env` setup.
+7. **[CLI, Testing & Live Verification](docs/07-cli-and-testing.md)**: Interactive REPL CLI (`qs`), running offline `pytest` suites, and running live model tests.
+
+8. **[Tokenizer-based IDs](docs/08-tokenizer-ids.md)**: Vocabulary caching, shared session counters, custom tokenizers, and ID lifetime.
+9. **[Tool Output Caching & Search](docs/09-tool-call-cache.md)**: Node isolation, saved invocation metadata, paginated search, standalone archives, and lifecycle examples.
 
 ---
 

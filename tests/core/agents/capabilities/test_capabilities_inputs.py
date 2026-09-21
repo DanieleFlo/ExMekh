@@ -271,3 +271,51 @@ def test_capabilities_data_indexes_skill_availability() -> None:
 def test_index_rejects_non_capabilities_data() -> None:
     with pytest.raises(TypeError, match="data must be CapabilitiesData"):
         CapabilitiesIndex.build(cast(CapabilitiesData, object()))
+
+
+@pytest.mark.parametrize("factory", [_hds, _deep_skill, _exit_tool])
+def test_debug_representations_preserve_capability_identity(factory):
+    capability = factory()
+    assert capability.name in str(capability)
+    assert type(capability).__name__ in str(capability)
+    assert str(capability) in repr(capability)
+
+
+def test_debug_disabled_does_not_render_tools(caplog):
+    import logging
+
+    class UnrenderableTool(Tool):
+        def __repr__(self):
+            raise AssertionError("debug representation should not be evaluated")
+
+    tool = UnrenderableTool(lambda: None, name="work")
+    data = CapabilitiesData((), (tool,))
+    with caplog.at_level(logging.INFO, logger="qs.core.agents.capabilities.data"):
+        assert data.get_all_tools() == (tool,)
+        assert data.get_contextual_tools(_hds())[0].name == "work"
+
+
+def test_contextual_debug_includes_every_tool_and_original_type(caplog):
+    import logging
+
+    hds, skill, exit_tool = _hds(), _deep_skill(), _exit_tool()
+    data = CapabilitiesData(
+        (skill,),
+        (Tool(lambda: None, name="regular"),),
+        hds=(hds,),
+        exit_tools=(exit_tool,),
+    )
+    with caplog.at_level(logging.DEBUG, logger="qs.core.agents.capabilities.data"):
+        tools = data.get_contextual_tools(hds)
+    messages = [
+        record.getMessage()
+        for record in caplog.records
+        if record.getMessage().startswith("Contextual capability:")
+    ]
+    assert len(messages) == len(tools)
+    assert any("type=DeepSkill name=skill" in message for message in messages)
+    assert any("type=ExitTool name=exit_agent" in message for message in messages)
+    assert all(
+        any(f"name={tool.name} " in message for message in messages) for tool in tools
+    )
+    assert "HDS:" in str(data) and "ExitTools:" in str(data)

@@ -42,6 +42,22 @@ Unit tests verify client models, capabilities loading, schema coercion, node exe
 uv run pytest
 ```
 
+To exclude live tests even when the environment enables them:
+
+```shell
+uv run pytest -m "not live"
+```
+
+For the tool output cache and runtime integration:
+
+```shell
+uv run pytest tests/core/cache tests/core/tool_calls tests/core/agents/node tests/core/tokenizers -q
+```
+
+If pytest cannot access the default temporary directory on Windows, select a
+fresh workspace directory with `--basetemp=.qs/pytest-doc-check`. Pytest clears
+the selected directory when starting: use a dedicated disposable path.
+
 ### Coverage Requirements
 The project configuration in `pyproject.toml` mandates 100% test coverage for core components:
 
@@ -91,3 +107,15 @@ QS_LIVE_MODEL=qwen3.5-9b-mtp
 Assertion messages in live tests use prefix tags to clarify failure causes:
 - **`CLIENT`**: Protocol error, history invariant failure, or client library bug.
 - **`MODEL`**: Model failed to follow prompt instructions, output invalid tool calls, or generated unexpected text.
+
+### Tool cache live checks
+
+```shell
+uv run pytest --run-live tests/live/test_tool_cache_live.py -v
+```
+
+These tests use the Responses API and a local test vocabulary. They exercise
+streaming and non-streaming calls, nested skill paths, saved JSON, calling-turn
+thinking, and node isolation. The ordinary-tool cases require non-empty thinking
+from the backend. See [Tool output caching](09-tool-call-cache.md) for the record
+contract and offline checks.
