@@ -14,7 +14,7 @@ from qs.core.tool_calls import (
     ToolCallSaver,
     ToolCallSearch,
 )
-from qs.utils.file import read_json_from_path
+from qs.utils.file import read_json_from_path, write_json_atomically
 
 
 def test_sessions_are_scoped_to_resolved_directory(tmp_path):
@@ -248,8 +248,6 @@ def test_search_rejects_invalid_parameters(tmp_path, kwargs):
 
 
 def test_legacy_filename_is_read_without_reintroducing_id_collisions(tmp_path):
-    from qs.utils.file import write_json_atomically
-
     old_record = ToolCallRecord("tool", "a/b", {}, "old")
     write_json_atomically(tmp_path / "a_b.json", old_record.to_dict())
     store = ToolCallStore(tmp_path)
@@ -399,8 +397,6 @@ def test_store_does_not_follow_record_symlinks(tmp_path):
 
 @pytest.mark.parametrize("canonical_first", [False, True])
 def test_canonical_record_wins_regardless_of_directory_order(tmp_path, canonical_first):
-    from qs.utils.file import write_json_atomically
-
     legacy = ToolCallRecord("tool", "a/b", {}, "old")
     legacy_path = tmp_path / "a_b.json"
     write_json_atomically(legacy_path, legacy.to_dict())

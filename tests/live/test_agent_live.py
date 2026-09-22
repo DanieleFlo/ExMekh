@@ -131,5 +131,3 @@ def test_live_agent_strict_schema_blocks_wrong_argument_type() -> None:
         set(arguments) == {"text"} and isinstance(arguments["text"], str)
         for arguments in mock_calls
     ), f"PROVIDER: strict string argument was not enforced: {mock_calls!r}"
-
-

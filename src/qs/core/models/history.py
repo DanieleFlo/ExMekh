@@ -26,7 +26,11 @@ class MessageHistory:
         if self._history[0].get_role_name() != "system":
             raise TypeError("First item in history must have the system role")
 
-        for previous, current in zip(self._history, self._history[1:]):
+        for previous, current in zip(
+            self._history,
+            self._history[1:],
+            strict=False,
+        ):
             if not self._is_valid_transition(previous, current):
                 logger.warning(
                     "Wrong message sequence: "

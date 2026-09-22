@@ -296,7 +296,9 @@ class OpenAIChatCompletionValueCoercer:
                 annotation,
                 f"{path}[{index}]",
             )
-            for index, (item, annotation) in enumerate(zip(value, arguments))
+            for index, (item, annotation) in enumerate(
+                zip(value, arguments, strict=True)
+            )
         )
 
     def _coerce_mapping(

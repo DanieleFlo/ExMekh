@@ -94,7 +94,7 @@ class DeepAgent:
         initialize(root_node)
         cls._validate_capabilities_by_node(capabilities_by_node)
         return MappingProxyType(capabilities_by_node)
-    
+
     @staticmethod
     def _validate_capabilities_by_node(capabilities_by_node) -> None:
         context_ids = [node.agent_context_id for node in capabilities_by_node]

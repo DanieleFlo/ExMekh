@@ -296,7 +296,9 @@ def test_rejects_duplicate_agent_context_id_in_hierarchy(tmp_path: Path) -> None
         DeepAgent(provider=StubProvider(), node=root, work_root=tmp_path)
 
 
-def test_allows_distinct_agent_context_id_overrides_for_same_hds(tmp_path: Path) -> None:
+def test_allows_distinct_agent_context_id_overrides_for_same_hds(
+    tmp_path: Path,
+) -> None:
     capabilities = _write_capabilities(tmp_path, "shared_hds")
     child = Node([capabilities], name_hds="shared_hds", agent_context_id="child_ctx")
     root = Node(

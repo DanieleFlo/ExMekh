@@ -188,7 +188,10 @@ def test_call_forwards_streaming_options(structured: bool) -> None:
         StructuredAssistantMessage(StructuredAnswer(value=42))
     )
     client = Client(provider=provider, system_message=SystemMessage("rules"))
-    callback = lambda event: None
+
+    def callback(event) -> None:
+        del event
+
     request = ClientRequest(
         UserMessage("question"),
         streaming=True,

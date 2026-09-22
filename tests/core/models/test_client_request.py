@@ -23,7 +23,8 @@ def test_request_preserves_message_and_options() -> None:
 
 
 def test_request_preserves_streaming_callback() -> None:
-    callback = lambda event: None
+    def callback(event) -> None:
+        del event
 
     request = ClientRequest(
         UserMessage("question"),

@@ -49,9 +49,7 @@ class XmlHeader:
 
         if self.args is not None and not isinstance(self.args, dict):
             raise TypeError("args must be a dictionary or None")
-        if self.args is not None and not all(
-            isinstance(key, str) for key in self.args
-        ):
+        if self.args is not None and not all(isinstance(key, str) for key in self.args):
             raise TypeError("all keys in args must be strings")
 
     def add_field(self, key: str, value: Any) -> XmlHeader:

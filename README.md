@@ -173,10 +173,19 @@ print(f"Task '{summary.title}' - Completed: {summary.completed}")
 ## Running Tests
 
 ### Unit Tests
-Run offline unit test suite:
+Run the offline unit test suite. The configured quality gate requires 100%
+statement and branch coverage:
 
 ```shell
 uv run pytest
+```
+
+Run static checks and build both the source archive and wheel:
+
+```shell
+uv run ruff check src tests
+uv run ruff format --check src tests
+uv build
 ```
 
 ### Live Provider Integration Tests

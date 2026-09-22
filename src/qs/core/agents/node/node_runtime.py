@@ -272,9 +272,7 @@ class NodeRuntime:
                     args=identity.args if identity is not None else arguments,
                     result=result.raw_result,
                     skill_path=skill_path,
-                    thinking=(
-                        identity.thinking if identity is not None else thinking
-                    ),
+                    thinking=(identity.thinking if identity is not None else thinking),
                     source=identity.source if identity is not None else "Tool",
                 )
                 record_cache = self._save_tool_record(record)

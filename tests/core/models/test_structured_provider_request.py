@@ -33,7 +33,8 @@ def test_init_preserves_non_strict_mode_and_provider_options() -> None:
 
 
 def test_init_preserves_streaming_options() -> None:
-    callback = lambda event: None
+    def callback(event) -> None:
+        del event
 
     request = StructuredProviderRequest(
         [SystemMessage("rules")],

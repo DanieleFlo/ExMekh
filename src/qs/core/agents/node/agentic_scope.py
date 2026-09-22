@@ -20,20 +20,21 @@ class AgenticScope:
         self._agent_context_id = self._resolved_context_id(agent_context_id, hds)
         self._validate_resolved_context_id()
         self._pending_return_skill_call_id: str | None = None
-    
-    def _resolved_context_id(self, agent_context_id, hds) -> str:
+
+    @staticmethod
+    def _resolved_context_id(agent_context_id: str | None, hds: HDS) -> str:
         return (
             agent_context_id
             if agent_context_id is not None
             else hds.get_agent_context_id()
         )
-        
-    def _validate_resolved_context_id(self):
+
+    def _validate_resolved_context_id(self) -> None:
         if not isinstance(self._agent_context_id, str):
             raise TypeError("agent_context_id must be a string")
         if not self._agent_context_id.strip():
             raise ValueError("agent_context_id cannot be empty")
-        
+
     @property
     def agent_context_id(self) -> str:
         return self._agent_context_id

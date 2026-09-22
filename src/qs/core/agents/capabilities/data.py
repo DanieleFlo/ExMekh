@@ -59,7 +59,7 @@ class CapabilitiesData:
             )
             for tool in tools
         )
-        for original, contextual in zip(tools, contextual_tools):
+        for original, contextual in zip(tools, contextual_tools, strict=True):
             logger.debug(
                 "Contextual capability: hds=%s type=%s name=%s description=%s",
                 hds.name,

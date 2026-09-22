@@ -82,7 +82,7 @@ def test_read_file_from_path_wraps_read_error(tmp_path: Path) -> None:
     file_path.write_text("content")
 
     with (
-        patch("builtins.open", side_effect=PermissionError("denied")),
+        patch.object(Path, "open", side_effect=PermissionError("denied")),
         pytest.raises(OSError, match="denied"),
     ):
         read_file_from_path(file_path)

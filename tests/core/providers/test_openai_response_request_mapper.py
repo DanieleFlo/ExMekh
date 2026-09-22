@@ -1,3 +1,4 @@
+from functools import partial
 from pathlib import Path
 from typing import Annotated, cast
 
@@ -113,8 +114,6 @@ def test_map_request_rejects_invalid_request() -> None:
 
 
 def test_map_request_maps_bound_tool_schema_without_work_root(tmp_path: Path) -> None:
-    from functools import partial
-
     def run(work_root: Path, command: str) -> str:
         return str(work_root / command)
 

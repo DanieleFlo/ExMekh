@@ -220,9 +220,7 @@ class HarnessMemoryTools:
         if view.end_position is not None:
             ET.SubElement(root, "end-position").text = str(view.end_position)
         if view.previous_position is not None:
-            ET.SubElement(root, "previous-position").text = str(
-                view.previous_position
-            )
+            ET.SubElement(root, "previous-position").text = str(view.previous_position)
         if view.next_position is not None:
             ET.SubElement(root, "next-position").text = str(view.next_position)
 
@@ -251,9 +249,7 @@ class HarnessMemoryTools:
     @staticmethod
     def _append_omitted(root: ET.Element, omitted: OmittedHistoryRange) -> None:
         element = ET.SubElement(root, "omitted")
-        ET.SubElement(element, "from-position").text = str(
-            omitted.start_position
-        )
+        ET.SubElement(element, "from-position").text = str(omitted.start_position)
         ET.SubElement(element, "to-position").text = str(omitted.end_position)
         ET.SubElement(element, "count").text = str(omitted.count)
 

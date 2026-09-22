@@ -44,7 +44,7 @@ def read_file_from_path(file_path: Path) -> str:
         raise ValueError(f"File path {file_path} is not a file.")
 
     try:
-        with open(file_path, "r", encoding="utf-8") as file:
+        with file_path.open(encoding="utf-8") as file:
             return file.read()
     except Exception as error:
         raise OSError(f"An error occurred while reading the file: {error}") from error

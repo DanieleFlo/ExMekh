@@ -25,6 +25,7 @@ from qs.core.agents.node.tool_call_executor import ToolCallExecutor
 from qs.core.agents.node.tool_call_resolver import ToolCallResolver
 from qs.core.agents.sub_agent import SubAgentTool
 from qs.core.cache.cache_manager import CacheManager
+from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.session_cache import SessionCache
 from qs.core.models.assistant_message import (
     AssistantMessage,
@@ -32,6 +33,7 @@ from qs.core.models.assistant_message import (
     ToolCall,
 )
 from qs.core.models.client import Client
+from qs.core.models.model_thinking import ModelThinking
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.provider_stream_event import (
@@ -44,6 +46,7 @@ from qs.core.models.tool import CalledTool, PreformattedToolResult, Tool
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.user_message import ErrorUserMessage
 from qs.core.models.xml_header import XmlHeader
+from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
 from qs.interfaces.provider import Provider
 from qs.interfaces.tokenizer import Tokenizer
 
@@ -422,6 +425,19 @@ def test_runtime_config_resolves_agent_context_id() -> None:
         initial_depth=0,
     )
     assert config_name.resolved_agent_context_id == "hds-name"
+
+    hds_with_empty_values = MagicMock()
+    hds_with_empty_values.get_agent_context_id.return_value = ""
+    hds_with_empty_values.get_name.return_value = "   "
+    config_empty = NodeRuntimeConfig(
+        provider=cast(Provider, object()),
+        capabilities=cast(CapabilitiesData, object()),
+        hds=cast(HDS, hds_with_empty_values),
+        exit_tool=cast(ExitTool, object()),
+        persistent_history=True,
+        initial_depth=0,
+    )
+    assert config_empty.resolved_agent_context_id == "default"
 
     config_default = NodeRuntimeConfig(
         provider=cast(Provider, object()),
@@ -1203,9 +1219,7 @@ def test_runtime_memory_history_is_automatic_xml_and_is_not_cached(
             AssistantMessage(
                 None,
                 tool_calls=[
-                    _function_call(
-                        "get_execution_history", {}, call_id="history-call"
-                    )
+                    _function_call("get_execution_history", {}, call_id="history-call")
                 ],
             ),
             AssistantMessage("done"),
@@ -1294,9 +1308,6 @@ def test_runtime_rejects_capabilities_using_reserved_memory_tool_names(
 
 
 def test_node_run_saves_executed_tools_in_cache(tmp_path: Path) -> None:
-    from qs.core.cache.cache_manager import CacheManager
-    from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
-
     class TestTokenizer(SequentialTokenizer):
         def _load_vocabulary_tokens(self) -> list[str]:
             return ["hello", "cache"]
@@ -1656,8 +1667,6 @@ def test_runtime_isolates_nodes_with_same_hds_and_call_id(tmp_path: Path) -> Non
 
 
 def test_runtime_saves_none_result(tmp_path: Path) -> None:
-    from qs.core.models.tool import Tool
-
     session = SessionCache(tmp_path / "cache")
     client = MagicMock(spec=Client)
     client.get_session.return_value = session
@@ -1770,8 +1779,6 @@ def test_runtime_refreshes_a_closed_cache(tmp_path: Path) -> None:
 def test_runtime_keeps_history_and_emits_end_when_cache_write_fails(
     tmp_path: Path, monkeypatch
 ) -> None:
-    from qs.core.cache.node_cache import NodeCache
-
     provider = SequenceProvider(
         [
             AssistantMessage(
@@ -1803,8 +1810,6 @@ def test_runtime_keeps_history_and_emits_end_when_cache_write_fails(
 
 
 def test_runtime_captures_arguments_before_tool_mutates_them(tmp_path: Path) -> None:
-    from qs.core.models.tool import Tool
-
     def mutate(items: list[int]) -> str:
         items.append(2)
         return "done"
@@ -1835,9 +1840,6 @@ def test_runtime_captures_arguments_before_tool_mutates_them(tmp_path: Path) -> 
 
 @pytest.mark.parametrize("streaming", [False, True])
 def test_runtime_saves_thinking_from_the_exact_tool_calling_turn(tmp_path, streaming):
-
-    from qs.core.models.model_thinking import ModelThinking
-
     class ThinkingProvider(SequenceProvider):
         def call(self, request):
 
@@ -2100,8 +2102,6 @@ def test_missing_agentic_scope_fails_before_executing_calls(tmp_path):
 
 
 def test_parent_exit_waits_for_child_and_keeps_original_thinking(tmp_path):
-    from qs.core.models.model_thinking import ModelThinking
-
     class ThinkingProvider(SequenceProvider):
         def call(self, request):
             response = super().call(request)
@@ -2356,9 +2356,7 @@ def test_sub_agent_tool_is_available_in_every_skill_scope(tmp_path: Path) -> Non
         [
             AssistantMessage(
                 None,
-                tool_calls=[
-                    _function_call("mock-skill", {}, call_id="parent-skill")
-                ],
+                tool_calls=[_function_call("mock-skill", {}, call_id="parent-skill")],
             ),
             AssistantMessage(
                 None,
@@ -2373,9 +2371,7 @@ def test_sub_agent_tool_is_available_in_every_skill_scope(tmp_path: Path) -> Non
             AssistantMessage("child result"),
             AssistantMessage(
                 None,
-                tool_calls=[
-                    _function_call("nested-skill", {}, call_id="nested-skill")
-                ],
+                tool_calls=[_function_call("nested-skill", {}, call_id="nested-skill")],
             ),
             AssistantMessage(
                 None,
@@ -2517,7 +2513,21 @@ def test_node_exposes_custom_agent_context_id(tmp_path: Path) -> None:
 
     assert node.agent_context_id == "custom-ctx-id"
     node.run("hi")
-    assert provider.requests[0].get_extra()["agentic"]["agent_context_id"] == "custom-ctx-id"
+    assert (
+        provider.requests[0].get_extra()["agentic"]["agent_context_id"]
+        == "custom-ctx-id"
+    )
+
+
+def test_node_exposes_resolved_runtime_context_id(tmp_path: Path) -> None:
+    capabilities = _write_runnable_capabilities(tmp_path)
+    node = Node([capabilities], name_hds="main")
+
+    assert node.agent_context_id is None
+
+    node.initialize(SequenceProvider([]), work_root=tmp_path)
+
+    assert node.agent_context_id == "main"
 
 
 def test_node_rejects_invalid_agent_context_id(tmp_path: Path) -> None:
@@ -2531,10 +2541,22 @@ def test_node_rejects_invalid_agent_context_id(tmp_path: Path) -> None:
 
 def test_agentic_scope_validates_agent_context_id(tmp_path: Path) -> None:
     capabilities = _write_runnable_capabilities(tmp_path)
-    hds = Node([capabilities], name_hds="main").load_capabilities(work_root=tmp_path).get_hds("main")
+    hds = (
+        Node([capabilities], name_hds="main")
+        .load_capabilities(work_root=tmp_path)
+        .get_hds("main")
+    )
+
+    scope = AgenticScope(hds=hds, exit_tool_name="exit_agent")
+    assert scope.agent_context_id == "main"
+    assert scope.node_id == "main"
 
     with pytest.raises(TypeError, match="agent_context_id must be a string"):
-        AgenticScope(hds=hds, exit_tool_name="exit_agent", agent_context_id=cast(str, 42))
+        AgenticScope(
+            hds=hds,
+            exit_tool_name="exit_agent",
+            agent_context_id=cast(str, 42),
+        )
 
     with pytest.raises(ValueError, match="agent_context_id cannot be empty"):
         AgenticScope(hds=hds, exit_tool_name="exit_agent", agent_context_id="")
@@ -2551,7 +2573,13 @@ def test_prepare_tool_batch_rejects_missing_agent_context_id(tmp_path: Path) -> 
             "allowed_skills": [],
         }
     }
-    with pytest.raises(ValueError, match=r"Agentic scope configuration \(\'agent_context_id\'\) must be a non-empty string"):
+    with pytest.raises(
+        ValueError,
+        match=(
+            r"Agentic scope configuration \(\'agent_context_id\'\) "
+            r"must be a non-empty string"
+        ),
+    ):
         runtime._prepare_tool_batch(
             [_function_call("mock-tool", {"text": "x"}, call_id="work")]
         )

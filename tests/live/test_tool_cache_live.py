@@ -208,9 +208,7 @@ def test_live_nested_tools_save_path_and_each_turn_thinking(
     assert len(regular) == 1 and len(skills) == 2
     assert regular[0].skill_path == "/mock-skill/nested-skill"
     assert token in regular[0].result
-    assert {
-        record.name: (record.skill_path, record.result) for record in skills
-    } == {
+    assert {record.name: (record.skill_path, record.result) for record in skills} == {
         "mock-skill": (
             "/mock-skill",
             {"text": "parent done", "items": ["parent"]},

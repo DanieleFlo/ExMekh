@@ -4,15 +4,13 @@ from pathlib import Path
 
 from qs.core.agents.deep_agent.deep_agent import DeepAgent
 from qs.core.agents.node import Node
+from qs.core.cache.cache_manager import CacheManager
+from qs.core.cache.session_cache import SessionCache
 from qs.core.models.assistant_message import AssistantMessage, FunctionCall, ToolCall
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
 from qs.interfaces.provider import Provider
 from qs.interfaces.tokenizer import Tokenizer
-
-
-from qs.core.cache.cache_manager import CacheManager
-from qs.core.cache.session_cache import SessionCache
 
 
 class MockTokenizer(Tokenizer):
@@ -103,13 +101,17 @@ def test_sub_agent_with_persistent_history_retains_code_in_message_chain(
     provider = SequenceProvider(
         [
             # Turn 1: parent calls sub_agent with secret code
-            AssistantMessage(None, tool_calls=[_tool_call("c1", "child", f"Store: {code}")]),
+            AssistantMessage(
+                None, tool_calls=[_tool_call("c1", "child", f"Store: {code}")]
+            ),
             # Child responds in Turn 1
             AssistantMessage("CHILD: Stored"),
             # Parent finishes Turn 1
             AssistantMessage("PARENT: Done storing"),
             # Turn 2: parent calls sub_agent to retrieve code
-            AssistantMessage(None, tool_calls=[_tool_call("c2", "child", "Retrieve code")]),
+            AssistantMessage(
+                None, tool_calls=[_tool_call("c2", "child", "Retrieve code")]
+            ),
             # Child responds in Turn 2
             AssistantMessage(f"CHILD: Found {code}"),
             # Parent finishes Turn 2
@@ -154,13 +156,17 @@ def test_sub_agent_without_persistent_history_forgets_code_across_runs(
     provider = SequenceProvider(
         [
             # Turn 1: parent calls sub_agent with code
-            AssistantMessage(None, tool_calls=[_tool_call("c1", "child", f"Store: {code}")]),
+            AssistantMessage(
+                None, tool_calls=[_tool_call("c1", "child", f"Store: {code}")]
+            ),
             # Child responds
             AssistantMessage("CHILD: Stored"),
             # Parent finishes Turn 1
             AssistantMessage("PARENT: Done storing"),
             # Turn 2: parent calls sub_agent to ask for code
-            AssistantMessage(None, tool_calls=[_tool_call("c2", "child", "Recall code")]),
+            AssistantMessage(
+                None, tool_calls=[_tool_call("c2", "child", "Recall code")]
+            ),
             # Child responds without code
             AssistantMessage("CHILD: No code in memory"),
             # Parent finishes Turn 2

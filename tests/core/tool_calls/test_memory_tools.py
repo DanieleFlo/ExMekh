@@ -113,9 +113,7 @@ def test_history_overview_returns_all_entries_without_an_omission(
 
     assert view.mode == "overview"
     assert view.total == total
-    assert [entry.position for entry in view.entries] == list(
-        range(1, total + 1)
-    )
+    assert [entry.position for entry in view.entries] == list(range(1, total + 1))
     assert view.omitted is None
 
 
@@ -170,9 +168,7 @@ def test_empty_history_page_has_no_range_or_cursor() -> None:
 
 def test_empty_history_xml_has_no_range_or_cursor(tmp_path) -> None:
     with SessionCache(tmp_path) as session:
-        memory = HarnessMemoryTools(
-            ExecutionHistory(), lambda: session.node("node")
-        )
+        memory = HarnessMemoryTools(ExecutionHistory(), lambda: session.node("node"))
 
         xml = _content(memory.get_execution_history(start_position=1))
 
@@ -242,9 +238,7 @@ def test_search_returns_filtered_paginated_xml_previews(tmp_path) -> None:
             )
         )
         cache.store(
-            ToolCallRecord(
-                "fetch", "two", {}, "hello again", skill_path="/analysis"
-            )
+            ToolCallRecord("fetch", "two", {}, "hello again", skill_path="/analysis")
         )
         cache.store(ToolCallRecord("other", "three", {}, "hello"))
         memory = HarnessMemoryTools(ExecutionHistory(), lambda: cache)
@@ -315,9 +309,7 @@ def test_read_returns_header_arguments_and_display_content(tmp_path) -> None:
 
 def test_read_missing_id_is_non_destructive_xml(tmp_path) -> None:
     with SessionCache(tmp_path) as session:
-        memory = HarnessMemoryTools(
-            ExecutionHistory(), lambda: session.node("node")
-        )
+        memory = HarnessMemoryTools(ExecutionHistory(), lambda: session.node("node"))
 
         assert _content(memory.read_saved_tool_output("missing")) == (
             "<saved-tool-output>\n"
@@ -329,9 +321,7 @@ def test_read_missing_id_is_non_destructive_xml(tmp_path) -> None:
 
 def test_memory_tools_are_transient_and_have_reserved_names(tmp_path) -> None:
     with SessionCache(tmp_path) as session:
-        memory = HarnessMemoryTools(
-            ExecutionHistory(), lambda: session.node("node")
-        )
+        memory = HarnessMemoryTools(ExecutionHistory(), lambda: session.node("node"))
 
         assert memory.tool_names == (
             "get_execution_history",

@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Sequence
 from pathlib import Path
 from typing import cast
@@ -282,8 +283,6 @@ def test_debug_representations_preserve_capability_identity(factory):
 
 
 def test_debug_disabled_does_not_render_tools(caplog):
-    import logging
-
     class UnrenderableTool(Tool):
         def __repr__(self):
             raise AssertionError("debug representation should not be evaluated")
@@ -296,8 +295,6 @@ def test_debug_disabled_does_not_render_tools(caplog):
 
 
 def test_contextual_debug_includes_every_tool_and_original_type(caplog):
-    import logging
-
     hds, skill, exit_tool = _hds(), _deep_skill(), _exit_tool()
     data = CapabilitiesData(
         (skill,),
