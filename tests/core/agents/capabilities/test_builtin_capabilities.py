@@ -50,7 +50,10 @@ class RecordingProvider(Provider):
 def test_loads_builtin_assistant_capabilities(tmp_path: Path) -> None:
     capabilities = Capabilities([CAPABILITIES_PATH]).load(work_root=tmp_path)
 
-    assert tuple(hds.name for hds in capabilities.hds) == ("main",)
+    assert tuple(hds.name for hds in capabilities.hds) == (
+        "main",
+        "mock-sub-agent",
+    )
     assert {skill.name for skill in capabilities.deep_skills} == {
         "mock-skill",
         "nested-skill",
@@ -109,5 +112,18 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
         "exit_agent": (
             "Conclude la skill corrente restituendo il risultato al chiamante. "
             "Available in every skill."
+        ),
+        "get_execution_history": (
+            "Return navigable XML history of capability calls. Omit "
+            "start_position for a head-and-tail overview, or use a 1-based "
+            "position and limit to read a page."
+        ),
+        "search_saved_tool_outputs": (
+            "Search node-scoped saved outputs and return paginated XML previews. "
+            "All filters are optional."
+        ),
+        "read_saved_tool_output": (
+            "Read one saved output by ID as an XML header followed by its "
+            "complete content."
         ),
     }

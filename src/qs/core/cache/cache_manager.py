@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, ClassVar, Final
+from typing import Any, ClassVar, Final, Literal
 
 from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.session_cache import SessionCache
@@ -119,6 +119,7 @@ class CacheManager:
         *,
         skill_path: str = "/",
         thinking: str | None = None,
+        source: Literal["Tool", "DeepSkill"] = "Tool",
         tokenizer_identity: str | None = None,
         vocabulary_fingerprint: str | None = None,
         cache_directory: Path | None = None,
@@ -131,7 +132,12 @@ class CacheManager:
             cache_directory=cache_directory,
         )
         return node_cache.record_call(
-            tool_call, result=result, id=id, skill_path=skill_path, thinking=thinking
+            tool_call,
+            result=result,
+            id=id,
+            skill_path=skill_path,
+            thinking=thinking,
+            source=source,
         )
 
     @classmethod

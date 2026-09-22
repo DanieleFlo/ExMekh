@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Protocol, Self, runtime_checkable
+from typing import Any, Literal, Protocol, Self, runtime_checkable
 
 from qs.core.models.assistant_message import ToolCall
 from qs.utils.json import to_json_value
@@ -32,6 +32,7 @@ class ToolCallRecord:
     skill_path: str = "/"
     tool_call_id: str | None = None
     thinking: str | None = None
+    source: Literal["Tool", "DeepSkill"] = "Tool"
 
     def __post_init__(self) -> None:
         if not isinstance(self.name, str):
@@ -56,6 +57,9 @@ class ToolCallRecord:
         if self.thinking is not None and not isinstance(self.thinking, str):
             raise TypeError("thinking must be a string or None")
 
+        if self.source not in ("Tool", "DeepSkill"):
+            raise ValueError("source must be 'Tool' or 'DeepSkill'")
+
         if not isinstance(self.args, dict):
             raise TypeError("ToolCallRecord 'args' must be a dictionary")
 
@@ -77,6 +81,7 @@ class ToolCallRecord:
             "skill_path": self.skill_path,
             "tool_call_id": self.tool_call_id,
             "thinking": self.thinking,
+            "type": self.source,
         }
 
     @classmethod
@@ -98,6 +103,7 @@ class ToolCallRecord:
             skill_path=record_dict.get("skill_path", "/"),
             tool_call_id=record_dict.get("tool_call_id"),
             thinking=record_dict.get("thinking"),
+            source=record_dict.get("type", "Tool"),
         )
 
     @classmethod
@@ -109,6 +115,7 @@ class ToolCallRecord:
         *,
         skill_path: str = "/",
         thinking: str | None = None,
+        source: Literal["Tool", "DeepSkill"] = "Tool",
     ) -> Self:
         """Adapt the two supported call interfaces without guessing attributes."""
         if isinstance(tool_call, ToolCall):
@@ -131,4 +138,5 @@ class ToolCallRecord:
             result=result,
             skill_path=skill_path,
             thinking=thinking,
+            source=source,
         )

@@ -39,5 +39,15 @@ class HDS(MarkdownCapability[HDSMetadata]):
     def get_exit_tool_name(self) -> str:
         return self.metadata.get_exit_tool_name()
 
+    def get_agent_context_id(self) -> str:
+        agent_context_id = self.metadata.get_agent_context_id()
+        if agent_context_id is not None:
+            return agent_context_id
+        return self.get_name()
+
+    @property
+    def agent_context_id(self) -> str:
+        return self.get_agent_context_id()
+
     def __str__(self) -> str:
         return f"Name: {self.name}\nType: HDS\nBody: {self.body[:50]}...\nDescription: {self.description[:50]}..."

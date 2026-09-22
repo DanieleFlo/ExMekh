@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from qs.core.cache.tool_call_record import CalledToolMetadata, ToolCallRecord
 from qs.core.models.assistant_message import ToolCall
@@ -41,6 +41,7 @@ class NodeCache:
         *,
         skill_path: str = "/",
         thinking: str | None = None,
+        source: Literal["Tool", "DeepSkill"] = "Tool",
     ) -> ToolCallRecord:
         record = ToolCallRecord(
             name=name,
@@ -49,6 +50,7 @@ class NodeCache:
             result=result,
             skill_path=skill_path,
             thinking=thinking,
+            source=source,
         )
         self.store(record)
         return record
@@ -61,9 +63,15 @@ class NodeCache:
         *,
         skill_path: str = "/",
         thinking: str | None = None,
+        source: Literal["Tool", "DeepSkill"] = "Tool",
     ) -> ToolCallRecord:
         record = ToolCallRecord.from_call(
-            tool_call, result=result, id=id, skill_path=skill_path, thinking=thinking
+            tool_call,
+            result=result,
+            id=id,
+            skill_path=skill_path,
+            thinking=thinking,
+            source=source,
         )
         self.store(record)
         return record

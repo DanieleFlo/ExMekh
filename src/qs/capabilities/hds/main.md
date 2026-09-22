@@ -1,6 +1,7 @@
 ---
 description: Assistente di base con una skill e un tool dimostrativi.
 exit-tool: exit_agent
+agent-context-id: main
 sub-skills:
   - mock-skill
 sub-tools:

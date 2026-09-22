@@ -6,7 +6,8 @@
 
 ## Key Features
 
-- **[Node-scoped Tool Output Cache](docs/09-tool-call-cache.md)**: Save tool results with arguments, skill paths, and calling-turn thinking. Search saved records by text and exact skill path through an explicitly registered search tool.
+- **[Node-scoped Tool Memory](docs/09-tool-call-cache.md)**: Save tool and deep-skill results with their invocation metadata. Every node automatically exposes XML tools for compact execution history, paginated search, and full output retrieval.
+- **[Sub-agent Delegation](docs/05-deep-agent-and-execution.md#3-sub-agent-delegation)**: Nodes with direct children automatically expose `call_sub_agent`, with a child-name enum and a required non-empty user message, in every HDS and skill scope.
 
 - **Hierarchical Agent Engine ([`DeepAgent`](docs/05-deep-agent-and-execution.md))**: Execute multi-depth, scoped agent hierarchies with dynamic skill tree navigation, history snapshotting, and cycle detection.
 - **Filesystem Capabilities ([`Capabilities`](docs/04-capabilities-and-catalog.md))**: Define system prompts (HDS), skills, exit tools, and Python function tools directly in Markdown and Python files inside a modular `capabilities/` directory.
@@ -118,6 +119,13 @@ capabilities_path = Path.cwd() / "src" / "qs" / "capabilities"
 root_node = Node(
     capabilities_paths=[capabilities_path],
     name_hds="main",
+    children=[
+        Node(
+            capabilities_paths=[capabilities_path],
+            name_hds="mock-sub-agent",
+            persistent_history=False,
+        )
+    ],
 )
 
 agent = DeepAgent(

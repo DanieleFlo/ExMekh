@@ -20,6 +20,13 @@ capabilities_path = Path.cwd() / "src" / "qs" / "capabilities"
 root_node = Node(
     capabilities_paths=[capabilities_path],
     name_hds="main",
+    children=[
+        Node(
+            capabilities_paths=[capabilities_path],
+            name_hds="mock-sub-agent",
+            persistent_history=False,
+        )
+    ],
 )
 
 agent = DeepAgent(
@@ -50,7 +57,47 @@ As the agent executes, it transitions between skills based on the active HDS and
 
 ---
 
-## 3. History vs. History Tree
+## 3. Sub-agent Delegation
+
+A node with at least one direct child automatically exposes this runtime tool:
+
+```text
+call_sub_agent(sub_agent: <direct-child enum>, text: <non-empty string>)
+```
+
+`sub_agent` is constrained in the generated JSON Schema to the HDS names of the
+node's direct children. `text` is required and has both a schema `minLength` of
+one and a non-whitespace pattern; runtime validation also rejects whitespace-only values. The tool is available
+from the HDS and from every active skill or sub-skill, including skills that do
+not inherit parent tools. A leaf node does not expose it.
+
+Calling the tool runs `child.run(text)`, so the child receives the value exactly
+as a new user message. Repeated calls follow the child's `persistent_history`
+setting. A grandchild is not selectable directly: its parent must delegate to it
+in a subsequent `call_sub_agent` call.
+
+The child final response becomes the parent tool result. It receives the normal
+XML tool header and is saved in the parent's node-scoped cache with the calling
+skill path. The child's full conversation, internal tool calls and saved outputs
+remain isolated in the child runtime. Input errors are returned as tool results
+so the parent model can retry; provider and child execution failures still
+propagate as exceptions.
+
+Sibling child HDS names must be unique. `call_sub_agent` is a reserved runtime
+tool name on non-leaf nodes and cannot also be declared as a filesystem tool.
+
+### Agent Context ID & Engine Delegation
+Inference engines such as DS4 require a non-empty `agent_context_id` in the `agentic` payload. Each `Node` can define its own `agent_context_id` (via Markdown frontmatter `agent-context-id`, falling back to `name_hds`, or via `Node(..., agent_context_id=...)`). During sub-agent execution:
+- The parent node makes requests using its parent `agent_context_id`.
+- When delegating via `call_sub_agent`, the child node executes under its own distinct `agent_context_id`.
+- DS4 observes the context switch, suspends the parent's pending tool call state, and saves a temporary `.dsh` checkpoint.
+- Upon child completion and return, the parent resumes with its original `agent_context_id`, causing DS4 to restore the parent's checkpoint and prefill only the returned tool output.
+
+All distinct nodes within a `DeepAgent` hierarchy must have unique `agent_context_id` values to prevent context collisions.
+
+---
+
+## 4. History vs. History Tree
 
 The [`AgentResponse`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/agents/deep_agent/agent_response.py) returned by `agent.run(...)` maintains two complementary representations of conversation history:
 
@@ -69,7 +116,7 @@ tree_history = response.get_history_tree()
 
 ---
 
-## 4. Real-time Event Streaming (`on_stream`)
+## 5. Real-time Event Streaming (`on_stream`)
 
 Pass an `on_stream` callback to `DeepAgent` to receive real-time updates for both LLM output generation and tool execution states:
 
@@ -110,7 +157,7 @@ agent = DeepAgent(
 
 ---
 
-## 5. Workspace Isolation (`work_root`)
+## 6. Workspace Isolation (`work_root`)
 
 `work_root` MUST be a valid, readable, and writable directory on disk:
 - It is validated by `DeepAgent._validate_work_root(work_root)`.
@@ -118,7 +165,7 @@ agent = DeepAgent(
 - Supplies the tools' working directory. Each tool must enforce any filesystem
   boundaries it requires; passing `work_root` is not an operating-system sandbox.
 
-## 6. Runtime and Saved Tool Outputs
+## 7. Runtime and Saved Tool Outputs
 
 `Node.initialize()` composes a `NodeRuntimeConfig` and a `NodeRuntime`.
 The configuration builds the client tools, system prompt, executor and node
@@ -126,12 +173,15 @@ cache. `ToolCallExecutor` runs a resolved call and returns a
 `ToolExecutionResult`; the runtime applies its history update, saves eligible
 results, and emits execution events.
 
-Ordinary tools and exit tools produce cache records. Deep skill instructions,
-including the selected exit tool instructions, remain conversational messages. Records capture arguments before
-execution, the active skill path before an exit, the function result, and the
-provider's thinking from the calling turn. This keeps the result accessible
-after skill history compaction. See [Tool output caching](09-tool-call-cache.md)
-for executable examples and retrieval APIs.
+Ordinary tools produce cache records. When an exit tool closes a deep skill, the
+record is attributed to the opening skill call and retains its name, arguments,
+call ID and opening-turn thinking. Deep skill instructions remain conversational
+messages, while the final output stays accessible after history compaction.
+
+The runtime automatically exposes `get_execution_history`,
+`search_saved_tool_outputs` and `read_saved_tool_output` in every scope. They
+return XML, operate only on the current node and do not cache their own results.
+See [Tool output caching](09-tool-call-cache.md) for formats and lifecycle.
 
 `persistent_history=False` rebuilds the client and execution state before each
 run; it does not erase saved outputs. Each runtime has its own generated node ID,

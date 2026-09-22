@@ -46,7 +46,7 @@ def test_map_request_preserves_agentic_options_and_flattens_tools() -> None:
             {"role": "user", "content": "question"},
         ],
         "stream": True,
-        "reasoning": {"effort": "high"},
+        "reasoning": {"effort": "high", "summary": "auto"},
         "extra_body": {"agentic": {"allowed_tools": ["search"]}},
         "tool_choice": "required",
         "tools": [
@@ -154,7 +154,7 @@ def test_map_request_accepts_provider_specific_reasoning_effort() -> None:
         reasoning_effort="provider-specific",
     )
 
-    assert payload["reasoning"] == {"effort": "provider-specific"}
+    assert payload["reasoning"] == {"effort": "provider-specific", "summary": "auto"}
 
 
 def test_map_tools_omits_empty_description() -> None:

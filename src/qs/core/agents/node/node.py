@@ -8,6 +8,7 @@ from qs.core.agents.capabilities.capabilities import Capabilities
 from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.deep_agent.agent_response import AgentResponse
 from qs.core.agents.deep_agent.stream_event import DeepAgentEventHandler
+from qs.core.agents.sub_agent.sub_agent_tool import SubAgentTool
 from qs.interfaces.provider import Provider
 
 from .node_runtime import NodeRuntime, NodeRuntimeConfig
@@ -27,12 +28,14 @@ class Node:
         children: Sequence[Node] = (),
         persistent_history: bool = True,
         depth: int = 0,
+        agent_context_id: str | None = None,
     ) -> None:
         self._capability_loader = Capabilities(capabilities_paths)
         self._name_hds = self._validate_hds_name(name_hds)
         self._children = self._validate_children(children)
         self._persistent_history = self._validate_persistent_history(persistent_history)
         self._initial_depth = self._validate_depth(depth)
+        self._agent_context_id = self._validate_agent_context_id(agent_context_id)
         self._runtime: NodeRuntime | None = None
 
     @property
@@ -53,6 +56,14 @@ class Node:
             return self._initial_depth
         return self._runtime.depth
 
+    @property
+    def agent_context_id(self) -> str | None:
+        if self._agent_context_id is not None:
+            return self._agent_context_id
+        if self._runtime is not None:
+            return self._runtime.agent_context_id
+        return None
+
     def initialize(
         self,
         provider: Provider,
@@ -69,6 +80,8 @@ class Node:
         hds = capabilities.get_hds(self._name_hds)
         exit_tool_name = hds.get_exit_tool_name()
         exit_tool = capabilities.get_exit_tool(exit_tool_name)
+        runtime_tools = (SubAgentTool(self._children),) if self._children else ()
+        context_id = self._agent_context_id or hds.get_agent_context_id()
         self._runtime = NodeRuntime(
             NodeRuntimeConfig(
                 provider=provider,
@@ -77,6 +90,8 @@ class Node:
                 exit_tool=exit_tool,
                 persistent_history=self._persistent_history,
                 initial_depth=self._initial_depth,
+                agent_context_id=context_id,
+                runtime_tools=runtime_tools,
                 on_stream=on_stream,
             )
         )
@@ -122,3 +137,13 @@ class Node:
         if depth < 0:
             raise ValueError("depth cannot be negative")
         return depth
+
+    @staticmethod
+    def _validate_agent_context_id(agent_context_id: str | None) -> str | None:
+        if agent_context_id is None:
+            return None
+        if not isinstance(agent_context_id, str):
+            raise TypeError("agent_context_id must be a string")
+        if not agent_context_id.strip():
+            raise ValueError("agent_context_id cannot be empty")
+        return agent_context_id

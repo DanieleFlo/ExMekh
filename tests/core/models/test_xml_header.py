@@ -127,3 +127,64 @@ def test_prepend_to() -> None:
     header = XmlHeader(source="Tool", name="echo", id="id-1")
     result = header.prepend_to('{"result": "success"}')
     assert result == f'{header.to_xml()}\n{{"result": "success"}}'
+
+
+def test_to_xml_renders_typed_arguments_and_escapes_content() -> None:
+    header = XmlHeader(
+        source="Tool",
+        name="inspect",
+        id="result-1",
+        args={
+            "text": 'città <Roma> & "Lazio"',
+            "count": 2,
+            "active": True,
+            "missing": None,
+            "options": {"lines": [1, 20], "encoding": "utf-8"},
+        },
+    )
+
+    assert header.to_xml() == (
+        "<header>\n"
+        "  <name>inspect</name>\n"
+        "  <type>Tool</type>\n"
+        "  <id>result-1</id>\n"
+        "  <args>\n"
+        "    <text>città &lt;Roma&gt; &amp; \"Lazio\"</text>\n"
+        "    <count>2</count>\n"
+        "    <active>true</active>\n"
+        "    <missing>null</missing>\n"
+        "    <options>{\"lines\":[1,20],\"encoding\":\"utf-8\"}</options>\n"
+        "  </args>\n"
+        "</header>"
+    )
+
+
+def test_rejects_non_dictionary_arguments() -> None:
+    with pytest.raises(TypeError, match="args must be a dictionary"):
+        XmlHeader(
+            source="Tool",
+            name="inspect",
+            id="result-1",
+            args=cast(Any, []),
+        )
+
+
+def test_invalid_xml_argument_name_uses_escaped_generic_node() -> None:
+    header = XmlHeader(
+        source="DeepSkill",
+        name="skill",
+        id="result-1",
+        args={'bad key & "quoted"': "value"},
+    )
+
+    assert '<arg name="bad key &amp; &quot;quoted&quot;">value</arg>' in header.to_xml()
+
+
+def test_rejects_non_string_argument_names() -> None:
+    with pytest.raises(TypeError, match="all keys in args must be strings"):
+        XmlHeader(
+            source="Tool",
+            name="inspect",
+            id="result-1",
+            args=cast(dict[str, Any], {1: "value"}),
+        )

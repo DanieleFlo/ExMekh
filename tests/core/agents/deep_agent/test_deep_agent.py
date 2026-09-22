@@ -276,4 +276,37 @@ def test_uses_root_hds_as_system_instructions(tmp_path: Path) -> None:
     }
     tools = provider.last_request.get_tools()
     assert tools is not None
-    assert tools.list_tools() == ["exit_agent"]
+    assert tools.list_tools() == [
+        "exit_agent",
+        "get_execution_history",
+        "search_saved_tool_outputs",
+        "read_saved_tool_output",
+    ]
+
+
+def test_rejects_duplicate_agent_context_id_in_hierarchy(tmp_path: Path) -> None:
+    capabilities = _write_capabilities(tmp_path, "shared_hds")
+    child = Node([capabilities], name_hds="shared_hds")
+    root = Node([capabilities], name_hds="shared_hds", children=[child])
+
+    with pytest.raises(
+        ValueError,
+        match="Distinct nodes in hierarchy must have unique agent_context_id: shared_hds",
+    ):
+        DeepAgent(provider=StubProvider(), node=root, work_root=tmp_path)
+
+
+def test_allows_distinct_agent_context_id_overrides_for_same_hds(tmp_path: Path) -> None:
+    capabilities = _write_capabilities(tmp_path, "shared_hds")
+    child = Node([capabilities], name_hds="shared_hds", agent_context_id="child_ctx")
+    root = Node(
+        [capabilities],
+        name_hds="shared_hds",
+        agent_context_id="root_ctx",
+        children=[child],
+    )
+
+    agent = DeepAgent(provider=StubProvider(), node=root, work_root=tmp_path)
+    assert agent.root_node is root
+    assert root.agent_context_id == "root_ctx"
+    assert child.agent_context_id == "child_ctx"

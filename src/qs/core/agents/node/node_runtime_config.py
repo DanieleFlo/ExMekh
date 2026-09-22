@@ -13,6 +13,7 @@ from qs.core.agents.hds.hds import HDS
 from qs.core.cache.node_cache import NodeCache
 from qs.core.models.client import Client
 from qs.core.models.system_message import SystemMessage
+from qs.core.models.tool import Tool
 from qs.core.models.tools import Tools
 from qs.interfaces.provider import Provider
 
@@ -28,7 +29,25 @@ class NodeRuntimeConfig:
     exit_tool: ExitTool
     persistent_history: bool
     initial_depth: int
+    agent_context_id: str | None = None
+    runtime_tools: tuple[Tool, ...] = ()
     on_stream: DeepAgentEventHandler | None = None
+
+    @property
+    def resolved_agent_context_id(self) -> str:
+        if self.agent_context_id is not None:
+            return self.agent_context_id
+        get_context_id = getattr(self.hds, "get_agent_context_id", None)
+        if callable(get_context_id):
+            context_id = get_context_id()
+            if isinstance(context_id, str) and context_id.strip():
+                return context_id
+        get_name = getattr(self.hds, "get_name", None)
+        if callable(get_name):
+            hds_name = get_name()
+            if isinstance(hds_name, str) and hds_name.strip():
+                return hds_name
+        return "default"
 
     def is_persistent_history(self) -> bool:
         return self.persistent_history
@@ -42,8 +61,10 @@ class NodeRuntimeConfig:
         if self.on_stream is not None:
             self.on_stream(event)
 
-    def build_tools(self) -> Tools:
-        return Tools(list(self.capabilities.get_contextual_tools(self.hds)))
+    def build_tools(self, runtime_tools: tuple[Tool, ...] = ()) -> Tools:
+        return Tools(
+            [*self.capabilities.get_contextual_tools(self.hds), *runtime_tools]
+        )
 
     def build_node_cache(self, node_id: str) -> NodeCache:
         session = self.provider.get_session()
@@ -52,10 +73,13 @@ class NodeRuntimeConfig:
     def build_executor(
         self,
         client: Client,
+        runtime_tool_names: tuple[str, ...] = (),
     ) -> ToolCallExecutor:
         agentic_scope = AgenticScope(
             hds=self.hds,
             exit_tool_name=self.exit_tool.name,
+            runtime_tool_names=runtime_tool_names,
+            agent_context_id=self.resolved_agent_context_id,
         )
         return ToolCallExecutor(
             client=client,

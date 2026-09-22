@@ -23,6 +23,7 @@ from qs.core.agents.node.node_runtime import NodeRuntime
 from qs.core.agents.node.node_runtime_config import NodeRuntimeConfig
 from qs.core.agents.node.tool_call_executor import ToolCallExecutor
 from qs.core.agents.node.tool_call_resolver import ToolCallResolver
+from qs.core.agents.sub_agent import SubAgentTool
 from qs.core.cache.cache_manager import CacheManager
 from qs.core.cache.session_cache import SessionCache
 from qs.core.models.assistant_message import (
@@ -39,12 +40,18 @@ from qs.core.models.provider_stream_event import (
 )
 from qs.core.models.structured_provider_request import StructuredProviderRequest
 from qs.core.models.structured_provider_response import StructuredProviderResponse
-from qs.core.models.tool import CalledTool
+from qs.core.models.tool import CalledTool, PreformattedToolResult, Tool
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.user_message import ErrorUserMessage
 from qs.core.models.xml_header import XmlHeader
 from qs.interfaces.provider import Provider
 from qs.interfaces.tokenizer import Tokenizer
+
+_MEMORY_TOOL_NAMES = [
+    "get_execution_history",
+    "search_saved_tool_outputs",
+    "read_saved_tool_output",
+]
 
 
 class _StubTokenizer(Tokenizer):
@@ -380,6 +387,79 @@ def test_runtime_config_ignores_stream_events_without_a_handler() -> None:
     assert config.emit_stream(event) is None
 
 
+def test_runtime_config_resolves_agent_context_id() -> None:
+    config_explicit = NodeRuntimeConfig(
+        provider=cast(Provider, object()),
+        capabilities=cast(CapabilitiesData, object()),
+        hds=cast(HDS, object()),
+        exit_tool=cast(ExitTool, object()),
+        persistent_history=True,
+        initial_depth=0,
+        agent_context_id="custom-ctx",
+    )
+    assert config_explicit.resolved_agent_context_id == "custom-ctx"
+
+    hds_with_context = MagicMock()
+    hds_with_context.get_agent_context_id.return_value = "hds-ctx"
+    config_hds = NodeRuntimeConfig(
+        provider=cast(Provider, object()),
+        capabilities=cast(CapabilitiesData, object()),
+        hds=cast(HDS, hds_with_context),
+        exit_tool=cast(ExitTool, object()),
+        persistent_history=True,
+        initial_depth=0,
+    )
+    assert config_hds.resolved_agent_context_id == "hds-ctx"
+
+    hds_with_name = MagicMock(spec=["get_name"])
+    hds_with_name.get_name.return_value = "hds-name"
+    config_name = NodeRuntimeConfig(
+        provider=cast(Provider, object()),
+        capabilities=cast(CapabilitiesData, object()),
+        hds=cast(HDS, hds_with_name),
+        exit_tool=cast(ExitTool, object()),
+        persistent_history=True,
+        initial_depth=0,
+    )
+    assert config_name.resolved_agent_context_id == "hds-name"
+
+    config_default = NodeRuntimeConfig(
+        provider=cast(Provider, object()),
+        capabilities=cast(CapabilitiesData, object()),
+        hds=cast(HDS, object()),
+        exit_tool=cast(ExitTool, object()),
+        persistent_history=True,
+        initial_depth=0,
+    )
+    assert config_default.resolved_agent_context_id == "default"
+
+
+def test_runtime_rejects_duplicate_runtime_tool_names(tmp_path: Path) -> None:
+    capabilities = Node(
+        [_write_capabilities(tmp_path, ("main",))],
+        name_hds="main",
+    ).load_capabilities(work_root=tmp_path)
+    duplicate_tools = (
+        Tool(lambda: "first", name="duplicate"),
+        Tool(lambda: "second", name="duplicate"),
+    )
+    config = NodeRuntimeConfig(
+        provider=SequenceProvider([]),
+        capabilities=capabilities,
+        hds=capabilities.get_hds("main"),
+        exit_tool=capabilities.get_exit_tool("exit_agent"),
+        persistent_history=True,
+        initial_depth=0,
+        runtime_tools=duplicate_tools,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Harness runtime tool names must be unique: duplicate",
+    ):
+        NodeRuntime(config)
+
+
 def test_run_requires_an_initialized_node(tmp_path: Path) -> None:
     node = Node([tmp_path / "capabilities"], name_hds="main")
 
@@ -408,6 +488,19 @@ def test_tool_descriptions_reflect_hds_and_skill_availability(
         "shared-tool": "Available in skills 'mock-skill', 'nested-skill'.",
         "orphan-tool": "",
         "exit_agent": "Exit agent Available in every skill.",
+        "get_execution_history": (
+            "Return navigable XML history of capability calls. Omit "
+            "start_position for a head-and-tail overview, or use a 1-based "
+            "position and limit to read a page."
+        ),
+        "search_saved_tool_outputs": (
+            "Search node-scoped saved outputs and return paginated XML previews. "
+            "All filters are optional."
+        ),
+        "read_saved_tool_output": (
+            "Read one saved output by ID as an XML header followed by its "
+            "complete content."
+        ),
     }
 
 
@@ -560,7 +653,13 @@ def test_skill_increments_depth_adds_exit_body_and_requires_a_tool(
         [
             AssistantMessage(
                 "",
-                tool_calls=[_function_call("mock-skill", {}, call_id="skill-call")],
+                tool_calls=[
+                    _function_call(
+                        "mock-skill",
+                        {"topic": "XML & cache"},
+                        call_id="skill-call",
+                    )
+                ],
             ),
             AssistantMessage(
                 "",
@@ -609,7 +708,13 @@ def test_skill_increments_depth_prepends_xml_header_on_exit(tmp_path: Path) -> N
         [
             AssistantMessage(
                 "",
-                tool_calls=[_function_call("mock-skill", {}, call_id="skill-call")],
+                tool_calls=[
+                    _function_call(
+                        "mock-skill",
+                        {"topic": "XML & cache"},
+                        call_id="skill-call",
+                    )
+                ],
             ),
             AssistantMessage(
                 "",
@@ -640,7 +745,10 @@ def test_skill_increments_depth_prepends_xml_header_on_exit(tmp_path: Path) -> N
     ).to_xml()
     assert exit_message.get_message() == f"{expected_header}\ndone"
     record = node._runtime._tool_cache.get("exit-id-456")
-    assert record.tool_call_id == "exit-call"
+    assert record.name == "mock-skill"
+    assert record.source == "DeepSkill"
+    assert record.tool_call_id == "skill-call"
+    assert record.args == {"topic": "XML & cache"}
     assert record.skill_path == "/mock-skill"
     assert record.result == {"text": "done", "items": ["completed"]}
 
@@ -691,15 +799,18 @@ def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:
     assert [request.get_extra() for request in provider.requests] == [
         {
             "agentic": {
-                "allowed_tools": ["mock-tool"],
+                "agent_context_id": "main",
+                "allowed_tools": ["mock-tool", *_MEMORY_TOOL_NAMES],
                 "allowed_skills": ["mock-skill"],
             }
         },
         {
             "agentic": {
+                "agent_context_id": "main",
                 "allowed_tools": [
                     "mock-sub-tool",
                     "shared-tool",
+                    *_MEMORY_TOOL_NAMES,
                     "exit_agent",
                 ],
                 "allowed_skills": ["nested-skill"],
@@ -707,10 +818,12 @@ def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:
         },
         {
             "agentic": {
+                "agent_context_id": "main",
                 "allowed_tools": [
                     "nested-sub-tool",
                     "shared-tool",
                     "mock-sub-tool",
+                    *_MEMORY_TOOL_NAMES,
                     "exit_agent",
                 ],
                 "allowed_skills": [],
@@ -718,9 +831,11 @@ def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:
         },
         {
             "agentic": {
+                "agent_context_id": "main",
                 "allowed_tools": [
                     "mock-sub-tool",
                     "shared-tool",
+                    *_MEMORY_TOOL_NAMES,
                     "exit_agent",
                 ],
                 "allowed_skills": ["nested-skill"],
@@ -730,7 +845,8 @@ def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:
         },
         {
             "agentic": {
-                "allowed_tools": ["mock-tool"],
+                "agent_context_id": "main",
+                "allowed_tools": ["mock-tool", *_MEMORY_TOOL_NAMES],
                 "allowed_skills": ["mock-skill"],
                 "operation": "return",
                 "skill_call_id": "parent-skill-call",
@@ -1032,8 +1148,6 @@ def test_non_persistent_node_starts_each_run_with_fresh_history(
 
 
 def test_executor_returns_raw_result_without_saving() -> None:
-    from qs.core.models.tool import Tool
-
     client = MagicMock(spec=Client)
     called_tool = CalledTool(
         Tool(lambda x: {"squared": x * x}, name="square_tool"),
@@ -1053,6 +1167,130 @@ def test_executor_returns_raw_result_without_saving() -> None:
     client.get_session.assert_not_called()
     client.add_tool_response.assert_not_called()
     client.replace_history_from.assert_not_called()
+
+
+def test_executor_returns_preformatted_transient_content_without_header() -> None:
+    client = MagicMock(spec=Client)
+    called_tool = CalledTool(
+        Tool(
+            lambda: PreformattedToolResult("<execution-history />"),
+            name="runtime_history",
+            cache_result=False,
+        ),
+        _function_call("runtime_history", {}, call_id="call-history"),
+    )
+    executor = ToolCallExecutor(
+        client=client,
+        exit_tool=cast(ExitTool, object()),
+        initial_depth=0,
+        agentic_scope=MagicMock(spec=AgenticScope),
+    )
+
+    result = executor.execute(called_tool)
+
+    assert result.response.get_message() == "<execution-history />"
+    assert result.output_id is None
+    assert result.save_result is False
+    assert result.raw_result == "<execution-history />"
+    client.generate_id.assert_not_called()
+
+
+def test_runtime_memory_history_is_automatic_xml_and_is_not_cached(
+    tmp_path: Path,
+) -> None:
+    provider = SequenceProvider(
+        [
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "get_execution_history", {}, call_id="history-call"
+                    )
+                ],
+            ),
+            AssistantMessage("done"),
+        ]
+    )
+    node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
+    node.initialize(provider, work_root=tmp_path)
+
+    assert node.run("show history").get_message() == "done"
+
+    response = cast(ToolMessage, provider.requests[-1].get_messages()[-1])
+    assert response.get_message() == (
+        "<execution-history>\n"
+        "  <total>1</total>\n"
+        "  <view>overview</view>\n"
+        "  <call>\n"
+        "    <position>1</position>\n"
+        "    <name>get_execution_history</name>\n"
+        "    <id>history-call</id>\n"
+        "  </call>\n"
+        "</execution-history>"
+    )
+    assert node._runtime._tool_cache.get_all() == []
+
+
+def test_runtime_memory_history_accepts_position_navigation(
+    tmp_path: Path,
+) -> None:
+    provider = SequenceProvider(
+        [
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "get_execution_history",
+                        {"start_position": 1, "limit": 2},
+                        call_id="history-page",
+                    )
+                ],
+            ),
+            AssistantMessage("done"),
+        ]
+    )
+    node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
+    node.initialize(provider, work_root=tmp_path)
+
+    assert node.run("show history page").get_message() == "done"
+
+    response = cast(ToolMessage, provider.requests[-1].get_messages()[-1])
+    assert response.get_message() == (
+        "<execution-history>\n"
+        "  <total>1</total>\n"
+        "  <view>page</view>\n"
+        "  <start-position>1</start-position>\n"
+        "  <end-position>1</end-position>\n"
+        "  <call>\n"
+        "    <position>1</position>\n"
+        "    <name>get_execution_history</name>\n"
+        "    <id>history-page</id>\n"
+        "  </call>\n"
+        "</execution-history>"
+    )
+
+
+def test_runtime_rejects_capabilities_using_reserved_memory_tool_names(
+    tmp_path: Path,
+) -> None:
+    capabilities = _write_runnable_capabilities(tmp_path)
+    tool_path = capabilities / "tools" / "get_execution_history"
+    tool_path.mkdir()
+    (tool_path / "main.py").write_text(
+        "from qs.core.agents.tools.decorator import deep_tool\n\n"
+        "@deep_tool(name='get_execution_history', description='Reserved')\n"
+        "def run(work_root) -> str:\n"
+        "    return str(work_root)\n"
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Harness runtime tool names are reserved: get_execution_history",
+    ):
+        Node([capabilities], name_hds="main").initialize(
+            SequenceProvider([]),
+            work_root=tmp_path,
+        )
 
 
 def test_node_run_saves_executed_tools_in_cache(tmp_path: Path) -> None:
@@ -1132,14 +1370,14 @@ def test_runtime_saves_only_tools_with_their_original_skill_path(
     try:
         response = node.run("start")
         records = session.node(node._runtime._node_id).get_all()
-        assert {record.tool_call_id for record in records} == {"work", "exit"}
+        assert {record.tool_call_id for record in records} == {"work", "open"}
         assert {record.tool_call_id: record.skill_path for record in records} == {
             "work": "/",
-            "exit": "/mock-skill",
+            "open": "/mock-skill",
         }
         assert {record.tool_call_id: record.result for record in records} == {
             "work": {"echo": "inside"},
-            "exit": {"text": "done", "items": ["completed"]},
+            "open": {"text": "done", "items": ["completed"]},
         }
         messages = provider.requests[-1].get_messages()
         tool_messages = [
@@ -1206,7 +1444,7 @@ def test_skill_compaction_preserves_preceding_parallel_tool_responses(
     records = node._runtime._tool_cache.get_all()
     assert {record.tool_call_id: record.skill_path for record in records} == {
         "work": "/",
-        "exit": "/mock-skill",
+        "open": "/mock-skill",
     }
 
 
@@ -1354,9 +1592,9 @@ def test_nested_mixed_batches_keep_scope_paths_and_complete_history(tmp_path):
             "root-work": "/",
             "parent-work": "/mock-skill",
             "child-work": "/mock-skill/nested-skill",
-            "child-exit": "/mock-skill/nested-skill",
+            "child": "/mock-skill/nested-skill",
             "child-exit-extra": "/mock-skill/nested-skill",
-            "parent-exit": "/mock-skill",
+            "parent": "/mock-skill",
         }
         for request in provider.requests:
             calls = [
@@ -1485,6 +1723,10 @@ def test_runtime_does_not_overwrite_reused_call_ids(tmp_path: Path) -> None:
         assert len(records) == 2
         assert {record.tool_call_id for record in records} == {"same"}
         assert {record.result["echo"] for record in records} == {"first", "second"}
+        assert [
+            (entry.position, entry.call_id)
+            for entry in node._runtime._execution_history.entries
+        ] == [(1, "same"), (2, "same")]
     finally:
         session.close()
 
@@ -1661,14 +1903,14 @@ def test_runtime_saves_thinking_from_the_exact_tool_calling_turn(tmp_path, strea
             "first": "  Apro e chiamo due tool.\nCittà.  ",
             "second": "  Apro e chiamo due tool.\nCittà.  ",
             "third": None,
-            "exit": "Esco dalla skill.",
+            "skill": "  Apro e chiamo due tool.\nCittà.  ",
         }
 
         assert {record.tool_call_id: record.skill_path for record in records} == {
             "first": "/",
             "second": "/",
             "third": "/mock-skill",
-            "exit": "/mock-skill",
+            "skill": "/mock-skill",
         }
 
 
@@ -1839,7 +2081,7 @@ def test_exit_waits_for_other_tools_in_the_same_batch(tmp_path, exit_first):
     records = node._runtime._tool_cache.get_all()
     assert {record.tool_call_id: record.skill_path for record in records} == {
         "work": "/mock-skill",
-        "exit": "/mock-skill",
+        "open": "/mock-skill",
     }
     assert response.skill_executions[0].output == "done"
 
@@ -1907,8 +2149,8 @@ def test_parent_exit_waits_for_child_and_keeps_original_thinking(tmp_path):
     assert {
         record.tool_call_id: (record.skill_path, record.thinking) for record in records
     } == {
-        "child-exit": ("/mock-skill/nested-skill", "turn-3"),
-        "parent-exit": ("/mock-skill", "turn-2"),
+        "child": ("/mock-skill/nested-skill", "turn-2"),
+        "parent": ("/mock-skill", "turn-1"),
     }
     child_request = provider.requests[2]
     assert all(
@@ -1918,3 +2160,398 @@ def test_parent_exit_waits_for_child_and_keeps_original_thinking(tmp_path):
         for call in message.get_tool_calls() or []
     )
     assert provider.requests[-1].get_extra()["agentic"]["skill_call_id"] == "parent"
+
+
+def test_sub_agent_tool_runs_direct_child_and_caches_final_response(
+    tmp_path: Path,
+) -> None:
+    class ProviderWithIds(SequenceProvider):
+        def __init__(self, responses: list[AssistantMessage]) -> None:
+            super().__init__(responses)
+            self._next_id = 0
+
+        def generate_id(self) -> str:
+            self._next_id += 1
+            return f"sub-agent-output-{self._next_id}"
+
+    provider = ProviderWithIds(
+        [
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "call_sub_agent",
+                        {"sub_agent": "child", "text": "first request"},
+                        call_id="delegate-1",
+                    ),
+                    _function_call(
+                        "call_sub_agent",
+                        {"sub_agent": "child", "text": "second request"},
+                        call_id="delegate-2",
+                    ),
+                ],
+            ),
+            AssistantMessage("first child result"),
+            AssistantMessage("second child result"),
+            AssistantMessage("parent done"),
+        ]
+    )
+    parent_capabilities = _write_capabilities(tmp_path / "parent", ("parent",))
+    child_capabilities = _write_capabilities(tmp_path / "child", ("child",))
+    child = Node([child_capabilities], name_hds="child", persistent_history=True)
+    parent = Node(
+        [parent_capabilities],
+        name_hds="parent",
+        children=[child],
+        persistent_history=False,
+    )
+    agent = DeepAgent(provider=provider, node=parent, work_root=tmp_path)
+
+    response = agent.run("delegate twice")
+
+    assert response.get_message() == "parent done"
+    assert provider.requests[1].get_messages()[-1].get_message() == "first request"
+    second_child_messages = provider.requests[2].get_messages()
+    assert [message.get_role_name() for message in second_child_messages] == [
+        "system",
+        "user",
+        "assistant",
+        "user",
+    ]
+    assert second_child_messages[-1].get_message() == "second request"
+
+    parent_tools = provider.requests[0].get_tools()
+    child_tools = provider.requests[1].get_tools()
+    assert parent_tools is not None
+    assert child_tools is not None
+    assert "call_sub_agent" in parent_tools.list_tools()
+    assert "call_sub_agent" not in child_tools.list_tools()
+
+    continuation_messages = provider.requests[3].get_messages()
+    tool_messages = [
+        message for message in continuation_messages if isinstance(message, ToolMessage)
+    ]
+    assert len(tool_messages) == 2
+    assert tool_messages[0].get_message().endswith("\nfirst child result")
+    assert tool_messages[1].get_message().endswith("\nsecond child result")
+
+    records = parent._runtime._tool_cache.get_all()
+    assert [record.name for record in records] == [
+        "call_sub_agent",
+        "call_sub_agent",
+    ]
+    assert [record.args for record in records] == [
+        {"sub_agent": "child", "text": "first request"},
+        {"sub_agent": "child", "text": "second request"},
+    ]
+    assert [record.result for record in records] == [
+        "first child result",
+        "second child result",
+    ]
+    assert all(record.skill_path == "/" for record in records)
+
+
+def test_sub_agent_resets_non_persistent_child_between_calls(tmp_path: Path) -> None:
+    class ProviderWithIds(SequenceProvider):
+        def __init__(self, responses: list[AssistantMessage]) -> None:
+            super().__init__(responses)
+            self._next_id = 0
+
+        def generate_id(self) -> str:
+            self._next_id += 1
+            return f"non-persistent-output-{self._next_id}"
+
+    provider = ProviderWithIds(
+        [
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "call_sub_agent",
+                        {"sub_agent": "child", "text": "first"},
+                        call_id="delegate-1",
+                    ),
+                    _function_call(
+                        "call_sub_agent",
+                        {"sub_agent": "child", "text": "second"},
+                        call_id="delegate-2",
+                    ),
+                ],
+            ),
+            AssistantMessage("first result"),
+            AssistantMessage("second result"),
+            AssistantMessage("done"),
+        ]
+    )
+    child = Node(
+        [_write_capabilities(tmp_path / "child", ("child",))],
+        name_hds="child",
+        persistent_history=False,
+    )
+    parent = Node(
+        [_write_capabilities(tmp_path / "parent", ("parent",))],
+        name_hds="parent",
+        children=[child],
+    )
+    DeepAgent(provider=provider, node=parent, work_root=tmp_path)
+
+    assert parent.run("delegate twice").get_message() == "done"
+    assert [
+        [message.get_role_name() for message in request.get_messages()]
+        for request in provider.requests[1:3]
+    ] == [["system", "user"], ["system", "user"]]
+
+
+def test_sub_agent_input_error_is_a_cached_tool_response(tmp_path: Path) -> None:
+    class ProviderWithId(SequenceProvider):
+        def generate_id(self) -> str:
+            return "sub-agent-error"
+
+    provider = ProviderWithId(
+        [
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "call_sub_agent",
+                        {"sub_agent": "missing", "text": "hello"},
+                        call_id="invalid-delegation",
+                    )
+                ],
+            ),
+            AssistantMessage("recovered"),
+        ]
+    )
+    parent_capabilities = _write_capabilities(tmp_path / "parent", ("parent",))
+    child = Node(
+        [_write_capabilities(tmp_path / "child", ("child",))],
+        name_hds="child",
+    )
+    parent = Node([parent_capabilities], name_hds="parent", children=[child])
+    DeepAgent(provider=provider, node=parent, work_root=tmp_path)
+
+    response = parent.run("delegate")
+
+    assert response.get_message() == "recovered"
+    assert len(provider.requests) == 2
+    tool_message = cast(ToolMessage, provider.requests[1].get_messages()[-1])
+    assert tool_message.get_message().endswith(
+        "\nError: sub_agent must be one of: child."
+    )
+    record = parent._runtime._tool_cache.get("sub-agent-error")
+    assert record.result == "Error: sub_agent must be one of: child."
+
+
+def test_sub_agent_tool_is_available_in_every_skill_scope(tmp_path: Path) -> None:
+    class ProviderWithId(SequenceProvider):
+        def __init__(self, responses: list[AssistantMessage]) -> None:
+            super().__init__(responses)
+            self._next_id = 0
+
+        def generate_id(self) -> str:
+            self._next_id += 1
+            return f"skill-output-{self._next_id}"
+
+    provider = ProviderWithId(
+        [
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call("mock-skill", {}, call_id="parent-skill")
+                ],
+            ),
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "call_sub_agent",
+                        {"sub_agent": "child", "text": "delegated in skill"},
+                        call_id="skill-delegation",
+                    )
+                ],
+            ),
+            AssistantMessage("child result"),
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call("nested-skill", {}, call_id="nested-skill")
+                ],
+            ),
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "exit_agent",
+                        {"text": "nested done", "items": ["nested"]},
+                        call_id="nested-exit",
+                    )
+                ],
+            ),
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "exit_agent",
+                        {"text": "parent done", "items": ["parent"]},
+                        call_id="parent-exit",
+                    )
+                ],
+            ),
+            AssistantMessage("done"),
+        ]
+    )
+    child = Node(
+        [_write_capabilities(tmp_path / "child", ("child",))],
+        name_hds="child",
+    )
+    parent = Node(
+        [_write_nested_capabilities(tmp_path / "parent")],
+        name_hds="main",
+        children=[child],
+    )
+    DeepAgent(provider=provider, node=parent, work_root=tmp_path)
+
+    assert parent.run("start").get_message() == "done"
+    parent_requests = [
+        request
+        for request in provider.requests
+        if request.get_messages()[0].get_message() == "Main body"
+    ]
+    assert all(
+        "call_sub_agent" in request.get_extra()["agentic"]["allowed_tools"]
+        for request in parent_requests
+    )
+    child_requests = [
+        request
+        for request in provider.requests
+        if request.get_messages()[0].get_message() == "child body"
+    ]
+    assert len(child_requests) == 1
+    assert (
+        "call_sub_agent"
+        not in child_requests[0].get_extra()["agentic"]["allowed_tools"]
+    )
+    delegation = next(
+        record
+        for record in parent._runtime._tool_cache.get_all()
+        if record.name == "call_sub_agent"
+    )
+    assert delegation.skill_path == "/mock-skill"
+    assert delegation.result == "child result"
+
+
+def test_each_non_leaf_node_gets_its_own_sub_agent_tool(tmp_path: Path) -> None:
+    capabilities = _write_capabilities(
+        tmp_path,
+        ("root", "child", "grandchild"),
+    )
+    grandchild = Node([capabilities], name_hds="grandchild")
+    child = Node([capabilities], name_hds="child", children=[grandchild])
+    root = Node([capabilities], name_hds="root", children=[child])
+
+    DeepAgent(provider=SequenceProvider([]), node=root, work_root=tmp_path)
+
+    root_tool = root._runtime._client.tools.get_tool("call_sub_agent")
+    child_tool = child._runtime._client.tools.get_tool("call_sub_agent")
+    assert isinstance(root_tool, SubAgentTool)
+    assert isinstance(child_tool, SubAgentTool)
+    assert root_tool.child_names == ("child",)
+    assert child_tool.child_names == ("grandchild",)
+    assert "call_sub_agent" not in grandchild._runtime._client.tools.list_tools()
+
+
+def test_rejects_duplicate_direct_child_hds_names(tmp_path: Path) -> None:
+    capabilities = _write_capabilities(tmp_path, ("root", "child"))
+    root = Node(
+        [capabilities],
+        name_hds="root",
+        children=[
+            Node([capabilities], name_hds="child"),
+            Node([capabilities], name_hds="child"),
+        ],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Direct child HDS names must be unique: child",
+    ):
+        DeepAgent(provider=SequenceProvider([]), node=root, work_root=tmp_path)
+
+
+def test_rejects_capability_using_reserved_sub_agent_tool_name(
+    tmp_path: Path,
+) -> None:
+    capabilities = _write_capabilities(tmp_path / "parent", ("parent",))
+    tool_path = capabilities / "tools" / "call_sub_agent"
+    tool_path.mkdir(parents=True)
+    (tool_path / "main.py").write_text(
+        "from qs.core.agents.tools.decorator import deep_tool\n\n"
+        "@deep_tool(name='call_sub_agent', description='Reserved')\n"
+        "def run(work_root, text: str) -> str:\n"
+        "    return text\n"
+    )
+    child = Node(
+        [_write_capabilities(tmp_path / "child", ("child",))],
+        name_hds="child",
+    )
+    root = Node([capabilities], name_hds="parent", children=[child])
+
+    with pytest.raises(
+        ValueError,
+        match="Harness runtime tool names are reserved: call_sub_agent",
+    ):
+        DeepAgent(provider=SequenceProvider([]), node=root, work_root=tmp_path)
+
+
+def test_node_exposes_custom_agent_context_id(tmp_path: Path) -> None:
+    capabilities = _write_runnable_capabilities(tmp_path)
+    node = Node(
+        [capabilities],
+        name_hds="main",
+        agent_context_id="custom-ctx-id",
+    )
+    assert node.agent_context_id == "custom-ctx-id"
+
+    provider = SequenceProvider([AssistantMessage("done")])
+    node.initialize(provider, work_root=tmp_path)
+
+    assert node.agent_context_id == "custom-ctx-id"
+    node.run("hi")
+    assert provider.requests[0].get_extra()["agentic"]["agent_context_id"] == "custom-ctx-id"
+
+
+def test_node_rejects_invalid_agent_context_id(tmp_path: Path) -> None:
+    capabilities = _write_runnable_capabilities(tmp_path)
+    with pytest.raises(TypeError, match="agent_context_id must be a string"):
+        Node([capabilities], name_hds="main", agent_context_id=cast(str, 123))
+
+    with pytest.raises(ValueError, match="agent_context_id cannot be empty"):
+        Node([capabilities], name_hds="main", agent_context_id="   ")
+
+
+def test_agentic_scope_validates_agent_context_id(tmp_path: Path) -> None:
+    capabilities = _write_runnable_capabilities(tmp_path)
+    hds = Node([capabilities], name_hds="main").load_capabilities(work_root=tmp_path).get_hds("main")
+
+    with pytest.raises(TypeError, match="agent_context_id must be a string"):
+        AgenticScope(hds=hds, exit_tool_name="exit_agent", agent_context_id=cast(str, 42))
+
+    with pytest.raises(ValueError, match="agent_context_id cannot be empty"):
+        AgenticScope(hds=hds, exit_tool_name="exit_agent", agent_context_id="")
+
+
+def test_prepare_tool_batch_rejects_missing_agent_context_id(tmp_path: Path) -> None:
+    node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
+    node.initialize(SequenceProvider([]), work_root=tmp_path)
+    runtime = node._runtime
+
+    runtime._executor.build_agentic_extra = lambda: {
+        "agentic": {
+            "allowed_tools": ["mock-tool"],
+            "allowed_skills": [],
+        }
+    }
+    with pytest.raises(ValueError, match=r"Agentic scope configuration \(\'agent_context_id\'\) must be a non-empty string"):
+        runtime._prepare_tool_batch(
+            [_function_call("mock-tool", {"text": "x"}, call_id="work")]
+        )

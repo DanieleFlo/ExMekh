@@ -51,8 +51,9 @@ class DeepAgent:
     def run(self, user_message: NodeUserMessage) -> AgentResponse:
         return self._root_node.run(user_message)
 
-    @staticmethod
+    @classmethod
     def _initialize_node_tree(
+        cls,
         provider: Provider,
         root_node: Node,
         work_root: Path,
@@ -91,7 +92,22 @@ class DeepAgent:
             active_nodes.remove(node)
 
         initialize(root_node)
+        cls._validate_capabilities_by_node(capabilities_by_node)
         return MappingProxyType(capabilities_by_node)
+    
+    @staticmethod
+    def _validate_capabilities_by_node(capabilities_by_node) -> None:
+        context_ids = [node.agent_context_id for node in capabilities_by_node]
+        if len(context_ids) != len(set(context_ids)):
+            duplicates = sorted(
+                cid
+                for cid in set(context_ids)
+                if cid is not None and context_ids.count(cid) > 1
+            )
+            raise ValueError(
+                "Distinct nodes in hierarchy must have unique agent_context_id: "
+                + ", ".join(duplicates)
+            )
 
     @staticmethod
     def _validate_work_root(work_root: Path) -> Path:

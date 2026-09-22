@@ -22,6 +22,7 @@ from qs.interfaces.tokenizer import Tokenizer
 
 if TYPE_CHECKING:
     from qs.core.cache.session_cache import SessionCache
+
     from .type_of_message import TypeOfMessage
 
 logger = logging.getLogger(__name__)

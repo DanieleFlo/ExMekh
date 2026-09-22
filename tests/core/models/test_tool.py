@@ -6,7 +6,7 @@ from qs.core.models.assistant_message import (
     FunctionCall,
     ToolCall,
 )
-from qs.core.models.tool import CalledTool, Tool
+from qs.core.models.tool import CalledTool, PreformattedToolResult, Tool
 
 
 def documented_tool(query: str) -> str:
@@ -31,6 +31,7 @@ def test_tool_accepts_explicit_metadata() -> None:
     assert tool.get_description() == "Search docs"
     assert tuple(tool.get_signature().parameters) == ("query",)
     assert tool.get_type_hints() == {"query": str, "return": str}
+    assert tool.cache_result is True
 
 
 def test_tool_creates_copy_with_description() -> None:
@@ -42,6 +43,7 @@ def test_tool_creates_copy_with_description() -> None:
     assert described_tool.tool is documented_tool
     assert described_tool.name == "search-docs"
     assert described_tool.description == "Available in skill 'docs'."
+    assert described_tool.cache_result is True
     assert tool.description == "Search docs"
 
 
@@ -67,6 +69,24 @@ def test_tool_rejects_non_callable() -> None:
 def test_tool_rejects_non_string_description() -> None:
     with pytest.raises(TypeError, match="description must be a string"):
         Tool(documented_tool, description=cast(str, object()))
+
+
+def test_tool_preserves_disabled_cache_policy_in_description_copies() -> None:
+    tool = Tool(documented_tool, cache_result=False)
+
+    assert tool.with_description("Runtime tool").cache_result is False
+    assert tool.with_description_suffix("Always available.").cache_result is False
+
+
+def test_tool_rejects_non_boolean_cache_policy() -> None:
+    with pytest.raises(TypeError, match="cache_result must be a bool"):
+        Tool(documented_tool, cache_result=cast(bool, "false"))
+
+
+def test_preformatted_tool_result_requires_text() -> None:
+    assert PreformattedToolResult("<result />").content == "<result />"
+    with pytest.raises(TypeError, match="content must be a string"):
+        PreformattedToolResult(cast(str, object()))
 
 
 def test_called_tool_executes_arguments_and_exposes_response_metadata() -> None:

@@ -53,13 +53,13 @@ def create_stream_printer() -> DeepAgentEventHandler:
                 )
                 try:
                     print(f"\n{label}: ", end="", flush=True)
-                except Exception as e:
+                except (OSError, ValueError) as e:
                     logger.error(e)
 
                 current_section = provider_event.type
             try:
                 print(provider_event.content, end="", flush=True)
-            except Exception as e:
+            except (OSError, ValueError) as e:
                 logger.error(e)
             return
 

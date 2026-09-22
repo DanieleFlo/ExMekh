@@ -11,10 +11,32 @@ class AgenticScope:
         self,
         hds: HDS,
         exit_tool_name: str,
+        runtime_tool_names: tuple[str, ...] = (),
+        agent_context_id: str | None = None,
     ) -> None:
         self._hds = hds
         self._exit_tool_name = exit_tool_name
+        self._runtime_tool_names = runtime_tool_names
+        self._agent_context_id = self._resolved_context_id(agent_context_id, hds)
+        self._validate_resolved_context_id()
         self._pending_return_skill_call_id: str | None = None
+    
+    def _resolved_context_id(self, agent_context_id, hds) -> str:
+        return (
+            agent_context_id
+            if agent_context_id is not None
+            else hds.get_agent_context_id()
+        )
+        
+    def _validate_resolved_context_id(self):
+        if not isinstance(self._agent_context_id, str):
+            raise TypeError("agent_context_id must be a string")
+        if not self._agent_context_id.strip():
+            raise ValueError("agent_context_id cannot be empty")
+        
+    @property
+    def agent_context_id(self) -> str:
+        return self._agent_context_id
 
     @property
     def node_id(self) -> str:
@@ -27,12 +49,15 @@ class AgenticScope:
     ) -> dict[str, dict[str, object]]:
         capability = active_skills[-1] if active_skills else self._hds
         allowed_tools = self._get_allowed_tool_names(active_skills)
+        allowed_tools.extend(self._runtime_tool_names)
+        allowed_tools = list(dict.fromkeys(allowed_tools))
         allowed_skills = list(capability.get_sub_skill_names())
 
         if depth > 0:
             allowed_tools.append(self._exit_tool_name)
 
         agentic: dict[str, object] = {
+            "agent_context_id": self._agent_context_id,
             "allowed_tools": allowed_tools,
             "allowed_skills": allowed_skills,
         }

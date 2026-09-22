@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from qs.core.cache.tool_call_record import CalledToolMetadata
 from qs.core.cache.tool_call_store import ToolCallStore
@@ -52,6 +52,7 @@ class ToolCallSaver:
         *,
         skill_path: str = "/",
         thinking: str | None = None,
+        source: Literal["Tool", "DeepSkill"] = "Tool",
     ) -> ToolCallData:
         """Group tool call information into a ToolCallData record and save it."""
         data = ToolCallData(
@@ -61,6 +62,7 @@ class ToolCallSaver:
             result=result,
             skill_path=skill_path,
             thinking=thinking,
+            source=source,
         )
         self.save(data)
         return data
@@ -73,9 +75,15 @@ class ToolCallSaver:
         *,
         skill_path: str = "/",
         thinking: str | None = None,
+        source: Literal["Tool", "DeepSkill"] = "Tool",
     ) -> ToolCallData:
         data = ToolCallData.from_call(
-            tool_call, result, id, skill_path=skill_path, thinking=thinking
+            tool_call,
+            result,
+            id,
+            skill_path=skill_path,
+            thinking=thinking,
+            source=source,
         )
         self.save(data)
         return data

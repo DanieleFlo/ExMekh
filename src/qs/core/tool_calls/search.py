@@ -4,6 +4,7 @@ import json
 from typing import Any
 
 from qs.core.cache.node_cache import NodeCache
+from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.tool import Tool
 
 
@@ -19,6 +20,7 @@ class ToolCallSearch:
     def search(
         self,
         query: str = "",
+        tool_name: str | None = None,
         skill_path: str | None = None,
         offset: int = 0,
         limit: int = 20,
@@ -28,8 +30,34 @@ class ToolCallSearch:
         Searches names, IDs, arguments and outputs. Returns only this node's
         records. Omit skill_path to search all its skill paths.
         """
+        records, total, next_offset = self.search_records(
+            query=query,
+            tool_name=tool_name,
+            skill_path=skill_path,
+            offset=offset,
+            limit=limit,
+        )
+        return {
+            "records": [record.to_dict() for record in records],
+            "total": total,
+            "next_offset": next_offset,
+        }
+
+    def search_records(
+        self,
+        query: str = "",
+        tool_name: str | None = None,
+        skill_path: str | None = None,
+        offset: int = 0,
+        limit: int = 20,
+    ) -> tuple[list[ToolCallRecord], int, int | None]:
+        """Return matching records and pagination metadata."""
         if not isinstance(query, str):
             raise TypeError("query must be a string")
+        if tool_name is not None and (
+            not isinstance(tool_name, str) or not tool_name.strip()
+        ):
+            raise ValueError("tool_name must be a non-empty string or None")
         if skill_path is not None and (
             not isinstance(skill_path, str) or not skill_path.startswith("/")
         ):
@@ -40,14 +68,11 @@ class ToolCallSearch:
             raise ValueError("limit must be between 1 and 100")
         needle = query.casefold()
         matches = [
-            record.to_dict()
+            record
             for record in self._cache.get_all()
-            if (skill_path is None or record.skill_path == skill_path)
+            if (tool_name is None or record.name == tool_name)
+            and (skill_path is None or record.skill_path == skill_path)
             and needle in json.dumps(record.to_dict(), ensure_ascii=False).casefold()
         ]
         end = offset + limit
-        return {
-            "records": matches[offset:end],
-            "total": len(matches),
-            "next_offset": end if end < len(matches) else None,
-        }
+        return matches[offset:end], len(matches), end if end < len(matches) else None

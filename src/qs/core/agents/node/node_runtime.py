@@ -20,6 +20,7 @@ from qs.core.models.client_request import ClientRequest
 from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.provider_stream_event import ProviderStreamEvent
 from qs.core.models.user_message import ErrorUserMessage, UserMessage
+from qs.core.tool_calls.memory_tools import ExecutionHistory, HarnessMemoryTools
 from qs.utils.json import to_json_value
 
 from .node_runtime_config import NodeRuntimeConfig
@@ -43,7 +44,20 @@ class NodeRuntime:
         self._config = config
         self._node_id = f"{config.get_hds_name()}-{uuid4().hex}"
         self._tool_cache: NodeCache | None = None
-        self._resolver = ToolCallResolver(config.capabilities)
+        self._execution_history = ExecutionHistory()
+        self._memory_tools = HarnessMemoryTools(
+            self._execution_history,
+            self._get_tool_cache,
+        )
+        self._runtime_tools = (
+            *config.runtime_tools,
+            *self._memory_tools.tools,
+        )
+        self._validate_runtime_tool_names()
+        self._resolver = ToolCallResolver(
+            config.capabilities,
+            self._runtime_tools,
+        )
         self._client: Client
         self._executor: ToolCallExecutor
         self._reset_session()
@@ -51,6 +65,27 @@ class NodeRuntime:
     @property
     def depth(self) -> int:
         return self._executor.depth
+
+    @property
+    def agent_context_id(self) -> str:
+        return self._config.resolved_agent_context_id
+
+    def _validate_runtime_tool_names(self) -> None:
+        capability_names = {
+            tool.name for tool in self._config.capabilities.get_all_tools()
+        }
+        runtime_names = tuple(tool.name for tool in self._runtime_tools)
+        duplicate_runtime_names = {
+            name for name in runtime_names if runtime_names.count(name) > 1
+        }
+        if duplicate_runtime_names:
+            names = ", ".join(sorted(duplicate_runtime_names))
+            raise ValueError(f"Harness runtime tool names must be unique: {names}")
+
+        collisions = capability_names.intersection(runtime_names)
+        if collisions:
+            names = ", ".join(sorted(collisions))
+            raise ValueError(f"Harness runtime tool names are reserved: {names}")
 
     def run(self, user_message: NodeUserMessage) -> AgentResponse:
         if not self._config.is_persistent_history():
@@ -136,6 +171,11 @@ class NodeRuntime:
         extra = self._executor.build_agentic_extra()
         scope = extra.get("agentic")
         if scope:
+            context_id = scope.get("agent_context_id")
+            if not isinstance(context_id, str) or not context_id.strip():
+                raise ValueError(
+                    "Agentic scope configuration ('agent_context_id') must be a non-empty string"
+                )
             allowed = set(cast(list[str], scope.get("allowed_tools"))) | set(
                 cast(list[str], scope["allowed_skills"])
             )
@@ -195,6 +235,10 @@ class NodeRuntime:
     ) -> None:
         skill_path = self._executor.skill_path
         arguments = to_json_value(tool_call.arguments)
+        history_entry = self._get_execution_history().record(
+            tool_call.name,
+            tool_call.call_id,
+        )
         self._emit_tool_state(tool_call.name, tool_call.call_id, running=True)
         try:
             logger.info(
@@ -203,7 +247,11 @@ class NodeRuntime:
                 tool_call.call_id,
                 self._executor.skill_path,
             )
-            result = self._executor.execute(tool_call, close_scope=close_scope)
+            result = self._executor.execute(
+                tool_call,
+                thinking=thinking,
+                close_scope=close_scope,
+            )
             if result.replace_history_from is None:
                 self._client.add_tool_response(result.response)
             else:
@@ -212,34 +260,65 @@ class NodeRuntime:
                     messages=[*result.preserved_responses, result.response],
                 )
             if result.save_result:
+                identity = result.cache_identity
                 record = ToolCallRecord(
-                    name=tool_call.name,
+                    name=identity.name if identity is not None else tool_call.name,
                     id=result.output_id or uuid4().hex,
-                    tool_call_id=tool_call.call_id,
-                    args=arguments,
+                    tool_call_id=(
+                        identity.tool_call_id
+                        if identity is not None
+                        else tool_call.call_id
+                    ),
+                    args=identity.args if identity is not None else arguments,
                     result=result.raw_result,
                     skill_path=skill_path,
-                    thinking=thinking,
+                    thinking=(
+                        identity.thinking if identity is not None else thinking
+                    ),
+                    source=identity.source if identity is not None else "Tool",
                 )
-                self._save_tool_record(record)
+                record_cache = self._save_tool_record(record)
+                if identity is None:
+                    history_entry.attach_output(record.id, record_cache.session_dir)
+                else:
+                    self._get_execution_history().attach_output(
+                        identity.tool_call_id,
+                        record.id,
+                        record_cache.session_dir,
+                    )
         finally:
             self._emit_tool_state(tool_call.name, tool_call.call_id, running=False)
 
-    def _save_tool_record(self, record: ToolCallRecord) -> None:
+    def _save_tool_record(self, record: ToolCallRecord) -> NodeCache:
+        cache = self._get_tool_cache()
+        cache.store(record)
+        return cache
+
+    def _get_tool_cache(self) -> NodeCache:
         if self._tool_cache is None or not self._tool_cache.is_active:
             self._tool_cache = self._config.build_node_cache(self._node_id)
-        self._tool_cache.store(record)
+        return self._tool_cache
+
+    def _get_execution_history(self) -> ExecutionHistory:
+        history = getattr(self, "_execution_history", None)
+        if history is None:
+            history = ExecutionHistory()
+            self._execution_history = history
+        return history
 
     def _reset_session(self) -> None:
         self._pending_batches: list[tuple[int, list[ResolvedToolCall], str | None]] = []
-        tools = self._config.build_tools()
+        tools = self._config.build_tools(self._runtime_tools)
         self._client = Client(
             provider=self._config.provider,
             system_message=self._config.build_system_message(),
             tools=tools,
         )
 
-        self._executor = self._config.build_executor(self._client)
+        self._executor = self._config.build_executor(
+            self._client,
+            tuple(tool.name for tool in self._runtime_tools),
+        )
 
     def _current_tool_choice(self) -> str | None:
         if self.depth > 0:

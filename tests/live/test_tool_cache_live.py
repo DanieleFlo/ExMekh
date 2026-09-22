@@ -4,6 +4,7 @@ import os
 import shutil
 from collections.abc import Iterator
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 import pytest
 from dotenv import load_dotenv
@@ -16,12 +17,20 @@ from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.reasoning_effort import ReasoningEffortLMH
+from qs.core.models.tool_message import ToolMessage
 from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
 from qs.core.tool_calls import ToolCallReader, ToolCallSearch
 from qs.providers.local import LocalProvider
 from qs.utils.file import read_json_from_path
 
 pytestmark = pytest.mark.live
+
+_TRANSIENT_TOOL_NAMES = {
+    "exit_agent",
+    "get_execution_history",
+    "search_saved_tool_outputs",
+    "read_saved_tool_output",
+}
 
 
 class CacheTestTokenizer(SequentialTokenizer):
@@ -105,7 +114,7 @@ def verify_saved_calls(
         call.id: (call, response.thinking.thoughts if response.thinking else None)
         for response in responses
         for call in response.get_tool_calls() or []
-        if call.get_name() not in {"mock-skill", "nested-skill"}
+        if call.get_name() not in _TRANSIENT_TOOL_NAMES
     }
     assert expected, "MODEL: expected at least one executable tool call"
     cache = saved_cache(node)
@@ -132,6 +141,24 @@ def verify_saved_calls(
         )
         assert ToolCallReader(directory=path.parent).get(record.id) == record
     return records
+
+
+def get_tool_response(
+    provider: RecordingLocalProvider,
+    tool_call_id: str,
+) -> str:
+    responses = [
+        message.get_message()
+        for request in provider.requests
+        for message in request.get_messages()
+        if isinstance(message, ToolMessage)
+        and message.get_tool_call_id() == tool_call_id
+    ]
+    assert responses, f"CLIENT: no response found for tool call {tool_call_id!r}"
+    assert len(set(responses)) == 1, (
+        f"CLIENT: inconsistent responses found for tool call {tool_call_id!r}"
+    )
+    return responses[-1]
 
 
 @pytest.mark.parametrize("streaming", [False, True], ids=["non-streaming", "streaming"])
@@ -173,19 +200,115 @@ def test_live_nested_tools_save_path_and_each_turn_thinking(
     )
 
     records = verify_saved_calls(node, live_provider.responses)
-    assert len(records) == 3, "MODEL: expected one regular tool and two exits"
+    assert len(records) == 3, (
+        "MODEL: expected one regular tool and two saved skill outputs"
+    )
     regular = [record for record in records if record.name == "nested-sub-tool"]
-    exits = [record for record in records if record.name == "exit_agent"]
-    assert len(regular) == 1 and len(exits) == 2
+    skills = [record for record in records if record.source == "DeepSkill"]
+    assert len(regular) == 1 and len(skills) == 2
     assert regular[0].skill_path == "/mock-skill/nested-skill"
     assert token in regular[0].result
-    assert {record.skill_path for record in exits} == {
-        "/mock-skill",
-        "/mock-skill/nested-skill",
+    assert {
+        record.name: (record.skill_path, record.result) for record in skills
+    } == {
+        "mock-skill": (
+            "/mock-skill",
+            {"text": "parent done", "items": ["parent"]},
+        ),
+        "nested-skill": (
+            "/mock-skill/nested-skill",
+            {"text": "nested done", "items": ["nested"]},
+        ),
     }
-    assert all(record.result == record.args for record in exits)
     assert node.depth == 0
-    assert all(record.name not in {"mock-skill", "nested-skill"} for record in records)
+
+
+def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
+    live_provider,
+    tmp_path,
+):
+    node = initialize_node(live_provider, tmp_path)
+    response = node.run(
+        "Follow this sequence exactly. Enter mock-skill. Inside the skill, invent "
+        "a unique alphanumeric code containing 6 to 12 letters or digits. Call "
+        "mock-sub-tool exactly once with that code as text. Then call exit_agent "
+        "with the exact same code as text and items=['code']. Back at the root, "
+        "call search_saved_tool_outputs exactly once with query set to the code "
+        "and tool_name='mock-sub-tool'. Take the id from the returned XML record "
+        "and pass it to read_saved_tool_output exactly once. Compare the code in "
+        "the complete saved output with the code returned by exit_agent. If they "
+        "are identical, answer exactly 'MATCH: <code>', replacing <code> with the "
+        "actual code. Otherwise answer exactly 'MISMATCH'. Do not call any other "
+        "tools."
+    )
+
+    calls = [
+        call
+        for provider_response in live_provider.responses
+        for call in provider_response.get_tool_calls() or []
+    ]
+    expected_call_names = (
+        "mock-skill",
+        "mock-sub-tool",
+        "exit_agent",
+        "search_saved_tool_outputs",
+        "read_saved_tool_output",
+    )
+    calls_by_name = {
+        name: [call for call in calls if call.get_name() == name]
+        for name in expected_call_names
+    }
+    actual_call_names = [call.get_name() for call in calls]
+    assert actual_call_names == list(expected_call_names), (
+        "MODEL: expected exactly one ordered call for each step; calls="
+        f"{actual_call_names}"
+    )
+
+    sub_tool_call = calls_by_name["mock-sub-tool"][0]
+    code = sub_tool_call.get_arguments().get("text")
+    assert isinstance(code, str) and 6 <= len(code) <= 12 and code.isalnum(), (
+        f"MODEL: expected a 6-12 character alphanumeric code, got {code!r}"
+    )
+    assert calls_by_name["exit_agent"][0].get_arguments() == {
+        "text": code,
+        "items": ["code"],
+    }
+
+    records = saved_cache(node).get_all()
+    sub_tool_records = [record for record in records if record.name == "mock-sub-tool"]
+    assert len(sub_tool_records) == 1, (
+        "CACHE: expected exactly one saved mock-sub-tool output"
+    )
+    sub_tool_record = sub_tool_records[0]
+    assert sub_tool_record.args == {"text": code}
+    assert sub_tool_record.result == f"Mock sub-tool result: {code}"
+
+    skill_records = [record for record in records if record.name == "mock-skill"]
+    assert len(skill_records) == 1
+    assert skill_records[0].source == "DeepSkill"
+    assert skill_records[0].result == {"text": code, "items": ["code"]}
+
+    search_call = calls_by_name["search_saved_tool_outputs"][0]
+    search_arguments = search_call.get_arguments()
+    assert search_arguments.get("query") == code
+    assert search_arguments.get("tool_name") == "mock-sub-tool"
+    search_xml = ET.fromstring(get_tool_response(live_provider, search_call.id))
+    assert search_xml.findtext("total") == "1"
+    assert search_xml.findtext("./records/record/name") == "mock-sub-tool"
+    assert search_xml.findtext("./records/record/id") == sub_tool_record.id
+    assert code in (search_xml.findtext("./records/record/preview") or "")
+
+    read_call = calls_by_name["read_saved_tool_output"][0]
+    assert read_call.get_arguments() == {"output_id": sub_tool_record.id}
+    read_response = get_tool_response(live_provider, read_call.id)
+    header_xml, saved_output = read_response.split("</header>\n", maxsplit=1)
+    header = ET.fromstring(header_xml + "</header>")
+    assert header.findtext("name") == "mock-sub-tool"
+    assert header.findtext("type") == "Tool"
+    assert header.findtext("id") == sub_tool_record.id
+    assert header.findtext("./args/text") == code
+    assert saved_output == f"Mock sub-tool result: {code}"
+    assert response.get_message().strip() == f"MATCH: {code}"
 
 
 def test_live_cache_isolates_same_named_nodes_and_retains_previous_runs(
@@ -263,13 +386,14 @@ def test_live_exit_uses_instructions_available_only_in_markdown(
     response = node.run(
         "Apri mock-skill una sola volta. Per concluderla segui le istruzioni di uscita fornite dalla skill. Poi rispondi brevemente senza altri tool."
     )
-    exits = [
+    skills = [
         record
         for record in verify_saved_calls(node, live_provider.responses)
-        if record.name == "exit_agent"
+        if record.name == "mock-skill"
     ]
-    assert len(exits) == 1
-    assert exits[0].result == {"text": token, "items": ["verified"]}
+    assert len(skills) == 1
+    assert skills[0].source == "DeepSkill"
+    assert skills[0].result == {"text": token, "items": ["verified"]}
     assert node.depth == 0
     assert response.get_message()
     assert (

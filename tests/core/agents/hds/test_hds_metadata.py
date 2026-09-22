@@ -63,3 +63,40 @@ def test_rejects_legacy_exit_skill_metadata():
         HDSMetadataParser().parse(
             {"description": "Instructions", "exit-skill": "finish"}
         )
+
+
+def test_parses_hds_metadata_with_agent_context_id() -> None:
+    metadata = HDSMetadataParser().parse(
+        {
+            "description": "Instructions",
+            "exit-tool": "finish",
+            "agent-context-id": " custom-agent-ctx ",
+        }
+    )
+
+    assert metadata.get_agent_context_id() == "custom-agent-ctx"
+    assert metadata.agent_context_id == "custom-agent-ctx"
+
+
+def test_parses_hds_metadata_without_agent_context_id_defaults_to_none() -> None:
+    metadata = HDSMetadataParser().parse(
+        {
+            "description": "Instructions",
+            "exit-tool": "finish",
+        }
+    )
+
+    assert metadata.get_agent_context_id() is None
+    assert metadata.agent_context_id is None
+
+
+@pytest.mark.parametrize("value", [[], ["first"], 3, "", "   "])
+def test_rejects_invalid_agent_context_id(value: object) -> None:
+    with pytest.raises((TypeError, ValueError), match="agent-context-id"):
+        HDSMetadataParser().parse(
+            {
+                "description": "Instructions",
+                "exit-tool": "finish",
+                "agent-context-id": value,
+            }
+        )

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.user_message import (
@@ -29,5 +29,17 @@ class ToolExecutionResult:
     raw_result: Any = None
     save_result: bool = False
     output_id: str | None = None
+    cache_identity: CacheIdentity | None = None
     replace_history_from: int | None = None
     preserved_responses: tuple[ToolMessage, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class CacheIdentity:
+    """Identity of the capability whose recoverable output was produced."""
+
+    name: str
+    source: Literal["Tool", "DeepSkill"]
+    tool_call_id: str
+    args: dict[str, Any]
+    thinking: str | None = None

@@ -91,6 +91,7 @@ def test_tool_call_data_to_and_from_dict():
         "skill_path": "/",
         "tool_call_id": None,
         "thinking": None,
+        "type": "Tool",
     }
     rebuilt = ToolCallData.from_dict(raw)
     assert rebuilt == original

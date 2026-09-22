@@ -3,10 +3,22 @@ from __future__ import annotations
 import inspect
 import re
 from collections.abc import Callable
+from dataclasses import dataclass
 from functools import partial
 from typing import Any, Literal, get_type_hints
 
 from qs.core.models.assistant_message import ToolCall
+
+
+@dataclass(frozen=True, slots=True)
+class PreformattedToolResult:
+    """Tool content that must be returned without an additional XML header."""
+
+    content: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.content, str):
+            raise TypeError("Preformatted tool content must be a string")
 
 
 class Tool:
@@ -16,12 +28,16 @@ class Tool:
         *,
         name: str | None = None,
         description: str | None = None,
+        cache_result: bool = True,
     ) -> None:
         self.tool = tool
         self._tool_type: Literal["function"] = "function"
         self._check_callable_tool()
         self.name = self._resolve_tool_name(tool, name)
         self.description = description or inspect.getdoc(tool) or ""
+        if not isinstance(cache_result, bool):
+            raise TypeError("cache_result must be a bool")
+        self.cache_result = cache_result
         self._check_inputs()
 
     def _resolve_tool_name(self, tool: Callable[..., Any], name: str | None) -> str:
@@ -61,7 +77,12 @@ class Tool:
         return get_type_hints(callable_tool, include_extras=True)
 
     def with_description(self, description: str) -> Tool:
-        return Tool(self.tool, name=self.name, description=description)
+        return Tool(
+            self.tool,
+            name=self.name,
+            description=description,
+            cache_result=self.cache_result,
+        )
 
     def with_description_suffix(self, suffix: str) -> Tool:
         description = " ".join(part for part in (self.description, suffix) if part)
@@ -105,6 +126,10 @@ class CalledTool:
     @property
     def tool_call(self) -> ToolCall:
         return self._tool_call
+
+    @property
+    def cache_result(self) -> bool:
+        return self._tool.cache_result
 
     def execute(self) -> Any:
         return self._tool.execute(**self._tool_call.function.arguments)

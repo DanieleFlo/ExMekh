@@ -38,16 +38,19 @@ HDS files are Markdown files located in `capabilities/hds/`. They define the bas
 ```markdown
 ---
 description: Main agent system prompt.
+exit-tool: exit_agent
+agent-context-id: main
 sub-tools:
   - mock-tool
 sub-skills:
   - mock-skill
-exit-tool: exit_agent
 ---
 # Main System Agent
 
 You are the lead orchestrator agent responsible for analyzing user commands and delegating to tools and sub-skills.
 ```
+
+- **`agent-context-id`** (optional): Non-empty string identifying the agent context for inference engines like DS4. If omitted, defaults to the HDS file name (e.g. `main`). In DS4, this opaque key binds live KV cache, system prefix frontiers, and automatic context checkpointing/restoring during sub-agent delegation.
 
 ### 2. Deep Skills (`deep-skill`)
 Deep skills in `capabilities/deep-skill/` allow an agent to switch into a focused execution mode with dedicated instructions and subset of tools.

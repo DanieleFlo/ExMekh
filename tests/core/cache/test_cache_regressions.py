@@ -168,6 +168,12 @@ def test_old_records_default_to_root_skill_path():
         {"name": "tool", "id": "id", "args": {}, "result": None}
     )
     assert record.skill_path == "/"
+    assert record.source == "Tool"
+
+
+def test_record_rejects_invalid_source():
+    with pytest.raises(ValueError, match="source must be"):
+        ToolCallRecord("tool", "id", {}, None, source="ExitTool")  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("path", [None, 3, "relative", ""])
@@ -232,6 +238,7 @@ def test_search_tool_is_scoped_and_supports_path_query_and_pagination(tmp_path):
         {"limit": True},
         {"limit": 101},
         {"query": None},
+        {"tool_name": ""},
         {"skill_path": "relative"},
     ],
 )

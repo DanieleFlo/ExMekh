@@ -31,7 +31,8 @@ class ToOpenAIResponseRequestMapper:
 
         if reasoning_effort is not None:
             payload["reasoning"] = {
-                "effort": cls._get_reasoning_effort_value(reasoning_effort)
+                "effort": cls._get_reasoning_effort_value(reasoning_effort),
+                "summary": "auto",
             }
 
         extra = request.get_extra()

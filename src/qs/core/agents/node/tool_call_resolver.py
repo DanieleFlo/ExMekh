@@ -10,8 +10,13 @@ type ResolvedToolCall = CalledDeepSkill | CalledTool | CalledExitTool
 class ToolCallResolver:
     """Resolve provider tool calls to executable agent capabilities."""
 
-    def __init__(self, capabilities: CapabilitiesData) -> None:
+    def __init__(
+        self,
+        capabilities: CapabilitiesData,
+        runtime_tools: tuple[Tool, ...] = (),
+    ) -> None:
         self._capabilities = capabilities
+        self._runtime_tools = runtime_tools
 
     def resolve_all(self, tool_calls: list[ToolCall] | None) -> list[ResolvedToolCall]:
         if tool_calls is None:
@@ -20,7 +25,7 @@ class ToolCallResolver:
 
     def resolve(self, tool_call: ToolCall) -> ResolvedToolCall:
         tool_name = tool_call.get_name()
-        for tool in self._capabilities.get_all_tools():
+        for tool in (*self._capabilities.get_all_tools(), *self._runtime_tools):
             if tool.name != tool_name:
                 continue
             if isinstance(tool, DeepSkill):

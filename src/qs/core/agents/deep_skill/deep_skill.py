@@ -112,11 +112,14 @@ class CalledDeepSkill:
         self,
         tracker: DeepSkillExecutionTracker,
         start_index: int,
+        thinking: str | None = None,
         preceding_tool_responses: tuple[ToolMessage, ...] = (),
     ) -> None:
         tracker.open(
             self._deep_skill,
             self.call_id,
             start_index,
+            self.arguments,
+            thinking,
             preceding_tool_responses,
         )

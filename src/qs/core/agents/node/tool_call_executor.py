@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any, Literal
 
@@ -11,13 +10,14 @@ from qs.core.agents.deep_skill.execution import (
 )
 from qs.core.agents.exit_tool.exit_tool import CalledExitTool, ExitTool
 from qs.core.models.client import Client
-from qs.core.models.tool import CalledTool
+from qs.core.models.tool import CalledTool, PreformattedToolResult
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.xml_header import XmlHeader
+from qs.utils.json import stringify_tool_result
 
 from .agentic_scope import AgenticScope
 from .tool_call_resolver import ResolvedToolCall
-from .types import NodeExecutionSnapshot, ToolExecutionResult
+from .types import CacheIdentity, NodeExecutionSnapshot, ToolExecutionResult
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,11 @@ class ToolCallExecutor:
         self._agentic_scope.acknowledge_extra()
 
     def execute(
-        self, tool_call: ResolvedToolCall, *, close_scope: bool = True
+        self,
+        tool_call: ResolvedToolCall,
+        *,
+        thinking: str | None = None,
+        close_scope: bool = True,
     ) -> ToolExecutionResult:
         supported_types = (CalledDeepSkill, CalledExitTool, CalledTool)
         if not isinstance(tool_call, supported_types):
@@ -85,13 +89,16 @@ class ToolCallExecutor:
         if isinstance(tool_call, CalledExitTool):
             return self._run_exit_tool(tool_call, close_scope=close_scope)
         if isinstance(tool_call, CalledDeepSkill):
-            return self._run_deep_skill(tool_call)
+            return self._run_deep_skill(tool_call, thinking=thinking)
         return self._run_tool(tool_call)
 
     def _run_deep_skill(
-        self, called_deep_skill: CalledDeepSkill
+        self,
+        called_deep_skill: CalledDeepSkill,
+        *,
+        thinking: str | None,
     ) -> ToolExecutionResult:
-        self._open_deep_skill(called_deep_skill)
+        self._open_deep_skill(called_deep_skill, thinking=thinking)
         content = called_deep_skill.render_instructions(
             self._exit_tool.render_prompt_section()
         )
@@ -110,9 +117,15 @@ class ToolCallExecutor:
             self._depth,
         )
         result = called_tool.execute()
-        content, output_id = self._format_output(
-            called_tool.name, self.stringify_result(result), source="Tool"
-        )
+        if isinstance(result, PreformattedToolResult):
+            content = result.content
+            raw_result = result.content
+            output_id = None
+        else:
+            raw_result = result
+            content, output_id = self._format_output(
+                called_tool.name, self.stringify_result(result), source="Tool"
+            )
         tool_response = ToolMessage(
             content=content,
             tool_call_id=called_tool.call_id,
@@ -120,8 +133,8 @@ class ToolCallExecutor:
         )
         return ToolExecutionResult(
             response=tool_response,
-            raw_result=result,
-            save_result=True,
+            raw_result=raw_result,
+            save_result=called_tool.cache_result,
             output_id=output_id,
         )
 
@@ -180,7 +193,12 @@ class ToolCallExecutor:
             response=tool_response, raw_result=result, save_result=True
         )
 
-    def _open_deep_skill(self, called_deep_skill: CalledDeepSkill) -> None:
+    def _open_deep_skill(
+        self,
+        called_deep_skill: CalledDeepSkill,
+        *,
+        thinking: str | None,
+    ) -> None:
         history = self._client.get_history()
         start_index = max(
             index
@@ -195,6 +213,7 @@ class ToolCallExecutor:
         called_deep_skill.open_execution(
             self._skill_executions,
             start_index,
+            thinking,
             preceding_tool_responses,
         )
         self._depth += 1
@@ -240,6 +259,13 @@ class ToolCallExecutor:
             replace_history_from=execution.start_index + 1,
             preserved_responses=execution.preceding_tool_responses,
             output_id=output_id,
+            cache_identity=CacheIdentity(
+                name=execution.skill.name,
+                source="DeepSkill",
+                tool_call_id=execution.opening_tool_call_id,
+                args=execution.opening_arguments,
+                thinking=execution.opening_thinking,
+            ),
         )
 
     @staticmethod
@@ -250,6 +276,4 @@ class ToolCallExecutor:
 
     @staticmethod
     def stringify_result(result: Any) -> str:
-        if isinstance(result, str):
-            return result
-        return json.dumps(result, ensure_ascii=True, default=str)
+        return stringify_tool_result(result)

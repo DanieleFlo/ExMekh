@@ -95,6 +95,24 @@ class CapabilityMetadataParser:
         return value
 
     @staticmethod
+    def _parse_optional_string(
+        data: dict[str, Any],
+        field: MetadataFieldSpec,
+    ) -> str | None:
+        if field.key not in data:
+            return None
+
+        value = data.get(field.key)
+        if not isinstance(value, str):
+            raise TypeError(f"Metadata field '{field.key}' must be a string.")
+
+        value = value.strip()
+        if not value:
+            raise ValueError(f"Metadata field '{field.key}' cannot be empty.")
+
+        return value
+
+    @staticmethod
     def _parse_boolean(
         data: dict[str, Any],
         field: MetadataFieldSpec,

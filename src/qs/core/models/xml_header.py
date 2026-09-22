@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import json
+import re
 from dataclasses import dataclass, field
 from typing import Any, Literal
 from xml.etree import ElementTree as ET
+
+from qs.utils.json import to_json_value
 
 
 @dataclass
@@ -11,8 +15,10 @@ class XmlHeader:
     name: str
     id: str
     fields: dict[str, Any] = field(default_factory=dict)
+    args: dict[str, Any] | None = None
 
     ROOT_TAG = "header"
+    _XML_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_.-]*$")
 
     def __post_init__(self) -> None:
         if not isinstance(self.source, str):
@@ -41,6 +47,13 @@ class XmlHeader:
         if not all(isinstance(key, str) for key in self.fields):
             raise TypeError("all keys in fields must be strings")
 
+        if self.args is not None and not isinstance(self.args, dict):
+            raise TypeError("args must be a dictionary or None")
+        if self.args is not None and not all(
+            isinstance(key, str) for key in self.args
+        ):
+            raise TypeError("all keys in args must be strings")
+
     def add_field(self, key: str, value: Any) -> XmlHeader:
         """Add or replace a custom metadata field."""
         self.fields[key] = value
@@ -63,6 +76,15 @@ class XmlHeader:
         ET.SubElement(root, "type").text = self.source
         ET.SubElement(root, "id").text = self.id
 
+        if self.args is not None:
+            args_element = ET.SubElement(root, "args")
+            for name, value in self.args.items():
+                if self._XML_NAME.fullmatch(name):
+                    argument = ET.SubElement(args_element, name)
+                else:
+                    argument = ET.SubElement(args_element, "arg", {"name": name})
+                argument.text = self._format_argument(value)
+
         for key, value in self.fields.items():
             if value is None:
                 continue
@@ -75,6 +97,16 @@ class XmlHeader:
             root,
             encoding="unicode",
             short_empty_elements=True,
+        )
+
+    @staticmethod
+    def _format_argument(value: Any) -> str:
+        if isinstance(value, str):
+            return value
+        return json.dumps(
+            to_json_value(value),
+            ensure_ascii=False,
+            separators=(",", ":"),
         )
 
     def prepend_to(self, content: str) -> str:
