@@ -54,6 +54,8 @@ def test_init_builds_client_and_checks_provider() -> None:
             model="local-model",
             api_key_env_var="CUSTOM_KEY",
             base_url_env_var="CUSTOM_URL",
+            api_key="explicit-key",
+            base_url="http://explicit.test/v1",
         )
 
     assert provider._model == "local-model"
@@ -61,6 +63,8 @@ def test_init_builds_client_and_checks_provider() -> None:
     assert provider._base_url_env_var == "CUSTOM_URL"
     assert provider._reasoning_effort is None
     assert provider._api == "chat_completions"
+    assert provider._api_key == "explicit-key"
+    assert provider._base_url == "http://explicit.test/v1"
     assert provider.client is client
     check_inputs.assert_called_once_with()
     build.assert_called_once_with()
@@ -77,6 +81,8 @@ def test_init_builds_client_and_checks_provider() -> None:
         ({"api_key_env_var": 7}, TypeError),
         ({"base_url_env_var": ""}, ValueError),
         ({"base_url_env_var": 7}, TypeError),
+        ({"api_key": 7}, TypeError),
+        ({"base_url": 7}, TypeError),
         ({"reasoning_effort": 7}, TypeError),
         ({"api": "unknown"}, ValueError),
     ],
@@ -86,6 +92,8 @@ def test_init_rejects_malformed_settings(overrides, error_type) -> None:
         "model": "valid-model",
         "api_key_env_var": "VALID_KEY",
         "base_url_env_var": "VALID_URL",
+        "api_key": None,
+        "base_url": None,
         "reasoning_effort": ReasoningEffortLMH.LOW,
         "api": "chat_completions",
     }
@@ -139,6 +147,22 @@ def test_resolve_api_key_returns_configured_environment_value(monkeypatch) -> No
     assert provider._resolve_api_key() == "secret"
 
 
+def test_resolve_api_key_prefers_explicit_value(monkeypatch) -> None:
+    provider = make_provider()
+    provider._api_key = "explicit"
+    monkeypatch.setenv("API_KEY", "environment")
+
+    assert provider._resolve_api_key() == "explicit"
+
+
+def test_resolve_api_key_explicit_empty_value_uses_local_fallback(monkeypatch) -> None:
+    provider = make_provider()
+    provider._api_key = ""
+    monkeypatch.setenv("API_KEY", "environment")
+
+    assert provider._resolve_api_key() == "local-api-key"
+
+
 def test_resolve_api_key_returns_local_fallback_when_missing(monkeypatch) -> None:
     provider = make_provider()
     monkeypatch.delenv("API_KEY", raising=False)
@@ -152,6 +176,25 @@ def test_resolve_base_url_returns_configured_environment_value(monkeypatch) -> N
     monkeypatch.setenv("CUSTOM_URL", "http://localhost:8000")
 
     assert provider._resolve_base_url() == "http://localhost:8000"
+
+
+def test_resolve_base_url_prefers_explicit_value(monkeypatch) -> None:
+    provider = make_provider()
+    provider._base_url = "http://explicit.test/v1"
+    monkeypatch.setenv("BASE_URL", "http://environment.test/v1")
+
+    assert provider._resolve_base_url() == "http://explicit.test/v1"
+
+
+def test_resolve_base_url_explicit_empty_value_does_not_use_environment(
+    monkeypatch,
+) -> None:
+    provider = make_provider()
+    provider._base_url = ""
+    monkeypatch.setenv("BASE_URL", "http://environment.test/v1")
+
+    with pytest.raises(ValueError, match="BASE_URL.*not set"):
+        provider._resolve_base_url()
 
 
 def test_resolve_base_url_rejects_missing_environment_value(monkeypatch) -> None:

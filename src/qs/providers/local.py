@@ -29,6 +29,9 @@ class LocalProvider(Provider):
         reasoning_effort: ReasoningEffort | None = None,
         api: Literal["chat_completions", "responses"] = "chat_completions",
         tokenizer: Tokenizer | None = None,
+        *,
+        api_key: str | None = None,
+        base_url: str | None = None,
     ) -> None:
         super().__init__(
             tokenizer=tokenizer if tokenizer is not None else QwenTokenizer()
@@ -36,6 +39,8 @@ class LocalProvider(Provider):
         self._model = model
         self._api_key_env_var = api_key_env_var
         self._base_url_env_var = base_url_env_var
+        self._api_key = api_key
+        self._base_url = base_url
         self._reasoning_effort = reasoning_effort
         self._api = api
 
@@ -50,6 +55,10 @@ class LocalProvider(Provider):
             raise TypeError("API key environment variable must be a string")
         if not isinstance(self._base_url_env_var, str):
             raise TypeError("Base URL environment variable must be a string")
+        if self._api_key is not None and not isinstance(self._api_key, str):
+            raise TypeError("API key must be a string or None")
+        if self._base_url is not None and not isinstance(self._base_url, str):
+            raise TypeError("Base URL must be a string or None")
         if self._reasoning_effort is not None and not isinstance(
             self._reasoning_effort, ReasoningEffort
         ):
@@ -71,14 +80,22 @@ class LocalProvider(Provider):
         return client
 
     def _resolve_api_key(self) -> str:
-        api_key = os.getenv(self._api_key_env_var)
+        api_key = (
+            self._api_key
+            if self._api_key is not None
+            else os.getenv(self._api_key_env_var)
+        )
         if not api_key:
             # Local provider does not require an API key
             api_key = "local-api-key"
         return api_key
 
     def _resolve_base_url(self) -> str:
-        base_url = os.getenv(self._base_url_env_var)
+        base_url = (
+            self._base_url
+            if self._base_url is not None
+            else os.getenv(self._base_url_env_var)
+        )
         if not base_url or not base_url.strip():
             raise ValueError(
                 f"Environment variable '{self._base_url_env_var}' is not set."

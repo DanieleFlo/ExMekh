@@ -16,12 +16,18 @@ from qs.core.models.reasoning_effort import ReasoningEffort
 
 provider = LocalProvider(
     model="Qwen3.8-27B-UD-Q4_K_S",
-    base_url_env_var="BASE_URL",  # Env var name for base URL (default: "BASE_URL")
-    api_key_env_var="API_KEY",  # Env var name for API key (default: "API_KEY")
+    base_url="http://localhost:8080/v1",
+    api_key="local-api-key",
     api="chat_completions",  # Endpoint style: "chat_completions" or "responses"
     reasoning_effort=ReasoningEffort.MEDIUM,  # Optional reasoning effort setting
 )
 ```
+
+`base_url` and `api_key` are keyword-only and take precedence over environment
+variables. If they are omitted, `base_url_env_var` and `api_key_env_var` select
+the environment variable names (`BASE_URL` and `API_KEY` by default). Explicit
+configuration is recommended when multiple providers may be created concurrently,
+because it does not mutate or depend on process-global environment state.
 
 ### Model Availability Check
 When `LocalProvider` initializes, it queries the backend's `/v1/models` endpoint. If the requested `model` name is not returned by the backend, it raises a `ValueError` listing available model names.
