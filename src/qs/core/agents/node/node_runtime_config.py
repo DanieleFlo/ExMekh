@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from qs.core.agents.capabilities.data import CapabilitiesData
+from qs.core.agents.capabilities.defaults import DefaultCapabilities
 from qs.core.agents.deep_agent.stream_event import (
     DeepAgentEventHandler,
     DeepAgentExecutionEvent,
@@ -31,6 +32,7 @@ class NodeRuntimeConfig:
     initial_depth: int
     agent_context_id: str | None = None
     runtime_tools: tuple[Tool, ...] = ()
+    default_capabilities: DefaultCapabilities | None = None
     on_stream: DeepAgentEventHandler | None = None
 
     @property

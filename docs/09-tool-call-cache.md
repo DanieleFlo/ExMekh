@@ -134,7 +134,9 @@ e cicli con `<circular reference>`. La cache non ricostruisce oggetti Python.
 
 ## Tool di memoria del runtime
 
-Ogni `NodeRuntime` registra automaticamente tre tool in root e in tutte le skill:
+Ogni `NodeRuntime` espone normalmente tre tool in root e in tutte le skill.
+Con `Node(..., default_capabilities=DefaultCapabilities(...))`, si possono
+includere, escludere o sovrascrivere singolarmente tramite i nomi seguenti:
 
 - `get_execution_history(start_position=None, limit=20)` restituisce XML
   navigabile con nome, call ID e posizione delle capability chiamate. Senza
@@ -149,8 +151,10 @@ Ogni `NodeRuntime` registra automaticamente tre tool in root e in tutte le skill
   ID e argomenti, seguito dal contenuto completo. Un ID assente produce XML con
   `found=false`, senza interrompere l'agente.
 
-Questi tool non salvano le proprie risposte. I loro nomi sono riservati e non
-possono essere riutilizzati dalle capability applicative. La history vive quanto
+I tool predefiniti non salvano le proprie risposte. I nomi attivi non
+possono essere riutilizzati dalle capability applicative senza un override
+esplicito. Escluderli li nasconde al modello ma non disattiva la registrazione
+interna della cronologia o la cache. La history vive quanto
 il runtime, anche con `persistent_history=False`; dopo la chiusura della sessione
 le vecchie chiamate restano elencate ma gli ID non più recuperabili vengono omessi.
 

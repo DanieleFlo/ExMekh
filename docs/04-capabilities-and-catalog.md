@@ -28,6 +28,60 @@ capabilities/
 
 The [`CapabilitiesLayout`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/agents/capabilities/layout.py) class verifies directory integrity and automatically creates missing subfolders when initialized.
 
+## Per-node default capabilities
+
+`DefaultCapabilities` selects bundled resources independently for each `Node`.
+Its default is `mocks=False, harness=True`; nodes without this parameter keep
+their existing behavior and load only the explicit directories plus the automatic
+runtime tools. A harness-only node needs an application HDS in
+`capabilities_paths` (or an HDS override). The bundled directory can also appear
+in `capabilities_paths`; it is loaded once and the selection still applies.
+
+| Group | Bundled names |
+| --- | --- |
+| Mock | HDS `main`, `mock-sub-agent`; skills `mock-skill`, `nested-skill`; tools `mock-tool`, `mock-sub-tool`, `nested-sub-tool`, `shared-tool` |
+| Harness | Exit tool `exit_agent`; memory tools `get_execution_history`, `search_saved_tool_outputs`, `read_saved_tool_output`; delegation tool `call_sub_agent` on nodes with children |
+
+There are currently no bundled harness skills. Group switches select all names
+in that group. `include` and `exclude` take names that adjust the switches;
+`overrides` maps a bundled name to an `HDS`, `DeepSkill`, `ExitTool`, or `Tool`
+instance of the appropriate type. An override also selects its name. Every
+override object must retain that name. An explicit exclusion cannot also be
+included or overridden.
+
+```python
+from qs.core.agents.node import DefaultCapabilities, Node
+from qs.core.models.tool import Tool
+
+def example_echo(text: str) -> str:
+    return f"Example: {text}"
+
+node = Node(
+    name_hds="main",
+    default_capabilities=DefaultCapabilities(
+        mocks=True,
+        harness=True,
+        exclude={"read_saved_tool_output"},
+        overrides={"mock-tool": Tool(example_echo, name="mock-tool")},
+    ),
+)
+```
+
+For a smaller selection, use `mocks=False` and `include={"mock-tool"}` with an
+application HDS that declares `mock-tool` in `sub-tools`. Likewise,
+`harness=False` with `include={"exit_agent", "get_execution_history"}` keeps
+only those harness capabilities. Each HDS must still name a selected exit tool;
+an application can provide a different one. `call_sub_agent` requires children
+and cannot be overridden on a leaf node.
+
+Composition happens before reference validation and catalog attachment. A
+selected HDS or skill that references an excluded capability fails loading with
+the invalid reference named; no dependencies are silently re-enabled. Active
+names must be unique across application and bundled resources unless the name
+is replaced in `overrides`. Only selected runtime tools enter the provider tool
+list and every skill scope. Internal execution history and caching continue when
+their reader tools are excluded.
+
 ---
 
 ## Resource Types ([`CapabilityType`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/agents/capabilities/layout.py))
@@ -114,17 +168,19 @@ When [`Capabilities.load(...)`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core
 ```mermaid
 flowchart TD
     A[Layout Discovery] --> B[Load Markdown & Python Tools]
-    B --> C[Build CapabilitiesIndex]
-    C --> D[CapabilitiesValidator]
-    D --> E[SkillCatalogAttacher]
-    E --> G[Return CapabilitiesData]
+    B --> C[Select defaults and apply overrides]
+    C --> D[Build CapabilitiesIndex]
+    D --> E[CapabilitiesValidator]
+    E --> F[SkillCatalogAttacher]
+    F --> G[Return CapabilitiesData]
 ```
 
 1. **Discovery & Parsing**: Scans filesystem, parses YAML frontmatter in HDS and deep-skill files, reads plain exit instruction Markdown, and imports Python modules under `tools/` and `exit-tool/`.
-2. **Index Building**: Indexes resources by exposed name within each capability type using `CapabilitiesIndex`.
-3. **Validation (`CapabilitiesValidator`)**: Ensures:
+2. **Optional Default Composition**: Selects bundled resources and applies per-node object overrides before indexing. Without `DefaultCapabilities`, this step leaves loaded resources unchanged.
+3. **Index Building**: Indexes resources by exposed name within each capability type using `CapabilitiesIndex`.
+4. **Validation (`CapabilitiesValidator`)**: Ensures:
    - Referenced tools and skills exist in the index.
    - No duplicate tool or skill names across capability folders.
    - Each HDS selects an existing exit tool; exit instruction references resolve.
-4. **Catalog Attachment (`SkillCatalogAttacher`)**: Adds descriptions of declared sub-skills and tools to deep-skill catalogs.
-5. **Runtime Composition**: The HDS-selected exit tool supplies instructions when a skill is opened.
+5. **Catalog Attachment (`SkillCatalogAttacher`)**: Adds descriptions of declared sub-skills and tools to deep-skill catalogs.
+6. **Runtime Composition**: The HDS-selected exit tool supplies instructions when a skill is opened.

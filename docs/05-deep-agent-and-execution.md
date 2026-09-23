@@ -59,7 +59,7 @@ As the agent executes, it transitions between skills based on the active HDS and
 
 ## 3. Sub-agent Delegation
 
-A node with at least one direct child automatically exposes this runtime tool:
+A node with at least one direct child exposes this runtime tool by default:
 
 ```text
 call_sub_agent(sub_agent: <direct-child enum>, text: <non-empty string>)
@@ -70,6 +70,9 @@ node's direct children. `text` is required and has both a schema `minLength` of
 one and a non-whitespace pattern; runtime validation also rejects whitespace-only values. The tool is available
 from the HDS and from every active skill or sub-skill, including skills that do
 not inherit parent tools. A leaf node does not expose it.
+With `DefaultCapabilities`, a node can exclude or override `call_sub_agent`;
+an override must be a `Tool` named `call_sub_agent`. Selection is independent
+for each parent and child. See [per-node defaults](04-capabilities-and-catalog.md#per-node-default-capabilities).
 
 Calling the tool runs `child.run(text)`, so the child receives the value exactly
 as a new user message. Repeated calls follow the child's `persistent_history`

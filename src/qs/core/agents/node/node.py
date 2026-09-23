@@ -6,9 +6,11 @@ from typing import Final
 
 from qs.core.agents.capabilities.capabilities import Capabilities
 from qs.core.agents.capabilities.data import CapabilitiesData
+from qs.core.agents.capabilities.defaults import DefaultCapabilities
 from qs.core.agents.deep_agent.agent_response import AgentResponse
 from qs.core.agents.deep_agent.stream_event import DeepAgentEventHandler
 from qs.core.agents.sub_agent.sub_agent_tool import SubAgentTool
+from qs.core.models.tool import Tool
 from qs.interfaces.provider import Provider
 
 from .node_runtime import NodeRuntime, NodeRuntimeConfig
@@ -23,14 +25,19 @@ class Node:
 
     def __init__(
         self,
-        capabilities_paths: Sequence[Path],
-        name_hds: str,
+        capabilities_paths: Sequence[Path] = (),
+        name_hds: str = "",
         children: Sequence[Node] = (),
         persistent_history: bool = True,
         depth: int = 0,
         agent_context_id: str | None = None,
+        *,
+        default_capabilities: DefaultCapabilities | None = None,
     ) -> None:
-        self._capability_loader = Capabilities(capabilities_paths)
+        self._capability_loader = Capabilities(
+            capabilities_paths, default_capabilities=default_capabilities
+        )
+        self._default_capabilities = default_capabilities
         self._name_hds = self._validate_hds_name(name_hds)
         self._children = self._validate_children(children)
         self._persistent_history = self._validate_persistent_history(persistent_history)
@@ -80,7 +87,7 @@ class Node:
         hds = capabilities.get_hds(self._name_hds)
         exit_tool_name = hds.get_exit_tool_name()
         exit_tool = capabilities.get_exit_tool(exit_tool_name)
-        runtime_tools = (SubAgentTool(self._children),) if self._children else ()
+        runtime_tools = self._build_runtime_tools()
         context_id = self._agent_context_id or hds.get_agent_context_id()
         self._runtime = NodeRuntime(
             NodeRuntimeConfig(
@@ -92,10 +99,23 @@ class Node:
                 initial_depth=self._initial_depth,
                 agent_context_id=context_id,
                 runtime_tools=runtime_tools,
+                default_capabilities=self._default_capabilities,
                 on_stream=on_stream,
             )
         )
         return capabilities
+
+    def _build_runtime_tools(self) -> tuple[Tool, ...]:
+        defaults = self._default_capabilities
+        if not self._children:
+            if defaults is not None and "call_sub_agent" in defaults.overrides:
+                raise ValueError("call_sub_agent requires at least one child node")
+            return ()
+        if defaults is not None and not defaults.includes("call_sub_agent"):
+            return ()
+        if defaults is not None and "call_sub_agent" in defaults.overrides:
+            return (defaults.overrides["call_sub_agent"],)
+        return (SubAgentTool(self._children),)
 
     def load_capabilities(self, *, work_root: Path) -> CapabilitiesData:
         capabilities = self._capability_loader.load(work_root=work_root)

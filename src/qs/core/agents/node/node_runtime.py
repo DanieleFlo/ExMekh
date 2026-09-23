@@ -49,10 +49,15 @@ class NodeRuntime:
             self._execution_history,
             self._get_tool_cache,
         )
-        self._runtime_tools = (
-            *config.runtime_tools,
-            *self._memory_tools.tools,
-        )
+        defaults = config.default_capabilities
+        memory_tools = self._memory_tools.tools
+        if defaults is not None:
+            memory_tools = tuple(
+                defaults.overrides.get(tool.name, tool)
+                for tool in memory_tools
+                if defaults.includes(tool.name)
+            )
+        self._runtime_tools = (*config.runtime_tools, *memory_tools)
         self._validate_runtime_tool_names()
         self._resolver = ToolCallResolver(
             config.capabilities,
