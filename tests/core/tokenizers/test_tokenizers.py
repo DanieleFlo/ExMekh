@@ -246,6 +246,22 @@ def test_qwen_keeps_the_requested_budget_when_a_prefix_retokenizes(
     assert tokenizer.truncate_text("abcdef", 3) == "ab"
 
 
+def test_qwen_keeps_the_requested_budget_when_a_suffix_retokenizes(
+    tmp_path, monkeypatch
+):
+    tokenizer = QwenTokenizer(tmp_path)
+
+    def encode(text):
+        counts = {"abcdef": 6, "aef": 4, "af": 2}
+        return SimpleNamespace(
+            ids=list(range(counts[text])),
+            offsets=[(index, index + 1) for index in range(len(text))],
+        )
+
+    monkeypatch.setattr(tokenizer, "_encode", encode)
+    assert tokenizer.truncate_text("abcdef", 1, 2) == "af"
+
+
 @pytest.mark.parametrize(
     ("text", "start", "end", "error"),
     [

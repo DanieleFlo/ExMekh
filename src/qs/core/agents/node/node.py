@@ -9,6 +9,7 @@ from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.capabilities.defaults import DefaultCapabilities
 from qs.core.agents.deep_agent.agent_response import AgentResponse
 from qs.core.agents.deep_agent.stream_event import DeepAgentEventHandler
+from qs.core.agents.hds.hds import HDS
 from qs.core.agents.sub_agent.sub_agent_tool import SubAgentTool
 from qs.core.models.tool import Tool
 from qs.interfaces.provider import Provider
@@ -51,6 +52,8 @@ class Node:
         self._initial_depth = self._validate_depth(depth)
         self._agent_context_id = self._validate_agent_context_id(agent_context_id)
         self._runtime: NodeRuntime | None = None
+        self._hds: HDS | None = None
+        self._sub_agent_tool: SubAgentTool | None = None
 
     @property
     def name_hds(self) -> str:
@@ -112,11 +115,13 @@ class Node:
                 on_stream=on_stream,
             )
         )
+        self._hds = hds
         return capabilities
 
     def _build_runtime_tools(
         self, defaults: DefaultCapabilities | None
     ) -> tuple[Tool, ...]:
+        self._sub_agent_tool = None
         if not self._children:
             if defaults is not None and "call_sub_agent" in defaults.overrides:
                 raise ValueError("call_sub_agent requires at least one child node")
@@ -127,7 +132,22 @@ class Node:
             override = defaults.tool_override("call_sub_agent")
             if override is not None:
                 return (override,)
-        return (SubAgentTool(self._children),)
+        self._sub_agent_tool = SubAgentTool(self._children)
+        return (self._sub_agent_tool,)
+
+    def get_hds(self) -> HDS:
+        if self._hds is None:
+            raise RuntimeError("Node must be initialized before accessing its HDS")
+        return self._hds
+
+    def update_sub_agent_tool_description(self) -> None:
+        if self._runtime is None:
+            raise RuntimeError("Node must be initialized before updating sub-agents")
+        if self._sub_agent_tool is not None:
+            child_hds = (child.get_hds() for child in self._children)
+            self._sub_agent_tool.set_child_descriptions(
+                {hds.get_name(): hds.get_description() for hds in child_hds}
+            )
 
     def load_capabilities(self, *, work_root: Path) -> CapabilitiesData:
         capabilities, defaults = self._capability_loader.load_with_defaults(

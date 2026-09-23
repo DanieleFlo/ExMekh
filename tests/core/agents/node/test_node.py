@@ -490,6 +490,20 @@ def test_run_requires_an_initialized_node(tmp_path: Path) -> None:
         node.run("hello")
 
 
+def test_sub_agent_metadata_requires_initialized_nodes(tmp_path: Path) -> None:
+    child = Node([tmp_path / "child" / "capabilities"], name_hds="child")
+    parent = Node(
+        [tmp_path / "parent" / "capabilities"],
+        name_hds="parent",
+        children=[child],
+    )
+
+    with pytest.raises(RuntimeError, match="before accessing its HDS"):
+        child.get_hds()
+    with pytest.raises(RuntimeError, match="before updating sub-agents"):
+        parent.update_sub_agent_tool_description()
+
+
 def test_tool_descriptions_reflect_hds_and_skill_availability(
     tmp_path: Path,
 ) -> None:
@@ -2530,6 +2544,11 @@ def test_each_non_leaf_node_gets_its_own_sub_agent_tool(tmp_path: Path) -> None:
     assert isinstance(child_tool, SubAgentTool)
     assert root_tool.child_names == ("child",)
     assert child_tool.child_names == ("grandchild",)
+    assert "<name>child</name><description>child</description>" in root_tool.description
+    assert (
+        "<name>grandchild</name><description>grandchild</description>"
+        in child_tool.description
+    )
     assert "call_sub_agent" not in grandchild._runtime._client.tools.list_tools()
 
     assert root.run("list tools").get_message() == "done"

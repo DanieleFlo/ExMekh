@@ -1,5 +1,6 @@
 from pathlib import Path
 from unittest.mock import Mock
+from xml.etree.ElementTree import fromstring
 
 import pytest
 
@@ -63,6 +64,18 @@ def test_exposes_child_enum_and_non_empty_text_schema(tmp_path: Path) -> None:
     response_tool = OpenAIResponseToolMapper.map_tools(Tools([tool]))[0]
     assert response_tool["description"] == definition.get_description()
     assert response_tool["parameters"] == definition.get_parameters()
+
+    tool.set_child_descriptions(
+        {"writer": "Writes <drafts> & edits", "reviewer": "Reviews drafts"}
+    )
+    xml = tool.get_description().split("\n", 1)[1]
+    assert [
+        (agent.findtext("name"), agent.findtext("description"))
+        for agent in fromstring(xml)
+    ] == [
+        ("writer", "Writes <drafts> & edits"),
+        ("reviewer", "Reviews drafts"),
+    ]
 
 
 def test_delegates_exact_text_and_returns_final_response(tmp_path: Path) -> None:

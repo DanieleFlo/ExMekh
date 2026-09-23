@@ -89,6 +89,7 @@ class DeepAgent:
             )
             for child in node.children:
                 initialize(child)
+            node.update_sub_agent_tool_description()
             active_nodes.remove(node)
 
         initialize(root_node)

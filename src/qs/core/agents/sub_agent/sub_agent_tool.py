@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Annotated, Any, Literal
+from xml.etree.ElementTree import Element, SubElement, tostring
 
 from qs.core.models.tool import Tool
 
@@ -29,14 +30,26 @@ class SubAgentTool(Tool):
 
         self._children = dict(zip(child_names, children, strict=True))
         self._child_names = child_names
-        available = ", ".join(child_names)
         super().__init__(
             self._call_sub_agent,
             name=self.NAME,
-            description=(
-                "Send a user message to one direct sub-agent and return its final "
-                f"response. Available sub-agents: {available}."
-            ),
+            description=self._describe_children({}),
+        )
+
+    def set_child_descriptions(self, descriptions: dict[str, str]) -> None:
+        self.description = self._describe_children(descriptions)
+
+    def _describe_children(self, descriptions: dict[str, str]) -> str:
+        agents = Element("sub_agents")
+        for name in self._child_names:
+            agent = SubElement(agents, "sub_agent")
+            SubElement(agent, "name").text = name
+            SubElement(agent, "description").text = descriptions.get(name, "")
+        xml = tostring(agents, encoding="unicode", short_empty_elements=False)
+        return (
+            "Send a user message to one direct sub-agent and return its final "
+            f"response. Available sub-agents: {', '.join(self._child_names)}.\n"
+            f"{xml}"
         )
 
     @property

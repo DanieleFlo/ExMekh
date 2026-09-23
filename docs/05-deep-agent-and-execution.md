@@ -70,6 +70,8 @@ node's direct children. `text` is required and has both a schema `minLength` of
 one and a non-whitespace pattern; runtime validation also rejects whitespace-only values. The tool is available
 from the HDS and from every active skill or sub-skill, including skills that do
 not inherit parent tools. A leaf node does not expose it.
+The tool description lists the direct child names and includes an XML
+`<sub_agents>` block with each child's HDS name and description.
 With `DefaultCapabilities`, a node can exclude or override `call_sub_agent`;
 an override must be a `Tool` named `call_sub_agent`. Selection is independent
 for each parent and child. See [per-node defaults](04-capabilities-and-catalog.md#per-node-default-capabilities).
