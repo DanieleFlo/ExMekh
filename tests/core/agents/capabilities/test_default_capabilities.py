@@ -4,7 +4,7 @@ from typing import cast
 import pytest
 from pydantic import BaseModel
 
-import qs.core.agents.capabilities.capabilities as capability_module
+from qs.core.agents.capabilities.capabilities import Capabilities
 from qs.core.agents.capabilities.defaults import (
     BUILTIN_CAPABILITIES_PATH,
     HARNESS_NAMES,
@@ -288,7 +288,10 @@ def test_mock_preset_works_without_application_paths_and_deduplicates_builtin_pa
     tmp_path: Path,
 ) -> None:
     defaults = DefaultCapabilities(mocks=True)
-    first = Node(name_hds="main", default_capabilities=defaults)
+    assert defaults.capabilities_path == BUILTIN_CAPABILITIES_PATH
+    first = Node(
+        capabilities_paths=None, name_hds="main", default_capabilities=defaults
+    )
     second = Node(
         [BUILTIN_CAPABILITIES_PATH], name_hds="main", default_capabilities=defaults
     )
@@ -301,6 +304,44 @@ def test_mock_preset_works_without_application_paths_and_deduplicates_builtin_pa
             "nested-skill",
         }
         assert len(loaded.tools) == 4
+
+
+@pytest.mark.parametrize("paths", [None, []])
+def test_node_uses_bundled_path_when_no_paths_are_supplied(
+    tmp_path: Path, paths: list[Path] | None
+) -> None:
+    node = Node(capabilities_paths=paths, name_hds="main")
+
+    loaded = node.load_capabilities(work_root=tmp_path)
+
+    assert {resource.name for resource in loaded.hds} == {"main", "mock-sub-agent"}
+    assert {tool.name for tool in loaded.tools} == {
+        "mock-tool",
+        "mock-sub-tool",
+        "nested-sub-tool",
+        "shared-tool",
+    }
+
+
+def test_direct_capabilities_loader_adds_bundled_path_once(tmp_path: Path) -> None:
+    defaults = DefaultCapabilities(mocks=True)
+
+    for paths in ([], [defaults.capabilities_path]):
+        loaded = Capabilities(paths, default_capabilities=defaults).load(
+            work_root=tmp_path
+        )
+        assert {hds.name for hds in loaded.hds} == {"main", "mock-sub-agent"}
+        assert len(loaded.tools) == 4
+
+
+def test_direct_capabilities_loader_validates_default_configuration() -> None:
+    defaults = DefaultCapabilities()
+    with pytest.raises(TypeError, match="default_capabilities must be"):
+        Capabilities([], default_capabilities=cast(DefaultCapabilities, object()))
+    with pytest.raises(TypeError, match="capabilities_paths must be a sequence"):
+        Capabilities(cast(list[Path], "bad"), default_capabilities=defaults)
+    with pytest.raises(TypeError, match="capabilities_paths must contain only Path"):
+        Capabilities([cast(Path, "bad")], default_capabilities=defaults)
 
 
 def test_excluded_references_fail_before_catalog_attachment(tmp_path: Path) -> None:
@@ -873,7 +914,7 @@ def test_application_tool_override_requires_a_loaded_tool(
 def test_missing_bundled_resource_is_reported(tmp_path: Path, monkeypatch) -> None:
     empty_bundle = tmp_path / "empty" / "capabilities"
     empty_bundle.mkdir(parents=True)
-    monkeypatch.setattr(capability_module, "BUILTIN_CAPABILITIES_PATH", empty_bundle)
+    monkeypatch.setattr(DefaultCapabilities, "CAPABILITIES_PATH", empty_bundle)
 
     node = Node(name_hds="main", default_capabilities=DefaultCapabilities())
     with pytest.raises(

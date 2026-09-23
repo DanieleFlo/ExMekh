@@ -159,6 +159,8 @@ The application directory supplies the `application` HDS; the harness supplies
 `exit_agent` and the selected runtime tools. See the
 [capability guide](docs/04-capabilities-and-catalog.md#per-node-default-capabilities)
 for individual selection and named `ToolOverride` / `DeepSkillOverride` examples.
+`capabilities_paths` may be `None`; the bundled path is added automatically when
+defaults are configured or no application path is supplied.
 
 ---
 

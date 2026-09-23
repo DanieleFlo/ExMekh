@@ -32,7 +32,6 @@ _RESOURCE_TYPES = MappingProxyType(_MOCK_RESOURCE_TYPES | _HARNESS_RESOURCE_TYPE
 MOCK_NAMES = frozenset(_MOCK_RESOURCE_TYPES)
 HARNESS_NAMES = frozenset(_HARNESS_RESOURCE_TYPES)
 RUNTIME_NAMES = HARNESS_NAMES - {"exit_agent"}
-BUILTIN_CAPABILITIES_PATH = Path(__file__).resolve().parents[3] / "capabilities"
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +67,8 @@ OverrideInput = Mapping[str, Override] | Iterable[NamedOverride] | NamedOverride
 
 class DefaultCapabilities:
     """Select bundled capabilities and replace loaded resources for one node."""
+
+    CAPABILITIES_PATH = Path(__file__).resolve().parents[3] / "capabilities"
 
     def __init__(
         self,
@@ -109,6 +110,10 @@ class DefaultCapabilities:
     @property
     def harness(self) -> bool:
         return self._harness
+
+    @property
+    def capabilities_path(self) -> Path:
+        return self.CAPABILITIES_PATH
 
     @property
     def include(self) -> frozenset[str]:
@@ -268,3 +273,6 @@ class DefaultCapabilities:
                 raise TypeError("overrides must contain only override descriptors")
             return tuple((item.target_name, item) for item in descriptors)
         raise TypeError("overrides must be a mapping or iterable of overrides")
+
+
+BUILTIN_CAPABILITIES_PATH = DefaultCapabilities.CAPABILITIES_PATH

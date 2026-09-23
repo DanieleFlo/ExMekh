@@ -31,11 +31,14 @@ The [`CapabilitiesLayout`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/agen
 ## Per-node default capabilities
 
 `DefaultCapabilities` selects bundled resources independently for each `Node`.
-Its default is `mocks=False, harness=True`; nodes without this parameter keep
-their existing behavior and load only the explicit directories plus the automatic
-runtime tools. A harness-only node needs an application HDS in
-`capabilities_paths` (or an HDS override). The bundled directory can also appear
-in `capabilities_paths`; it is loaded once and the selection still applies.
+Its default is `mocks=False, harness=True`. `Node` accepts
+`capabilities_paths=None`; when `DefaultCapabilities` is supplied, it adds the
+bundled directory exposed by `DefaultCapabilities.capabilities_path` automatically.
+The bundled directory can also appear explicitly in `capabilities_paths` and is
+loaded only once. A harness-only node needs an application HDS in
+`capabilities_paths` (or an HDS override). Without `DefaultCapabilities`, nodes
+with application paths keep their existing behavior; a node with no paths loads
+the bundled directory in full.
 
 | Group | Bundled names |
 | --- | --- |

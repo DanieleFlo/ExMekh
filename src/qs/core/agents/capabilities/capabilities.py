@@ -7,10 +7,7 @@ from typing import Final
 from qs.core.agents.capabilities.catalog_attacher import SkillCatalogAttacher
 from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.capabilities.default_composer import _DefaultCapabilitiesComposer
-from qs.core.agents.capabilities.defaults import (
-    BUILTIN_CAPABILITIES_PATH,
-    DefaultCapabilities,
-)
+from qs.core.agents.capabilities.defaults import DefaultCapabilities
 from qs.core.agents.capabilities.index import CapabilitiesIndex
 from qs.core.agents.capabilities.layout import CapabilitiesLayout
 from qs.core.agents.capabilities.validator import CapabilitiesValidator
@@ -45,10 +42,9 @@ class Capabilities:
         paths = tuple(capabilities_paths)
         if not all(isinstance(path, Path) for path in paths):
             raise TypeError("capabilities_paths must contain only Path instances")
-        if BUILTIN_CAPABILITIES_PATH.resolve() not in {
-            path.resolve() for path in paths
-        }:
-            paths = (*paths, BUILTIN_CAPABILITIES_PATH)
+        bundled_path = default_capabilities.capabilities_path
+        if bundled_path.resolve() not in {path.resolve() for path in paths}:
+            paths = (*paths, bundled_path)
         self._layout = CapabilitiesLayout(paths)
 
     def load(self, *, work_root: Path) -> CapabilitiesData:
@@ -72,7 +68,7 @@ class Capabilities:
             if defaults is not None:
                 defaults = defaults.with_resolved_overrides(data)
                 data = _DefaultCapabilitiesComposer(
-                    defaults, BUILTIN_CAPABILITIES_PATH, tool_paths
+                    defaults, defaults.capabilities_path, tool_paths
                 ).compose(data)
             index = CapabilitiesIndex.build(data)
             CapabilitiesValidator(index).validate((*data.hds, *data.deep_skills))
