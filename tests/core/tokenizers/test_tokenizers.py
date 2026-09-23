@@ -2,9 +2,12 @@ import io
 import json
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+from tokenizers import Tokenizer as TextTokenizer
+from tokenizers import decoders, models, pre_tokenizers, trainers
 
 from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
 from qs.core.tokenizers.tokenizer_session_registry import TokenizerSessionRegistry
@@ -15,6 +18,12 @@ from qs.utils.file import read_json_from_path
 
 
 class SampleTokenizer(SequentialTokenizer):
+    def count_tokens(self, text: str) -> int:
+        return len(text)
+
+    def truncate_text(self, text: str, start_tokens: int, end_tokens: int = 0) -> str:
+        return text[:start_tokens] + (text[-end_tokens:] if end_tokens else "")
+
     def __init__(self, directory, tokens=("a", "B", "2"), identity="sample"):
         super().__init__(identity, directory)
         self.source = tokens
@@ -182,6 +191,114 @@ def test_qwen_loads_official_vocabulary_and_excludes_special_tokens(tmp_path):
     )
     with patch("qs.tokenizers.qwen.urlopen", side_effect=AssertionError):
         QwenTokenizer(tmp_path).initialize()
+
+
+def _sample_text_tokenizer() -> TextTokenizer:
+    tokenizer = TextTokenizer(models.BPE(unk_token="[UNK]"))
+    tokenizer.pre_tokenizer = pre_tokenizers.ByteLevel()
+    tokenizer.decoder = decoders.ByteLevel()
+    tokenizer.train_from_iterator(
+        ["alpha beta gamma delta città fine"],
+        trainer=trainers.BpeTrainer(
+            vocab_size=300,
+            initial_alphabet=pre_tokenizers.ByteLevel.alphabet(),
+            special_tokens=["[UNK]"],
+        ),
+    )
+    return tokenizer
+
+
+def test_qwen_counts_and_truncates_model_tokens(tmp_path):
+    tokenizer = QwenTokenizer(tmp_path)
+    tokenizer._text_tokenizer = _sample_text_tokenizer()
+    text = "alpha città beta gamma delta fine " * 30
+
+    assert tokenizer.count_tokens("") == 0
+    assert tokenizer.count_tokens(text) > 100
+    assert tokenizer.truncate_text(text, tokenizer.count_tokens(text)) == text
+    prefix = tokenizer.truncate_text(text, 100)
+    assert text.startswith(prefix)
+    assert tokenizer.count_tokens(prefix) <= 100
+
+    both_ends = tokenizer.truncate_text(text, 20, 20)
+    assert text.startswith(both_ends[:5])
+    assert text.endswith(both_ends[-5:])
+    assert tokenizer.count_tokens(both_ends) <= 40
+    suffix = tokenizer.truncate_text(text, 0, 20)
+    assert text.endswith(suffix)
+    assert tokenizer.count_tokens(suffix) <= 20
+    assert tokenizer.truncate_text(text, 0, 0) == ""
+
+
+def test_qwen_keeps_the_requested_budget_when_a_prefix_retokenizes(
+    tmp_path, monkeypatch
+):
+    tokenizer = QwenTokenizer(tmp_path)
+
+    def encode(text):
+        counts = {"abcdef": 6, "abc": 4, "ab": 3}
+        return SimpleNamespace(
+            ids=list(range(counts[text])),
+            offsets=[(index, index + 1) for index in range(len(text))],
+        )
+
+    monkeypatch.setattr(tokenizer, "_encode", encode)
+    assert tokenizer.truncate_text("abcdef", 3) == "ab"
+
+
+@pytest.mark.parametrize(
+    ("text", "start", "end", "error"),
+    [
+        (None, 1, 0, TypeError),
+        ("text", True, 0, TypeError),
+        ("text", 1, 1.5, TypeError),
+        ("text", -1, 0, ValueError),
+        ("text", 1, -1, ValueError),
+    ],
+)
+def test_qwen_rejects_invalid_truncation_inputs(tmp_path, text, start, end, error):
+    tokenizer = QwenTokenizer(tmp_path)
+    tokenizer._text_tokenizer = _sample_text_tokenizer()
+    with pytest.raises(error):
+        tokenizer.truncate_text(text, start, end)
+
+
+def test_qwen_rejects_non_string_text_for_counting(tmp_path):
+    with pytest.raises(TypeError, match="text must be a string"):
+        QwenTokenizer(tmp_path).count_tokens(None)
+
+
+def test_qwen_reuses_cached_full_tokenizer_for_text(tmp_path):
+    payload = json.loads(_sample_text_tokenizer().to_str())
+    with patch(
+        "qs.tokenizers.qwen.urlopen",
+        return_value=io.BytesIO(json.dumps(payload).encode()),
+    ) as download:
+        first = QwenTokenizer(tmp_path)
+        assert first.count_tokens("alpha città") > 0
+    download.assert_called_once()
+
+    with patch("qs.tokenizers.qwen.urlopen", side_effect=AssertionError):
+        second = QwenTokenizer(tmp_path)
+        assert second.count_tokens("alpha città") == first.count_tokens("alpha città")
+
+
+def test_qwen_downloads_full_tokenizer_for_an_existing_vocabulary_cache(tmp_path):
+    payload = json.loads(_sample_text_tokenizer().to_str())
+    tokenizer = QwenTokenizer(tmp_path)
+    with patch(
+        "qs.tokenizers.qwen.urlopen",
+        return_value=io.BytesIO(json.dumps(payload).encode()),
+    ):
+        tokenizer.generate_id()
+    (tokenizer._directory / "tokenizer.json").unlink()
+
+    with patch(
+        "qs.tokenizers.qwen.urlopen",
+        return_value=io.BytesIO(json.dumps(payload).encode()),
+    ) as download:
+        assert QwenTokenizer(tmp_path).count_tokens("alpha città") > 0
+    download.assert_called_once()
 
 
 def test_download_failure_leaves_no_cache_and_can_retry(tmp_path):

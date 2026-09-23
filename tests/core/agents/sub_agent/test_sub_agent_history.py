@@ -14,6 +14,12 @@ from qs.interfaces.tokenizer import Tokenizer
 
 
 class MockTokenizer(Tokenizer):
+    def count_tokens(self, text: str) -> int:
+        return len(text)
+
+    def truncate_text(self, text: str, start_tokens: int, end_tokens: int = 0) -> str:
+        return text[:start_tokens] + (text[-end_tokens:] if end_tokens else "")
+
     def __init__(self, cache_dir: Path | None = None) -> None:
         self._cache_dir = cache_dir or Path(".qs/tokenizers")
 

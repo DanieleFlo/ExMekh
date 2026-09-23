@@ -87,7 +87,9 @@ class ToolCallExecutor:
             raise TypeError("Node supports only deep skills, exit tools, and tools")
 
         if isinstance(tool_call, CalledExitTool):
-            return self._run_exit_tool(tool_call, close_scope=close_scope)
+            return self._run_exit_tool(
+                tool_call, thinking=thinking, close_scope=close_scope
+            )
         if isinstance(tool_call, CalledDeepSkill):
             return self._run_deep_skill(tool_call, thinking=thinking)
         return self._run_tool(tool_call)
@@ -139,19 +141,34 @@ class ToolCallExecutor:
         )
 
     def _format_output(
-        self, tool_name: str, content: str, *, source: Literal["Tool", "DeepSkill"]
+        self,
+        tool_name: str,
+        content: str,
+        *,
+        source: Literal["Tool", "DeepSkill"],
+        thinking: str | None = None,
     ) -> tuple[str, str | None]:
+        excerpt = None
+        if source == "DeepSkill" and thinking and thinking.strip():
+            tokenizer = self._client.get_tokenizer()
+            excerpt = tokenizer.truncate_text(thinking, 100)
         try:
             header = XmlHeader(
                 source=source, name=tool_name, id=self._client.generate_id()
             )
+            if excerpt and excerpt.strip():
+                header.add_field("thinking", excerpt)
             return header.prepend_to(content), header.id
         except (AttributeError, RuntimeError, TypeError, ValueError) as error:
             logger.error(error)
             return content, None
 
     def _run_exit_tool(
-        self, called_exit_tool: CalledExitTool, *, close_scope: bool = True
+        self,
+        called_exit_tool: CalledExitTool,
+        *,
+        thinking: str | None,
+        close_scope: bool = True,
     ) -> ToolExecutionResult:
         logger.info(
             "Executing exit tool: name=%s call_id=%s active_skills=%d depth=%d",
@@ -174,7 +191,10 @@ class ToolCallExecutor:
 
         if self._skill_executions.depth:
             content, output_id = self._format_output(
-                self._skill_executions.current.skill.name, content, source="DeepSkill"
+                self._skill_executions.current.skill.name,
+                content,
+                source="DeepSkill",
+                thinking=thinking,
             )
             return self._close_deep_skill(content, result, output_id)
 

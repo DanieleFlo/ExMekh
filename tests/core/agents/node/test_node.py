@@ -3,6 +3,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 from unittest.mock import MagicMock
+from xml.etree import ElementTree as ET
 
 import pytest
 from pydantic import BaseModel
@@ -58,6 +59,12 @@ _MEMORY_TOOL_NAMES = [
 
 
 class _StubTokenizer(Tokenizer):
+    def count_tokens(self, text: str) -> int:
+        return len(text)
+
+    def truncate_text(self, text: str, start_tokens: int, end_tokens: int = 0) -> str:
+        return text[:start_tokens] + (text[-end_tokens:] if end_tokens else "")
+
     def initialize(self) -> None:
         pass
 
@@ -1309,6 +1316,14 @@ def test_runtime_rejects_capabilities_using_reserved_memory_tool_names(
 
 def test_node_run_saves_executed_tools_in_cache(tmp_path: Path) -> None:
     class TestTokenizer(SequentialTokenizer):
+        def count_tokens(self, text: str) -> int:
+            return len(text)
+
+        def truncate_text(
+            self, text: str, start_tokens: int, end_tokens: int = 0
+        ) -> str:
+            return text[:start_tokens] + (text[-end_tokens:] if end_tokens else "")
+
         def _load_vocabulary_tokens(self) -> list[str]:
             return ["hello", "cache"]
 
@@ -1888,6 +1903,9 @@ def test_runtime_saves_thinking_from_the_exact_tool_calling_turn(tmp_path, strea
 
     with SessionCache(tmp_path / "cache") as session:
         provider.get_session = lambda: session
+        provider.generate_id = iter(
+            ["result-first", "result-second", "result-third", "result-skill"]
+        ).__next__
 
         node = Node([_write_nested_capabilities(tmp_path)], name_hds="main")
 
@@ -1914,6 +1932,64 @@ def test_runtime_saves_thinking_from_the_exact_tool_calling_turn(tmp_path, strea
             "third": "/mock-skill",
             "skill": "/mock-skill",
         }
+
+        skill_response = next(
+            message
+            for message in provider.requests[-1].get_messages()
+            if isinstance(message, ToolMessage)
+            and message.get_tool_call_id() == "skill"
+        )
+        header = ET.fromstring(
+            skill_response.get_message().split("</header>")[0] + "</header>"
+        )
+        assert header.findtext("thinking") == "Esco dalla skill."
+
+
+def test_skill_exit_header_limits_and_escapes_thinking(tmp_path):
+    exit_thinking = "Scelta & <risultato> " + "è" * 100
+
+    class ThinkingProvider(SequenceProvider):
+        def call(self, request):
+            response = super().call(request)
+            thinking = exit_thinking if len(self.requests) == 2 else None
+            return ProviderResponse(response, thinking=ModelThinking(thinking))
+
+    provider = ThinkingProvider(
+        [
+            AssistantMessage(
+                None, tool_calls=[_function_call("mock-skill", {}, call_id="skill")]
+            ),
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "exit_agent",
+                        {"text": "done", "items": ["done"]},
+                        call_id="exit",
+                    )
+                ],
+            ),
+            AssistantMessage("final"),
+        ]
+    )
+    provider.generate_id = lambda: "result-id"
+    node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
+    node.initialize(provider, work_root=tmp_path)
+    node.run("start")
+
+    skill_response = next(
+        message
+        for message in provider.requests[-1].get_messages()
+        if isinstance(message, ToolMessage) and message.get_tool_call_id() == "skill"
+    )
+    header = ET.fromstring(
+        skill_response.get_message().split("</header>")[0] + "</header>"
+    )
+    excerpt = header.findtext("thinking")
+    assert excerpt is not None
+    assert exit_thinking.startswith(excerpt)
+    assert provider.get_tokenizer().count_tokens(excerpt) == 100
+    assert "&amp; &lt;risultato&gt;" in skill_response.get_message()
 
 
 def _write_alternative_exit_tool(capabilities_path: Path) -> None:

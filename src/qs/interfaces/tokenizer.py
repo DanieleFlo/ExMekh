@@ -9,6 +9,16 @@ if TYPE_CHECKING:
 
 class Tokenizer(ABC):
     @abstractmethod
+    def count_tokens(self, text: str) -> int:  # pragma: no cover
+        """Count model tokens in text, without automatically added special tokens."""
+
+    @abstractmethod
+    def truncate_text(
+        self, text: str, start_tokens: int, end_tokens: int = 0
+    ) -> str:  # pragma: no cover
+        """Keep up to the requested initial and final tokens of text."""
+
+    @abstractmethod
     def initialize(self) -> None:  # pragma: no cover
         """Prepare the tokenizer for ID generation; repeated calls are safe."""
 

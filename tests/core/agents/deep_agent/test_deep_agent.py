@@ -20,6 +20,12 @@ from qs.interfaces.tokenizer import Tokenizer
 
 
 class _StubTokenizer(Tokenizer):
+    def count_tokens(self, text: str) -> int:
+        return len(text)
+
+    def truncate_text(self, text: str, start_tokens: int, end_tokens: int = 0) -> str:
+        return text[:start_tokens] + (text[-end_tokens:] if end_tokens else "")
+
     def initialize(self) -> None:
         pass
 

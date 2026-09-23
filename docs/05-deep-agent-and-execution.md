@@ -180,6 +180,9 @@ Ordinary tools produce cache records. When an exit tool closes a deep skill, the
 record is attributed to the opening skill call and retains its name, arguments,
 call ID and opening-turn thinking. Deep skill instructions remain conversational
 messages, while the final output stays accessible after history compaction.
+The final output's XML header also includes the exit call's thinking when present.
+Its excerpt is limited to the first 100 model tokens. The cached opening-turn
+thinking remains complete.
 
 The runtime automatically exposes `get_execution_history`,
 `search_saved_tool_outputs` and `read_saved_tool_output` in every scope. They

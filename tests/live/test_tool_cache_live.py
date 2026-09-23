@@ -36,6 +36,12 @@ _TRANSIENT_TOOL_NAMES = {
 class CacheTestTokenizer(SequentialTokenizer):
     """Exercise real session/ID storage without downloading a vocabulary."""
 
+    def count_tokens(self, text: str) -> int:
+        return len(text)
+
+    def truncate_text(self, text: str, start_tokens: int, end_tokens: int = 0) -> str:
+        return text[:start_tokens] + (text[-end_tokens:] if end_tokens else "")
+
     def _load_vocabulary_tokens(self) -> list[str]:
         return [f"token{index:02d}" for index in range(32)]
 

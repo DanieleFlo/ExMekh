@@ -3,7 +3,8 @@
 `LocalProvider` accepts an optional `tokenizer` implementing
 `qs.interfaces.tokenizer.Tokenizer`. It validates the instance and defaults to
 `QwenTokenizer`, using the vocabulary from `Qwen/Qwen3.8-27B` on Hugging Face.
-Only `tokenizer.json` is downloaded, without model weights or extra dependencies.
+Only `tokenizer.json` is downloaded, without model weights. The `tokenizers`
+package loads the complete tokenizer for text operations.
 
 ```python
 from qs.providers.local import LocalProvider
@@ -14,7 +15,18 @@ tokenizer.initialize()  # Optional: prepare the cache at application startup.
 provider = LocalProvider(model="your-server-model", tokenizer=tokenizer)
 identifier = provider.generate_id()
 # Equivalent: provider.get_tokenizer().generate_id()
+
+text_tokenizer = provider.get_tokenizer()
+count = text_tokenizer.count_tokens("some text")
+prefix = text_tokenizer.truncate_text("some text", start_tokens=100)
+ends = text_tokenizer.truncate_text("some text", start_tokens=50, end_tokens=50)
 ```
+
+`count_tokens()` and `truncate_text()` encode text without automatically added
+special tokens. Truncation preserves the original characters at each end and
+returns the input unchanged when the requested portions cover it. It rejects
+negative or non-integer token counts. The exit tool uses the first 100 tokens
+of the configured tokenizer for its thinking in a deep skill's final XML header.
 
 Initialization is otherwise deferred until the first ID request. The vocabulary
 keeps only complete entries matching `[a-zA-Z0-9]+`, excludes special tokens,
@@ -36,6 +48,7 @@ Each tokenizer identity has its own SHA-256 namespace:
 ```text
 .qs/tokenizers/<identity-hash>/
     vocabulary.json
+    tokenizer.json
     temp/session-<unique-suffix>/counter.json
 ```
 
@@ -44,6 +57,8 @@ also records the identity. A valid existing cache is read without network access
 an invalid cache raises an explicit error instead of silently resetting state.
 Writes use a temporary file and atomic replacement, so failures do not publish
 partially written JSON.
+Older caches containing only `vocabulary.json` remain valid for ID generation;
+the first text operation downloads and caches `tokenizer.json`.
 
 A session lasts for one Python process. Instances and providers sharing the same
 identity, vocabulary fingerprint and resolved cache directory share a counter,
@@ -78,13 +93,22 @@ class OtherTokenizer(SequentialTokenizer):
 
     def _load_vocabulary_tokens(self) -> Iterable[str]:
         return ["house", "yellow", "green"]  # Load the real vocabulary here.
+
+    def count_tokens(self, text: str) -> int:
+        ...  # Use this model's text tokenizer.
+
+    def truncate_text(
+        self, text: str, start_tokens: int, end_tokens: int = 0
+    ) -> str:
+        ...  # Preserve the requested portions of the original text.
 ```
 
 Implement `Tokenizer` directly only when providing your own ID allocation logic.
-Its public contract consists of `initialize()`, `generate_id()` and
-`get_session() -> SessionCache`. The session returned by `get_session()` is also
-used by the node runtime to save tool outputs; a custom tokenizer must implement
-this method even if it uses a different ID allocation strategy.
+Its public contract consists of `initialize()`, `generate_id()`,
+`get_session() -> SessionCache`, `count_tokens()` and `truncate_text()`. The
+session returned by `get_session()` is also used by the node runtime to save
+tool outputs; a custom tokenizer must implement this method even if it uses a
+different ID allocation strategy.
 
 ```python
 session = provider.get_session()
