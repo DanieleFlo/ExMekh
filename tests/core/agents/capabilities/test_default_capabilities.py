@@ -189,6 +189,12 @@ def test_selection_rejects_unknown_conflicting_and_invalid_overrides() -> None:
             name_hds="main",
             default_capabilities=DefaultCapabilities(),
         )
+    with pytest.raises(TypeError, match="capabilities_paths must contain only Path"):
+        Node(
+            capabilities_paths=[cast(Path, "bad")],
+            name_hds="main",
+            default_capabilities=DefaultCapabilities(),
+        )
 
 
 def test_harness_defaults_support_an_application_hds_without_mocks(

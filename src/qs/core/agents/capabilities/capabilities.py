@@ -6,19 +6,16 @@ from typing import Final
 
 from qs.core.agents.capabilities.catalog_attacher import SkillCatalogAttacher
 from qs.core.agents.capabilities.data import CapabilitiesData
+from qs.core.agents.capabilities.default_composer import _DefaultCapabilitiesComposer
 from qs.core.agents.capabilities.defaults import (
     BUILTIN_CAPABILITIES_PATH,
-    RUNTIME_NAMES,
     DefaultCapabilities,
 )
 from qs.core.agents.capabilities.index import CapabilitiesIndex
 from qs.core.agents.capabilities.layout import CapabilitiesLayout
 from qs.core.agents.capabilities.validator import CapabilitiesValidator
-from qs.core.agents.deep_skill.deep_skill import DeepSkill
 from qs.core.agents.deep_skill.deep_skills import DeepSkills
-from qs.core.agents.exit_tool.exit_tool import ExitTool
 from qs.core.agents.exit_tool.exit_tools import ExitTools
-from qs.core.agents.hds.hds import HDS
 from qs.core.agents.hds.hds_collection import HDSCollection
 from qs.core.agents.tools.deep_tools import DeepTools
 
@@ -46,8 +43,8 @@ class Capabilities:
         ):
             raise TypeError("capabilities_paths must be a sequence of Path")
         paths = tuple(capabilities_paths)
-        if paths:
-            CapabilitiesLayout._validate_capabilities_paths(paths)
+        if not all(isinstance(path, Path) for path in paths):
+            raise TypeError("capabilities_paths must contain only Path instances")
         if BUILTIN_CAPABILITIES_PATH.resolve() not in {
             path.resolve() for path in paths
         }:
@@ -56,16 +53,20 @@ class Capabilities:
 
     def load(self, *, work_root: Path) -> CapabilitiesData:
         self.format_capabilities_folders()
+        tool_paths = self.get_tool_paths()
         deep_tools = DeepTools(
-            self.get_tool_paths(),
+            tool_paths,
             work_root=work_root,
         )
         exit_tools = ExitTools(self.get_exit_tool_paths())
 
         try:
             data = self._load_data(deep_tools, exit_tools)
-            if self._default_capabilities is not None:
-                data = self._select_defaults(data)
+            defaults = self._default_capabilities
+            if defaults is not None:
+                data = _DefaultCapabilitiesComposer(
+                    defaults, BUILTIN_CAPABILITIES_PATH, tool_paths
+                ).compose(data)
             index = CapabilitiesIndex.build(data)
             CapabilitiesValidator(index).validate((*data.hds, *data.deep_skills))
             SkillCatalogAttacher(index).attach_to_all(data.deep_skills)
@@ -75,79 +76,6 @@ class Capabilities:
             raise
 
         return data
-
-    def _select_defaults(self, data: CapabilitiesData) -> CapabilitiesData:
-        defaults = self._default_capabilities
-        assert defaults is not None
-        overrides = defaults.overrides
-
-        def keep(name: str, path: Path) -> bool:
-            if name in overrides:
-                return False
-            return not path.resolve().is_relative_to(
-                BUILTIN_CAPABILITIES_PATH.resolve()
-            ) or defaults.includes(name)
-
-        skills = tuple(
-            skill for skill in data.deep_skills if keep(skill.name, skill.markdown_path)
-        )
-        tools = tuple(
-            tool
-            for path, tool in zip(self.get_tool_paths(), data.tools, strict=True)
-            if keep(tool.name, path)
-        )
-        hds = tuple(
-            resource
-            for resource in data.hds
-            if keep(resource.name, resource.markdown_path)
-        )
-        exit_tools = tuple(
-            tool for tool in data.exit_tools if keep(tool.name, tool.folder_path)
-        )
-
-        for name, replacement in overrides.items():
-            if name in RUNTIME_NAMES:
-                continue
-            if isinstance(replacement, DeepSkill):
-                skills += (self._copy_skill(replacement),)
-            elif isinstance(replacement, HDS):
-                hds += (self._copy_hds(replacement),)
-            elif isinstance(replacement, ExitTool):
-                exit_tools += (replacement,)
-            else:
-                tools += (replacement,)
-
-        selected_files = defaults.selected_names - RUNTIME_NAMES
-        loaded_names = {
-            resource.name for resource in (*skills, *tools, *hds, *exit_tools)
-        }
-        missing = selected_files - loaded_names
-        if missing:
-            raise ValueError(
-                "Selected default capabilities are missing: "
-                + ", ".join(sorted(missing))
-            )
-        return CapabilitiesData(skills, tools, hds, exit_tools)
-
-    @staticmethod
-    def _copy_skill(skill: DeepSkill) -> DeepSkill:
-        return DeepSkill(
-            name=skill.name,
-            markdown_path=skill.markdown_path,
-            metadata=skill.metadata,
-            body=skill.body,
-            references=skill.references,
-        )
-
-    @staticmethod
-    def _copy_hds(hds: HDS) -> HDS:
-        return HDS(
-            name=hds.name,
-            markdown_path=hds.markdown_path,
-            metadata=hds.metadata,
-            body=hds.body,
-            references=hds.references,
-        )
 
     def _load_data(
         self,

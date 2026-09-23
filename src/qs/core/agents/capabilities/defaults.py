@@ -9,28 +9,27 @@ from qs.core.agents.exit_tool.exit_tool import ExitTool
 from qs.core.agents.hds.hds import HDS
 from qs.core.models.tool import Tool
 
-MOCK_NAMES = frozenset(
-    {
-        "main",
-        "mock-sub-agent",
-        "mock-skill",
-        "nested-skill",
-        "mock-tool",
-        "mock-sub-tool",
-        "nested-sub-tool",
-        "shared-tool",
-    }
-)
-HARNESS_NAMES = frozenset(
-    {
-        "exit_agent",
-        "get_execution_history",
-        "search_saved_tool_outputs",
-        "read_saved_tool_output",
-        "call_sub_agent",
-    }
-)
-RUNTIME_NAMES = frozenset(HARNESS_NAMES - {"exit_agent"})
+_MOCK_RESOURCE_TYPES: dict[str, type[Tool]] = {
+    "main": HDS,
+    "mock-sub-agent": HDS,
+    "mock-skill": DeepSkill,
+    "nested-skill": DeepSkill,
+    "mock-tool": Tool,
+    "mock-sub-tool": Tool,
+    "nested-sub-tool": Tool,
+    "shared-tool": Tool,
+}
+_HARNESS_RESOURCE_TYPES: dict[str, type[Tool]] = {
+    "exit_agent": ExitTool,
+    "get_execution_history": Tool,
+    "search_saved_tool_outputs": Tool,
+    "read_saved_tool_output": Tool,
+    "call_sub_agent": Tool,
+}
+_RESOURCE_TYPES = MappingProxyType(_MOCK_RESOURCE_TYPES | _HARNESS_RESOURCE_TYPES)
+MOCK_NAMES = frozenset(_MOCK_RESOURCE_TYPES)
+HARNESS_NAMES = frozenset(_HARNESS_RESOURCE_TYPES)
+RUNTIME_NAMES = HARNESS_NAMES - {"exit_agent"}
 BUILTIN_CAPABILITIES_PATH = Path(__file__).resolve().parents[3] / "capabilities"
 
 
@@ -124,14 +123,7 @@ class DefaultCapabilities:
         replacements = dict(overrides)
         for name in names:
             resource = replacements[name]
-            if name in {"main", "mock-sub-agent"}:
-                expected = HDS
-            elif name in {"mock-skill", "nested-skill"}:
-                expected = DeepSkill
-            elif name == "exit_agent":
-                expected = ExitTool
-            else:
-                expected = Tool
+            expected = _RESOURCE_TYPES[name]
             if not isinstance(resource, expected) or (
                 expected is Tool and isinstance(resource, (HDS, DeepSkill, ExitTool))
             ):
