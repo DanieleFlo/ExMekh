@@ -288,8 +288,8 @@ def test_read_returns_header_arguments_and_display_content(tmp_path) -> None:
             ToolCallRecord(
                 "analysis-skill",
                 "skill-output",
-                {"topic": "Roma & Lazio", "options": {"depth": 2}},
-                {"text": "risultato completo", "items": ["done"]},
+                {"topic": "Rome & Lazio", "options": {"depth": 2}},
+                {"text": "complete result", "items": ["done"]},
                 source="DeepSkill",
             )
         )
@@ -302,9 +302,9 @@ def test_read_returns_header_arguments_and_display_content(tmp_path) -> None:
         assert parsed.findtext("name") == "analysis-skill"
         assert parsed.findtext("type") == "DeepSkill"
         assert parsed.findtext("id") == "skill-output"
-        assert parsed.findtext("./args/topic") == "Roma & Lazio"
+        assert parsed.findtext("./args/topic") == "Rome & Lazio"
         assert parsed.findtext("./args/options") == '{"depth":2}'
-        assert result == "risultato completo"
+        assert result == "complete result"
 
 
 def test_read_missing_id_is_non_destructive_xml(tmp_path) -> None:

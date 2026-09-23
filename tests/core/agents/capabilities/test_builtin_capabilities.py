@@ -93,7 +93,7 @@ def test_builtin_capabilities_configure_the_main_node(tmp_path: Path) -> None:
         name_hds="main",
     ).load_capabilities(work_root=tmp_path)
 
-    assert capabilities.hds[0].get_hds().startswith("Sei un assistente semplice")
+    assert capabilities.hds[0].get_hds().startswith("You are a clear, concise")
 
 
 def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) -> None:
@@ -108,15 +108,15 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
     descriptions = {tool.name: tool.description for tool in request_tools.get_tools()}
     assert descriptions == {
         "mock-skill": (
-            "Produce una risposta dimostrativa senza eseguire operazioni reali."
+            "Produces a demonstration response without performing real operations."
         ),
         "nested-skill": "Available in skill 'mock-skill'.",
         "mock-sub-tool": "Available in skill 'mock-skill'.",
-        "mock-tool": ("Restituisce il testo ricevuto come risultato dimostrativo."),
+        "mock-tool": ("Returns the received text as a demonstration result."),
         "nested-sub-tool": "Available in skill 'nested-skill'.",
         "shared-tool": "Available in skills 'mock-skill', 'nested-skill'.",
         "exit_agent": (
-            "Conclude la skill corrente restituendo il risultato al chiamante. "
+            "Finishes the current skill and returns its result to the caller. "
             "Available in every skill."
         ),
         "get_execution_history": (

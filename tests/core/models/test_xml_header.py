@@ -135,7 +135,7 @@ def test_to_xml_renders_typed_arguments_and_escapes_content() -> None:
         name="inspect",
         id="result-1",
         args={
-            "text": 'città <Roma> & "Lazio"',
+            "text": 'city <Rome> & "Lazio"',
             "count": 2,
             "active": True,
             "missing": None,
@@ -149,7 +149,7 @@ def test_to_xml_renders_typed_arguments_and_escapes_content() -> None:
         "  <type>Tool</type>\n"
         "  <id>result-1</id>\n"
         "  <args>\n"
-        '    <text>città &lt;Roma&gt; &amp; "Lazio"</text>\n'
+        '    <text>city &lt;Rome&gt; &amp; "Lazio"</text>\n'
         "    <count>2</count>\n"
         "    <active>true</active>\n"
         "    <missing>null</missing>\n"

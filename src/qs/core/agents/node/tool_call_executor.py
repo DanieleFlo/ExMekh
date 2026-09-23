@@ -195,8 +195,8 @@ class ToolCallExecutor:
             tool_name = called_exit_tool.name
             return self._exit_error(
                 called_exit_tool,
-                f"Argomenti non validi: {error}. "
-                f'Usa {tool_name}(text="<risultato>", items=[]) oppure '
+                f"Invalid arguments: {error}. "
+                f'Use {tool_name}(text="<result>", items=[]) or '
                 f'{tool_name}(text="… {{{{<id-output>}}}} …", '
                 'items=["<id-output>"].',
             )
@@ -257,8 +257,8 @@ class ToolCallExecutor:
         return ToolExecutionResult(
             response=ToolMessage(
                 content=(
-                    f"Errore {called_exit_tool.name}: {message} "
-                    f"Correggi e richiama {called_exit_tool.name}."
+                    f"Error {called_exit_tool.name}: {message} "
+                    f"Correct the error and call {called_exit_tool.name} again."
                 ),
                 tool_call_id=called_exit_tool.call_id,
                 name=called_exit_tool.name,

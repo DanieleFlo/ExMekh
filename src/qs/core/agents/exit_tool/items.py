@@ -50,8 +50,8 @@ class ExitItemResolver:
             record = self._resolve(identifier, skill_path, opening_position, cache)
             if record.id not in selected:
                 raise ExitItemError(
-                    f"Il segnaposto {{{{{identifier}}}}} non è elencato in items. "
-                    f'Usa items=["{identifier}"] oppure elimina il segnaposto.'
+                    f"Placeholder {{{{{identifier}}}}} is not listed in items. "
+                    f'Use items=["{identifier}"] or remove the placeholder.'
                 )
             placed.add(record.id)
             return self._render(record)
@@ -67,8 +67,8 @@ class ExitItemResolver:
         remaining = _PLACEHOLDER.sub("", text)
         if "{{" in remaining or "}}" in remaining:
             raise ExitItemError(
-                'Segnaposto incompleto. Usa text="… {{<id-output>}} …" '
-                'e items=["<id-output>"], oppure rimuovi le doppie parentesi.'
+                'Incomplete placeholder. Use text="… {{<id-output>}} …" '
+                'and items=["<id-output>"], or remove the double braces.'
             )
 
     def _require_items_for_placeholders(self, text: str) -> None:
@@ -77,8 +77,8 @@ class ExitItemResolver:
             return
         identifier = self._placeholder_identifier(match)
         raise ExitItemError(
-            f"Il segnaposto {{{{{identifier}}}}} richiede l'ID in items. "
-            f'Usa items=["{identifier}"] oppure elimina il segnaposto.'
+            f"Placeholder {{{{{identifier}}}}} requires its ID in items. "
+            f'Use items=["{identifier}"] or remove the placeholder.'
         )
 
     @staticmethod
@@ -86,8 +86,8 @@ class ExitItemResolver:
         identifier = match.group(1).strip()
         if not identifier:
             raise ExitItemError(
-                'Segnaposto vuoto. Usa text="… {{<id-output>}} …" '
-                'e items=["<id-output>"].'
+                'Empty placeholder. Use text="… {{<id-output>}} …" '
+                'and items=["<id-output>"].'
             )
         return identifier
 
@@ -104,8 +104,8 @@ class ExitItemResolver:
             record = self._resolve(item, skill_path, opening_position, cache)
             if record.id in selected:
                 raise ExitItemError(
-                    f"L'output {record.id!r} compare più volte in items. "
-                    'Usa una sola voce: items=["<id-output>"].'
+                    f"Output {record.id!r} appears more than once in items. "
+                    'Use only one entry: items=["<id-output>"].'
                 )
             selected[record.id] = record
             ordered.append(record)
@@ -134,27 +134,27 @@ class ExitItemResolver:
         if len(eligible) > 1:
             ids = ", ".join(sorted(eligible))
             raise ExitItemError(
-                f"L'ID di chiamata {identifier!r} identifica più output: {ids}. "
-                'Usa un ID di output specifico in items=["<id-output>"].'
+                f"Call ID {identifier!r} identifies multiple outputs: {ids}. "
+                'Use a specific output ID in items=["<id-output>"].'
             )
         if eligible:
             return next(iter(eligible.values()))
         if saw_out_of_scope:
             raise ExitItemError(
-                f"L'output {identifier!r} appartiene a un'altra skill o invocazione. "
-                "Cerca un output della skill corrente o di una sua discendente "
-                'e usa items=["<id-output>"].'
+                f"Output {identifier!r} belongs to another skill or invocation. "
+                "Find an output from the current skill or a descendant "
+                'and use items=["<id-output>"].'
             )
         if matching_entries:
             raise ExitItemError(
-                f"L'ID {identifier!r} non ha un output salvato e recuperabile. "
-                "Usa get_execution_history per trovare un saved-output-id, "
-                'poi items=["<id-output>"].'
+                f"ID {identifier!r} has no saved, retrievable output. "
+                "Use get_execution_history to find a saved-output-id, "
+                'then items=["<id-output>"].'
             )
         raise ExitItemError(
-            f"L'ID {identifier!r} non è presente nella cronologia di questo nodo. "
-            "Usa get_execution_history per trovare un saved-output-id, "
-            'poi items=["<id-output>"].'
+            f"ID {identifier!r} is not present in this node's history. "
+            "Use get_execution_history to find a saved-output-id, "
+            'then items=["<id-output>"].'
         )
 
     @staticmethod

@@ -165,9 +165,9 @@ def test_scope_requires_current_invocation_and_same_node(tmp_path: Path) -> None
             "done", ["nested-out"], "/parent", opening.position
         )
         for identifier in ("old-out", "sibling-out"):
-            with pytest.raises(ExitItemError, match="altra skill o invocazione"):
+            with pytest.raises(ExitItemError, match="another skill or invocation"):
                 resolver.compose("done", [identifier], "/parent", opening.position)
-        with pytest.raises(ExitItemError, match="non ha un output salvato"):
+        with pytest.raises(ExitItemError, match="has no saved"):
             resolver.compose("done", ["foreign-out"], "/parent", opening.position)
 
 
@@ -212,18 +212,18 @@ def test_rejects_unsaved_unknown_duplicate_ambiguous_and_unlisted_ids(
         resolver = ExitItemResolver(history, lambda: cache)
 
         cases = [
-            ("done", ["missing"], "non è presente"),
-            ("done", ["unsaved"], "non ha un output salvato"),
-            ("done", ["stale-out"], "non ha un output salvato"),
-            ("done", ["reused"], "più output"),
-            ("done", ["out-1", "reused"], "più output"),
-            ("done", ["out-1", "out-1"], "più volte"),
-            ("done", ["out-3", "unique"], "più volte"),
-            ("see {{out-2}}", ["out-1"], "non è elencato"),
-            ("see {{out-1}}", [], "richiede l'ID in items"),
-            ("see {{}}", ["out-1"], "Segnaposto vuoto"),
-            ("see {{}}", [], "Segnaposto vuoto"),
-            ("see {{out-1}", ["out-1"], "Segnaposto incompleto"),
+            ("done", ["missing"], "is not present"),
+            ("done", ["unsaved"], "has no saved"),
+            ("done", ["stale-out"], "has no saved"),
+            ("done", ["reused"], "multiple outputs"),
+            ("done", ["out-1", "reused"], "multiple outputs"),
+            ("done", ["out-1", "out-1"], "more than once"),
+            ("done", ["out-3", "unique"], "more than once"),
+            ("see {{out-2}}", ["out-1"], "is not listed"),
+            ("see {{out-1}}", [], "requires its ID in items"),
+            ("see {{}}", ["out-1"], "Empty placeholder"),
+            ("see {{}}", [], "Empty placeholder"),
+            ("see {{out-1}", ["out-1"], "Incomplete placeholder"),
         ]
         for text, items, message in cases:
             with pytest.raises(ExitItemError, match=message):

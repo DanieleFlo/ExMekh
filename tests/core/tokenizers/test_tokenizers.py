@@ -198,7 +198,7 @@ def _sample_text_tokenizer() -> TextTokenizer:
     tokenizer.pre_tokenizer = pre_tokenizers.ByteLevel()
     tokenizer.decoder = decoders.ByteLevel()
     tokenizer.train_from_iterator(
-        ["alpha beta gamma delta città fine"],
+        ["alpha beta gamma delta café end"],
         trainer=trainers.BpeTrainer(
             vocab_size=300,
             initial_alphabet=pre_tokenizers.ByteLevel.alphabet(),
@@ -211,7 +211,7 @@ def _sample_text_tokenizer() -> TextTokenizer:
 def test_qwen_counts_and_truncates_model_tokens(tmp_path):
     tokenizer = QwenTokenizer(tmp_path)
     tokenizer._text_tokenizer = _sample_text_tokenizer()
-    text = "alpha città beta gamma delta fine " * 30
+    text = "alpha café beta gamma delta end " * 30
 
     assert tokenizer.count_tokens("") == 0
     assert tokenizer.count_tokens(text) > 100
@@ -291,12 +291,12 @@ def test_qwen_reuses_cached_full_tokenizer_for_text(tmp_path):
         return_value=io.BytesIO(json.dumps(payload).encode()),
     ) as download:
         first = QwenTokenizer(tmp_path)
-        assert first.count_tokens("alpha città") > 0
+        assert first.count_tokens("alpha café") > 0
     download.assert_called_once()
 
     with patch("qs.tokenizers.qwen.urlopen", side_effect=AssertionError):
         second = QwenTokenizer(tmp_path)
-        assert second.count_tokens("alpha città") == first.count_tokens("alpha città")
+        assert second.count_tokens("alpha café") == first.count_tokens("alpha café")
 
 
 def test_qwen_downloads_full_tokenizer_for_an_existing_vocabulary_cache(tmp_path):
@@ -313,7 +313,7 @@ def test_qwen_downloads_full_tokenizer_for_an_existing_vocabulary_cache(tmp_path
         "qs.tokenizers.qwen.urlopen",
         return_value=io.BytesIO(json.dumps(payload).encode()),
     ) as download:
-        assert QwenTokenizer(tmp_path).count_tokens("alpha città") > 0
+        assert QwenTokenizer(tmp_path).count_tokens("alpha café") > 0
     download.assert_called_once()
 
 

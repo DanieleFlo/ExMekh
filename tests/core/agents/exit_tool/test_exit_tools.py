@@ -128,7 +128,7 @@ def test_instruction_paths_are_independent_of_working_directory(
     path = _write_tool(tmp_path / "finish", _valid_source())
     instructions = path / "instructions.md"
     instructions.write_text(
-        "  Concludi con {{!exit_agent}} e {{ !other-tool }}; {{!exit_agent}}.  ",
+        "  Finish with {{!exit_agent}} e {{ !other-tool }}; {{!exit_agent}}.  ",
         encoding="utf-8",
     )
     if absolute:
@@ -145,9 +145,9 @@ def test_instruction_paths_are_independent_of_working_directory(
         (tool,) = loader.load_exit_tools()
         assert tool.instructions_path == instructions
         assert tool.references == ("exit_agent", "other-tool")
-        assert tool.instructions == "Concludi con exit_agent e other-tool; exit_agent."
+        assert tool.instructions == "Finish with exit_agent e other-tool; exit_agent."
         instructions.unlink()
-        assert "Concludi" in tool.render_prompt_section()
+        assert "Finish" in tool.render_prompt_section()
         assert tool.execute(text="done", items=["result"]) == {
             "text": "done",
             "items": ["result"],

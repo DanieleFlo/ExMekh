@@ -23,12 +23,12 @@ from .tool_call_executor import ExitContentResolver, ToolCallExecutor
 
 HARNESS_OUTPUT_GUIDANCE = (
     "<harness-output-guidance>\n"
-    "Quando concludi una skill, inserisci in items solo gli ID degli output completi "
-    "che il chiamante deve leggere subito. Preferisci il saved-output-id mostrato "
-    "dalla cronologia; l'ID della chiamata è accettato se non è ambiguo. "
-    "Se il risultato servirà in una skill successiva, comunica nel text soltanto "
-    "l'ID e chiedi di recuperarlo con read_saved_tool_output: duplicare l'output "
-    "nel messaggio consuma contesto. Usa items=[] quando basta il testo.\n"
+    "When finishing a skill, put in items only the IDs of complete outputs "
+    "that the caller needs to read immediately. Prefer the saved-output-id shown "
+    "in the history; a call ID is accepted if it is unambiguous. "
+    "If a later skill needs the result, provide only its ID in text "
+    "and ask the caller to retrieve it with read_saved_tool_output: repeating the output "
+    "in the message consumes context. Use items=[] when text alone is enough.\n"
     "</harness-output-guidance>"
 )
 

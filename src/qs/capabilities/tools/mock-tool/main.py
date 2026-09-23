@@ -5,7 +5,7 @@ from qs.core.agents.tools.decorator import deep_tool
 
 @deep_tool(
     name="mock-tool",
-    description="Restituisce il testo ricevuto come risultato dimostrativo.",
+    description="Returns the received text as a demonstration result.",
 )
 def run(work_root: Path, text: str) -> str:
     del work_root

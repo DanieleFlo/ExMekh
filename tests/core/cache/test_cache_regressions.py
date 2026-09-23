@@ -276,7 +276,7 @@ def test_counter_rejects_invalid_capacity(tmp_path, capacity):
 
 
 @pytest.mark.parametrize(
-    "thinking", [None, "", "  Ragiono sul tool.\nSeconda riga: città.  "]
+    "thinking", [None, "", "  I am reasoning about the tool.\nSecond line: city.  "]
 )
 def test_thinking_round_trip_across_all_cache_entry_points(tmp_path, thinking):
 

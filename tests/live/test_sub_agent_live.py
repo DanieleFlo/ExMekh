@@ -82,9 +82,9 @@ def test_live_sub_agent_remembers_code_with_persistent_history() -> None:
 
     # Turn 1: Send secret code to sub-agent to memorize
     turn1_response = agent.run(
-        "Chiama call_sub_agent esattamente una volta con sub_agent='mock-sub-agent' "
-        f"e text='Memorizza il codice {code}'. "
-        "Dopo la risposta del sub-agent rispondi con un breve riepilogo."
+        "Call call_sub_agent exactly once with sub_agent='mock-sub-agent' "
+        f"and text='Remember code {code}'. "
+        "After the sub-agent responds, give a brief summary."
     )
     turn1_calls = get_sub_agent_tool_calls(turn1_response)
     assert turn1_calls, "MODEL: expected call_sub_agent in turn 1"
@@ -92,15 +92,15 @@ def test_live_sub_agent_remembers_code_with_persistent_history() -> None:
         msg for msg in turn1_response.history if msg.get("role") == "tool"
     ]
     assert turn1_tool_msgs, "MODEL: expected tool message in turn 1"
-    assert "CODICE REGISTRATO" in turn1_tool_msgs[-1]["content"], (
+    assert "CODE RECORDED" in turn1_tool_msgs[-1]["content"], (
         f"MODEL: expected registration confirmation in {turn1_tool_msgs[-1]['content']!r}"
     )
 
     # Turn 2: Ask sub-agent for the memorized code
     turn2_response = agent.run(
-        "Chiama call_sub_agent esattamente una volta con sub_agent='mock-sub-agent' "
-        "e text='Qual è il codice memorizzato in precedenza?'. "
-        "Poi restituisci la risposta del sub-agent includendo il codice."
+        "Call call_sub_agent exactly once with sub_agent='mock-sub-agent' "
+        "and text='What code did you save earlier?'. "
+        "Then return the sub-agent's response including the code."
     )
     turn2_calls = get_sub_agent_tool_calls(turn2_response)
     assert turn2_calls, "MODEL: expected call_sub_agent in turn 2"
@@ -129,18 +129,18 @@ def test_live_sub_agent_forgets_code_without_persistent_history() -> None:
 
     # Turn 1: Send secret code to sub-agent to memorize
     turn1_response = agent.run(
-        "Chiama call_sub_agent esattamente una volta con sub_agent='mock-sub-agent' "
-        f"e text='Memorizza il codice {code}'. "
-        "Dopo la risposta del sub-agent rispondi con un breve riepilogo."
+        "Call call_sub_agent exactly once with sub_agent='mock-sub-agent' "
+        f"and text='Remember code {code}'. "
+        "After the sub-agent responds, give a brief summary."
     )
     turn1_calls = get_sub_agent_tool_calls(turn1_response)
     assert turn1_calls, "MODEL: expected call_sub_agent in turn 1"
 
     # Turn 2: Ask sub-agent for the memorized code
     turn2_response = agent.run(
-        "Chiama call_sub_agent esattamente una volta con sub_agent='mock-sub-agent' "
-        "e text='Qual è il codice memorizzato in precedenza?'. "
-        "Poi restituisci la risposta del sub-agent."
+        "Call call_sub_agent exactly once with sub_agent='mock-sub-agent' "
+        "and text='What code did you save earlier?'. "
+        "Then return the sub-agent's response."
     )
     turn2_calls = get_sub_agent_tool_calls(turn2_response)
     assert turn2_calls, "MODEL: expected call_sub_agent in turn 2"
@@ -154,8 +154,8 @@ def test_live_sub_agent_forgets_code_without_persistent_history() -> None:
     assert code not in sub_agent_result, (
         f"MODEL: sub-agent should NOT remember {code!r}, but got {sub_agent_result!r}"
     )
-    assert "NESSUN CODICE MEMORIZZATO" in sub_agent_result, (
-        f"MODEL: expected NESSUN CODICE MEMORIZZATO, got {sub_agent_result!r}"
+    assert "NO SAVED CODE" in sub_agent_result, (
+        f"MODEL: expected NO SAVED CODE, got {sub_agent_result!r}"
     )
 
 
@@ -179,10 +179,10 @@ def test_live_direct_sub_agent_node_memory_persistence() -> None:
     )
     node_persist.initialize(provider, work_root=Path.cwd())
 
-    r1 = node_persist.run(f"Memorizza il codice {code_persist}")
-    assert "CODICE REGISTRATO" in (r1.get_message() or "")
+    r1 = node_persist.run(f"Remember code {code_persist}")
+    assert "CODE RECORDED" in (r1.get_message() or "")
 
-    r2 = node_persist.run("Qual è il codice memorizzato in precedenza?")
+    r2 = node_persist.run("What code did you save earlier?")
     assert code_persist in (r2.get_message() or "")
 
     # 2. Test Node directly with persistent_history=False
@@ -195,9 +195,9 @@ def test_live_direct_sub_agent_node_memory_persistence() -> None:
     )
     node_reset.initialize(provider, work_root=Path.cwd())
 
-    r3 = node_reset.run(f"Memorizza il codice {code_reset}")
-    assert "CODICE REGISTRATO" in (r3.get_message() or "")
+    r3 = node_reset.run(f"Remember code {code_reset}")
+    assert "CODE RECORDED" in (r3.get_message() or "")
 
-    r4 = node_reset.run("Qual è il codice memorizzato in precedenza?")
+    r4 = node_reset.run("What code did you save earlier?")
     assert code_reset not in (r4.get_message() or "")
-    assert "NESSUN CODICE MEMORIZZATO" in (r4.get_message() or "")
+    assert "NO SAVED CODE" in (r4.get_message() or "")

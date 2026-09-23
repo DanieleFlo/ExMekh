@@ -1,16 +1,13 @@
 ---
-description: Sub-agent dimostrativo per verificare delega e memoria fra turni.
+description: Demonstration sub-agent for testing delegation and memory across turns.
 exit-tool: exit_agent
 agent-context-id: mock-sub-agent
 ---
-Sei un sub-agent dimostrativo. Rispondi sempre direttamente senza chiamare tool.
+You are a demonstration sub-agent. Always respond directly without calling tools.
 
-Istruzioni per la memoria dei codici:
-- Se il messaggio ti dice di memorizzare, ricordare o salvare un codice o token (ad esempio "Memorizza il codice <CODICE>"):
-  conferma la memorizzazione rispondendo esattamente `CODICE REGISTRATO: <CODICE>`.
-- Se il messaggio ti chiede di ripetere, restituire o verificare il codice memorizzato in precedenza:
-  - Se nei turni precedenti di questa conversazione ti è stato comunicato un codice, rispondi esattamente `CODICE MEMORIZZATO: <CODICE>` indicando quel codice.
-  - Se nei turni precedenti NON è presente alcun codice comunicato (sessione azzerata o assente), rispondi esattamente `NESSUN CODICE MEMORIZZATO`.
-- Per qualsiasi altro messaggio generico, rispondi:
-  `Mock sub-agent result: <testo>`
-  sostituendo `<testo>` con il messaggio ricevuto senza ometterne il contenuto.
+Code memory instructions:
+- If a message asks you to memorize, remember, or save a code or token (for example, "Remember code <CODE>"), reply exactly `CODE RECORDED: <CODE>`.
+- If a message asks you to repeat, return, or verify a previously saved code:
+  - If a code was provided in an earlier turn of this conversation, reply exactly `SAVED CODE: <CODE>` with that code.
+  - If no code was provided in an earlier turn (or the session was reset), reply exactly `NO SAVED CODE`.
+- For any other message, reply `Mock sub-agent result: <text>`, replacing `<text>` with the full received message.

@@ -893,7 +893,7 @@ def test_exit_items_retry_keeps_skill_open_then_compacts_selected_output(
     assert any(
         isinstance(message, ToolMessage)
         and message.get_tool_call_id() == "bad-exit"
-        and "Correggi e richiama exit_agent" in message.get_message()
+        and "Correct the error and call exit_agent again" in message.get_message()
         for message in retry_history
     )
     assert any(
@@ -961,9 +961,7 @@ def test_malformed_exit_items_return_feedback_without_closing_skill(
     assert node.depth == 0
     assert response.get_message() == "final"
     assert provider.requests[2].get_tool_choice() == "required"
-    assert (
-        "Argomenti non validi" in provider.requests[2].get_messages()[-1].get_message()
-    )
+    assert "Invalid arguments" in provider.requests[2].get_messages()[-1].get_message()
     assert "items=[]" in provider.requests[2].get_messages()[-1].get_message()
     assert all(
         record.tool_call_id != "invalid"
@@ -2060,7 +2058,7 @@ def test_runtime_saves_thinking_from_the_exact_tool_calling_turn(tmp_path, strea
             response = super().call(request)
 
             thoughts = [
-                "  Apro e chiamo due tool.\nCittà.  ",
+                "  I open and call two tools.\nCity.  ",
                 None,
                 "Esco dalla skill.",
                 "Risposta finale.",
@@ -2119,10 +2117,10 @@ def test_runtime_saves_thinking_from_the_exact_tool_calling_turn(tmp_path, strea
         records = node._runtime._tool_cache.get_all()
 
         assert {record.tool_call_id: record.thinking for record in records} == {
-            "first": "  Apro e chiamo due tool.\nCittà.  ",
-            "second": "  Apro e chiamo due tool.\nCittà.  ",
+            "first": "  I open and call two tools.\nCity.  ",
+            "second": "  I open and call two tools.\nCity.  ",
             "third": None,
-            "skill": "  Apro e chiamo due tool.\nCittà.  ",
+            "skill": "  I open and call two tools.\nCity.  ",
         }
 
         assert {record.tool_call_id: record.skill_path for record in records} == {
@@ -2145,7 +2143,7 @@ def test_runtime_saves_thinking_from_the_exact_tool_calling_turn(tmp_path, strea
 
 
 def test_skill_exit_header_limits_and_escapes_thinking(tmp_path):
-    exit_thinking = "Scelta & <risultato> " + "è" * 100
+    exit_thinking = "Choice & <result> " + "x" * 100
 
     class ThinkingProvider(SequenceProvider):
         def call(self, request):
@@ -2188,7 +2186,7 @@ def test_skill_exit_header_limits_and_escapes_thinking(tmp_path):
     assert excerpt is not None
     assert exit_thinking.startswith(excerpt)
     assert provider.get_tokenizer().count_tokens(excerpt) == 100
-    assert "&amp; &lt;risultato&gt;" in skill_response.get_message()
+    assert "&amp; &lt;result&gt;" in skill_response.get_message()
 
 
 def _write_alternative_exit_tool(capabilities_path: Path) -> None:

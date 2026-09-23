@@ -18,9 +18,9 @@ def test_write_json_atomically_replaces_file(tmp_path: Path) -> None:
     target = tmp_path / "data.json"
     target.write_text("original")
 
-    write_json_atomically(target, {"value": "caffè"})
+    write_json_atomically(target, {"value": "café"})
 
-    assert read_json_from_path(target) == {"value": "caffè"}
+    assert read_json_from_path(target) == {"value": "café"}
     assert list(tmp_path.iterdir()) == [target]
 
 

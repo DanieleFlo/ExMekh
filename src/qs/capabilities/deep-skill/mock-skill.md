@@ -1,11 +1,10 @@
 ---
-description: Produce una risposta dimostrativa senza eseguire operazioni reali.
+description: Produces a demonstration response without performing real operations.
 sub-skills:
   - nested-skill
 sub-tools:
   - mock-sub-tool
   - shared-tool
 ---
-Genera un breve risultato di esempio coerente con la richiesta dell'utente.
-Specifica chiaramente che si tratta dell'output della mock skill e non di
-un'operazione reale.
+Generate a short example result that matches the user's request.
+Clearly state that it is mock skill output rather than a real operation.
