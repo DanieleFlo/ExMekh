@@ -53,7 +53,7 @@ class NodeRuntime:
         memory_tools = self._memory_tools.tools
         if defaults is not None:
             memory_tools = tuple(
-                defaults.overrides.get(tool.name, tool)
+                defaults.tool_override(tool.name) or tool
                 for tool in memory_tools
                 if defaults.includes(tool.name)
             )

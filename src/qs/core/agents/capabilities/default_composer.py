@@ -24,10 +24,37 @@ class _DefaultCapabilitiesComposer:
         self._tool_paths = tuple(tool_paths)
 
     def compose(self, loaded: CapabilitiesData) -> CapabilitiesData:
+        self._validate_override_targets(loaded)
         selected = self._select_loaded(loaded)
         composed = self._apply_overrides(selected)
         self._validate_selected_names(composed)
         return composed
+
+    def _validate_override_targets(self, loaded: CapabilitiesData) -> None:
+        tool_names = {tool.name for tool in loaded.tools}
+        skill_names = {skill.name for skill in loaded.deep_skills}
+        missing_tools = {
+            name
+            for name, replacement in self._defaults.overrides.items()
+            if name not in RUNTIME_NAMES
+            and not isinstance(replacement, (HDS, DeepSkill, ExitTool))
+            and name not in tool_names
+        }
+        if missing_tools:
+            raise ValueError(
+                "Override tools not found in capabilities_paths: "
+                + ", ".join(sorted(missing_tools))
+            )
+        missing_skills = {
+            name
+            for name, replacement in self._defaults.overrides.items()
+            if isinstance(replacement, DeepSkill) and name not in skill_names
+        }
+        if missing_skills:
+            raise ValueError(
+                "Override deep skills not found in capabilities_paths: "
+                + ", ".join(sorted(missing_skills))
+            )
 
     def _select_loaded(self, loaded: CapabilitiesData) -> CapabilitiesData:
         return CapabilitiesData(

@@ -44,28 +44,46 @@ in `capabilities_paths`; it is loaded once and the selection still applies.
 
 There are currently no bundled harness skills. Group switches select all names
 in that group. `include` and `exclude` take names that adjust the switches;
-`overrides` maps a bundled name to an `HDS`, `DeepSkill`, `ExitTool`, or `Tool`
-instance of the appropriate type. An override also selects its name. Every
-override object must retain that name. An explicit exclusion cannot also be
+`overrides` accepts `ToolOverride(target_name, replacement_name)` and
+`DeepSkillOverride(target_name, replacement_name)`. The replacement name refers
+to a resource loaded from any `capabilities_paths` directory, including the
+bundled directory. The target may be a bundled or application tool or skill;
+runtime harness tools can also be tool targets. The replacement is exposed under
+the target name in this node. Missing targets or replacement names, and
+ambiguous replacement names, raise errors during loading. An override selects a
+bundled target even when its group is off. An explicit exclusion cannot also be
 included or overridden.
 
 ```python
-from qs.core.agents.node import DefaultCapabilities, Node
-from qs.core.models.tool import Tool
+from pathlib import Path
 
-def example_echo(text: str) -> str:
-    return f"Example: {text}"
+from qs.core.agents.node import (
+    DeepSkillOverride,
+    DefaultCapabilities,
+    Node,
+    ToolOverride,
+)
 
 node = Node(
+    capabilities_paths=[Path("my-app/capabilities")],
     name_hds="main",
     default_capabilities=DefaultCapabilities(
         mocks=True,
         harness=True,
         exclude={"read_saved_tool_output"},
-        overrides={"mock-tool": Tool(example_echo, name="mock-tool")},
+        overrides=[
+            ToolOverride("mock-tool", "example-echo"),
+            DeepSkillOverride("mock-skill", "my-skill"),
+        ],
     ),
 )
 ```
+
+Here `my-app/capabilities` defines the tool `example-echo` and the deep skill
+`my-skill`. The tool runs as `mock-tool`, and the skill opens as `mock-skill`.
+Named overrides also work when the target is an application tool or skill. The
+target name stays stable in provider schemas, allowed scopes, and calls. The
+existing mapping form remains available for direct Python object replacements.
 
 For a smaller selection, use `mocks=False` and `include={"mock-tool"}` with an
 application HDS that declares `mock-tool` in `sub-tools`. Likewise,
@@ -176,7 +194,7 @@ flowchart TD
 ```
 
 1. **Discovery & Parsing**: Scans filesystem, parses YAML frontmatter in HDS and deep-skill files, reads plain exit instruction Markdown, and imports Python modules under `tools/` and `exit-tool/`.
-2. **Optional Default Composition**: Selects bundled resources and applies per-node object overrides before indexing. Without `DefaultCapabilities`, this step leaves loaded resources unchanged.
+2. **Optional Default Composition**: Selects bundled resources and applies per-node named or object overrides before indexing. Without `DefaultCapabilities`, this step leaves loaded resources unchanged.
 3. **Index Building**: Indexes resources by exposed name within each capability type using `CapabilitiesIndex`.
 4. **Validation (`CapabilitiesValidator`)**: Ensures:
    - Referenced tools and skills exist in the index.

@@ -17,7 +17,7 @@ from qs.core.agents.exit_tool.data import ExitToolData
 from qs.core.agents.exit_tool.exit_tool import ExitTool
 from qs.core.agents.hds.hds import HDS
 from qs.core.agents.hds.metadata import HDSMetadata
-from qs.core.agents.node import Node
+from qs.core.agents.node import DeepSkillOverride, Node, ToolOverride
 from qs.core.cache.cache_manager import CacheManager
 from qs.core.cache.session_cache import SessionCache
 from qs.core.models.assistant_message import AssistantMessage, FunctionCall, ToolCall
@@ -63,14 +63,47 @@ class SequenceProvider(Provider):
         raise NotImplementedError
 
 
-def write_hds(root: Path, name: str, *, body: str = "Custom instructions") -> Path:
+def write_hds(
+    root: Path,
+    name: str,
+    *,
+    body: str = "Custom instructions",
+    tools: tuple[str, ...] = (),
+    skills: tuple[str, ...] = (),
+) -> Path:
     path = root / "capabilities"
     hds_dir = path / "hds"
     hds_dir.mkdir(parents=True, exist_ok=True)
+    tool_references = (
+        "sub-tools:\n" + "".join(f"  - {tool}\n" for tool in tools) if tools else ""
+    )
+    skill_references = (
+        "sub-skills:\n" + "".join(f"  - {skill}\n" for skill in skills)
+        if skills
+        else ""
+    )
     (hds_dir / f"{name}.md").write_text(
-        f"---\ndescription: {name}\nexit-tool: exit_agent\n---\n{body}"
+        f"---\ndescription: {name}\nexit-tool: exit_agent\n"
+        f"{skill_references}{tool_references}---\n{body}"
     )
     return path
+
+
+def write_tool(path: Path, name: str) -> None:
+    tool_path = path / "tools" / f"{name}-directory"
+    tool_path.mkdir(parents=True)
+    (tool_path / "main.py").write_text(
+        "from qs.core.agents.tools.decorator import deep_tool\n"
+        f"@deep_tool(name='{name}', description='{name} application tool')\n"
+        "def run(work_root, text: str) -> str:\n"
+        f"    return '{name}: ' + text\n"
+    )
+
+
+def write_skill(path: Path, name: str) -> None:
+    skill_path = path / "deep-skill" / f"{name}.md"
+    skill_path.parent.mkdir(parents=True, exist_ok=True)
+    skill_path.write_text(f"---\ndescription: {name} description\n---\n{name} body")
 
 
 def make_hds(
@@ -156,8 +189,8 @@ def test_selection_rejects_unknown_conflicting_and_invalid_overrides() -> None:
         DefaultCapabilities(include=cast(set[str], 1))
     with pytest.raises(TypeError, match="exclude must contain only strings"):
         DefaultCapabilities(exclude=cast(set[str], {1}))
-    with pytest.raises(TypeError, match="overrides must be a mapping"):
-        DefaultCapabilities(overrides=cast(dict[str, Tool], []))
+    with pytest.raises(TypeError, match="overrides must be a mapping or iterable"):
+        DefaultCapabilities(overrides=cast(dict[str, Tool], 1))
     with pytest.raises(ValueError, match="Unknown default capabilities: unknown"):
         DefaultCapabilities(include={"unknown"})
     with pytest.raises(ValueError, match="included or overridden and excluded"):
@@ -175,6 +208,37 @@ def test_selection_rejects_unknown_conflicting_and_invalid_overrides() -> None:
         DefaultCapabilities(overrides={"mock-tool": Tool(replacement_tool)})
     with pytest.raises(TypeError, match="Override for 'mock-tool' must be a Tool"):
         DefaultCapabilities(overrides={"mock-tool": make_hds("mock-tool")})
+    with pytest.raises(TypeError, match="Override for 'mock-tool' must be a Tool"):
+        DefaultCapabilities(overrides={"mock-tool": "replacement-tool"})
+    with pytest.raises(TypeError, match="overrides must contain only"):
+        DefaultCapabilities(overrides=cast(list[ToolOverride], [object()]))
+    with pytest.raises(ValueError, match="Duplicate override for 'mock-tool'"):
+        DefaultCapabilities(
+            overrides=[
+                ToolOverride("mock-tool", "first"),
+                ToolOverride("mock-tool", "second"),
+            ]
+        )
+    with pytest.raises(ValueError, match="must target 'mock-tool'"):
+        DefaultCapabilities(
+            overrides={"mock-tool": ToolOverride("different", "replacement-tool")}
+        )
+    with pytest.raises(TypeError, match="must match DeepSkill"):
+        DefaultCapabilities(overrides=ToolOverride("mock-skill", "replacement-tool"))
+    with pytest.raises(TypeError, match="must match Tool"):
+        DefaultCapabilities(overrides=DeepSkillOverride("mock-tool", "other-skill"))
+    with pytest.raises(TypeError, match="target_name must be a string"):
+        ToolOverride(cast(str, 1), "replacement-tool")
+    with pytest.raises(TypeError, match="replacement_name must be a string"):
+        ToolOverride("mock-tool", cast(str, 1))
+    with pytest.raises(ValueError, match="target_name cannot be empty"):
+        ToolOverride("", "replacement-tool")
+    with pytest.raises(ValueError, match="replacement_name cannot be empty"):
+        DeepSkillOverride("mock-skill", "")
+    with pytest.raises(TypeError, match="not a resolved Tool"):
+        DefaultCapabilities(
+            overrides=ToolOverride("mock-tool", "replacement-tool")
+        ).tool_override("mock-tool")
     with pytest.raises(TypeError, match="default_capabilities must be"):
         Node(name_hds="main", default_capabilities=cast(DefaultCapabilities, object()))
     with pytest.raises(TypeError, match="capabilities_paths must be a sequence"):
@@ -412,6 +476,17 @@ def test_sub_agent_selection_and_override_are_node_local(tmp_path: Path) -> None
     disabled.initialize(SequenceProvider(tmp_path / "cache1", []), work_root=tmp_path)
     assert "call_sub_agent" not in disabled._runtime._client.tools.list_tools()
 
+    standard = Node(
+        [path],
+        name_hds="parent",
+        children=[child],
+        default_capabilities=DefaultCapabilities(),
+    )
+    standard.initialize(
+        SequenceProvider(tmp_path / "cache-default", []), work_root=tmp_path
+    )
+    assert "call_sub_agent" in standard._runtime._client.tools.list_tools()
+
     enabled = Node(
         [path],
         name_hds="parent",
@@ -517,6 +592,282 @@ def test_tool_override_replaces_same_named_application_and_bundled_tools(
     )
     loaded = with_override.load_capabilities(work_root=tmp_path)
     assert [tool.execute(text="ok") for tool in loaded.tools] == ["Replacement: ok"]
+
+
+def test_application_tool_override_uses_names_from_every_capabilities_path(
+    tmp_path: Path,
+) -> None:
+    first_path = write_hds(
+        tmp_path / "first",
+        "application",
+        tools=("first-tool", "second-tool"),
+    )
+    write_tool(first_path, "first-tool")
+    second_path = tmp_path / "second" / "capabilities"
+    second_path.mkdir(parents=True)
+    write_tool(second_path, "second-tool")
+    provider = SequenceProvider(
+        tmp_path / "cache",
+        [
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    ToolCall(
+                        id="replacement-call",
+                        function=FunctionCall("first-tool", {"text": "hello"}),
+                    )
+                ],
+            ),
+            AssistantMessage("done"),
+        ],
+    )
+    defaults = DefaultCapabilities(
+        overrides=[ToolOverride("first-tool", "second-tool")]
+    )
+    node = Node(
+        [first_path, second_path],
+        name_hds="application",
+        default_capabilities=defaults,
+    )
+    loaded = node.initialize(provider, work_root=tmp_path)
+
+    tools = {tool.name: tool for tool in loaded.tools}
+    assert set(tools) == {"first-tool", "second-tool"}
+    assert tools["first-tool"].execute(text="ok") == "second-tool: ok"
+    assert tools["second-tool"].execute(text="ok") == "second-tool: ok"
+    response = node.run("hello")
+    assert response.get_message() == "done"
+    request = provider.requests[0]
+    assert {"first-tool", "second-tool"} <= set(request.get_tools().list_tools())
+    exposed_tool = request.get_tools().get_tool("first-tool")
+    assert exposed_tool is not None
+    assert exposed_tool.get_description() == "second-tool application tool"
+    assert {"first-tool", "second-tool"} <= set(
+        request.get_extra()["agentic"]["allowed_tools"]
+    )
+    assert "second-tool: hello" in str(response.history)
+
+
+def test_named_tool_override_replaces_a_bundled_tool(tmp_path: Path) -> None:
+    path = write_hds(tmp_path, "application", tools=("mock-tool",))
+    write_tool(path, "replacement-tool")
+    node = Node(
+        [path],
+        name_hds="application",
+        default_capabilities=DefaultCapabilities(
+            overrides={
+                "mock-tool": ToolOverride("mock-tool", "replacement-tool"),
+                "exit_agent": make_exit(),
+            }
+        ),
+    )
+
+    loaded = node.load_capabilities(work_root=tmp_path)
+
+    assert {tool.name for tool in loaded.tools} == {"mock-tool", "replacement-tool"}
+    assert (
+        next(tool for tool in loaded.tools if tool.name == "mock-tool").execute(
+            text="ok"
+        )
+        == "replacement-tool: ok"
+    )
+
+
+def test_named_deep_skill_override_replaces_a_bundled_skill(tmp_path: Path) -> None:
+    path = write_hds(tmp_path, "application", skills=("mock-skill",))
+    write_skill(path, "replacement-skill")
+    node = Node(
+        [path],
+        name_hds="application",
+        default_capabilities=DefaultCapabilities(
+            overrides=DeepSkillOverride("mock-skill", "replacement-skill")
+        ),
+    )
+
+    loaded = node.load_capabilities(work_root=tmp_path)
+
+    assert next(
+        skill for skill in loaded.deep_skills if skill.name == "mock-skill"
+    ).body == ("replacement-skill body")
+
+
+def test_named_tool_override_replaces_a_harness_runtime_tool(tmp_path: Path) -> None:
+    path = write_hds(tmp_path, "application")
+    write_tool(path, "replacement-tool")
+    provider = SequenceProvider(
+        tmp_path / "cache",
+        [
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    ToolCall(
+                        id="history",
+                        function=FunctionCall(
+                            "get_execution_history", {"text": "hello"}
+                        ),
+                    )
+                ],
+            ),
+            AssistantMessage("done"),
+        ],
+    )
+    node = Node(
+        [path],
+        name_hds="application",
+        default_capabilities=DefaultCapabilities(
+            overrides=ToolOverride("get_execution_history", "replacement-tool")
+        ),
+    )
+
+    node.initialize(provider, work_root=tmp_path)
+    response = node.run("show history")
+
+    assert "get_execution_history" in provider.requests[0].get_tools().list_tools()
+    assert "replacement-tool: hello" in str(response.history)
+
+
+def test_named_deep_skill_override_uses_loaded_skill_and_executes(
+    tmp_path: Path,
+) -> None:
+    first_path = write_hds(tmp_path / "first", "application", skills=("target-skill",))
+    write_skill(first_path, "target-skill")
+    second_path = tmp_path / "second" / "capabilities"
+    second_path.mkdir(parents=True)
+    write_skill(second_path, "replacement-skill")
+    provider = SequenceProvider(
+        tmp_path / "cache",
+        [
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    ToolCall(id="open", function=FunctionCall("target-skill", {}))
+                ],
+            ),
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    ToolCall(
+                        id="close",
+                        function=FunctionCall(
+                            "exit_agent", {"text": "done", "items": ["done"]}
+                        ),
+                    )
+                ],
+            ),
+            AssistantMessage("complete"),
+        ],
+    )
+    defaults = DefaultCapabilities(
+        overrides=[DeepSkillOverride("target-skill", "replacement-skill")]
+    )
+    node = Node(
+        [first_path, second_path],
+        name_hds="application",
+        default_capabilities=defaults,
+    )
+    loaded = node.initialize(provider, work_root=tmp_path)
+    other = Node(
+        [first_path, second_path],
+        name_hds="application",
+        default_capabilities=defaults,
+    )
+    other_loaded = other.load_capabilities(work_root=tmp_path)
+
+    skills = {skill.name: skill for skill in loaded.deep_skills}
+    assert set(skills) == {"target-skill", "replacement-skill"}
+    assert skills["target-skill"].body == "replacement-skill body"
+    assert skills["target-skill"] is not skills["replacement-skill"]
+    assert skills["target-skill"] is not next(
+        skill for skill in other_loaded.deep_skills if skill.name == "target-skill"
+    )
+    assert node.run("open skill").get_message() == "complete"
+    assert provider.requests[0].get_extra()["agentic"]["allowed_skills"] == [
+        "target-skill"
+    ]
+    assert "replacement-skill body" in str(
+        [message.get_message() for message in provider.requests[1].get_messages()]
+    )
+
+
+def test_named_overrides_reject_missing_sources(tmp_path: Path) -> None:
+    path = write_hds(tmp_path, "application")
+    write_tool(path, "target-tool")
+    write_skill(path, "target-skill")
+
+    for override, expected_error in (
+        (
+            ToolOverride("target-tool", "missing-tool"),
+            "Override tool not found in capabilities_paths: missing-tool",
+        ),
+        (
+            DeepSkillOverride("target-skill", "missing-skill"),
+            "Override deep skill not found in capabilities_paths: missing-skill",
+        ),
+    ):
+        node = Node(
+            [path],
+            name_hds="application",
+            default_capabilities=DefaultCapabilities(overrides=[override]),
+        )
+        with pytest.raises(ValueError, match=expected_error):
+            node.load_capabilities(work_root=tmp_path)
+
+
+def test_named_tool_override_rejects_ambiguous_source(tmp_path: Path) -> None:
+    first_path = write_hds(tmp_path / "first", "application")
+    write_tool(first_path, "replacement-tool")
+    second_path = tmp_path / "second" / "capabilities"
+    second_path.mkdir(parents=True)
+    write_tool(second_path, "replacement-tool")
+    node = Node(
+        [first_path, second_path],
+        name_hds="application",
+        default_capabilities=DefaultCapabilities(
+            overrides=ToolOverride("mock-tool", "replacement-tool")
+        ),
+    )
+
+    with pytest.raises(
+        ValueError, match="Override tool name is ambiguous: replacement-tool"
+    ):
+        node.load_capabilities(work_root=tmp_path)
+
+
+def test_named_deep_skill_override_requires_a_loaded_target(tmp_path: Path) -> None:
+    path = write_hds(tmp_path, "application")
+    write_skill(path, "replacement-skill")
+    node = Node(
+        [path],
+        name_hds="application",
+        default_capabilities=DefaultCapabilities(
+            overrides=[DeepSkillOverride("missing-skill", "replacement-skill")]
+        ),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Override deep skills not found in capabilities_paths: missing-skill",
+    ):
+        node.load_capabilities(work_root=tmp_path)
+
+
+@pytest.mark.parametrize("name", ["missing-tool", "application"])
+def test_application_tool_override_requires_a_loaded_tool(
+    tmp_path: Path, name: str
+) -> None:
+    path = write_hds(tmp_path, "application")
+    node = Node(
+        [path],
+        name_hds="application",
+        default_capabilities=DefaultCapabilities(
+            overrides={name: Tool(replacement_tool, name=name)}
+        ),
+    )
+
+    with pytest.raises(
+        ValueError, match=f"Override tools not found in capabilities_paths: {name}"
+    ):
+        node.load_capabilities(work_root=tmp_path)
 
 
 def test_missing_bundled_resource_is_reported(tmp_path: Path, monkeypatch) -> None:

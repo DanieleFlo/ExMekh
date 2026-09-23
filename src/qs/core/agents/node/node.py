@@ -38,6 +38,7 @@ class Node:
             capabilities_paths, default_capabilities=default_capabilities
         )
         self._default_capabilities = default_capabilities
+        self._resolved_default_capabilities = default_capabilities
         self._name_hds = self._validate_hds_name(name_hds)
         self._children = self._validate_children(children)
         self._persistent_history = self._validate_persistent_history(persistent_history)
@@ -83,11 +84,13 @@ class Node:
         if on_stream is not None and not callable(on_stream):
             raise TypeError("on_stream must be a callable if provided")
 
+        self._resolved_default_capabilities = self._default_capabilities
         capabilities = self.load_capabilities(work_root=work_root)
+        defaults = self._resolved_default_capabilities
         hds = capabilities.get_hds(self._name_hds)
         exit_tool_name = hds.get_exit_tool_name()
         exit_tool = capabilities.get_exit_tool(exit_tool_name)
-        runtime_tools = self._build_runtime_tools()
+        runtime_tools = self._build_runtime_tools(defaults)
         context_id = self._agent_context_id or hds.get_agent_context_id()
         self._runtime = NodeRuntime(
             NodeRuntimeConfig(
@@ -99,27 +102,33 @@ class Node:
                 initial_depth=self._initial_depth,
                 agent_context_id=context_id,
                 runtime_tools=runtime_tools,
-                default_capabilities=self._default_capabilities,
+                default_capabilities=defaults,
                 on_stream=on_stream,
             )
         )
         return capabilities
 
-    def _build_runtime_tools(self) -> tuple[Tool, ...]:
-        defaults = self._default_capabilities
+    def _build_runtime_tools(
+        self, defaults: DefaultCapabilities | None
+    ) -> tuple[Tool, ...]:
         if not self._children:
             if defaults is not None and "call_sub_agent" in defaults.overrides:
                 raise ValueError("call_sub_agent requires at least one child node")
             return ()
         if defaults is not None and not defaults.includes("call_sub_agent"):
             return ()
-        if defaults is not None and "call_sub_agent" in defaults.overrides:
-            return (defaults.overrides["call_sub_agent"],)
+        if defaults is not None:
+            override = defaults.tool_override("call_sub_agent")
+            if override is not None:
+                return (override,)
         return (SubAgentTool(self._children),)
 
     def load_capabilities(self, *, work_root: Path) -> CapabilitiesData:
-        capabilities = self._capability_loader.load(work_root=work_root)
+        capabilities, defaults = self._capability_loader.load_with_defaults(
+            work_root=work_root
+        )
         capabilities.get_hds(self._name_hds)
+        self._resolved_default_capabilities = defaults
         return capabilities
 
     def run(self, user_message: NodeUserMessage) -> AgentResponse:

@@ -52,6 +52,12 @@ class Capabilities:
         self._layout = CapabilitiesLayout(paths)
 
     def load(self, *, work_root: Path) -> CapabilitiesData:
+        data, _ = self.load_with_defaults(work_root=work_root)
+        return data
+
+    def load_with_defaults(
+        self, *, work_root: Path
+    ) -> tuple[CapabilitiesData, DefaultCapabilities | None]:
         self.format_capabilities_folders()
         tool_paths = self.get_tool_paths()
         deep_tools = DeepTools(
@@ -64,6 +70,7 @@ class Capabilities:
             data = self._load_data(deep_tools, exit_tools)
             defaults = self._default_capabilities
             if defaults is not None:
+                defaults = defaults.with_resolved_overrides(data)
                 data = _DefaultCapabilitiesComposer(
                     defaults, BUILTIN_CAPABILITIES_PATH, tool_paths
                 ).compose(data)
@@ -75,7 +82,7 @@ class Capabilities:
             deep_tools.unload()
             raise
 
-        return data
+        return data, defaults
 
     def _load_data(
         self,
