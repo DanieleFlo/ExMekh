@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
 from qs.core.agents.capabilities.capabilities import Capabilities
 from qs.core.agents.capabilities.data import CapabilitiesData
@@ -11,7 +11,10 @@ from qs.core.agents.deep_agent.agent_response import AgentResponse
 from qs.core.agents.deep_agent.stream_event import DeepAgentEventHandler
 from qs.core.agents.hds.hds import HDS
 from qs.core.agents.sub_agent.sub_agent_tool import SubAgentTool
+from qs.core.cache.node_cache import NodeCache
 from qs.core.models.tool import Tool
+from qs.core.tool_calls.memory_tools import ExecutionHistory
+from qs.interfaces.message import Message
 from qs.interfaces.provider import Provider
 
 from .node_runtime import NodeRuntime, NodeRuntimeConfig
@@ -161,6 +164,16 @@ class Node:
         if self._runtime is None:
             raise RuntimeError("Node must be initialized before run")
         return self._runtime.run(user_message)
+
+    def restore_history(
+        self,
+        messages: Sequence[Message[Any]],
+        restore_execution_state: Callable[[ExecutionHistory, NodeCache], None] | None = None,
+    ) -> None:
+        """Restore a saved conversation before the next run."""
+        if self._runtime is None:
+            raise RuntimeError("Node must be initialized before restoring history")
+        self._runtime.restore_history(messages, restore_execution_state)
 
     @staticmethod
     def _validate_hds_name(name_hds: str) -> str:

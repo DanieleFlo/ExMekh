@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Final, cast
+from collections.abc import Callable, Sequence
+from typing import Any, Final, cast
 from uuid import uuid4
 
 from qs.core.agents.deep_agent.agent_response import AgentResponse
@@ -21,6 +22,7 @@ from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.provider_stream_event import ProviderStreamEvent
 from qs.core.models.user_message import ErrorUserMessage, UserMessage
 from qs.core.tool_calls.memory_tools import ExecutionHistory, HarnessMemoryTools
+from qs.interfaces.message import Message
 from qs.utils.json import to_json_value
 
 from .node_runtime_config import NodeRuntimeConfig
@@ -124,6 +126,21 @@ class NodeRuntime:
             history=self._client.dump_history(),
             skill_executions=self._executor.skill_executions,
         )
+
+    def restore_history(
+        self,
+        messages: Sequence[Message[Any]],
+        restore_execution_state: Callable[[ExecutionHistory, NodeCache], None] | None = None,
+    ) -> None:
+        """Restore messages and tool state for a persistent node."""
+        if not self._config.is_persistent_history():
+            raise ValueError("Cannot restore history for a non-persistent node")
+        self._client.replace_history_from(1, list(messages))
+        if restore_execution_state is not None:
+            restore_execution_state(
+                self._get_execution_history(),
+                self._get_tool_cache(),
+            )
 
     def _route_until_complete(self, response: ProviderResponse) -> ProviderResponse:
         while True:

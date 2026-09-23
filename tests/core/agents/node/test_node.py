@@ -45,9 +45,10 @@ from qs.core.models.structured_provider_request import StructuredProviderRequest
 from qs.core.models.structured_provider_response import StructuredProviderResponse
 from qs.core.models.tool import CalledTool, PreformattedToolResult, Tool
 from qs.core.models.tool_message import ToolMessage
-from qs.core.models.user_message import ErrorUserMessage
+from qs.core.models.user_message import ErrorUserMessage, UserMessage
 from qs.core.models.xml_header import XmlHeader
 from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
+from qs.core.tool_calls.memory_tools import ExecutionHistory
 from qs.interfaces.provider import Provider
 from qs.interfaces.tokenizer import Tokenizer
 
@@ -488,6 +489,45 @@ def test_run_requires_an_initialized_node(tmp_path: Path) -> None:
 
     with pytest.raises(RuntimeError, match="must be initialized before run"):
         node.run("hello")
+
+
+def test_restore_history_requires_an_initialized_node(tmp_path: Path) -> None:
+    node = Node([tmp_path / "capabilities"], name_hds="main")
+
+    with pytest.raises(RuntimeError, match="before restoring history"):
+        node.restore_history([UserMessage("earlier")])
+
+
+def test_restore_history_uses_public_node_api(tmp_path: Path) -> None:
+    provider = SequenceProvider([AssistantMessage("new answer")])
+    node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
+    node.initialize(provider, work_root=tmp_path)
+    restored_state: list[tuple[ExecutionHistory, NodeCache]] = []
+    node.restore_history(
+        [UserMessage("earlier"), AssistantMessage("earlier answer")],
+        lambda history, cache: restored_state.append((history, cache)),
+    )
+
+    node.run("next")
+
+    assert len(restored_state) == 1
+    assert isinstance(restored_state[0][0], ExecutionHistory)
+    assert isinstance(restored_state[0][1], NodeCache)
+    assert [message.get_message() for message in provider.requests[0].get_messages()][
+        1:
+    ] == ["earlier", "earlier answer", "next"]
+
+
+def test_restore_history_rejects_non_persistent_node(tmp_path: Path) -> None:
+    node = Node(
+        [_write_runnable_capabilities(tmp_path)],
+        name_hds="main",
+        persistent_history=False,
+    )
+    node.initialize(SequenceProvider([]), work_root=tmp_path)
+
+    with pytest.raises(ValueError, match="non-persistent"):
+        node.restore_history([UserMessage("earlier")])
 
 
 def test_sub_agent_metadata_requires_initialized_nodes(tmp_path: Path) -> None:
