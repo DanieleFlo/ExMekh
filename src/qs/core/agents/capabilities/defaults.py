@@ -143,10 +143,10 @@ class DefaultCapabilities:
             raise TypeError(f"Override for '{name}' is not a resolved Tool")
         return replacement
 
-    def _with_overrides(
+    def with_overrides(
         self, resolved: Mapping[str, HDS | DeepSkill | ExitTool | Tool]
     ) -> DefaultCapabilities:
-        """Keep the selection while replacing descriptors with loaded resources."""
+        """Return the same selection with a new set of resource overrides."""
         return DefaultCapabilities(
             mocks=self._mocks,
             harness=self._harness,

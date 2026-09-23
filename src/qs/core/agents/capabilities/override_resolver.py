@@ -53,7 +53,7 @@ class _NamedOverrideResolver:
             else:
                 resolved[target] = replacement
 
-        return self._defaults._with_overrides(resolved)
+        return self._defaults.with_overrides(resolved)
 
     @staticmethod
     def _find_source[Resource: Tool](
