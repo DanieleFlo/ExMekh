@@ -16,28 +16,41 @@ class CapabilityType(StrEnum):
 class CapabilitiesLayout:
     CAPABILITIES_FOLDER_NAME: Final[str] = "capabilities"
 
-    def __init__(self, capabilities_paths: Sequence[Path]) -> None:
-        self._capabilities_paths = self._validate_capabilities_paths(capabilities_paths)
+    def __init__(
+        self,
+        capabilities_paths: Sequence[Path] | None,
+        *,
+        default_path: Path | None = None,
+    ) -> None:
+        self._capabilities_paths = self._validate_capabilities_paths(
+            capabilities_paths, default_path
+        )
 
     @staticmethod
     def _validate_capabilities_paths(
-        capabilities_paths: Sequence[Path],
+        capabilities_paths: Sequence[Path] | None,
+        default_path: Path | None,
     ) -> tuple[Path, ...]:
-        if isinstance(capabilities_paths, (str, bytes)) or not isinstance(
-            capabilities_paths,
-            Sequence,
+        if capabilities_paths is None:
+            paths = ()
+        elif isinstance(capabilities_paths, (str, bytes)) or not isinstance(
+            capabilities_paths, Sequence
         ):
             raise TypeError("capabilities_paths must be a sequence of Path")
-
-        paths = tuple(capabilities_paths)
-
-        if not paths:
-            raise ValueError("capabilities_paths cannot be empty")
+        else:
+            paths = tuple(capabilities_paths)
 
         if not all(isinstance(path, Path) for path in paths):
             raise TypeError("capabilities_paths must contain only Path instances")
 
         canonical_paths = tuple(path.resolve() for path in paths)
+
+        if default_path is not None and default_path.resolve() not in canonical_paths:
+            paths = (*paths, default_path)
+            canonical_paths = (*canonical_paths, default_path.resolve())
+
+        if not paths:
+            raise ValueError("capabilities_paths cannot be empty")
 
         if len(canonical_paths) != len(set(canonical_paths)):
             raise ValueError("Duplicate capabilities path")

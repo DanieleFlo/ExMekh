@@ -10,6 +10,7 @@ from qs.core.agents.capabilities.default_composer import _DefaultCapabilitiesCom
 from qs.core.agents.capabilities.defaults import DefaultCapabilities
 from qs.core.agents.capabilities.index import CapabilitiesIndex
 from qs.core.agents.capabilities.layout import CapabilitiesLayout
+from qs.core.agents.capabilities.override_resolver import _NamedOverrideResolver
 from qs.core.agents.capabilities.validator import CapabilitiesValidator
 from qs.core.agents.deep_skill.deep_skills import DeepSkills
 from qs.core.agents.exit_tool.exit_tools import ExitTools
@@ -22,7 +23,7 @@ class Capabilities:
 
     def __init__(
         self,
-        capabilities_paths: Sequence[Path],
+        capabilities_paths: Sequence[Path] | None,
         *,
         default_capabilities: DefaultCapabilities | None = None,
     ) -> None:
@@ -31,21 +32,13 @@ class Capabilities:
         ):
             raise TypeError("default_capabilities must be DefaultCapabilities or None")
         self._default_capabilities = default_capabilities
-        if default_capabilities is None:
-            self._layout = CapabilitiesLayout(capabilities_paths)
-            return
-
-        if isinstance(capabilities_paths, (str, bytes)) or not isinstance(
-            capabilities_paths, Sequence
-        ):
-            raise TypeError("capabilities_paths must be a sequence of Path")
-        paths = tuple(capabilities_paths)
-        if not all(isinstance(path, Path) for path in paths):
-            raise TypeError("capabilities_paths must contain only Path instances")
-        bundled_path = default_capabilities.capabilities_path
-        if bundled_path.resolve() not in {path.resolve() for path in paths}:
-            paths = (*paths, bundled_path)
-        self._layout = CapabilitiesLayout(paths)
+        if default_capabilities is not None:
+            default_path = default_capabilities.capabilities_path
+        elif capabilities_paths is None:
+            default_path = DefaultCapabilities.CAPABILITIES_PATH
+        else:
+            default_path = None
+        self._layout = CapabilitiesLayout(capabilities_paths, default_path=default_path)
 
     def load(self, *, work_root: Path) -> CapabilitiesData:
         data, _ = self.load_with_defaults(work_root=work_root)
@@ -66,7 +59,7 @@ class Capabilities:
             data = self._load_data(deep_tools, exit_tools)
             defaults = self._default_capabilities
             if defaults is not None:
-                defaults = defaults.with_resolved_overrides(data)
+                defaults = _NamedOverrideResolver(defaults).resolve(data)
                 data = _DefaultCapabilitiesComposer(
                     defaults, defaults.capabilities_path, tool_paths
                 ).compose(data)

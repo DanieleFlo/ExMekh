@@ -334,6 +334,14 @@ def test_direct_capabilities_loader_adds_bundled_path_once(tmp_path: Path) -> No
         assert len(loaded.tools) == 4
 
 
+def test_direct_capabilities_loader_uses_bundled_path_when_paths_are_none(
+    tmp_path: Path,
+) -> None:
+    loaded = Capabilities(None).load(work_root=tmp_path)
+
+    assert {hds.name for hds in loaded.hds} == {"main", "mock-sub-agent"}
+
+
 def test_direct_capabilities_loader_validates_default_configuration() -> None:
     defaults = DefaultCapabilities()
     with pytest.raises(TypeError, match="default_capabilities must be"):
@@ -671,6 +679,8 @@ def test_application_tool_override_uses_names_from_every_capabilities_path(
         default_capabilities=defaults,
     )
     loaded = node.initialize(provider, work_root=tmp_path)
+
+    assert defaults.overrides["first-tool"] == ToolOverride("first-tool", "second-tool")
 
     tools = {tool.name: tool for tool in loaded.tools}
     assert set(tools) == {"first-tool", "second-tool"}

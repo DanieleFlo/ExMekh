@@ -34,11 +34,14 @@ class Node:
         *,
         default_capabilities: DefaultCapabilities | None = None,
     ) -> None:
-        paths = self._resolve_capabilities_paths(
-            capabilities_paths, default_capabilities
-        )
+        if capabilities_paths is None or (
+            isinstance(capabilities_paths, Sequence)
+            and not isinstance(capabilities_paths, (str, bytes))
+            and not capabilities_paths
+        ):
+            capabilities_paths = None
         self._capability_loader = Capabilities(
-            paths, default_capabilities=default_capabilities
+            capabilities_paths, default_capabilities=default_capabilities
         )
         self._default_capabilities = default_capabilities
         self._resolved_default_capabilities = default_capabilities
@@ -138,34 +141,6 @@ class Node:
         if self._runtime is None:
             raise RuntimeError("Node must be initialized before run")
         return self._runtime.run(user_message)
-
-    @staticmethod
-    def _resolve_capabilities_paths(
-        capabilities_paths: Sequence[Path] | None,
-        defaults: DefaultCapabilities | None,
-    ) -> tuple[Path, ...]:
-        if defaults is not None and not isinstance(defaults, DefaultCapabilities):
-            raise TypeError("default_capabilities must be DefaultCapabilities or None")
-        if capabilities_paths is None:
-            paths = ()
-        elif isinstance(capabilities_paths, (str, bytes)) or not isinstance(
-            capabilities_paths, Sequence
-        ):
-            raise TypeError("capabilities_paths must be a sequence of Path")
-        else:
-            paths = tuple(capabilities_paths)
-        if not all(isinstance(path, Path) for path in paths):
-            raise TypeError("capabilities_paths must contain only Path instances")
-
-        if defaults is not None or not paths:
-            bundled_path = (
-                defaults.capabilities_path
-                if defaults is not None
-                else DefaultCapabilities.CAPABILITIES_PATH
-            )
-            if bundled_path.resolve() not in {path.resolve() for path in paths}:
-                paths = (*paths, bundled_path)
-        return paths
 
     @staticmethod
     def _validate_hds_name(name_hds: str) -> str:

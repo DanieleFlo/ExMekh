@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 
-from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.deep_skill.deep_skill import DeepSkill
 from qs.core.agents.exit_tool.exit_tool import ExitTool
 from qs.core.agents.hds.hds import HDS
@@ -144,39 +143,10 @@ class DefaultCapabilities:
             raise TypeError(f"Override for '{name}' is not a resolved Tool")
         return replacement
 
-    def with_resolved_overrides(self, loaded: CapabilitiesData) -> DefaultCapabilities:
-        """Resolve named replacements against resources loaded for this node."""
-        if not any(
-            isinstance(value, _NamedOverride) for value in self._overrides.values()
-        ):
-            return self
-
-        resolved: dict[str, HDS | DeepSkill | ExitTool | Tool] = {}
-        for target, replacement in self._overrides.items():
-            if isinstance(replacement, ToolOverride):
-                source = self._find_source(
-                    loaded.tools, replacement.replacement_name, "tool"
-                )
-                resolved[target] = Tool(
-                    source.tool,
-                    name=target,
-                    description=source.description,
-                    cache_result=source.cache_result,
-                )
-            elif isinstance(replacement, DeepSkillOverride):
-                source = self._find_source(
-                    loaded.deep_skills, replacement.replacement_name, "deep skill"
-                )
-                resolved[target] = DeepSkill(
-                    name=target,
-                    markdown_path=source.markdown_path,
-                    metadata=source.metadata,
-                    body=source.body,
-                    references=source.references,
-                )
-            else:
-                resolved[target] = replacement
-
+    def _with_overrides(
+        self, resolved: Mapping[str, HDS | DeepSkill | ExitTool | Tool]
+    ) -> DefaultCapabilities:
+        """Keep the selection while replacing descriptors with loaded resources."""
         return DefaultCapabilities(
             mocks=self._mocks,
             harness=self._harness,
@@ -184,19 +154,6 @@ class DefaultCapabilities:
             exclude=self._exclude,
             overrides=resolved,
         )
-
-    @staticmethod
-    def _find_source[Resource: Tool](
-        resources: Sequence[Resource], name: str, label: str
-    ) -> Resource:
-        matches = [resource for resource in resources if resource.name == name]
-        if not matches:
-            raise ValueError(
-                f"Override {label} not found in capabilities_paths: {name}"
-            )
-        if len(matches) > 1:
-            raise ValueError(f"Override {label} name is ambiguous: {name}")
-        return matches[0]
 
     @staticmethod
     def _normalize_names(names: Iterable[str], label: str) -> frozenset[str]:
