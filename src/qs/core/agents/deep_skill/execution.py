@@ -19,6 +19,7 @@ class DeepSkillExecution:
     start_index: int
     opening_arguments: dict[str, Any] = field(default_factory=dict)
     opening_thinking: str | None = None
+    opening_history_position: int = 0
     end_index: int | None = None
     output: str | None = None
     history: list[Message] = field(default_factory=list)
@@ -34,6 +35,7 @@ class DeepSkillExecution:
         opening_arguments: dict[str, Any] | None = None,
         opening_thinking: str | None = None,
         preceding_tool_responses: tuple[ToolMessage, ...] = (),
+        opening_history_position: int = 0,
     ) -> DeepSkillExecution:
         return cls(
             skill=deepcopy(skill),
@@ -41,6 +43,7 @@ class DeepSkillExecution:
             start_index=start_index,
             opening_arguments=deepcopy(opening_arguments or {}),
             opening_thinking=opening_thinking,
+            opening_history_position=opening_history_position,
             preceding_tool_responses=deepcopy(preceding_tool_responses),
         )
 
@@ -119,6 +122,7 @@ class DeepSkillExecutionTracker:
         opening_arguments: dict[str, Any] | None = None,
         opening_thinking: str | None = None,
         preceding_tool_responses: tuple[ToolMessage, ...] = (),
+        opening_history_position: int = 0,
     ) -> DeepSkillExecution:
         execution = DeepSkillExecution.open(
             skill,
@@ -127,6 +131,7 @@ class DeepSkillExecutionTracker:
             opening_arguments,
             opening_thinking,
             preceding_tool_responses,
+            opening_history_position,
         )
         if self._active:
             self._active[-1].children.append(execution)

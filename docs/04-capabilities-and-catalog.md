@@ -167,12 +167,18 @@ The file is plain Markdown, without YAML parsing or skill metadata:
 
 ```markdown
 When the current skill is complete, call {{!exit_agent}}.
-Put its result in text and the produced items in items.
+Put the result in text and saved output IDs to include in items (or items=[]).
 ```
+
+For the current `items` contract, XML placement, and correctable errors, see
+[Exit Tool Items](10-exit-tool-items.md).
 
 References such as `{{!exit_agent}}` are replaced by capability names and validated after all configured capability roots have loaded. Unknown references fail loading. References do not grant permission to call a capability.
 
 The selected tool's instructions are appended after each normal skill's body and catalog, inside `<exit-tool name="exit_agent">...</exit-tool>`. For nodes initialized at positive depth, they also appear in the initial system prompt. Instructions have no callable capability or separate catalog entry, and are not added to the tool's parameter schema.
+The runtime also appends common output-selection guidance to every HDS system
+prompt; its exact text and purpose are documented in
+[Exit Tool Items](10-exit-tool-items.md).
 
 Only the selected exit tool is added to `allowed_tools`, and only at `depth > 0`. It returns from the current skill; it does not terminate every enclosing skill. `ExitToolData`, history compaction, and saved tool results keep their existing behavior.
 

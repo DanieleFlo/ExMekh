@@ -42,4 +42,5 @@ class CacheIdentity:
     source: Literal["Tool", "DeepSkill"]
     tool_call_id: str
     args: dict[str, Any]
+    history_position: int
     thinking: str | None = None

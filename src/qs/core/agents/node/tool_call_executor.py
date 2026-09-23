@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Literal
+from collections.abc import Callable
+from typing import Any, Literal, cast
 
 from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill
 from qs.core.agents.deep_skill.execution import (
@@ -9,6 +10,7 @@ from qs.core.agents.deep_skill.execution import (
     DeepSkillExecutionTracker,
 )
 from qs.core.agents.exit_tool.exit_tool import CalledExitTool, ExitTool
+from qs.core.agents.exit_tool.items import ExitItemError
 from qs.core.models.client import Client
 from qs.core.models.tool import CalledTool, PreformattedToolResult
 from qs.core.models.tool_message import ToolMessage
@@ -21,6 +23,8 @@ from .types import CacheIdentity, NodeExecutionSnapshot, ToolExecutionResult
 
 logger = logging.getLogger(__name__)
 
+type ExitContentResolver = Callable[[str, list[str], str, int | None], str]
+
 
 class ToolCallExecutor:
     """Execute resolved tool calls and track nested deep-skill state."""
@@ -31,11 +35,13 @@ class ToolCallExecutor:
         exit_tool: ExitTool,
         initial_depth: int,
         agentic_scope: AgenticScope,
+        exit_content_resolver: ExitContentResolver,
     ) -> None:
         self._client = client
         self._exit_tool = exit_tool
         self._depth = initial_depth
         self._agentic_scope = agentic_scope
+        self._exit_content_resolver = exit_content_resolver
         self._skill_executions = DeepSkillExecutionTracker()
 
     @property
@@ -81,6 +87,7 @@ class ToolCallExecutor:
         *,
         thinking: str | None = None,
         close_scope: bool = True,
+        history_position: int = 0,
     ) -> ToolExecutionResult:
         supported_types = (CalledDeepSkill, CalledExitTool, CalledTool)
         if not isinstance(tool_call, supported_types):
@@ -91,7 +98,9 @@ class ToolCallExecutor:
                 tool_call, thinking=thinking, close_scope=close_scope
             )
         if isinstance(tool_call, CalledDeepSkill):
-            return self._run_deep_skill(tool_call, thinking=thinking)
+            return self._run_deep_skill(
+                tool_call, thinking=thinking, history_position=history_position
+            )
         return self._run_tool(tool_call)
 
     def _run_deep_skill(
@@ -99,8 +108,11 @@ class ToolCallExecutor:
         called_deep_skill: CalledDeepSkill,
         *,
         thinking: str | None,
+        history_position: int,
     ) -> ToolExecutionResult:
-        self._open_deep_skill(called_deep_skill, thinking=thinking)
+        self._open_deep_skill(
+            called_deep_skill, thinking=thinking, history_position=history_position
+        )
         content = called_deep_skill.render_instructions(
             self._exit_tool.render_prompt_section()
         )
@@ -177,8 +189,33 @@ class ToolCallExecutor:
             self._skill_executions.depth,
             self._depth,
         )
+        try:
+            called_exit_tool.validate_arguments()
+        except (TypeError, ValueError) as error:
+            tool_name = called_exit_tool.name
+            return self._exit_error(
+                called_exit_tool,
+                f"Argomenti non validi: {error}. "
+                f'Usa {tool_name}(text="<risultato>", items=[]) oppure '
+                f'{tool_name}(text="… {{{{<id-output>}}}} …", '
+                'items=["<id-output>"].',
+            )
+
         result = called_exit_tool.execute()
         content = self.get_exit_output(result)
+        items = cast(list[str], result["items"])
+        opening_position = (
+            self._skill_executions.current.opening_history_position
+            if self._skill_executions.depth
+            else None
+        )
+        try:
+            content = self._exit_content_resolver(
+                content, items, self.skill_path, opening_position
+            )
+        except ExitItemError as error:
+            return self._exit_error(called_exit_tool, str(error))
+        result = {**result, "text": content}
 
         if not close_scope:
             return ToolExecutionResult(
@@ -213,11 +250,27 @@ class ToolCallExecutor:
             response=tool_response, raw_result=result, save_result=True
         )
 
+    @staticmethod
+    def _exit_error(
+        called_exit_tool: CalledExitTool, message: str
+    ) -> ToolExecutionResult:
+        return ToolExecutionResult(
+            response=ToolMessage(
+                content=(
+                    f"Errore {called_exit_tool.name}: {message} "
+                    f"Correggi e richiama {called_exit_tool.name}."
+                ),
+                tool_call_id=called_exit_tool.call_id,
+                name=called_exit_tool.name,
+            )
+        )
+
     def _open_deep_skill(
         self,
         called_deep_skill: CalledDeepSkill,
         *,
         thinking: str | None,
+        history_position: int,
     ) -> None:
         history = self._client.get_history()
         start_index = max(
@@ -235,6 +288,7 @@ class ToolCallExecutor:
             start_index,
             thinking,
             preceding_tool_responses,
+            history_position,
         )
         self._depth += 1
         logger.info(
@@ -285,6 +339,7 @@ class ToolCallExecutor:
                 tool_call_id=execution.opening_tool_call_id,
                 args=execution.opening_arguments,
                 thinking=execution.opening_thinking,
+                history_position=execution.opening_history_position,
             ),
         )
 

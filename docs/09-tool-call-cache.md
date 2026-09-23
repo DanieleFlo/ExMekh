@@ -161,6 +161,9 @@ le vecchie chiamate restano elencate ma gli ID non più recuperabili vengono ome
 Gli argomenti nell'header hanno un nodo per parametro. Le stringhe sono testo,
 mentre numeri, booleani, `null`, liste e oggetti usano JSON compatto. La lettura
 di una deep skill mostra come contenuto il suo testo finale.
+La selezione di output salvati in `exit_agent` usa gli stessi contenuti,
+limitati all'invocazione della skill corrente; vedi
+[Exit Tool Items](10-exit-tool-items.md).
 
 ## Ricerca programmatica e archivi separati
 

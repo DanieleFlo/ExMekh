@@ -201,8 +201,8 @@ def test_live_nested_tools_save_path_and_each_turn_thinking(
         "Esegui questa sequenza senza saltare passaggi: apri mock-skill, poi nested-skill; "
         f"chiama nested-sub-tool una sola volta con text='{token}'; "
         "chiama exit_agent con text='nested done' "
-        "e items=['nested']; nella skill padre chiama exit_agent con text='parent done' "
-        "e items=['parent']. Infine rispondi brevemente senza altri tool."
+        "e items=[]; nella skill padre chiama exit_agent con text='parent done' "
+        "e items=[]. Infine rispondi brevemente senza altri tool."
     )
 
     records = verify_saved_calls(node, live_provider.responses)
@@ -217,11 +217,11 @@ def test_live_nested_tools_save_path_and_each_turn_thinking(
     assert {record.name: (record.skill_path, record.result) for record in skills} == {
         "mock-skill": (
             "/mock-skill",
-            {"text": "parent done", "items": ["parent"]},
+            {"text": "parent done", "items": []},
         ),
         "nested-skill": (
             "/mock-skill/nested-skill",
-            {"text": "nested done", "items": ["nested"]},
+            {"text": "nested done", "items": []},
         ),
     }
     assert node.depth == 0
@@ -236,7 +236,7 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
         "Follow this sequence exactly. Enter mock-skill. Inside the skill, invent "
         "a unique alphanumeric code containing 6 to 12 letters or digits. Call "
         "mock-sub-tool exactly once with that code as text. Then call exit_agent "
-        "with the exact same code as text and items=['code']. Back at the root, "
+        "with the exact same code as text and items=[]. Back at the root, "
         "call search_saved_tool_outputs exactly once with query set to the code "
         "and tool_name='mock-sub-tool'. Take the id from the returned XML record "
         "and pass it to read_saved_tool_output exactly once. Compare the code in "
@@ -275,7 +275,7 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
     )
     assert calls_by_name["exit_agent"][0].get_arguments() == {
         "text": code,
-        "items": ["code"],
+        "items": [],
     }
 
     records = saved_cache(node).get_all()
@@ -290,7 +290,7 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
     skill_records = [record for record in records if record.name == "mock-skill"]
     assert len(skill_records) == 1
     assert skill_records[0].source == "DeepSkill"
-    assert skill_records[0].result == {"text": code, "items": ["code"]}
+    assert skill_records[0].result == {"text": code, "items": []}
 
     search_call = calls_by_name["search_saved_tool_outputs"][0]
     search_arguments = search_call.get_arguments()
@@ -377,7 +377,7 @@ def test_live_exit_uses_instructions_available_only_in_markdown(
     shutil.copytree(Path(qs.__file__).parent / "capabilities", root)
     token = "EXIT-MARKDOWN-7319"
     (root / "exit-tool" / "finish" / "instructions.md").write_text(
-        f"Concludi la skill chiamando {{{{!exit_agent}}}} con text='{token}' e items=['verified']. "
+        f"Concludi la skill chiamando {{{{!exit_agent}}}} con text='{token}' e items=[]. "
         "Il token è il risultato richiesto per questa prova.",
         encoding="utf-8",
     )
@@ -397,7 +397,7 @@ def test_live_exit_uses_instructions_available_only_in_markdown(
     ]
     assert len(skills) == 1
     assert skills[0].source == "DeepSkill"
-    assert skills[0].result == {"text": token, "items": ["verified"]}
+    assert skills[0].result == {"text": token, "items": []}
     assert node.depth == 0
     assert response.get_message()
     assert (
@@ -418,3 +418,41 @@ def test_live_exit_uses_instructions_available_only_in_markdown(
     ]
     assert skill_messages
     assert all(token in message and "{{!" not in message for message in skill_messages)
+
+
+def test_live_exit_items_position_and_error_retry(live_provider, tmp_path):
+    node = initialize_node(live_provider, tmp_path)
+    token = "LIVE-EXIT-ITEM-4286"
+    response = node.run(
+        "Esegui questa sequenza esatta per verificare la gestione degli errori. "
+        "Apri mock-skill; nella skill chiama mock-sub-tool una sola volta con "
+        f"text='{token}'. Poi chiama exit_agent con text='prova' e "
+        "items=['id-inesistente-test']: questa chiamata deve produrre un errore. "
+        "Dopo l'errore, usa get_execution_history per leggere il call ID e il "
+        "saved-output-id di mock-sub-tool. Richiama exit_agent con "
+        "text='Prima {{<saved-output-id>}} Dopo', sostituendo il segnaposto "
+        "con il vero saved-output-id, e items=['<call-id>'], sostituendo "
+        "con il vero call ID dello stesso mock-sub-tool. Non includere le "
+        "parentesi angolari nei valori. Alla radice rispondi brevemente."
+    )
+
+    calls = [
+        call for turn in live_provider.responses for call in turn.get_tool_calls() or []
+    ]
+    exit_calls = [call for call in calls if call.get_name() == "exit_agent"]
+    assert len(exit_calls) == 2, "MODEL: expected invalid exit followed by correction"
+    assert exit_calls[0].get_arguments()["items"] == ["id-inesistente-test"]
+    assert "Correggi e richiama exit_agent" in get_tool_response(
+        live_provider, exit_calls[0].id
+    )
+    records = verify_saved_calls(node, live_provider.responses)
+    tool_record = next(record for record in records if record.name == "mock-sub-tool")
+    skill_record = next(record for record in records if record.name == "mock-skill")
+    assert exit_calls[1].get_arguments()["items"] == [tool_record.tool_call_id]
+    assert f"{{{{{tool_record.id}}}}}" in exit_calls[1].get_arguments()["text"]
+    content = skill_record.result["text"]
+    assert content.startswith("Prima <tool-output")
+    assert content.endswith("</tool-output> Dopo")
+    assert token in content
+    assert node.depth == 0
+    assert response.get_message()

@@ -13,6 +13,7 @@ from qs.core.agents.deep_agent.stream_event import (
 )
 from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill
 from qs.core.agents.exit_tool.exit_tool import CalledExitTool
+from qs.core.agents.exit_tool.items import ExitItemResolver
 from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.assistant_message import AssistantMessage, ToolCall
@@ -51,6 +52,11 @@ class NodeRuntime:
             self._execution_history,
             self._get_tool_cache,
         )
+        self._exit_items = ExitItemResolver(
+            self._execution_history,
+            self._get_tool_cache,
+        )
+        self._run_start_position = 0
         defaults = config.default_capabilities
         memory_tools = self._memory_tools.tools
         if defaults is not None:
@@ -98,6 +104,7 @@ class NodeRuntime:
         if not self._config.is_persistent_history():
             self._reset_session()
 
+        self._run_start_position = self._execution_history.count
         logger.info(
             "Starting node run: node=%s depth=%d",
             self._config.get_hds_name(),
@@ -130,7 +137,8 @@ class NodeRuntime:
     def restore_history(
         self,
         messages: Sequence[Message[Any]],
-        restore_execution_state: Callable[[ExecutionHistory, NodeCache], None] | None = None,
+        restore_execution_state: Callable[[ExecutionHistory, NodeCache], None]
+        | None = None,
     ) -> None:
         """Restore messages and tool state for a persistent node."""
         if not self._config.is_persistent_history():
@@ -273,6 +281,7 @@ class NodeRuntime:
                 tool_call,
                 thinking=thinking,
                 close_scope=close_scope,
+                history_position=history_entry.position,
             )
             if result.replace_history_from is None:
                 self._client.add_tool_response(result.response)
@@ -301,8 +310,8 @@ class NodeRuntime:
                 if identity is None:
                     history_entry.attach_output(record.id, record_cache.session_dir)
                 else:
-                    self._get_execution_history().attach_output(
-                        identity.tool_call_id,
+                    self._get_execution_history().attach_output_at_position(
+                        identity.history_position,
                         record.id,
                         record_cache.session_dir,
                     )
@@ -338,6 +347,21 @@ class NodeRuntime:
         self._executor = self._config.build_executor(
             self._client,
             tuple(tool.name for tool in self._runtime_tools),
+            exit_content_resolver=self._compose_exit_content,
+        )
+
+    def _compose_exit_content(
+        self,
+        content: str,
+        items: list[str],
+        skill_path: str,
+        opening_position: int | None,
+    ) -> str:
+        return self._exit_items.compose(
+            content,
+            items,
+            skill_path,
+            self._run_start_position if opening_position is None else opening_position,
         )
 
     def _current_tool_choice(self) -> str | None:

@@ -29,7 +29,6 @@ def _exit_tool(tmp_path: Path) -> ExitTool:
         (cast(str, None), ["item"], TypeError, "text must be a string"),
         ("   ", ["item"], ValueError, "text cannot be blank"),
         ("done", cast(list[str], "item"), TypeError, "items must be a list"),
-        ("done", [], ValueError, "items cannot be empty"),
         ("done", [cast(str, 1)], TypeError, "items must contain only strings"),
         ("done", ["   "], ValueError, "items cannot contain blank strings"),
     ],
@@ -48,6 +47,10 @@ def test_exit_tool_data_strips_and_dumps_values() -> None:
     data = ExitToolData(text=" done ", items=[" first ", "second"])
 
     assert data.dump() == {"text": "done", "items": ["first", "second"]}
+    assert ExitToolData(text="done", items=[]).dump() == {
+        "text": "done",
+        "items": [],
+    }
 
 
 def test_exit_tool_executes_and_validates_return_type(tmp_path: Path) -> None:
@@ -87,7 +90,15 @@ def test_called_exit_tool_validates_types_and_exposes_call_id(tmp_path: Path) ->
     assert called.call_id == "call-1"
     assert called.tool_call is tool_call
     assert called.arguments == {"text": "done", "items": ["a"]}
+    called.validate_arguments()
     assert called.execute() == {"text": "done", "items": ["a"]}
+
+    invalid_arguments = CalledExitTool(
+        tool,
+        ToolCall("call-2", FunctionCall("exit_agent", {"text": "done", "items": 1})),
+    )
+    with pytest.raises(TypeError, match="items must be a list"):
+        invalid_arguments.validate_arguments()
 
     with pytest.raises(TypeError, match="exit_tool must be an ExitTool"):
         CalledExitTool(cast(ExitTool, object()), tool_call)

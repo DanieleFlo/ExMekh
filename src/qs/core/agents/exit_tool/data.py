@@ -18,8 +18,6 @@ class ExitToolData:
 
         if not isinstance(self.items, list):
             raise TypeError("items must be a list")
-        if not self.items:
-            raise ValueError("items cannot be empty")
         if not all(isinstance(item, str) for item in self.items):
             raise TypeError("items must contain only strings")
 

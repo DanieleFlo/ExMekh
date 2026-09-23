@@ -185,6 +185,9 @@ messages, while the final output stays accessible after history compaction.
 The final output's XML header also includes the exit call's thinking when present.
 Its excerpt is limited to the first 100 model tokens. The cached opening-turn
 thinking remains complete.
+Selected saved outputs can be inserted into that final result through
+`exit_agent` `items`; see [Exit Tool Items](10-exit-tool-items.md). Invalid
+selections return a tool error and keep the skill open for correction.
 
 The runtime automatically exposes `get_execution_history`,
 `search_saved_tool_outputs` and `read_saved_tool_output` in every scope. They

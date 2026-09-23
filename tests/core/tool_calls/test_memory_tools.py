@@ -346,3 +346,21 @@ def test_history_does_not_link_reused_id_from_a_new_session(tmp_path) -> None:
         memory = HarnessMemoryTools(history, lambda: second_cache)
 
         assert "saved-output-id" not in _content(memory.get_execution_history())
+
+
+def test_history_attaches_output_to_exact_position_when_call_id_repeats(
+    tmp_path,
+) -> None:
+    with SessionCache(tmp_path) as session:
+        history = ExecutionHistory()
+        first = history.record("skill", "same-call")
+        second = history.record("skill", "same-call")
+
+        history.attach_output_at_position(
+            first.position, "first-output", session.session_dir
+        )
+
+        assert first.saved_output_id == "first-output"
+        assert second.saved_output_id is None
+        with pytest.raises(ValueError, match="out of range"):
+            history.attach_output_at_position(0, "invalid", session.session_dir)

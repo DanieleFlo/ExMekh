@@ -276,10 +276,10 @@ def test_uses_root_hds_as_system_instructions(tmp_path: Path) -> None:
     assert response.get_message() == "done"
     assert response.get_history_tree() == []
     assert provider.last_request is not None
-    assert provider.last_request.get_messages()[0].message_dump() == {
-        "role": "system",
-        "content": "root instructions",
-    }
+    system_message = provider.last_request.get_messages()[0].message_dump()
+    assert system_message["role"] == "system"
+    assert system_message["content"].startswith("root instructions\n\n")
+    assert "<harness-output-guidance>" in system_message["content"]
     tools = provider.last_request.get_tools()
     assert tools is not None
     assert tools.list_tools() == [

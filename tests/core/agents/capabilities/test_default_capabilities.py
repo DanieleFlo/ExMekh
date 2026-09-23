@@ -413,9 +413,9 @@ def test_overrides_enable_and_replace_mock_resources_per_node(tmp_path: Path) ->
     assert provider.requests == []
     response = node.run("hello")
     assert response.get_message() == "done"
-    assert provider.requests[0].get_messages()[0].get_message() == (
-        "Replacement instructions"
-    )
+    system_content = provider.requests[0].get_messages()[0].get_message()
+    assert system_content.startswith("Replacement instructions\n\n")
+    assert "<harness-output-guidance>" in system_content
     assert "Replacement: hello" in str(response.history)
     assert {tool.name for tool in provider.requests[0].get_tools().get_tools()} >= {
         "mock-tool",
@@ -449,7 +449,7 @@ def test_replacement_exit_runs_when_a_skill_closes(tmp_path: Path) -> None:
                     ToolCall(
                         id="close",
                         function=FunctionCall(
-                            "exit_agent", {"text": "done", "items": ["done"]}
+                            "exit_agent", {"text": "done", "items": []}
                         ),
                     )
                 ],

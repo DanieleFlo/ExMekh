@@ -19,7 +19,18 @@ from qs.core.models.tools import Tools
 from qs.interfaces.provider import Provider
 
 from .agentic_scope import AgenticScope
-from .tool_call_executor import ToolCallExecutor
+from .tool_call_executor import ExitContentResolver, ToolCallExecutor
+
+HARNESS_OUTPUT_GUIDANCE = (
+    "<harness-output-guidance>\n"
+    "Quando concludi una skill, inserisci in items solo gli ID degli output completi "
+    "che il chiamante deve leggere subito. Preferisci il saved-output-id mostrato "
+    "dalla cronologia; l'ID della chiamata è accettato se non è ambiguo. "
+    "Se il risultato servirà in una skill successiva, comunica nel text soltanto "
+    "l'ID e chiedi di recuperarlo con read_saved_tool_output: duplicare l'output "
+    "nel messaggio consuma contesto. Usa items=[] quando basta il testo.\n"
+    "</harness-output-guidance>"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,6 +87,8 @@ class NodeRuntimeConfig:
         self,
         client: Client,
         runtime_tool_names: tuple[str, ...] = (),
+        *,
+        exit_content_resolver: ExitContentResolver,
     ) -> ToolCallExecutor:
         agentic_scope = AgenticScope(
             hds=self.hds,
@@ -88,13 +101,14 @@ class NodeRuntimeConfig:
             exit_tool=self.exit_tool,
             initial_depth=self.initial_depth,
             agentic_scope=agentic_scope,
+            exit_content_resolver=exit_content_resolver,
         )
 
     def get_hds_name(self) -> str:
         return self.hds.get_name()
 
     def build_system_message(self) -> SystemMessage:
-        content = self.hds.get_hds()
+        content = f"{self.hds.get_hds()}\n\n{HARNESS_OUTPUT_GUIDANCE}"
         if self.initial_depth > 0:
             content = f"{content}\n\n{self.exit_tool.render_prompt_section()}"
         return SystemMessage(content=content)

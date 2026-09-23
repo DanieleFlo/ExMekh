@@ -34,6 +34,11 @@ class ExecutionHistoryEntry:
             and cache.has(self.saved_output_id)
         )
 
+    def read_output(self, cache: NodeCache) -> ToolCallRecord | None:
+        if self.saved_output_id is None or self.saved_session_dir != cache.session_dir:
+            return None
+        return cache.get(self.saved_output_id)
+
 
 @dataclass(frozen=True, slots=True)
 class OmittedHistoryRange:
@@ -76,9 +81,27 @@ class ExecutionHistory:
                 entry.attach_output(output_id, session_dir)
                 return
 
+    def attach_output_at_position(
+        self, position: int, output_id: str, session_dir: Path
+    ) -> None:
+        if not 1 <= position <= len(self._entries):
+            raise ValueError("execution history position is out of range")
+        self._entries[position - 1].attach_output(output_id, session_dir)
+
     @property
     def entries(self) -> tuple[ExecutionHistoryEntry, ...]:
         return tuple(self._entries)
+
+    @property
+    def count(self) -> int:
+        return len(self._entries)
+
+    def find_by_identifier(self, identifier: str) -> tuple[ExecutionHistoryEntry, ...]:
+        return tuple(
+            entry
+            for entry in self._entries
+            if identifier in (entry.call_id, entry.saved_output_id)
+        )
 
     def select(
         self,
@@ -300,26 +323,27 @@ class HarnessMemoryTools:
             id=record.id,
             args=record.args,
         )
-        return PreformattedToolResult(header.prepend_to(self._content(record)))
+        return PreformattedToolResult(header.prepend_to(tool_output_content(record)))
 
     @classmethod
     def _preview(cls, record: ToolCallRecord) -> str:
-        preview = " ".join(cls._content(record).split())
+        preview = " ".join(tool_output_content(record).split())
         if len(preview) <= cls.PREVIEW_LIMIT:
             return preview
         return preview[: cls.PREVIEW_LIMIT - 1] + "…"
-
-    @staticmethod
-    def _content(record: ToolCallRecord) -> str:
-        if (
-            record.source == "DeepSkill"
-            and isinstance(record.result, dict)
-            and isinstance(record.result.get("text"), str)
-        ):
-            return record.result["text"]
-        return stringify_tool_result(record.result)
 
 
 def _render_xml(root: ET.Element) -> str:
     ET.indent(root)
     return ET.tostring(root, encoding="unicode", short_empty_elements=True)
+
+
+def tool_output_content(record: ToolCallRecord) -> str:
+    """Render saved content consistently for memory reads and skill returns."""
+    if (
+        record.source == "DeepSkill"
+        and isinstance(record.result, dict)
+        and isinstance(record.result.get("text"), str)
+    ):
+        return record.result["text"]
+    return stringify_tool_result(record.result)

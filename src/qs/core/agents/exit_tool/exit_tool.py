@@ -74,5 +74,8 @@ class CalledExitTool:
     def tool_call(self) -> ToolCall:
         return self._tool_call
 
+    def validate_arguments(self) -> None:
+        ExitToolData(**self.arguments)
+
     def execute(self) -> dict[str, str | list[str]]:
         return self._exit_tool.execute(**self._tool_call.get_arguments())

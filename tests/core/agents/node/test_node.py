@@ -502,6 +502,7 @@ def test_restore_history_uses_public_node_api(tmp_path: Path) -> None:
     provider = SequenceProvider([AssistantMessage("new answer")])
     node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
     node.initialize(provider, work_root=tmp_path)
+    node.restore_history([UserMessage("earlier"), AssistantMessage("earlier answer")])
     restored_state: list[tuple[ExecutionHistory, NodeCache]] = []
     node.restore_history(
         [UserMessage("earlier"), AssistantMessage("earlier answer")],
@@ -639,6 +640,7 @@ def test_executor_rejects_unsupported_mapped_capability() -> None:
         exit_tool=cast(ExitTool, object()),
         initial_depth=0,
         agentic_scope=MagicMock(spec=AgenticScope),
+        exit_content_resolver=MagicMock(),
     )
 
     with pytest.raises(TypeError, match="Node supports only"):
@@ -656,6 +658,7 @@ def test_run_tool_delegates_execution_to_called_tool() -> None:
         exit_tool=cast(ExitTool, object()),
         initial_depth=0,
         agentic_scope=MagicMock(spec=AgenticScope),
+        exit_content_resolver=MagicMock(),
     )
 
     result = executor.execute(called_tool)
@@ -681,6 +684,7 @@ def test_run_tool_prepends_xml_header_when_client_generates_id() -> None:
         exit_tool=cast(ExitTool, object()),
         initial_depth=0,
         agentic_scope=MagicMock(spec=AgenticScope),
+        exit_content_resolver=MagicMock(),
     )
 
     result = executor.execute(called_tool)
@@ -706,6 +710,7 @@ def test_tool_failure_still_emits_the_end_state() -> None:
         exit_tool=cast(ExitTool, object()),
         initial_depth=0,
         agentic_scope=MagicMock(spec=AgenticScope),
+        exit_content_resolver=MagicMock(),
     )
     runtime = object.__new__(NodeRuntime)
     runtime._client = client
@@ -743,7 +748,7 @@ def test_skill_increments_depth_adds_exit_body_and_requires_a_tool(
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "done", "items": ["completed"]},
+                        {"text": "done", "items": []},
                         call_id="exit-call",
                     )
                 ],
@@ -798,7 +803,7 @@ def test_skill_increments_depth_prepends_xml_header_on_exit(tmp_path: Path) -> N
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "done", "items": ["completed"]},
+                        {"text": "done", "items": []},
                         call_id="exit-call",
                     )
                 ],
@@ -827,7 +832,143 @@ def test_skill_increments_depth_prepends_xml_header_on_exit(tmp_path: Path) -> N
     assert record.tool_call_id == "skill-call"
     assert record.args == {"topic": "XML & cache"}
     assert record.skill_path == "/mock-skill"
-    assert record.result == {"text": "done", "items": ["completed"]}
+    assert record.result == {"text": "done", "items": []}
+
+
+def test_exit_items_retry_keeps_skill_open_then_compacts_selected_output(
+    tmp_path: Path,
+) -> None:
+    class ProviderWithId(SequenceProvider):
+        def __init__(self, responses: list[AssistantMessage]) -> None:
+            super().__init__(responses)
+            self._next_id = 0
+
+        def generate_id(self) -> str:
+            self._next_id += 1
+            return f"out-{self._next_id}"
+
+    provider = ProviderWithId(
+        [
+            AssistantMessage(
+                None, tool_calls=[_function_call("mock-skill", {}, call_id="open")]
+            ),
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call("mock-sub-tool", {"text": "A < B"}, call_id="work")
+                ],
+            ),
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "exit_agent",
+                        {"text": "wrong", "items": ["missing"]},
+                        call_id="bad-exit",
+                    )
+                ],
+            ),
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "exit_agent",
+                        {"text": "Result: {{out-1}}", "items": ["work"]},
+                        call_id="good-exit",
+                    )
+                ],
+            ),
+            AssistantMessage("final"),
+        ]
+    )
+    node = Node([_write_nested_capabilities(tmp_path)], name_hds="main")
+    node.initialize(provider, work_root=tmp_path)
+
+    response = node.run("start")
+
+    assert node.depth == 0
+    assert response.get_message() == "final"
+    assert provider.requests[3].get_tool_choice() == "required"
+    retry_history = provider.requests[3].get_messages()
+    assert any(
+        isinstance(message, ToolMessage)
+        and message.get_tool_call_id() == "bad-exit"
+        and "Correggi e richiama exit_agent" in message.get_message()
+        for message in retry_history
+    )
+    assert any(
+        isinstance(message, ToolMessage) and message.get_tool_call_id() == "work"
+        for message in retry_history
+    )
+    skill_result = response.skill_executions[0].output
+    assert skill_result is not None
+    assert skill_result.count('<tool-output id="out-1"') == 1
+    assert "A &lt; B" in skill_result
+    assert any(
+        isinstance(message, ToolMessage)
+        and message.get_tool_call_id() == "open"
+        and message.get_message() == skill_result
+        for message in provider.requests[-1].get_messages()
+    )
+    records = node._runtime._tool_cache.get_all()
+    assert {(record.id, record.tool_call_id) for record in records} == {
+        ("out-1", "work"),
+        ("out-2", "open"),
+    }
+    saved_result = next(record for record in records if record.id == "out-2").result
+    assert saved_result == {
+        "text": skill_result.split("</header>\n", 1)[1],
+        "items": ["work"],
+    }
+
+
+def test_malformed_exit_items_return_feedback_without_closing_skill(
+    tmp_path: Path,
+) -> None:
+    provider = SequenceProvider(
+        [
+            AssistantMessage(
+                None, tool_calls=[_function_call("mock-skill", {}, call_id="open")]
+            ),
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "exit_agent",
+                        {"text": "done", "items": [1]},
+                        call_id="invalid",
+                    )
+                ],
+            ),
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "exit_agent",
+                        {"text": "done", "items": []},
+                        call_id="valid",
+                    )
+                ],
+            ),
+            AssistantMessage("final"),
+        ]
+    )
+    node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
+    node.initialize(provider, work_root=tmp_path)
+
+    response = node.run("start")
+
+    assert node.depth == 0
+    assert response.get_message() == "final"
+    assert provider.requests[2].get_tool_choice() == "required"
+    assert (
+        "Argomenti non validi" in provider.requests[2].get_messages()[-1].get_message()
+    )
+    assert "items=[]" in provider.requests[2].get_messages()[-1].get_message()
+    assert all(
+        record.tool_call_id != "invalid"
+        for record in node._runtime._tool_cache.get_all()
+    )
 
 
 def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:
@@ -850,7 +991,7 @@ def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "nested done", "items": ["completed"]},
+                        {"text": "nested done", "items": []},
                         call_id="nested-exit-call",
                     )
                 ],
@@ -860,7 +1001,7 @@ def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "parent done", "items": ["completed"]},
+                        {"text": "parent done", "items": []},
                         call_id="parent-exit-call",
                     )
                 ],
@@ -974,7 +1115,7 @@ def test_streams_context_across_nested_skills_and_tools(
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "nested done", "items": ["completed"]},
+                        {"text": "nested done", "items": []},
                         call_id="nested-exit-call",
                     )
                 ],
@@ -984,7 +1125,7 @@ def test_streams_context_across_nested_skills_and_tools(
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "parent done", "items": ["completed"]},
+                        {"text": "parent done", "items": []},
                         call_id="parent-exit-call",
                     )
                 ],
@@ -1064,7 +1205,7 @@ def test_exit_tool_is_rejected_at_root(tmp_path: Path) -> None:
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "done", "items": ["completed"]},
+                        {"text": "done", "items": []},
                         call_id="exit-call",
                     )
                 ],
@@ -1121,7 +1262,7 @@ def test_nested_skills_require_tools_until_every_level_has_exited(
         tool_calls=[
             _function_call(
                 "exit_agent",
-                {"text": "done", "items": ["completed"]},
+                {"text": "done", "items": []},
                 call_id="exit-call",
             )
         ],
@@ -1235,6 +1376,7 @@ def test_executor_returns_raw_result_without_saving() -> None:
         exit_tool=cast(ExitTool, object()),
         initial_depth=0,
         agentic_scope=MagicMock(spec=AgenticScope),
+        exit_content_resolver=MagicMock(),
     )
 
     result = executor.execute(called_tool)
@@ -1261,6 +1403,7 @@ def test_executor_returns_preformatted_transient_content_without_header() -> Non
         exit_tool=cast(ExitTool, object()),
         initial_depth=0,
         agentic_scope=MagicMock(spec=AgenticScope),
+        exit_content_resolver=MagicMock(),
     )
 
     result = executor.execute(called_tool)
@@ -1435,7 +1578,7 @@ def test_runtime_saves_only_tools_with_their_original_skill_path(
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "done", "items": ["completed"]},
+                        {"text": "done", "items": []},
                         call_id="exit",
                     ),
                 ],
@@ -1457,7 +1600,7 @@ def test_runtime_saves_only_tools_with_their_original_skill_path(
         }
         assert {record.tool_call_id: record.result for record in records} == {
             "work": {"echo": "inside"},
-            "open": {"text": "done", "items": ["completed"]},
+            "open": {"text": "done", "items": []},
         }
         messages = provider.requests[-1].get_messages()
         tool_messages = [
@@ -1497,7 +1640,7 @@ def test_skill_compaction_preserves_preceding_parallel_tool_responses(
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "skill done", "items": ["completed"]},
+                        {"text": "skill done", "items": []},
                         call_id="exit",
                     )
                 ],
@@ -1568,7 +1711,7 @@ def test_sibling_skills_are_not_silently_opened_as_nested_skills(tmp_path):
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "first done", "items": ["first"]},
+                        {"text": "first done", "items": []},
                         call_id="exit-first",
                     )
                 ],
@@ -1578,7 +1721,7 @@ def test_sibling_skills_are_not_silently_opened_as_nested_skills(tmp_path):
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "second done", "items": ["second"]},
+                        {"text": "second done", "items": []},
                         call_id="exit-second",
                     )
                 ],
@@ -1637,12 +1780,12 @@ def test_nested_mixed_batches_keep_scope_paths_and_complete_history(tmp_path):
                     ),
                     _function_call(
                         "exit_agent",
-                        {"text": "first child result", "items": ["child"]},
+                        {"text": "first child result", "items": []},
                         call_id="child-exit-extra",
                     ),
                     _function_call(
                         "exit_agent",
-                        {"text": "child done", "items": ["child"]},
+                        {"text": "child done", "items": []},
                         call_id="child-exit",
                     ),
                 ],
@@ -1652,7 +1795,7 @@ def test_nested_mixed_batches_keep_scope_paths_and_complete_history(tmp_path):
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "parent done", "items": ["parent"]},
+                        {"text": "parent done", "items": []},
                         call_id="parent-exit",
                     ),
                 ],
@@ -1749,6 +1892,7 @@ def test_runtime_saves_none_result(tmp_path: Path) -> None:
         exit_tool=cast(ExitTool, object()),
         initial_depth=0,
         agentic_scope=MagicMock(spec=AgenticScope),
+        exit_content_resolver=MagicMock(),
     )
     try:
         runtime._execute_tool_call(
@@ -1894,6 +2038,7 @@ def test_runtime_captures_arguments_before_tool_mutates_them(tmp_path: Path) -> 
             exit_tool=cast(ExitTool, object()),
             initial_depth=0,
             agentic_scope=MagicMock(spec=AgenticScope),
+            exit_content_resolver=MagicMock(),
         )
         items = [1]
         runtime._execute_tool_call(
@@ -1946,7 +2091,7 @@ def test_runtime_saves_thinking_from_the_exact_tool_calling_turn(tmp_path, strea
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "done", "items": ["done"]},
+                        {"text": "done", "items": []},
                         call_id="exit",
                     )
                 ],
@@ -2018,7 +2163,7 @@ def test_skill_exit_header_limits_and_escapes_thinking(tmp_path):
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "done", "items": ["done"]},
+                        {"text": "done", "items": []},
                         call_id="exit",
                     )
                 ],
@@ -2089,7 +2234,7 @@ def test_unselected_exit_tool_cannot_close_a_skill(tmp_path):
                 tool_calls=[
                     _function_call(
                         "other_exit",
-                        {"text": "done", "items": ["done"]},
+                        {"text": "done", "items": []},
                         call_id="forbidden-exit",
                     )
                 ],
@@ -2111,7 +2256,7 @@ def test_exit_from_positive_initial_depth_returns_to_root_without_open_skill(tmp
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "done", "items": ["result"]},
+                        {"text": "done", "items": []},
                         call_id="initial-exit",
                     )
                 ],
@@ -2151,7 +2296,7 @@ def test_sibling_batches_have_complete_history_and_preserve_request_order(
                     tool_calls=[
                         _function_call(
                             "exit_agent",
-                            {"text": f"result-{index}", "items": [str(index)]},
+                            {"text": f"result-{index}", "items": []},
                             call_id=f"exit-{index}",
                         )
                     ],
@@ -2191,9 +2336,7 @@ def test_sibling_batches_have_complete_history_and_preserve_request_order(
 def test_exit_waits_for_other_tools_in_the_same_batch(tmp_path, exit_first):
     calls = [
         _function_call("mock-sub-tool", {"text": "work"}, call_id="work"),
-        _function_call(
-            "exit_agent", {"text": "done", "items": ["work"]}, call_id="exit"
-        ),
+        _function_call("exit_agent", {"text": "done", "items": []}, call_id="exit"),
     ]
     if exit_first:
         calls.reverse()
@@ -2249,7 +2392,7 @@ def test_parent_exit_waits_for_child_and_keeps_original_thinking(tmp_path):
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "parent done", "items": ["parent"]},
+                        {"text": "parent done", "items": []},
                         call_id="parent-exit",
                     ),
                     _function_call("nested-skill", {}, call_id="child"),
@@ -2260,7 +2403,7 @@ def test_parent_exit_waits_for_child_and_keeps_original_thinking(tmp_path):
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "child done", "items": ["child"]},
+                        {"text": "child done", "items": []},
                         call_id="child-exit",
                     )
                 ],
@@ -2508,7 +2651,7 @@ def test_sub_agent_tool_is_available_in_every_skill_scope(tmp_path: Path) -> Non
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "nested done", "items": ["nested"]},
+                        {"text": "nested done", "items": []},
                         call_id="nested-exit",
                     )
                 ],
@@ -2518,7 +2661,7 @@ def test_sub_agent_tool_is_available_in_every_skill_scope(tmp_path: Path) -> Non
                 tool_calls=[
                     _function_call(
                         "exit_agent",
-                        {"text": "parent done", "items": ["parent"]},
+                        {"text": "parent done", "items": []},
                         call_id="parent-exit",
                     )
                 ],
@@ -2541,7 +2684,7 @@ def test_sub_agent_tool_is_available_in_every_skill_scope(tmp_path: Path) -> Non
     parent_requests = [
         request
         for request in provider.requests
-        if request.get_messages()[0].get_message() == "Main body"
+        if request.get_messages()[0].get_message().startswith("Main body\n\n")
     ]
     assert all(
         "call_sub_agent" in request.get_extra()["agentic"]["allowed_tools"]
@@ -2550,7 +2693,7 @@ def test_sub_agent_tool_is_available_in_every_skill_scope(tmp_path: Path) -> Non
     child_requests = [
         request
         for request in provider.requests
-        if request.get_messages()[0].get_message() == "child body"
+        if request.get_messages()[0].get_message().startswith("child body\n\n")
     ]
     assert len(child_requests) == 1
     assert (

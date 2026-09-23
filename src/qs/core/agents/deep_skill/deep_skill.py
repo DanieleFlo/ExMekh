@@ -114,6 +114,7 @@ class CalledDeepSkill:
         start_index: int,
         thinking: str | None = None,
         preceding_tool_responses: tuple[ToolMessage, ...] = (),
+        opening_history_position: int = 0,
     ) -> None:
         tracker.open(
             self._deep_skill,
@@ -122,4 +123,5 @@ class CalledDeepSkill:
             self.arguments,
             thinking,
             preceding_tool_responses,
+            opening_history_position,
         )
