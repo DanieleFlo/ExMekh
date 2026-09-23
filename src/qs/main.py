@@ -86,6 +86,12 @@ def main() -> None:
     root_node = Node(
         capabilities_paths=capabilities_paths,
         name_hds="main",
+        children=[
+            Node(
+                capabilities_paths=capabilities_paths,
+                name_hds="mock-sub-agent",
+            )
+        ],
     )
     deep_agent = DeepAgent(
         provider=provider,

@@ -48,7 +48,7 @@ class SubAgentTool(Tool):
         return {
             "sub_agent": Annotated[
                 child_name,
-                "Name of the direct sub-agent that should receive the message.",
+                f"Name of the direct sub-agent that should receive the message. Available: {', '.join(self._child_names)}.",
             ],
             "text": Annotated[
                 str,

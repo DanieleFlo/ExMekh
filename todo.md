@@ -10,11 +10,11 @@ TODO list:
   - Rileggi il codice scritto e se necessario fai un refactoring per renderlo più chiaro e aderente al Clean Code.
   - Committa il codice.
 
-- [ ] Sub agents
+- [x] Sub agents
   - [x] Tool per comunicare con i sub-agent
   - [x] HDS sub agents mock per test e test live
   - [x] Aggiornare la documentazione
-  - [ ] commit codice
+  - [x] commit codice
 
 - [ ] Skill di deep thininking
   - Con skill per la ricerca web

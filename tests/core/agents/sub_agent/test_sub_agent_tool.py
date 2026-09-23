@@ -14,6 +14,7 @@ from qs.core.providers.openai_chat_completion_annotation_schema_builder import (
 from qs.core.providers.openai_function_tool_definition_mapper import (
     OpenAIFunctionToolDefinitionMapper,
 )
+from qs.core.providers.openai_response_tool_mapper import OpenAIResponseToolMapper
 
 
 def _child(tmp_path: Path, name: str, response: str = "done") -> Node:
@@ -41,7 +42,8 @@ def test_exposes_child_enum_and_non_empty_text_schema(tmp_path: Path) -> None:
                 "type": "string",
                 "enum": ["writer", "reviewer"],
                 "description": (
-                    "Name of the direct sub-agent that should receive the message."
+                    "Name of the direct sub-agent that should receive the message. "
+                    "Available: writer, reviewer."
                 ),
             },
             "text": {
@@ -57,6 +59,10 @@ def test_exposes_child_enum_and_non_empty_text_schema(tmp_path: Path) -> None:
         "required": ["sub_agent", "text"],
     }
     assert "writer, reviewer" in definition.get_description()
+
+    response_tool = OpenAIResponseToolMapper.map_tools(Tools([tool]))[0]
+    assert response_tool["description"] == definition.get_description()
+    assert response_tool["parameters"] == definition.get_parameters()
 
 
 def test_delegates_exact_text_and_returns_final_response(tmp_path: Path) -> None:
@@ -74,11 +80,15 @@ def test_returns_available_children_for_invalid_selector(
     tmp_path: Path,
     arguments: dict[str, str],
 ) -> None:
-    tool = SubAgentTool([_child(tmp_path, "writer"), _child(tmp_path, "reviewer")])
+    writer = _child(tmp_path, "writer")
+    reviewer = _child(tmp_path, "reviewer")
+    tool = SubAgentTool([writer, reviewer])
 
     assert tool.execute(**arguments) == (
         "Error: sub_agent must be one of: writer, reviewer."
     )
+    writer.run.assert_not_called()  # type: ignore[attr-defined]
+    reviewer.run.assert_not_called()  # type: ignore[attr-defined]
 
 
 @pytest.mark.parametrize("text", [None, "", "   ", 1])

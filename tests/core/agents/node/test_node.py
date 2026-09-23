@@ -2444,8 +2444,9 @@ def test_each_non_leaf_node_gets_its_own_sub_agent_tool(tmp_path: Path) -> None:
     grandchild = Node([capabilities], name_hds="grandchild")
     child = Node([capabilities], name_hds="child", children=[grandchild])
     root = Node([capabilities], name_hds="root", children=[child])
+    provider = SequenceProvider([AssistantMessage("done")])
 
-    DeepAgent(provider=SequenceProvider([]), node=root, work_root=tmp_path)
+    DeepAgent(provider=provider, node=root, work_root=tmp_path)
 
     root_tool = root._runtime._client.tools.get_tool("call_sub_agent")
     child_tool = child._runtime._client.tools.get_tool("call_sub_agent")
@@ -2454,6 +2455,13 @@ def test_each_non_leaf_node_gets_its_own_sub_agent_tool(tmp_path: Path) -> None:
     assert root_tool.child_names == ("child",)
     assert child_tool.child_names == ("grandchild",)
     assert "call_sub_agent" not in grandchild._runtime._client.tools.list_tools()
+
+    assert root.run("list tools").get_message() == "done"
+    request = provider.requests[0]
+    assert "call_sub_agent" in request.get_extra()["agentic"]["allowed_tools"]
+    tools = request.get_tools()
+    assert tools is not None
+    assert tools.get_tool("call_sub_agent") is root_tool
 
 
 def test_rejects_duplicate_direct_child_hds_names(tmp_path: Path) -> None:
