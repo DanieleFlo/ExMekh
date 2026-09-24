@@ -4,6 +4,9 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from qs.config.capabilities import CAPABILITY_FORMAT
+from qs.config.cli import CliPresentation, CliSettings
+from qs.config.provider import ProviderSettings
 from qs.core.agents.deep_agent import (
     DeepAgentEvent,
     DeepAgentEventHandler,
@@ -19,7 +22,10 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-def create_stream_printer() -> DeepAgentEventHandler:
+def create_stream_printer(
+    presentation: CliPresentation | None = None,
+) -> DeepAgentEventHandler:
+    presentation = presentation or CliPresentation()
     current_section: ProviderStreamEventType | None = None
 
     def print_stream_event(event: DeepAgentEvent) -> None:
@@ -47,9 +53,9 @@ def create_stream_printer() -> DeepAgentEventHandler:
 
             if provider_event.type is not current_section:
                 label = (
-                    "Thinking"
+                    presentation.thinking_label
                     if provider_event.type is ProviderStreamEventType.REASONING
-                    else "Response"
+                    else presentation.response_stream_label
                 )
                 try:
                     print(f"\n{label}: ", end="", flush=True)
@@ -74,22 +80,21 @@ def create_stream_printer() -> DeepAgentEventHandler:
 
 
 def main() -> None:
+    cli_settings = CliSettings.from_environment()
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        format=cli_settings.presentation.log_format,
     )
-    provider = LocalProvider(
-        model="Qwen3.8-27B-UD-Q4_K_S",
-        api="responses",
-    )  # qwen3.5-9b-mtp
-    capabilities_paths = [Path(__file__).parent / "capabilities"]
+    provider_settings = ProviderSettings.from_environment()
+    provider = LocalProvider(model=provider_settings.model, api=provider_settings.api)
+    capabilities_paths = [Path(__file__).parent / CAPABILITY_FORMAT.root_folder]
     root_node = Node(
         capabilities_paths=capabilities_paths,
-        name_hds="main",
+        name_hds=cli_settings.root_hds,
         children=[
             Node(
                 capabilities_paths=capabilities_paths,
-                name_hds="mock-sub-agent",
+                name_hds=cli_settings.child_hds,
             )
         ],
     )
@@ -97,18 +102,21 @@ def main() -> None:
         provider=provider,
         node=root_node,
         work_root=Path.cwd(),
-        on_stream=create_stream_printer(),
+        on_stream=create_stream_printer(cli_settings.presentation),
     )
     while True:
-        user_message = input("User: ")
-        if user_message.lower() in ["exit", "quit"]:
-            print("Exiting...")
+        user_message = input(cli_settings.presentation.user_prompt)
+        if user_message.lower() in cli_settings.presentation.exit_commands:
+            print(cli_settings.presentation.exit_message)
             break
         response = deep_agent.run(user_message=user_message)
-        print("\nResponse:", response.get_message())
-        print("history:", json.dumps(response.history, indent=2, ensure_ascii=True))
+        print(cli_settings.presentation.response_label, response.get_message())
         print(
-            "Deep skill history:\n",
+            cli_settings.presentation.history_label,
+            json.dumps(response.history, indent=2, ensure_ascii=True),
+        )
+        print(
+            cli_settings.presentation.skill_history_label,
             json.dumps(response.get_history_tree(), indent=2, ensure_ascii=True),
         )
 

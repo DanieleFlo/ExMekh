@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, cast
 
+from qs.config.capabilities import CAPABILITY_FORMAT
 from qs.core.agents.capability.metadata import (
     CapabilityMetadata,
     CapabilityMetadataParser,
@@ -22,8 +23,8 @@ class HDSMetadata(CapabilityMetadata):
         return self.agent_context_id
 
 
-EXIT_TOOL_FIELD = MetadataFieldSpec("exit-tool", required=True)
-AGENT_CONTEXT_ID_FIELD = MetadataFieldSpec("agent-context-id")
+EXIT_TOOL_FIELD = MetadataFieldSpec(CAPABILITY_FORMAT.exit_tool_field, required=True)
+AGENT_CONTEXT_ID_FIELD = MetadataFieldSpec(CAPABILITY_FORMAT.agent_context_id_field)
 
 
 class HDSMetadataParser(CapabilityMetadataParser):

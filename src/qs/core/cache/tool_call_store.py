@@ -4,6 +4,7 @@ import logging
 import re
 from pathlib import Path
 
+from qs.config.cache import CACHE_FORMAT
 from qs.core.cache.paths import cache_component
 from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.utils.file import read_json_from_path, write_json_atomically
@@ -26,7 +27,7 @@ class ToolCallStore:
             raise TypeError("record must be a ToolCallRecord instance")
         payload = record.to_dict()
         self.directory.mkdir(parents=True, exist_ok=True)
-        path = self.directory / f"{cache_component(record.id)}.json"
+        path = self.directory / self._filename(record.id)
         write_json_atomically(path, payload)
         return path
 
@@ -35,7 +36,7 @@ class ToolCallStore:
             return None
         call_id = call_id.strip()
         for filename in (
-            f"{cache_component(call_id)}.json",
+            self._filename(call_id),
             self._legacy_filename(call_id),
         ):
             record = self._read(self.directory / filename)
@@ -45,14 +46,11 @@ class ToolCallStore:
 
     def get_all(self) -> list[ToolCallRecord]:
         records: dict[str, ToolCallRecord] = {}
-        for path in self.directory.glob("*.json"):
+        for path in self.directory.glob(f"*{CACHE_FORMAT.record_suffix}"):
             record = self._read(path)
             if record is None:
                 continue
-            if (
-                record.id not in records
-                or path.name == f"{cache_component(record.id)}.json"
-            ):
+            if record.id not in records or path.name == self._filename(record.id):
                 records[record.id] = record
         return sorted(records.values(), key=lambda record: record.id)
 
@@ -66,7 +64,7 @@ class ToolCallStore:
         try:
             record = ToolCallRecord.from_dict(read_json_from_path(path))
             expected_names = (
-                f"{cache_component(record.id)}.json",
+                cls._filename(record.id),
                 cls._legacy_filename(record.id),
             )
             return record if path.name in expected_names else None
@@ -75,6 +73,10 @@ class ToolCallStore:
             return None
 
     @staticmethod
+    def _filename(call_id: str) -> str:
+        return f"{cache_component(call_id)}{CACHE_FORMAT.record_suffix}"
+
+    @staticmethod
     def _legacy_filename(call_id: str) -> str:
         """Read old archives only after checking the full ID inside the record."""
-        return re.sub(r"[^a-zA-Z0-9_.-]", "_", call_id) + ".json"
+        return re.sub(r"[^a-zA-Z0-9_.-]", "_", call_id) + CACHE_FORMAT.record_suffix

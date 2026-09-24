@@ -5,11 +5,12 @@ import re
 from collections.abc import Callable
 from xml.etree import ElementTree as ET
 
+from qs.config.validation import VALIDATION_PATTERNS
 from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.tool_calls.memory_tools import ExecutionHistory, tool_output_content
 
-_PLACEHOLDER = re.compile(r"{{([^{}]*)}}")
+_PLACEHOLDER = re.compile(VALIDATION_PATTERNS.exit_item_placeholder)
 
 
 class ExitItemError(ValueError):

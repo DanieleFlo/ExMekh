@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
+from qs.config.capabilities import CAPABILITY_TEXT
 from qs.core.agents.capability.markdown_capability import MarkdownCapability
 from qs.core.agents.deep_skill.deep_skill import DeepSkill
 from qs.core.agents.exit_tool.exit_tool import ExitTool
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class CapabilitiesData:
-    _SKILL_ONLY_AVAILABILITY = "Available in every skill."
+    _SKILL_ONLY_AVAILABILITY = CAPABILITY_TEXT.skill_only_availability
 
     deep_skills: tuple[DeepSkill, ...]
     tools: tuple[Tool, ...]

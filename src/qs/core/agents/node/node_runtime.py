@@ -5,6 +5,7 @@ from collections.abc import Callable, Sequence
 from typing import Any, Final, cast
 from uuid import uuid4
 
+from qs.config.runtime import RUNTIME
 from qs.core.agents.deep_agent.agent_response import AgentResponse
 from qs.core.agents.deep_agent.stream_event import (
     DeepAgentExecutionEvent,
@@ -37,11 +38,8 @@ logger = logging.getLogger(__name__)
 class NodeRuntime:
     """Own the conversational lifecycle of an initialized node."""
 
-    REQUIRED_TOOL_CHOICE: Final[str] = "required"
-    EMPTY_RESPONSE_MESSAGE: Final[str] = (
-        "A response without a tool call and without content is not allowed. "
-        "Respond with either a tool call or non-empty content."
-    )
+    REQUIRED_TOOL_CHOICE: Final[str] = RUNTIME.required_tool_choice
+    EMPTY_RESPONSE_MESSAGE: Final[str] = RUNTIME.empty_response_message
 
     def __init__(self, config: NodeRuntimeConfig) -> None:
         self._config = config

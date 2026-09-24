@@ -5,6 +5,7 @@ from typing import Any, Final, Protocol
 
 import yaml
 
+from qs.config.validation import VALIDATION_PATTERNS
 from qs.core.agents.capability.markdown import CapabilityMarkdown
 from qs.core.agents.capability.metadata import (
     CapabilityMetadata,
@@ -21,14 +22,7 @@ class CapabilityMarkdownParser[
     MarkdownType: CapabilityMarkdown,
 ]:
     FRONT_MATTER_PATTERN: Final[re.Pattern[str]] = re.compile(
-        r"\A"
-        r"---[ \t]*\r?\n"
-        r"(?P<head>.*?)"
-        r"\r?\n---[ \t]*"
-        r"(?:\r?\n|\Z)"
-        r"(?P<body>.*)"
-        r"\Z",
-        re.DOTALL,
+        VALIDATION_PATTERNS.capability_front_matter, re.DOTALL
     )
 
     def __init__(

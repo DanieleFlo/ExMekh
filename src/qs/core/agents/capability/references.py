@@ -1,6 +1,8 @@
 import re
 
-_REFERENCE_PATTERN = re.compile(r"{{\s*!([A-Za-z0-9][A-Za-z0-9_-]*)\s*}}")
+from qs.config.validation import VALIDATION_PATTERNS
+
+_REFERENCE_PATTERN = re.compile(VALIDATION_PATTERNS.capability_reference)
 
 
 def parse_references(body: str) -> tuple[str, tuple[str, ...]]:

@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from html import escape
 
+from qs.config.capabilities import CAPABILITY_FORMAT
+
 
 @dataclass(frozen=True, slots=True)
 class SkillCatalogEntry:
@@ -14,7 +16,7 @@ class SkillCatalogEntry:
 class SkillCatalog:
     sub_skills: tuple[SkillCatalogEntry, ...] = ()
     sub_tools: tuple[SkillCatalogEntry, ...] = ()
-    _TAG = "catalog"
+    _TAG = CAPABILITY_FORMAT.catalog_tag
 
     def render_prompt_section(self) -> str:
         content = self._render_content()

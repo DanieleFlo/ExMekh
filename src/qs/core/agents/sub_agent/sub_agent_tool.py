@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Annotated, Any, Literal
 from xml.etree.ElementTree import Element, SubElement, tostring
 
+from qs.config.runtime import RUNTIME
 from qs.core.models.tool import Tool
 
 if TYPE_CHECKING:
@@ -13,8 +14,8 @@ if TYPE_CHECKING:
 class SubAgentTool(Tool):
     """Delegate a user message to one of a node's direct children."""
 
-    NAME = "call_sub_agent"
-    _ARGUMENT_NAMES = frozenset({"sub_agent", "text"})
+    NAME = RUNTIME.sub_agent_tool_name
+    _ARGUMENT_NAMES = RUNTIME.sub_agent_argument_names
 
     def __init__(self, children: Sequence[Node]) -> None:
         child_names = tuple(child.name_hds for child in children)

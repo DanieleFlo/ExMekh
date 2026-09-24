@@ -8,6 +8,7 @@ import openai
 from openai import OpenAI
 from pydantic import BaseModel
 
+from qs.config.provider import DEFAULT_PROVIDER_SETTINGS
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.reasoning_effort import ReasoningEffort
@@ -24,10 +25,12 @@ class LocalProvider(Provider):
     def __init__(
         self,
         model: str,
-        api_key_env_var: str = "API_KEY",
-        base_url_env_var: str = "BASE_URL",
+        api_key_env_var: str = DEFAULT_PROVIDER_SETTINGS.api_key_env_var,
+        base_url_env_var: str = DEFAULT_PROVIDER_SETTINGS.base_url_env_var,
         reasoning_effort: ReasoningEffort | None = None,
-        api: Literal["chat_completions", "responses"] = "chat_completions",
+        api: Literal["chat_completions", "responses"] = (
+            DEFAULT_PROVIDER_SETTINGS.local_provider_default_api
+        ),
         tokenizer: Tokenizer | None = None,
         *,
         api_key: str | None = None,
@@ -87,7 +90,7 @@ class LocalProvider(Provider):
         )
         if not api_key:
             # Local provider does not require an API key
-            api_key = "local-api-key"
+            api_key = DEFAULT_PROVIDER_SETTINGS.fallback_api_key
         return api_key
 
     def _resolve_base_url(self) -> str:

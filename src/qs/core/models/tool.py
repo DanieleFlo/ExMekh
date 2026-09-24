@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Any, Literal, get_type_hints
 
+from qs.config.validation import VALIDATION_PATTERNS
 from qs.core.models.assistant_message import ToolCall
 
 
@@ -57,7 +58,7 @@ class Tool:
             raise TypeError("Tool description must be a string")
 
     def is_valid_tool_name(self, name: str) -> bool:
-        _TOOL_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+        _TOOL_NAME_PATTERN = re.compile(VALIDATION_PATTERNS.tool_name)
         return bool(_TOOL_NAME_PATTERN.fullmatch(name))
 
     def execute(self, **arguments: Any) -> Any:

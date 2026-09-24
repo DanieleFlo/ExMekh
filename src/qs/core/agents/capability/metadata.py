@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from qs.config.capabilities import CAPABILITY_FORMAT
+
 
 @dataclass(frozen=True, slots=True)
 class CapabilityMetadata:
@@ -30,9 +32,11 @@ class MetadataFieldSpec:
 
 
 class CapabilityMetadataParser:
-    DESCRIPTION_FIELD = MetadataFieldSpec("description", required=True)
-    SUB_SKILLS_FIELD = MetadataFieldSpec("sub-skills")
-    SUB_TOOLS_FIELD = MetadataFieldSpec("sub-tools")
+    DESCRIPTION_FIELD = MetadataFieldSpec(
+        CAPABILITY_FORMAT.description_field, required=True
+    )
+    SUB_SKILLS_FIELD = MetadataFieldSpec(CAPABILITY_FORMAT.sub_skills_field)
+    SUB_TOOLS_FIELD = MetadataFieldSpec(CAPABILITY_FORMAT.sub_tools_field)
 
     @property
     def field_specs(self) -> tuple[MetadataFieldSpec, ...]:

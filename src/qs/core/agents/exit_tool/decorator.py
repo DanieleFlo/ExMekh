@@ -6,9 +6,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final
 
+from qs.config.capabilities import CAPABILITY_FORMAT
+
 type ExitToolFunction = Callable[..., Any]
 
-_EXIT_TOOL_ATTRIBUTE: Final[str] = "__qs_exit_tool__"
+_EXIT_TOOL_ATTRIBUTE: Final[str] = CAPABILITY_FORMAT.exit_tool_attribute
 
 
 @dataclass(frozen=True, slots=True)

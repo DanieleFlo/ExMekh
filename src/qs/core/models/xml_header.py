@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 from xml.etree import ElementTree as ET
 
+from qs.config.runtime import RUNTIME
+from qs.config.validation import VALIDATION_PATTERNS
 from qs.utils.json import to_json_value
 
 
@@ -17,8 +19,8 @@ class XmlHeader:
     fields: dict[str, Any] = field(default_factory=dict)
     args: dict[str, Any] | None = None
 
-    ROOT_TAG = "header"
-    _XML_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_.-]*$")
+    ROOT_TAG = RUNTIME.xml_header_tag
+    _XML_NAME = re.compile(VALIDATION_PATTERNS.xml_name)
 
     def __post_init__(self) -> None:
         if not isinstance(self.source, str):

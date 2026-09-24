@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Literal
 from xml.etree import ElementTree as ET
 
+from qs.config.runtime import RUNTIME
 from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.tool import PreformattedToolResult, Tool
@@ -176,10 +177,10 @@ class ExecutionHistory:
 class HarnessMemoryTools:
     """Node-scoped XML tools for inspecting execution and cached outputs."""
 
-    HISTORY_TOOL_NAME = "get_execution_history"
-    SEARCH_TOOL_NAME = "search_saved_tool_outputs"
-    READ_TOOL_NAME = "read_saved_tool_output"
-    PREVIEW_LIMIT = 240
+    HISTORY_TOOL_NAME = RUNTIME.history_tool_name
+    SEARCH_TOOL_NAME = RUNTIME.search_tool_name
+    READ_TOOL_NAME = RUNTIME.read_tool_name
+    PREVIEW_LIMIT = RUNTIME.memory_preview_limit
 
     def __init__(
         self,

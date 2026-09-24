@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 
+from qs.config.capabilities import CAPABILITY_FORMAT
+from qs.config.runtime import RUNTIME
 from qs.core.agents.deep_skill.deep_skill import DeepSkill
 from qs.core.agents.exit_tool.exit_tool import ExitTool
 from qs.core.agents.hds.hds import HDS
@@ -21,16 +23,16 @@ _MOCK_RESOURCE_TYPES: dict[str, type[Tool]] = {
     "shared-tool": Tool,
 }
 _HARNESS_RESOURCE_TYPES: dict[str, type[Tool]] = {
-    "exit_agent": ExitTool,
-    "get_execution_history": Tool,
-    "search_saved_tool_outputs": Tool,
-    "read_saved_tool_output": Tool,
-    "call_sub_agent": Tool,
+    RUNTIME.exit_tool_name: ExitTool,
+    RUNTIME.history_tool_name: Tool,
+    RUNTIME.search_tool_name: Tool,
+    RUNTIME.read_tool_name: Tool,
+    RUNTIME.sub_agent_tool_name: Tool,
 }
 _RESOURCE_TYPES = MappingProxyType(_MOCK_RESOURCE_TYPES | _HARNESS_RESOURCE_TYPES)
 MOCK_NAMES = frozenset(_MOCK_RESOURCE_TYPES)
 HARNESS_NAMES = frozenset(_HARNESS_RESOURCE_TYPES)
-RUNTIME_NAMES = HARNESS_NAMES - {"exit_agent"}
+RUNTIME_NAMES = HARNESS_NAMES - {RUNTIME.exit_tool_name}
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,7 +69,9 @@ OverrideInput = Mapping[str, Override] | Iterable[NamedOverride] | NamedOverride
 class DefaultCapabilities:
     """Select bundled capabilities and replace loaded resources for one node."""
 
-    CAPABILITIES_PATH = Path(__file__).resolve().parents[3] / "capabilities"
+    CAPABILITIES_PATH = (
+        Path(__file__).resolve().parents[3] / CAPABILITY_FORMAT.root_folder
+    )
 
     def __init__(
         self,

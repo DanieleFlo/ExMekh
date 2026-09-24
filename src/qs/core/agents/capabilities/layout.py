@@ -5,16 +5,18 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Final
 
+from qs.config.capabilities import CAPABILITY_FORMAT
+
 
 class CapabilityType(StrEnum):
-    DEEP_SKILL = "deep-skill"
-    TOOLS = "tools"
-    EXIT_TOOL = "exit-tool"
-    HDS = "hds"
+    DEEP_SKILL = CAPABILITY_FORMAT.deep_skill_folder
+    TOOLS = CAPABILITY_FORMAT.tools_folder
+    EXIT_TOOL = CAPABILITY_FORMAT.exit_tool_folder
+    HDS = CAPABILITY_FORMAT.hds_folder
 
 
 class CapabilitiesLayout:
-    CAPABILITIES_FOLDER_NAME: Final[str] = "capabilities"
+    CAPABILITIES_FOLDER_NAME: Final[str] = CAPABILITY_FORMAT.root_folder
 
     def __init__(
         self,

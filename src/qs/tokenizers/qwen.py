@@ -9,18 +9,19 @@ from urllib.request import urlopen
 from tokenizers import Encoding
 from tokenizers import Tokenizer as TextTokenizer
 
+from qs.config.tokenizer import QWEN_TOKENIZER, TokenizerSettings
 from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
 from qs.utils.file import read_json_from_path, write_json_atomically
 
 
 class QwenTokenizer(SequentialTokenizer):
-    MODEL = "Qwen/Qwen3.8-27B"
+    MODEL = QWEN_TOKENIZER.repository
 
     def __init__(self, cache_directory: Path | None = None) -> None:
-        super().__init__(f"{self.MODEL}:main:ascii-v1", cache_directory)
+        super().__init__(QWEN_TOKENIZER.identity, cache_directory)
         self._text_tokenizer: TextTokenizer | None = None
         self._text_tokenizer_lock = Lock()
-        self._tokenizer_path = self._directory / "tokenizer.json"
+        self._tokenizer_path = self._directory / QWEN_TOKENIZER.filename
 
     def _load_vocabulary_tokens(self) -> Iterable[str]:
         data = read_json_from_path(self._ensure_tokenizer_file())
@@ -33,8 +34,10 @@ class QwenTokenizer(SequentialTokenizer):
         return (token for token in vocabulary if token not in special_tokens)
 
     def _download_tokenizer_data(self) -> dict:
-        url = f"https://huggingface.co/{self.MODEL}/resolve/main/tokenizer.json"
-        with urlopen(url, timeout=60) as response:
+        with urlopen(
+            QWEN_TOKENIZER.download_url,
+            timeout=TokenizerSettings.from_environment().download_timeout_seconds,
+        ) as response:
             return json.load(response)
 
     def _ensure_tokenizer_file(self) -> Path:

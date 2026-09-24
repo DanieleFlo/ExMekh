@@ -4,6 +4,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any, Final
 
+from qs.config.runtime import RUNTIME
 from qs.core.agents.capabilities.capabilities import Capabilities
 from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.capabilities.defaults import DefaultCapabilities
@@ -126,13 +127,16 @@ class Node:
     ) -> tuple[Tool, ...]:
         self._sub_agent_tool = None
         if not self._children:
-            if defaults is not None and "call_sub_agent" in defaults.overrides:
+            if (
+                defaults is not None
+                and RUNTIME.sub_agent_tool_name in defaults.overrides
+            ):
                 raise ValueError("call_sub_agent requires at least one child node")
             return ()
-        if defaults is not None and not defaults.includes("call_sub_agent"):
+        if defaults is not None and not defaults.includes(RUNTIME.sub_agent_tool_name):
             return ()
         if defaults is not None:
-            override = defaults.tool_override("call_sub_agent")
+            override = defaults.tool_override(RUNTIME.sub_agent_tool_name)
             if override is not None:
                 return (override,)
         self._sub_agent_tool = SubAgentTool(self._children)
@@ -168,7 +172,8 @@ class Node:
     def restore_history(
         self,
         messages: Sequence[Message[Any]],
-        restore_execution_state: Callable[[ExecutionHistory, NodeCache], None] | None = None,
+        restore_execution_state: Callable[[ExecutionHistory, NodeCache], None]
+        | None = None,
     ) -> None:
         """Restore a saved conversation before the next run."""
         if self._runtime is None:

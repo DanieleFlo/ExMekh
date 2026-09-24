@@ -3,8 +3,10 @@ from __future__ import annotations
 import re
 from hashlib import sha256
 
-_PORTABLE_COMPONENT = re.compile(r"[a-z0-9_-]{1,100}\Z")
-_WINDOWS_DEVICE = re.compile(r"(?:con|prn|aux|nul|com[1-9]|lpt[1-9])\Z")
+from qs.config.validation import VALIDATION_PATTERNS
+
+_PORTABLE_COMPONENT = re.compile(VALIDATION_PATTERNS.portable_cache_component)
+_WINDOWS_DEVICE = re.compile(VALIDATION_PATTERNS.windows_device_name)
 
 
 def cache_component(identifier: str) -> str:

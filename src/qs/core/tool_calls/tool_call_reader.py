@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from qs.config.cache import CACHE_FORMAT
 from qs.core.cache.tool_call_store import ToolCallStore
 from qs.core.tool_calls.directory import (
     TokenizerCacheIdentity,
@@ -20,7 +21,7 @@ class ToolCallReader:
         tokenizer: TokenizerCacheIdentity | None = None,
         tokenizer_identity: str | None = None,
         cache_directory: Path | None = None,
-        folder_name: str = "tool_calls",
+        folder_name: str = CACHE_FORMAT.tool_calls_folder,
     ) -> None:
         self._directory = resolve_tool_call_directory(
             directory,

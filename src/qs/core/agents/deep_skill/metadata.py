@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, cast
 
+from qs.config.capabilities import CAPABILITY_FORMAT
 from qs.core.agents.capability.metadata import (
     CapabilityMetadata,
     CapabilityMetadataParser,
@@ -19,7 +20,9 @@ class DeepSkillMetadata(CapabilityMetadata):
 
 
 class DeepSkillMetadataParser(CapabilityMetadataParser):
-    INHERITS_PARENT_TOOLS_FIELD = MetadataFieldSpec("inherits-parent-tools")
+    INHERITS_PARENT_TOOLS_FIELD = MetadataFieldSpec(
+        CAPABILITY_FORMAT.inherits_parent_tools_field
+    )
 
     @property
     def field_specs(self) -> tuple[MetadataFieldSpec, ...]:

@@ -3,12 +3,13 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
+from qs.config.capabilities import CAPABILITY_FORMAT
 from qs.core.agents.capability.markdown_capability import MarkdownCapability
 from qs.core.agents.capability.parser import CapabilityMarkdownParser
 
 
 class MarkdownCapabilityCollection[Resource: MarkdownCapability]:
-    MARKDOWN_SUFFIX = ".md"
+    MARKDOWN_SUFFIX = CAPABILITY_FORMAT.markdown_suffix
     resource_class: type[Resource]
     parser_factory: Callable[[], CapabilityMarkdownParser]
     resource_label = "Capability"

@@ -5,18 +5,20 @@ import re
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
+from qs.config.cache import CACHE_FORMAT
+from qs.config.validation import VALIDATION_PATTERNS
 from qs.utils.file import read_json_from_path, write_json_atomically
 
 logger = logging.getLogger(__name__)
 
 
 class VocabularyCache:
-    _TOKEN_PATTERN = re.compile(r"[a-zA-Z0-9]+")
+    _TOKEN_PATTERN = re.compile(VALIDATION_PATTERNS.ascii_vocabulary_token)
 
     def __init__(self, directory: Path, identity: str) -> None:
         self._directory = directory
         self._identity = identity
-        self._path = directory / "vocabulary.json"
+        self._path = directory / CACHE_FORMAT.vocabulary_filename
 
     def load_or_build(
         self,

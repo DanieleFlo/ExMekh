@@ -7,6 +7,8 @@ from pathlib import Path
 from threading import Lock
 from typing import TYPE_CHECKING
 
+from qs.config.cache import CACHE_FORMAT
+from qs.config.storage import StorageSettings
 from qs.core.tokenizers.tokenizer_session_registry import TokenizerSessionRegistry
 from qs.core.tokenizers.vocabulary_cache import VocabularyCache
 from qs.interfaces.tokenizer import Tokenizer
@@ -33,7 +35,10 @@ class SequentialTokenizer(Tokenizer):
             raise TypeError("Cache directory must be a Path or None")
         self._identity = identity
         namespace = sha256(identity.encode("utf-8")).hexdigest()
-        root = (cache_directory or Path(".qs/tokenizers")).resolve()
+        root = (
+            cache_directory
+            or StorageSettings.from_environment().tokenizer_cache_directory
+        ).resolve()
         self._directory = root / namespace
         self._cache = VocabularyCache(self._directory, identity)
         self._tokens: tuple[str, ...] | None = None
@@ -65,7 +70,7 @@ class SequentialTokenizer(Tokenizer):
         return TokenizerSessionRegistry.get_session(
             self._identity,
             self._vocabulary_fingerprint,
-            self._directory / "temp",
+            self._directory / CACHE_FORMAT.temporary_folder,
         )
 
     def generate_id(self) -> str:

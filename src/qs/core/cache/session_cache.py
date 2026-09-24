@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 from threading import Lock
 from typing import Any, Self
 
+from qs.config.cache import CACHE_FORMAT
 from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.paths import cache_component
 from qs.core.cache.tool_call_record import ToolCallRecord
@@ -26,14 +27,18 @@ class SessionCache:
             raise TypeError("directory must be a Path")
         directory.mkdir(parents=True, exist_ok=True)
 
-        self._temporary_directory = TemporaryDirectory(prefix="session-", dir=directory)
-        self._counter_path = Path(self._temporary_directory.name) / "counter.json"
+        self._temporary_directory = TemporaryDirectory(
+            prefix=CACHE_FORMAT.session_prefix, dir=directory
+        )
+        self._counter_path = (
+            Path(self._temporary_directory.name) / CACHE_FORMAT.counter_filename
+        )
         self._next_index = 0
         self._closed = False
         self._lock = Lock()
 
         self._session_root = Path(self._temporary_directory.name)
-        self._tool_calls_dir = self._session_root / "tool_calls"
+        self._tool_calls_dir = self._session_root / CACHE_FORMAT.tool_calls_folder
         self._node_views: dict[str, NodeCache] = {}
         self._node_states: dict[str, dict[str, Any]] = {}
 
@@ -162,7 +167,9 @@ class SessionCache:
     def _tool_store(self, node_id: str) -> ToolCallStore:
         component = cache_component(self._node_key(node_id))
         directory = self._tool_calls_dir / component
-        expected_directory = self._session_root.resolve() / "tool_calls" / component
+        expected_directory = (
+            self._session_root.resolve() / CACHE_FORMAT.tool_calls_folder / component
+        )
         if directory.resolve() != expected_directory:
             raise ValueError(
                 "node cache directory must not redirect to another location"

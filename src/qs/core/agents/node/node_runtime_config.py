@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from qs.config.runtime import RUNTIME
 from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.capabilities.defaults import DefaultCapabilities
 from qs.core.agents.deep_agent.stream_event import (
@@ -21,16 +22,7 @@ from qs.interfaces.provider import Provider
 from .agentic_scope import AgenticScope
 from .tool_call_executor import ExitContentResolver, ToolCallExecutor
 
-HARNESS_OUTPUT_GUIDANCE = (
-    "<harness-output-guidance>\n"
-    "When finishing a skill, put in items only the IDs of complete outputs "
-    "that the caller needs to read immediately. Prefer the saved-output-id shown "
-    "in the history; a call ID is accepted if it is unambiguous. "
-    "If a later skill needs the result, provide only its ID in text "
-    "and ask the caller to retrieve it with read_saved_tool_output: repeating the output "
-    "in the message consumes context. Use items=[] when text alone is enough.\n"
-    "</harness-output-guidance>"
-)
+HARNESS_OUTPUT_GUIDANCE = RUNTIME.harness_output_guidance
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,7 +52,7 @@ class NodeRuntimeConfig:
             hds_name = get_name()
             if isinstance(hds_name, str) and hds_name.strip():
                 return hds_name
-        return "default"
+        return RUNTIME.default_agent_context_id
 
     def is_persistent_history(self) -> bool:
         return self.persistent_history

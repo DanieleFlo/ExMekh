@@ -51,22 +51,58 @@ Targets the OpenAI `/v1/responses` endpoint syntax.
 
 ---
 
-## 3. Environment Variables & `.env` Setup
+## 3. Configuration modules
 
-`qs` integrates with `python-dotenv` to load configuration settings from a local `.env` file.
+Configuration lives in `src/qs/config/` and is separated by responsibility:
 
-### Environment Variable Reference
+| Module | Class | Purpose |
+|---|---|---|
+| `provider.py` | `ProviderSettings` | User-selectable CLI model and API, provider environment variable names, and local API key fallback |
+| `storage.py` | `StorageSettings` | User-selectable tokenizer and session cache directory |
+| `tokenizer.py` | `TokenizerSettings` | User-selectable tokenizer download timeout |
+| `cli.py` | `CliSettings`, `CliPresentation` | User-selectable HDS names and CLI output text |
+| `tokenizer.py` | `QwenTokenizerSpec` | Fixed repository, revision, vocabulary identity, and filename |
+| `cache.py` | `CacheFormat` | Fixed cache file and folder names |
+| `capabilities.py` | `CapabilityFormat`, `CapabilityText` | Fixed capability layout, metadata fields, and bundled descriptions |
+| `validation.py` | `ValidationPatterns` | Fixed patterns for names, references, and cache paths |
+| `runtime.py` | `RuntimeSettings` | Fixed harness tool names, limits, and instructions |
 
-| Variable | Required | Default Value | Description |
-|---|---|---|---|
-| `BASE_URL` | **Yes** | None | Base HTTP/HTTPS URL of the LLM provider (e.g. `http://localhost:8000/v1`) |
-| `API_KEY` | No | `"local-api-key"` | API authentication key. If omitted, defaults to `"local-api-key"`. |
-| `QS_LIVE_MODEL` | No | `"qwen3.5-9b-mtp"` | Target model name when running live test suites with `pytest --run-live`. |
-| `QS_RUN_LIVE_TESTS` | No | `0` | Set to `1` to enable live tests without passing the `--run-live` pytest flag. |
+The settings classes are frozen. To customize an application, construct its own
+settings instance or set the environment variables below before starting the CLI.
+Runtime protocol values are kept separate because changing them independently
+would break the corresponding tools and cached data. Explicit arguments to
+`LocalProvider` and the tokenizer still take precedence over defaults.
 
-### Sample `.env` File
+### Environment variables
+
+The CLI loads a local `.env` file. The settings classes read the relevant
+`QS_*` values. `LocalProvider` reads `BASE_URL` and `API_KEY`, while the live
+test suite reads `QS_LIVE_MODEL` and `QS_RUN_LIVE_TESTS`.
+
+| Variable | Default | Description |
+|---|---|---|
+| `QS_MODEL` | `Qwen3.8-27B-UD-Q4_K_S` | Model used by the CLI |
+| `QS_API` | `responses` | CLI API protocol: `responses` or `chat_completions` |
+| `BASE_URL` | None | Provider URL; required unless passed to `LocalProvider` |
+| `API_KEY` | `local-api-key` | API key used by `LocalProvider` if no key is supplied |
+| `QS_TOKENIZER_CACHE_DIR` | `.qs/tokenizers` | Cache root for tokenizer and sessions |
+| `QS_TOKENIZER_DOWNLOAD_TIMEOUT` | `60` | Positive integer timeout in seconds for tokenizer download |
+| `QS_ROOT_HDS` | `main` | Root HDS used by the example CLI |
+| `QS_CHILD_HDS` | `mock-sub-agent` | Child HDS used by the example CLI |
+| `QS_LIVE_MODEL` | `Qwen3.8-27B-UD-Q4_K_S` | Model used by live tests |
+| `QS_RUN_LIVE_TESTS` | `0` | Set to `1` to enable live tests |
+
+The HDS names must refer to capabilities available in the selected capability
+paths. The cache directory can also be passed directly to a tokenizer or
+`CacheManager`. Existing cache data is not moved when its location changes.
+
+### Sample `.env`
+
 ```ini
 BASE_URL=http://localhost:8080/v1
 API_KEY=sk-local-secret-key
-QS_LIVE_MODEL=qwen3.5-9b-mtp
+QS_MODEL=Qwen3.8-27B-UD-Q4_K_S
+QS_API=responses
+QS_TOKENIZER_CACHE_DIR=.qs/tokenizers
+QS_LIVE_MODEL=Qwen3.8-27B-UD-Q4_K_S
 ```

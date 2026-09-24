@@ -4,6 +4,9 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any, ClassVar, Final, Literal
 
+from qs.config.cache import CACHE_FORMAT
+from qs.config.storage import DEFAULT_STORAGE_SETTINGS, StorageSettings
+from qs.config.tokenizer import QWEN_TOKENIZER
 from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.session_cache import SessionCache
 from qs.core.cache.session_pool import SessionPool
@@ -21,9 +24,9 @@ class CacheManager:
       4. Node-scoped tool call caching within the unified session.
     """
 
-    DEFAULT_TOKENIZER_IDENTITY: Final[str] = "Qwen/Qwen3.8-27B:main:ascii-v1"
-    DEFAULT_ROOT_DIR: Final[Path] = Path(".qs/tokenizers")
-    DEFAULT_FINGERPRINT: Final[str] = "default"
+    DEFAULT_TOKENIZER_IDENTITY: Final[str] = QWEN_TOKENIZER.identity
+    DEFAULT_ROOT_DIR: Final[Path] = DEFAULT_STORAGE_SETTINGS.tokenizer_cache_directory
+    DEFAULT_FINGERPRINT: Final[str] = CACHE_FORMAT.default_fingerprint
 
     _pool: ClassVar[SessionPool] = SessionPool()
 
@@ -41,7 +44,10 @@ class CacheManager:
         """Resolve the root storage directory for caching."""
         if cache_directory is not None and not isinstance(cache_directory, Path):
             raise TypeError("cache_directory must be a Path or None")
-        return (cache_directory or cls.DEFAULT_ROOT_DIR).resolve()
+        return (
+            cache_directory
+            or StorageSettings.from_environment().tokenizer_cache_directory
+        ).resolve()
 
     @classmethod
     def resolve_temp_directory(
@@ -52,7 +58,7 @@ class CacheManager:
         """Resolve the temporary directory path for a specific identity."""
         root = cls.resolve_root(cache_directory)
         namespace = cls.compute_namespace(identity)
-        return root / namespace / "temp"
+        return root / namespace / CACHE_FORMAT.temporary_folder
 
     @classmethod
     def get_session(

@@ -7,9 +7,11 @@ from functools import wraps
 from pathlib import Path
 from typing import Any, Final
 
+from qs.config.capabilities import CAPABILITY_FORMAT
+
 type ToolFunction = Callable[..., Any]
 
-_ENTRYPOINT_ATTRIBUTE: Final[str] = "__qs_deep_tool__"
+_ENTRYPOINT_ATTRIBUTE: Final[str] = CAPABILITY_FORMAT.deep_tool_attribute
 
 
 @dataclass(frozen=True, slots=True)

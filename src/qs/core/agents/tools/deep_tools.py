@@ -7,6 +7,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Final
 
+from qs.config.capabilities import CAPABILITY_FORMAT
 from qs.core.agents.tools.decorator import (
     ToolDefinition,
     ToolFunction,
@@ -17,7 +18,7 @@ from qs.core.models.tool import Tool
 
 
 class DeepTools:
-    ENTRYPOINT_FILENAME: Final[str] = "main.py"
+    ENTRYPOINT_FILENAME: Final[str] = CAPABILITY_FORMAT.tool_entrypoint_filename
 
     def __init__(
         self,
