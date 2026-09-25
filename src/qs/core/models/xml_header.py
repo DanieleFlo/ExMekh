@@ -112,3 +112,33 @@ class XmlHeader:
     def prepend_to(self, content: str) -> str:
         """Prepend the XML metadata block to the given content."""
         return f"{self.to_xml()}\n{content}"
+
+    @classmethod
+    def _leading_header(cls, content: str) -> tuple[ET.Element, int] | None:
+        closing = f"</{cls.ROOT_TAG}>"
+        if not content.startswith(f"<{cls.ROOT_TAG}>"):
+            return None
+        end = content.find(closing)
+        if end < 0:
+            return None
+        end += len(closing)
+        try:
+            root = ET.fromstring(content[:end])
+        except ET.ParseError:
+            return None
+        return root, end
+
+    @classmethod
+    def has_leading_header(cls, content: str) -> bool:
+        return cls._leading_header(content) is not None
+
+    @classmethod
+    def add_field_to_content(cls, content: str, key: str, value: str) -> str:
+        """Add metadata only when content already starts with a valid header."""
+        leading = cls._leading_header(content)
+        if leading is None:
+            return content
+        root, end = leading
+        ET.SubElement(root, key).text = value
+        ET.indent(root)
+        return ET.tostring(root, encoding="unicode") + content[end:]

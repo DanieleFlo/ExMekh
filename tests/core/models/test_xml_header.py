@@ -188,3 +188,8 @@ def test_rejects_non_string_argument_names() -> None:
             id="result-1",
             args=cast(dict[str, Any], {1: "value"}),
         )
+
+
+def test_leading_header_requires_a_complete_well_formed_xml_block() -> None:
+    assert not XmlHeader.has_leading_header("<header><name>missing close")
+    assert not XmlHeader.has_leading_header("<header><name></header>")

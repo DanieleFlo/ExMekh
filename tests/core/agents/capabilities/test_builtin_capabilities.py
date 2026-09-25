@@ -61,19 +61,27 @@ def test_loads_builtin_assistant_capabilities(tmp_path: Path) -> None:
         "mock-sub-agent",
     )
     assert {skill.name for skill in capabilities.deep_skills} == {
+        "deep-thinking",
         "mock-skill",
         "nested-skill",
     }
     assert {tool.name for tool in capabilities.tools} == {
+        "calculate",
+        "interact-web-page",
         "mock-sub-tool",
         "mock-tool",
         "nested-sub-tool",
+        "read-web-page",
+        "search-web",
         "shared-tool",
+        "logic-check",
+        "logic-consistency",
+        "logic-counterexample",
     }
     assert tuple(skill.name for skill in capabilities.exit_tools) == ("exit_agent",)
 
     main_hds = capabilities.hds[0]
-    assert main_hds.get_sub_skill_names() == ("mock-skill",)
+    assert main_hds.get_sub_skill_names() == ("mock-skill", "deep-thinking")
     assert main_hds.get_sub_tool_names() == ("mock-tool",)
     assert main_hds.get_exit_tool_name() == "exit_agent"
 
@@ -107,6 +115,17 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
     assert request_tools is not None
     descriptions = {tool.name: tool.description for tool in request_tools.get_tools()}
     assert descriptions == {
+        "deep-thinking": (
+            "Investigates difficult questions with web evidence, "
+            "mathematical computation, and formal Z3 reasoning."
+        ),
+        "calculate": "Available in skill 'deep-thinking'.",
+        "interact-web-page": "Available in skill 'deep-thinking'.",
+        "read-web-page": "Available in skill 'deep-thinking'.",
+        "search-web": "Available in skill 'deep-thinking'.",
+        "logic-check": "Available in skill 'deep-thinking'.",
+        "logic-consistency": "Available in skill 'deep-thinking'.",
+        "logic-counterexample": "Available in skill 'deep-thinking'.",
         "mock-skill": (
             "Produces a demonstration response without performing real operations."
         ),
@@ -122,7 +141,7 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
         "get_execution_history": (
             "Return navigable XML history of capability calls. Omit "
             "start_position for a head-and-tail overview, or use a 1-based "
-            "position and limit to read a page."
+            "position and limit from 2 to 100 to read a page."
         ),
         "search_saved_tool_outputs": (
             "Search node-scoped saved outputs and return paginated XML previews. "

@@ -95,6 +95,10 @@ class DeepSkillExecutionTracker:
     def active_skills(self) -> tuple[DeepSkill, ...]:
         return tuple(execution.skill for execution in self._active)
 
+    def is_current_skill(self, name: str) -> bool:
+        """Report the innermost active skill without exposing the stack."""
+        return bool(self._active and self._active[-1].skill.name == name)
+
     @property
     def active_path(self) -> str:
         return "/" + "/".join(skill.name for skill in self.active_skills)

@@ -196,7 +196,7 @@ class HarnessMemoryTools:
                 description=(
                     "Return navigable XML history of capability calls. Omit "
                     "start_position for a head-and-tail overview, or use a "
-                    "1-based position and limit to read a page."
+                    "1-based position and limit from 2 to 100 to read a page."
                 ),
                 cache_result=False,
             ),
@@ -234,8 +234,8 @@ class HarnessMemoryTools:
         limit: int = 20,
     ) -> PreformattedToolResult:
         """Return overview or one position-based page of node execution history."""
-        cache = self._cache_provider()
         view = self._history.select(start_position=start_position, limit=limit)
+        cache = self._cache_provider()
         root = ET.Element("execution-history")
         ET.SubElement(root, "total").text = str(view.total)
         ET.SubElement(root, "view").text = view.mode

@@ -569,7 +569,7 @@ def test_tool_descriptions_reflect_hds_and_skill_availability(
         "get_execution_history": (
             "Return navigable XML history of capability calls. Omit "
             "start_position for a head-and-tail overview, or use a 1-based "
-            "position and limit to read a page."
+            "position and limit from 2 to 100 to read a page."
         ),
         "search_saved_tool_outputs": (
             "Search node-scoped saved outputs and return paginated XML previews. "
@@ -1484,6 +1484,59 @@ def test_runtime_memory_history_accepts_position_navigation(
         "  </call>\n"
         "</execution-history>"
     )
+
+
+@pytest.mark.parametrize(
+    ("invalid_arguments", "expected_error"),
+    [
+        ({"limit": 1}, "limit must be between 2 and 100"),
+        ({"limit": 101}, "limit must be between 2 and 100"),
+        ({"unexpected": 1}, "unexpected keyword argument"),
+    ],
+)
+def test_invalid_history_arguments_are_returned_to_model_for_correction(
+    tmp_path: Path, invalid_arguments: dict[str, int], expected_error: str
+) -> None:
+    provider = SequenceProvider(
+        [
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "get_execution_history",
+                        invalid_arguments,
+                        call_id="invalid-history",
+                    )
+                ],
+            ),
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "get_execution_history", {"limit": 2}, call_id="retry"
+                    )
+                ],
+            ),
+            AssistantMessage("done"),
+        ]
+    )
+    node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
+    node.initialize(provider, work_root=tmp_path)
+
+    assert node.run("show history").get_message() == "done"
+    failed_call = next(
+        message
+        for message in provider.requests[1].get_messages()
+        if isinstance(message, ToolMessage)
+        and message.get_tool_call_id() == "invalid-history"
+    )
+    assert expected_error in failed_call.get_message()
+    recovered_call = next(
+        message
+        for message in provider.requests[2].get_messages()
+        if isinstance(message, ToolMessage) and message.get_tool_call_id() == "retry"
+    )
+    assert recovered_call.get_message().startswith("<execution-history>")
 
 
 def test_runtime_rejects_capabilities_using_reserved_memory_tool_names(

@@ -17,6 +17,7 @@ class ProviderRequest:
         tools: Tools | None = None,
         stream: bool = False,
         on_event: Callable[[ProviderStreamEvent], None] | None = None,
+        reasoning_effort_override: str | None = None,
     ) -> None:
         self._messages = messages
         self._extra = extra
@@ -24,6 +25,7 @@ class ProviderRequest:
         self._tools = tools
         self.stream = stream
         self.on_event = on_event
+        self._reasoning_effort_override = reasoning_effort_override
         self._check_provider_inputs()
         self._messages = messages.copy()
         self._extra = extra.copy() if extra is not None else None
@@ -43,6 +45,11 @@ class ProviderRequest:
             raise TypeError("Streaming must be a boolean")
         if self.on_event is not None and not callable(self.on_event):
             raise TypeError("on_event must be a callable if provided")
+        if self._reasoning_effort_override is not None and (
+            not isinstance(self._reasoning_effort_override, str)
+            or not self._reasoning_effort_override.strip()
+        ):
+            raise ValueError("Reasoning effort override must be a non-empty string")
 
     def get_messages(self) -> list[Message]:
         return self._messages.copy()
@@ -58,6 +65,9 @@ class ProviderRequest:
 
     def get_streaming(self) -> bool:
         return self.stream
+
+    def get_reasoning_effort_override(self) -> str | None:
+        return self._reasoning_effort_override
 
     def execute_on_stream_event(self, event: ProviderStreamEvent) -> None:
         if self.on_event is not None:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Sequence
+from functools import partial
 from typing import Any, Final, cast
 from uuid import uuid4
 
@@ -28,6 +29,7 @@ from qs.interfaces.message import Message
 from qs.utils.json import to_json_value
 
 from .node_runtime_config import NodeRuntimeConfig
+from .thinking_annotation import ThinkingAnnotationResolver
 from .tool_call_executor import ToolCallExecutor
 from .tool_call_resolver import ResolvedToolCall, ToolCallResolver
 from .types import NodeUserMessage
@@ -55,6 +57,7 @@ class NodeRuntime:
             self._get_tool_cache,
         )
         self._run_start_position = 0
+        self._thinking_annotation_resolver = ThinkingAnnotationResolver(config.provider)
         defaults = config.default_capabilities
         memory_tools = self._memory_tools.tools
         if defaults is not None:
@@ -102,6 +105,7 @@ class NodeRuntime:
         if not self._config.is_persistent_history():
             self._reset_session()
 
+        self._thinking_annotation_resolver.begin_turn()
         self._run_start_position = self._execution_history.count
         logger.info(
             "Starting node run: node=%s depth=%d",
@@ -231,6 +235,12 @@ class NodeRuntime:
         active_calls = tools + skills[:1] if skills else tools + exits
         deferred_calls = skills[1:] + exits if skills else []
 
+        annotation_provider = (
+            partial(self._thinking_annotation_resolver.resolve, thinking)
+            if self._executor.is_directly_in_skill(RUNTIME.deep_thinking_skill_name)
+            else None
+        )
+
         if deferred_calls:
             # Deferred siblings must not appear as unanswered calls in the child scope.
             history = self._client.get_history()
@@ -252,6 +262,7 @@ class NodeRuntime:
                 call,
                 thinking=thinking,
                 close_scope=index == len(active_calls) - 1,
+                thinking_annotation_provider=annotation_provider,
             )
 
     def _execute_tool_call(
@@ -260,6 +271,7 @@ class NodeRuntime:
         *,
         thinking: str | None = None,
         close_scope: bool = True,
+        thinking_annotation_provider: Callable[[], str | None] | None = None,
     ) -> None:
         skill_path = self._executor.skill_path
         arguments = to_json_value(tool_call.arguments)
@@ -280,6 +292,7 @@ class NodeRuntime:
                 thinking=thinking,
                 close_scope=close_scope,
                 history_position=history_entry.position,
+                thinking_annotation_provider=thinking_annotation_provider,
             )
             if result.replace_history_from is None:
                 self._client.add_tool_response(result.response)

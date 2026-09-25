@@ -42,6 +42,7 @@ class ToOpenAIChatCompletionRequestMapper:
         if request.get_streaming():
             payload["stream_options"] = {"include_usage": True}
 
+        reasoning_effort = request.get_reasoning_effort_override() or reasoning_effort
         if reasoning_effort is not None:
             payload["reasoning_effort"] = cls._get_reasoning_effort_value(
                 reasoning_effort

@@ -9,6 +9,7 @@ from qs.core.agents.capabilities.defaults import (
     BUILTIN_CAPABILITIES_PATH,
     HARNESS_NAMES,
     MOCK_NAMES,
+    RUNTIME_NAMES,
     DefaultCapabilities,
 )
 from qs.core.agents.deep_skill.deep_skill import DeepSkill
@@ -28,6 +29,16 @@ from qs.core.models.structured_provider_response import StructuredProviderRespon
 from qs.core.models.tool import Tool
 from qs.interfaces.provider import Provider
 from qs.interfaces.tokenizer import Tokenizer
+
+DEEP_THINKING_TOOLS = {
+    "calculate",
+    "interact-web-page",
+    "read-web-page",
+    "search-web",
+    "logic-check",
+    "logic-consistency",
+    "logic-counterexample",
+}
 
 
 class StubTokenizer(Tokenizer):
@@ -165,7 +176,10 @@ def make_exit() -> ExitTool:
 
 def test_group_presets_and_individual_selection() -> None:
     assert DefaultCapabilities().selected_names == HARNESS_NAMES
-    assert DefaultCapabilities(mocks=True, harness=False).selected_names == MOCK_NAMES
+    assert not RUNTIME_NAMES.intersection(DEEP_THINKING_TOOLS | {"deep-thinking"})
+    assert DefaultCapabilities(mocks=True, harness=False).selected_names == (
+        MOCK_NAMES | DEEP_THINKING_TOOLS | {"deep-thinking", "exit_agent"}
+    )
     assert DefaultCapabilities(mocks=True).selected_names == MOCK_NAMES | HARNESS_NAMES
     selected = DefaultCapabilities(
         mocks=True,
@@ -182,6 +196,18 @@ def test_group_presets_and_individual_selection() -> None:
     assert DefaultCapabilities(
         harness=False, include={"read_saved_tool_output"}
     ).selected_names == {"read_saved_tool_output"}
+
+
+def test_mock_main_loads_its_required_skill_without_full_harness(
+    tmp_path: Path,
+) -> None:
+    node = Node(
+        name_hds="main",
+        default_capabilities=DefaultCapabilities(mocks=True, harness=False),
+    )
+    loaded = node.load_capabilities(work_root=tmp_path)
+    assert {skill.name for skill in loaded.deep_skills} >= {"deep-thinking"}
+    assert {tool.name for tool in loaded.tools} >= DEEP_THINKING_TOOLS
 
 
 def test_selection_rejects_unknown_conflicting_and_invalid_overrides() -> None:
@@ -279,7 +305,8 @@ def test_harness_defaults_support_an_application_hds_without_mocks(
 
     assert {resource.name for resource in loaded.hds} == {"application"}
     assert {resource.name for resource in loaded.exit_tools} == {"exit_agent"}
-    assert loaded.deep_skills == loaded.tools == ()
+    assert {skill.name for skill in loaded.deep_skills} == {"deep-thinking"}
+    assert {tool.name for tool in loaded.tools} == DEEP_THINKING_TOOLS
     assert node.run("hello").get_message() == "done"
     request = provider.requests[0]
     assert set(request.get_tools().list_tools()) == HARNESS_NAMES - {"call_sub_agent"}
@@ -306,10 +333,11 @@ def test_mock_preset_works_without_application_paths_and_deduplicates_builtin_pa
         loaded = node.load_capabilities(work_root=tmp_path)
         assert {resource.name for resource in loaded.hds} == {"main", "mock-sub-agent"}
         assert {resource.name for resource in loaded.deep_skills} == {
+            "deep-thinking",
             "mock-skill",
             "nested-skill",
         }
-        assert len(loaded.tools) == 4
+        assert len(loaded.tools) == 11
 
 
 @pytest.mark.parametrize("paths", [None, []])
@@ -326,7 +354,7 @@ def test_node_uses_bundled_path_when_no_paths_are_supplied(
         "mock-sub-tool",
         "nested-sub-tool",
         "shared-tool",
-    }
+    } | DEEP_THINKING_TOOLS
 
 
 def test_direct_capabilities_loader_adds_bundled_path_once(tmp_path: Path) -> None:
@@ -337,7 +365,7 @@ def test_direct_capabilities_loader_adds_bundled_path_once(tmp_path: Path) -> No
             work_root=tmp_path
         )
         assert {hds.name for hds in loaded.hds} == {"main", "mock-sub-agent"}
-        assert len(loaded.tools) == 4
+        assert len(loaded.tools) == 11
 
 
 def test_direct_capabilities_loader_uses_bundled_path_when_paths_are_none(
@@ -404,11 +432,15 @@ def test_overrides_enable_and_replace_mock_resources_per_node(tmp_path: Path) ->
         .endswith("Use the replacement exit.</exit-tool>")
     )
     assert (
-        loaded.deep_skills[0]
+        next(skill for skill in loaded.deep_skills if skill.name == "mock-skill")
         .render_instructions("exit")
         .startswith("Replacement skill instructions")
     )
-    assert loaded.deep_skills[0] is not other_loaded.deep_skills[0]
+    assert next(
+        skill for skill in loaded.deep_skills if skill.name == "mock-skill"
+    ) is not next(
+        skill for skill in other_loaded.deep_skills if skill.name == "mock-skill"
+    )
     assert skill.catalog is None
     assert provider.requests == []
     response = node.run("hello")
@@ -597,10 +629,15 @@ def test_excluding_memory_readers_preserves_internal_cache(tmp_path: Path) -> No
     node.initialize(provider, work_root=tmp_path)
     node.run("do work")
 
-    assert set(provider.requests[0].get_tools().list_tools()) == {
-        "mock-tool",
-        "exit_agent",
-    }
+    assert (
+        set(provider.requests[0].get_tools().list_tools())
+        == {
+            "mock-tool",
+            "exit_agent",
+            "deep-thinking",
+        }
+        | DEEP_THINKING_TOOLS
+    )
     assert [record.result for record in node._runtime._tool_cache.get_all()] == [
         "Replacement: cached"
     ]
@@ -646,7 +683,12 @@ def test_tool_override_replaces_same_named_application_and_bundled_tools(
         ),
     )
     loaded = with_override.load_capabilities(work_root=tmp_path)
-    assert [tool.execute(text="ok") for tool in loaded.tools] == ["Replacement: ok"]
+    assert (
+        next(tool for tool in loaded.tools if tool.name == "mock-tool").execute(
+            text="ok"
+        )
+        == "Replacement: ok"
+    )
 
 
 def test_application_tool_override_uses_names_from_every_capabilities_path(
@@ -689,7 +731,7 @@ def test_application_tool_override_uses_names_from_every_capabilities_path(
     assert defaults.overrides["first-tool"] == ToolOverride("first-tool", "second-tool")
 
     tools = {tool.name: tool for tool in loaded.tools}
-    assert set(tools) == {"first-tool", "second-tool"}
+    assert set(tools) == {"first-tool", "second-tool"} | DEEP_THINKING_TOOLS
     assert tools["first-tool"].execute(text="ok") == "second-tool: ok"
     assert tools["second-tool"].execute(text="ok") == "second-tool: ok"
     response = node.run("hello")
@@ -721,7 +763,10 @@ def test_named_tool_override_replaces_a_bundled_tool(tmp_path: Path) -> None:
 
     loaded = node.load_capabilities(work_root=tmp_path)
 
-    assert {tool.name for tool in loaded.tools} == {"mock-tool", "replacement-tool"}
+    assert {tool.name for tool in loaded.tools} == {
+        "mock-tool",
+        "replacement-tool",
+    } | DEEP_THINKING_TOOLS
     assert (
         next(tool for tool in loaded.tools if tool.name == "mock-tool").execute(
             text="ok"
@@ -831,7 +876,7 @@ def test_named_deep_skill_override_uses_loaded_skill_and_executes(
     other_loaded = other.load_capabilities(work_root=tmp_path)
 
     skills = {skill.name: skill for skill in loaded.deep_skills}
-    assert set(skills) == {"target-skill", "replacement-skill"}
+    assert set(skills) == {"target-skill", "replacement-skill", "deep-thinking"}
     assert skills["target-skill"].body == "replacement-skill body"
     assert skills["target-skill"] is not skills["replacement-skill"]
     assert skills["target-skill"] is not next(
@@ -934,7 +979,8 @@ def test_missing_bundled_resource_is_reported(tmp_path: Path, monkeypatch) -> No
 
     node = Node(name_hds="main", default_capabilities=DefaultCapabilities())
     with pytest.raises(
-        ValueError, match="Selected default capabilities are missing: exit_agent"
+        ValueError,
+        match="Selected default capabilities are missing: calculate, deep-thinking, exit_agent",
     ):
         node.load_capabilities(work_root=tmp_path)
 

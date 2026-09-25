@@ -56,6 +56,9 @@ class ToolCallExecutor:
     def skill_executions(self) -> tuple[DeepSkillExecution, ...]:
         return self._skill_executions.roots
 
+    def is_directly_in_skill(self, name: str) -> bool:
+        return self._skill_executions.is_current_skill(name)
+
     def snapshot(self) -> NodeExecutionSnapshot:
         messages = self._client.copy_history()
         return NodeExecutionSnapshot(
@@ -88,6 +91,7 @@ class ToolCallExecutor:
         thinking: str | None = None,
         close_scope: bool = True,
         history_position: int = 0,
+        thinking_annotation_provider: Callable[[], str | None] | None = None,
     ) -> ToolExecutionResult:
         supported_types = (CalledDeepSkill, CalledExitTool, CalledTool)
         if not isinstance(tool_call, supported_types):
@@ -95,13 +99,18 @@ class ToolCallExecutor:
 
         if isinstance(tool_call, CalledExitTool):
             return self._run_exit_tool(
-                tool_call, thinking=thinking, close_scope=close_scope
+                tool_call,
+                thinking=thinking,
+                close_scope=close_scope,
+                thinking_annotation_provider=thinking_annotation_provider,
             )
         if isinstance(tool_call, CalledDeepSkill):
             return self._run_deep_skill(
                 tool_call, thinking=thinking, history_position=history_position
             )
-        return self._run_tool(tool_call)
+        return self._run_tool(
+            tool_call, thinking_annotation_provider=thinking_annotation_provider
+        )
 
     def _run_deep_skill(
         self,
@@ -123,22 +132,41 @@ class ToolCallExecutor:
         )
         return ToolExecutionResult(response=tool_response)
 
-    def _run_tool(self, called_tool: CalledTool) -> ToolExecutionResult:
+    def _run_tool(
+        self,
+        called_tool: CalledTool,
+        *,
+        thinking_annotation_provider: Callable[[], str | None] | None = None,
+    ) -> ToolExecutionResult:
         logger.info(
             "Executing tool: name=%s call_id=%s depth=%d",
             called_tool.name,
             called_tool.call_id,
             self._depth,
         )
-        result = called_tool.execute()
+        try:
+            result = called_tool.execute()
+        except (TypeError, ValueError) as error:
+            return self._recoverable_error(called_tool, f"Invalid arguments: {error}")
         if isinstance(result, PreformattedToolResult):
             content = result.content
+            if thinking_annotation_provider and XmlHeader.has_leading_header(content):
+                thinking_annotation = thinking_annotation_provider()
+            else:
+                thinking_annotation = None
+            if thinking_annotation:
+                content = XmlHeader.add_field_to_content(
+                    content, "thinking", thinking_annotation
+                )
             raw_result = result.content
             output_id = None
         else:
             raw_result = result
             content, output_id = self._format_output(
-                called_tool.name, self.stringify_result(result), source="Tool"
+                called_tool.name,
+                self.stringify_result(result),
+                source="Tool",
+                thinking_annotation_provider=thinking_annotation_provider,
             )
         tool_response = ToolMessage(
             content=content,
@@ -159,15 +187,18 @@ class ToolCallExecutor:
         *,
         source: Literal["Tool", "DeepSkill"],
         thinking: str | None = None,
+        thinking_annotation_provider: Callable[[], str | None] | None = None,
     ) -> tuple[str, str | None]:
-        excerpt = None
-        if source == "DeepSkill" and thinking and thinking.strip():
-            tokenizer = self._client.get_tokenizer()
-            excerpt = tokenizer.truncate_text(thinking, 100)
         try:
             header = XmlHeader(
                 source=source, name=tool_name, id=self._client.generate_id()
             )
+            excerpt = None
+            if thinking_annotation_provider is not None:
+                excerpt = thinking_annotation_provider()
+            elif source == "DeepSkill" and thinking and thinking.strip():
+                tokenizer = self._client.get_tokenizer()
+                excerpt = tokenizer.truncate_text(thinking, 100)
             if excerpt and excerpt.strip():
                 header.add_field("thinking", excerpt)
             return header.prepend_to(content), header.id
@@ -181,6 +212,7 @@ class ToolCallExecutor:
         *,
         thinking: str | None,
         close_scope: bool = True,
+        thinking_annotation_provider: Callable[[], str | None] | None = None,
     ) -> ToolExecutionResult:
         logger.info(
             "Executing exit tool: name=%s call_id=%s active_skills=%d depth=%d",
@@ -193,7 +225,7 @@ class ToolCallExecutor:
             called_exit_tool.validate_arguments()
         except (TypeError, ValueError) as error:
             tool_name = called_exit_tool.name
-            return self._exit_error(
+            return self._recoverable_error(
                 called_exit_tool,
                 f"Invalid arguments: {error}. "
                 f'Use {tool_name}(text="<result>", items=[]) or '
@@ -214,7 +246,7 @@ class ToolCallExecutor:
                 content, items, self.skill_path, opening_position
             )
         except ExitItemError as error:
-            return self._exit_error(called_exit_tool, str(error))
+            return self._recoverable_error(called_exit_tool, str(error))
         result = {**result, "text": content}
 
         if not close_scope:
@@ -232,6 +264,7 @@ class ToolCallExecutor:
                 content,
                 source="DeepSkill",
                 thinking=thinking,
+                thinking_annotation_provider=thinking_annotation_provider,
             )
             return self._close_deep_skill(content, result, output_id)
 
@@ -251,17 +284,17 @@ class ToolCallExecutor:
         )
 
     @staticmethod
-    def _exit_error(
-        called_exit_tool: CalledExitTool, message: str
+    def _recoverable_error(
+        called_tool: CalledTool | CalledExitTool, message: str
     ) -> ToolExecutionResult:
         return ToolExecutionResult(
             response=ToolMessage(
                 content=(
-                    f"Error {called_exit_tool.name}: {message} "
-                    f"Correct the error and call {called_exit_tool.name} again."
+                    f"Error {called_tool.name}: {message} "
+                    f"Correct the error and call {called_tool.name} again."
                 ),
-                tool_call_id=called_exit_tool.call_id,
-                name=called_exit_tool.name,
+                tool_call_id=called_tool.call_id,
+                name=called_tool.name,
             )
         )
 

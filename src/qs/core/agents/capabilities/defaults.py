@@ -23,6 +23,14 @@ _MOCK_RESOURCE_TYPES: dict[str, type[Tool]] = {
     "shared-tool": Tool,
 }
 _HARNESS_RESOURCE_TYPES: dict[str, type[Tool]] = {
+    "deep-thinking": DeepSkill,
+    "search-web": Tool,
+    "read-web-page": Tool,
+    "interact-web-page": Tool,
+    "calculate": Tool,
+    "logic-check": Tool,
+    "logic-consistency": Tool,
+    "logic-counterexample": Tool,
     RUNTIME.exit_tool_name: ExitTool,
     RUNTIME.history_tool_name: Tool,
     RUNTIME.search_tool_name: Tool,
@@ -32,7 +40,27 @@ _HARNESS_RESOURCE_TYPES: dict[str, type[Tool]] = {
 _RESOURCE_TYPES = MappingProxyType(_MOCK_RESOURCE_TYPES | _HARNESS_RESOURCE_TYPES)
 MOCK_NAMES = frozenset(_MOCK_RESOURCE_TYPES)
 HARNESS_NAMES = frozenset(_HARNESS_RESOURCE_TYPES)
-RUNTIME_NAMES = HARNESS_NAMES - {RUNTIME.exit_tool_name}
+RUNTIME_NAMES = frozenset(
+    {
+        RUNTIME.history_tool_name,
+        RUNTIME.search_tool_name,
+        RUNTIME.read_tool_name,
+        RUNTIME.sub_agent_tool_name,
+    }
+)
+_MAIN_HDS_DEPENDENCIES = frozenset(
+    {
+        RUNTIME.exit_tool_name,
+        "deep-thinking",
+        "search-web",
+        "read-web-page",
+        "interact-web-page",
+        "calculate",
+        "logic-check",
+        "logic-consistency",
+        "logic-counterexample",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,6 +125,8 @@ class DefaultCapabilities:
         selected = (MOCK_NAMES if mocks else frozenset()) | (
             HARNESS_NAMES if harness else frozenset()
         )
+        if mocks:
+            selected |= _MAIN_HDS_DEPENDENCIES
         self._mocks = mocks
         self._harness = harness
         self._include = included

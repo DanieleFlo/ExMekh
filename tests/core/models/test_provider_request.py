@@ -105,3 +105,6 @@ def test_request_rejects_invalid_options() -> None:
 
     with pytest.raises(TypeError, match="callable"):
         ProviderRequest(messages, on_event=object())
+
+    with pytest.raises(ValueError, match="Reasoning effort override"):
+        ProviderRequest(messages, reasoning_effort_override="  ")

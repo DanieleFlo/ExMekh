@@ -238,7 +238,8 @@ l'esecuzione di più `run` sullo stesso `NodeRuntime`.
 
 | Situazione | Effetto |
 | --- | --- |
-| Il tool solleva un'eccezione | Nessun record di successo viene salvato; l'errore risale al chiamante. |
+| Il tool solleva `TypeError` o `ValueError` durante l'esecuzione | L'errore torna al modello come risposta del tool, senza salvare un output; il modello può correggere gli argomenti e riprovare. |
+| Il tool solleva un'altra eccezione | Nessun record di successo viene salvato; l'errore risale al chiamante. |
 | Lo storage fallisce dopo l'esecuzione | La risposta è già applicata alla cronologia; la funzione può avere già prodotto effetti esterni. |
 | Un record non è leggibile o è incoerente | Viene escluso dalla lettura e dagli elenchi. |
 | Una vista appartiene a una sessione chiusa | Le operazioni sulla vista sollevano `RuntimeError`. |

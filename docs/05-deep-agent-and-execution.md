@@ -185,6 +185,9 @@ messages, while the final output stays accessible after history compaction.
 The final output's XML header also includes the exit call's thinking when present.
 Its excerpt is limited to the first 100 model tokens. The cached opening-turn
 thinking remains complete.
+The bundled `deep-thinking` skill uses its own rule for calls made directly in
+that skill: existing XML headers receive up to 200 tokens or a stateless
+summary. See [Deep Thinking](11-deep-thinking.md).
 Selected saved outputs can be inserted into that final result through
 `exit_agent` `items`; see [Exit Tool Items](10-exit-tool-items.md). Invalid
 selections return a tool error and keep the skill open for correction.

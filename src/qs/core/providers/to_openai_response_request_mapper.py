@@ -29,11 +29,12 @@ class ToOpenAIResponseRequestMapper:
             "stream": request.get_streaming(),
         }
 
+        reasoning_effort = request.get_reasoning_effort_override() or reasoning_effort
         if reasoning_effort is not None:
-            payload["reasoning"] = {
-                "effort": cls._get_reasoning_effort_value(reasoning_effort),
-                "summary": "auto",
-            }
+            effort = cls._get_reasoning_effort_value(reasoning_effort)
+            payload["reasoning"] = {"effort": effort}
+            if effort != "none":
+                payload["reasoning"]["summary"] = "auto"
 
         extra = request.get_extra()
         if extra is not None:
