@@ -31,6 +31,7 @@ from qs.core.providers.openai_chat_completion_response_format_mapper import (
 from qs.core.providers.to_openai_chat_completion_request_mapper import (
     ToOpenAIChatCompletionRequestMapper,
 )
+from tests.event_handler import as_provider_handler
 
 
 class StructuredAnswer(BaseModel):
@@ -145,7 +146,7 @@ def test_call_streams_mapped_events_and_returns_accumulated_response(
     request = ProviderRequest(
         [SystemMessage("rules")],
         stream=True,
-        on_event=events.append,
+        on_event=as_provider_handler(events.append),
     )
     openai_client.chat.completions.create.return_value = make_stream("answer")
 
@@ -175,7 +176,9 @@ def test_call_streams_mapped_events_and_returns_accumulated_response(
 def test_consume_stream_closes_empty_stream_and_omits_end_event() -> None:
     events = []
     request = ProviderRequest(
-        [SystemMessage("rules")], stream=True, on_event=events.append
+        [SystemMessage("rules")],
+        stream=True,
+        on_event=as_provider_handler(events.append),
     )
     stream = MagicMock()
     stream.__iter__.return_value = iter([])
@@ -333,7 +336,7 @@ def test_call_structured_streams_and_parses_accumulated_json(openai_client) -> N
         [SystemMessage("rules")],
         StructuredAnswer,
         stream=True,
-        on_event=events.append,
+        on_event=as_provider_handler(events.append),
     )
     openai_client.chat.completions.create.return_value = make_stream('{"value":42}')
 

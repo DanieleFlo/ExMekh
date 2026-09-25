@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-
 from qs.core.models.provider_stream_event import ProviderStreamEvent
 from qs.core.models.tools import Tools
+from qs.interfaces.event_handler import ProviderEventHandler
 from qs.interfaces.message import Message
 
 
@@ -16,7 +15,7 @@ class ProviderRequest:
         tool_choice: str | None = None,
         tools: Tools | None = None,
         stream: bool = False,
-        on_event: Callable[[ProviderStreamEvent], None] | None = None,
+        on_event: ProviderEventHandler | None = None,
         reasoning_effort_override: str | None = None,
     ) -> None:
         self._messages = messages
@@ -43,8 +42,8 @@ class ProviderRequest:
             raise TypeError("Tools must be a Tools instance")
         if not isinstance(self.stream, bool):
             raise TypeError("Streaming must be a boolean")
-        if self.on_event is not None and not callable(self.on_event):
-            raise TypeError("on_event must be a callable if provided")
+        if self.on_event is not None:
+            ProviderEventHandler.validate_instance(self.on_event)
         if self._reasoning_effort_override is not None and (
             not isinstance(self._reasoning_effort_override, str)
             or not self._reasoning_effort_override.strip()
@@ -71,4 +70,4 @@ class ProviderRequest:
 
     def execute_on_stream_event(self, event: ProviderStreamEvent) -> None:
         if self.on_event is not None:
-            self.on_event(event)
+            self.on_event.handle(event)

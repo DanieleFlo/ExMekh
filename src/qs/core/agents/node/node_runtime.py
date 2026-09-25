@@ -25,6 +25,7 @@ from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.provider_stream_event import ProviderStreamEvent
 from qs.core.models.user_message import ErrorUserMessage, UserMessage
 from qs.core.tool_calls.memory_tools import ExecutionHistory, HarnessMemoryTools
+from qs.interfaces.event_handler import ProviderEventHandler
 from qs.interfaces.message import Message
 from qs.utils.json import to_json_value
 
@@ -37,7 +38,7 @@ from .types import NodeUserMessage
 logger = logging.getLogger(__name__)
 
 
-class NodeRuntime:
+class NodeRuntime(ProviderEventHandler):
     """Own the conversational lifecycle of an initialized node."""
 
     REQUIRED_TOOL_CHOICE: Final[str] = RUNTIME.required_tool_choice
@@ -118,7 +119,7 @@ class NodeRuntime:
                 extra=self._executor.build_agentic_extra(),
                 tool_choice=self._current_tool_choice(),
                 streaming=self._config.is_streaming(),
-                on_event=self._emit_stream_event,
+                on_event=self,
             )
         )
         response = self._route_until_complete(response)
@@ -179,7 +180,7 @@ class NodeRuntime:
                     extra=self._executor.build_agentic_extra(),
                     tool_choice=tool_choice,
                     streaming=self._config.is_streaming(),
-                    on_event=self._emit_stream_event,
+                    on_event=self,
                 )
                 self._executor.acknowledge_agentic_extra()
                 continue
@@ -194,7 +195,7 @@ class NodeRuntime:
                     extra=self._executor.build_agentic_extra(),
                     tool_choice=self._current_tool_choice(),
                     streaming=self._config.is_streaming(),
-                    on_event=self._emit_stream_event,
+                    on_event=self,
                 )
             )
 
@@ -380,7 +381,7 @@ class NodeRuntime:
             return self.REQUIRED_TOOL_CHOICE
         return None
 
-    def _emit_stream_event(self, event: ProviderStreamEvent) -> None:
+    def handle(self, event: ProviderStreamEvent) -> None:
         self._config.emit_stream(
             DeepAgentStreamEvent(
                 provider_event=event,

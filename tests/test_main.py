@@ -1,6 +1,63 @@
 from unittest.mock import Mock
 
 from qs import main
+from qs.core.agents.deep_agent import (
+    DeepAgentExecutionEvent,
+    DeepAgentExecutionEventType,
+    DeepAgentStreamEvent,
+)
+from qs.core.models.provider_stream_event import (
+    ProviderStreamEvent,
+    ProviderStreamEventType,
+)
+
+
+def test_stream_printer_groups_tokens_by_section(capsys) -> None:
+    printer = main.StreamPrinter()
+
+    for event_type, content in (
+        (ProviderStreamEventType.START, None),
+        (ProviderStreamEventType.RESPONSE, "first"),
+        (ProviderStreamEventType.RESPONSE, " second"),
+        (ProviderStreamEventType.REASONING, "thought"),
+        (ProviderStreamEventType.END, None),
+        (ProviderStreamEventType.RESPONSE, "next"),
+    ):
+        printer.handle(
+            DeepAgentStreamEvent(
+                ProviderStreamEvent(event_type, content), depth=0, skill_path="/"
+            )
+        )
+
+    assert capsys.readouterr().out == (
+        "\nResponse: first second\nThinking: thought\n\nResponse: next"
+    )
+
+
+def test_stream_printer_starts_a_new_section_after_tool_execution(capsys) -> None:
+    printer = main.StreamPrinter()
+    response = DeepAgentStreamEvent(
+        ProviderStreamEvent(ProviderStreamEventType.RESPONSE, "text"),
+        depth=0,
+        skill_path="/",
+    )
+    execution = DeepAgentExecutionEvent(
+        type=DeepAgentExecutionEventType.TOOL_START,
+        depth=0,
+        skill_path="/",
+        history=[],
+        history_tree=[],
+        tool_name="lookup",
+        tool_call_id="call-1",
+    )
+
+    printer.handle(response)
+    printer.handle(execution)
+    printer.handle(response)
+
+    assert capsys.readouterr().out == (
+        "\nResponse: text\ntool_start: lookup (depth=0, path=/)\n\nResponse: text"
+    )
 
 
 def test_cli_registers_mock_sub_agent(monkeypatch) -> None:

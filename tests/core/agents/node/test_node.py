@@ -51,6 +51,7 @@ from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
 from qs.core.tool_calls.memory_tools import ExecutionHistory
 from qs.interfaces.provider import Provider
 from qs.interfaces.tokenizer import Tokenizer
+from tests.event_handler import as_agent_handler
 
 _MEMORY_TOOL_NAMES = [
     "get_execution_history",
@@ -371,7 +372,7 @@ def test_initialize_rejects_non_provider(tmp_path: Path) -> None:
 def test_initialize_rejects_non_callable_stream_handler(tmp_path: Path) -> None:
     node = Node([tmp_path / "capabilities"], name_hds="main")
 
-    with pytest.raises(TypeError, match="on_stream must be a callable"):
+    with pytest.raises(TypeError, match="DeepAgentEventHandler"):
         node.initialize(
             SequenceProvider([]),
             work_root=tmp_path,
@@ -1136,7 +1137,7 @@ def test_streams_context_across_nested_skills_and_tools(
         provider=provider,
         node=Node([_write_nested_capabilities(tmp_path)], name_hds="main"),
         work_root=tmp_path,
-        on_stream=events.append,
+        on_stream=as_agent_handler(events.append),
     )
 
     response = agent.run("start")
@@ -2055,7 +2056,9 @@ def test_runtime_keeps_history_and_emits_end_when_cache_write_fails(
     )
     events = []
     node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
-    node.initialize(provider, work_root=tmp_path, on_stream=events.append)
+    node.initialize(
+        provider, work_root=tmp_path, on_stream=as_agent_handler(events.append)
+    )
 
     def fail_store(self, record):
         raise OSError("disk full")
@@ -2162,7 +2165,7 @@ def test_runtime_saves_thinking_from_the_exact_tool_calling_turn(tmp_path, strea
         node.initialize(
             provider,
             work_root=tmp_path,
-            on_stream=(lambda event: None) if streaming else None,
+            on_stream=as_agent_handler((lambda event: None) if streaming else None),
         )
 
         node.run("start")

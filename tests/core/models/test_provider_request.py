@@ -10,6 +10,7 @@ from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool import Tool
 from qs.core.models.tools import Tools
 from qs.core.models.user_message import UserMessage
+from tests.event_handler import as_provider_handler
 
 
 def test_get_messages_returns_messages_in_order() -> None:
@@ -65,7 +66,7 @@ def test_request_preserves_streaming_and_executes_callback() -> None:
     request = ProviderRequest(
         [SystemMessage("rules")],
         stream=True,
-        on_event=events.append,
+        on_event=as_provider_handler(events.append),
     )
     event = ProviderStreamEvent(ProviderStreamEventType.START)
 
@@ -103,7 +104,7 @@ def test_request_rejects_invalid_options() -> None:
     with pytest.raises(TypeError, match="boolean"):
         ProviderRequest(messages, stream=1)
 
-    with pytest.raises(TypeError, match="callable"):
+    with pytest.raises(TypeError, match="ProviderEventHandler"):
         ProviderRequest(messages, on_event=object())
 
     with pytest.raises(ValueError, match="Reasoning effort override"):

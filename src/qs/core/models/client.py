@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
@@ -10,12 +9,12 @@ from qs.core.models.client_request import ClientRequest
 from qs.core.models.history import MessageHistory
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.provider_stream_event import ProviderStreamEvent
 from qs.core.models.structured_provider_request import StructuredProviderRequest
 from qs.core.models.structured_provider_response import StructuredProviderResponse
 from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.tools import Tools
+from qs.interfaces.event_handler import ProviderEventHandler
 from qs.interfaces.message import Message
 from qs.interfaces.provider import Provider
 from qs.interfaces.tokenizer import Tokenizer
@@ -98,7 +97,7 @@ class Client:
         extra: dict[str, dict[str, object]] | None = None,
         tool_choice: str | None = None,
         streaming: bool = False,
-        on_event: Callable[[ProviderStreamEvent], None] | None = None,
+        on_event: ProviderEventHandler | None = None,
     ) -> ProviderResponse:
         messages = self._get_tool_continuation_messages()
         provider_request = ProviderRequest(
@@ -147,7 +146,7 @@ class Client:
         extra: dict | None = None,
         tool_choice: str | None = None,
         streaming: bool = False,
-        on_event: Callable[[ProviderStreamEvent], None] | None = None,
+        on_event: ProviderEventHandler | None = None,
     ) -> StructuredProviderResponse[ResponseModel]:
         messages = self._get_tool_continuation_messages()
         provider_request = StructuredProviderRequest(

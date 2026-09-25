@@ -7,10 +7,10 @@ from types import MappingProxyType
 
 from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.node import Node, NodeUserMessage
+from qs.interfaces.event_handler import DeepAgentEventHandler
 from qs.interfaces.provider import Provider
 
 from .agent_response import AgentResponse
-from .stream_event import DeepAgentEventHandler
 
 
 class DeepAgent:
@@ -29,8 +29,8 @@ class DeepAgent:
         if not isinstance(node, Node):
             raise TypeError("node must be a Node")
         work_root = self._validate_work_root(work_root)
-        if on_stream is not None and not callable(on_stream):
-            raise TypeError("on_stream must be a callable if provided")
+        if on_stream is not None:
+            DeepAgentEventHandler.validate_instance(on_stream)
 
         self._root_node = node
         self._capabilities_by_node = self._initialize_node_tree(

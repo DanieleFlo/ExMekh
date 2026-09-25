@@ -21,6 +21,7 @@ from qs.core.providers.response_openai import ResponseOpenAI
 from qs.core.providers.to_openai_response_request_mapper import (
     ToOpenAIResponseRequestMapper,
 )
+from tests.event_handler import as_provider_handler
 
 
 def make_response(content: str = "answer") -> Response:
@@ -117,7 +118,7 @@ def test_execute_request_consumes_stream_and_emits_events(openai_client) -> None
     request = ProviderRequest(
         [AssistantMessage("question")],
         stream=True,
-        on_event=events.append,
+        on_event=as_provider_handler(events.append),
     )
     response = make_response()
     stream = MagicMock()

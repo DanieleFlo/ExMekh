@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from qs.core.models.structured_provider_request import StructuredProviderRequest
 from qs.core.models.system_message import SystemMessage
+from tests.event_handler import as_provider_handler
 
 
 class Answer(BaseModel):
@@ -36,15 +37,16 @@ def test_init_preserves_streaming_options() -> None:
     def callback(event) -> None:
         del event
 
+    handler = as_provider_handler(callback)
     request = StructuredProviderRequest(
         [SystemMessage("rules")],
         Answer,
         stream=True,
-        on_event=callback,
+        on_event=handler,
     )
 
     assert request.get_streaming() is True
-    assert request.on_event is callback
+    assert request.on_event is handler
 
 
 @pytest.mark.parametrize("response_model", [object, Answer(value=42)])

@@ -37,6 +37,7 @@ Explore the detailed documentation in the [`docs/`](docs) directory:
 9. **[Tool Output Caching & Search](docs/09-tool-call-cache.md)**: Node isolation, saved invocation metadata, paginated search, standalone archives, and lifecycle examples.
 10. **[Exit Tool Items](docs/10-exit-tool-items.md)**: Select saved outputs, place them in the skill result, and correct invalid references.
 11. **[Deep Thinking](docs/11-deep-thinking.md)**: Runtime dependencies, tool contracts, web boundaries, and thinking headers.
+12. **[Event Handler Interfaces](docs/12-event-handler-interfaces.md)**: Implement typed event handlers with registration-time validation.
 
 ---
 
@@ -109,6 +110,7 @@ from pathlib import Path
 from qs.core.agents.deep_agent import (
     DeepAgent,
     DeepAgentEvent,
+    DeepAgentEventHandler,
     DeepAgentExecutionEvent,
     DeepAgentStreamEvent,
 )
@@ -117,14 +119,15 @@ from qs.core.models.provider_stream_event import ProviderStreamEventType
 from qs.providers.local import LocalProvider
 
 
-def handle_stream_events(event: DeepAgentEvent) -> None:
-    if isinstance(event, DeepAgentStreamEvent):
-        if event.provider_event.type is ProviderStreamEventType.RESPONSE:
-            print(event.provider_event.content, end="", flush=True)
-    elif isinstance(event, DeepAgentExecutionEvent):
-        print(
-            f"\n[Tool Execution]: {event.tool_name} (depth={event.depth}, path={event.skill_path})"
-        )
+class PrintStreamEvents(DeepAgentEventHandler):
+    def handle(self, event: DeepAgentEvent) -> None:
+        if isinstance(event, DeepAgentStreamEvent):
+            if event.provider_event.type is ProviderStreamEventType.RESPONSE:
+                print(event.provider_event.content, end="", flush=True)
+        elif isinstance(event, DeepAgentExecutionEvent):
+            print(
+                f"\n[Tool Execution]: {event.tool_name} (depth={event.depth}, path={event.skill_path})"
+            )
 
 
 provider = LocalProvider(model="Qwen3.8-27B-UD-Q4_K_S")
@@ -146,7 +149,7 @@ agent = DeepAgent(
     provider=provider,
     node=root_node,
     work_root=Path.cwd(),
-    on_stream=handle_stream_events,
+    on_stream=PrintStreamEvents(),
 )
 
 response = agent.run("Perform workspace maintenance and check capabilities.")

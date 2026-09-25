@@ -4,6 +4,7 @@ import pytest
 
 from qs.core.models.client_request import ClientRequest
 from qs.core.models.user_message import UserMessage
+from tests.event_handler import as_provider_handler
 
 
 def test_request_preserves_message_and_options() -> None:
@@ -26,14 +27,15 @@ def test_request_preserves_streaming_callback() -> None:
     def callback(event) -> None:
         del event
 
+    handler = as_provider_handler(callback)
     request = ClientRequest(
         UserMessage("question"),
         streaming=True,
-        on_event=callback,
+        on_event=handler,
     )
 
     assert request.streaming is True
-    assert request.on_event is callback
+    assert request.on_event is handler
 
 
 def test_request_is_frozen() -> None:
@@ -50,7 +52,10 @@ def test_request_is_frozen() -> None:
         ({"message": UserMessage("question"), "extra": object()}, "dictionary"),
         ({"message": UserMessage("question"), "tool_choice": object()}, "string"),
         ({"message": UserMessage("question"), "streaming": 1}, "boolean"),
-        ({"message": UserMessage("question"), "on_event": object()}, "callable"),
+        (
+            {"message": UserMessage("question"), "on_event": object()},
+            "ProviderEventHandler",
+        ),
     ],
 )
 def test_request_rejects_invalid_values(arguments, message: str) -> None:

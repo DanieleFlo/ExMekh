@@ -123,36 +123,36 @@ tree_history = response.get_history_tree()
 
 ## 5. Real-time Event Streaming (`on_stream`)
 
-Pass an `on_stream` callback to `DeepAgent` to receive real-time updates for both LLM output generation and tool execution states:
+Pass a `DeepAgentEventHandler` instance to `DeepAgent` to receive real-time updates for both LLM output generation and tool execution states:
 
 ```python
 from qs.core.agents.deep_agent import (
     DeepAgentEvent,
+    DeepAgentEventHandler,
     DeepAgentStreamEvent,
     DeepAgentExecutionEvent,
 )
 from qs.core.models.provider_stream_event import ProviderStreamEventType
 
 
-def handle_stream(event: DeepAgentEvent) -> None:
-    if isinstance(event, DeepAgentStreamEvent):
-        # Tokens streamed directly from provider
-        provider_event = event.provider_event
-        if provider_event.type is ProviderStreamEventType.RESPONSE:
-            print(provider_event.content, end="", flush=True)
+class PrintAgentEvents(DeepAgentEventHandler):
+    def handle(self, event: DeepAgentEvent) -> None:
+        if isinstance(event, DeepAgentStreamEvent):
+            provider_event = event.provider_event
+            if provider_event.type is ProviderStreamEventType.RESPONSE:
+                print(provider_event.content, end="", flush=True)
 
-    elif isinstance(event, DeepAgentExecutionEvent):
-        # Tool execution start / end events with full context
-        print(
-            f"\n[Tool Execution]: {event.tool_name} (type={event.type}, depth={event.depth}, path={event.skill_path})"
-        )
+        elif isinstance(event, DeepAgentExecutionEvent):
+            print(
+                f"\n[Tool Execution]: {event.tool_name} (type={event.type}, depth={event.depth}, path={event.skill_path})"
+            )
 
 
 agent = DeepAgent(
     provider=provider,
     node=root_node,
     work_root=Path.cwd(),
-    on_stream=handle_stream,
+    on_stream=PrintAgentEvents(),
 )
 ```
 

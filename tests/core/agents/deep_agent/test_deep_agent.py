@@ -200,7 +200,7 @@ def test_rejects_non_provider_before_loading_node(tmp_path: Path) -> None:
 def test_rejects_non_callable_stream_handler(tmp_path: Path) -> None:
     node = Node([tmp_path / "capabilities"], name_hds="root")
 
-    with pytest.raises(TypeError, match="on_stream must be a callable"):
+    with pytest.raises(TypeError, match="DeepAgentEventHandler"):
         DeepAgent(
             provider=StubProvider(),
             node=node,

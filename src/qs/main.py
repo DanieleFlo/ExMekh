@@ -22,61 +22,61 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-def create_stream_printer(
-    presentation: CliPresentation | None = None,
-) -> DeepAgentEventHandler:
-    presentation = presentation or CliPresentation()
-    current_section: ProviderStreamEventType | None = None
+class StreamPrinter(DeepAgentEventHandler):
+    def __init__(self, presentation: CliPresentation | None = None) -> None:
+        self._presentation = presentation or CliPresentation()
+        self._current_section: ProviderStreamEventType | None = None
 
-    def print_stream_event(event: DeepAgentEvent) -> None:
-        nonlocal current_section
-
+    def handle(self, event: DeepAgentEvent) -> None:
         if isinstance(event, DeepAgentStreamEvent):
-            provider_event = event.provider_event
-            if provider_event.type is ProviderStreamEventType.START:
-                current_section = None
-                return
-            if provider_event.type is ProviderStreamEventType.END:
-                if current_section is not None:
-                    print()
-                current_section = None
-                return
-            if (
-                provider_event.type
-                not in {
-                    ProviderStreamEventType.REASONING,
-                    ProviderStreamEventType.RESPONSE,
-                }
-                or provider_event.content is None
-            ):
-                return
+            self._handle_stream_event(event)
+        elif isinstance(event, DeepAgentExecutionEvent):
+            self._handle_execution_event(event)
 
-            if provider_event.type is not current_section:
-                label = (
-                    presentation.thinking_label
-                    if provider_event.type is ProviderStreamEventType.REASONING
-                    else presentation.response_stream_label
-                )
-                try:
-                    print(f"\n{label}: ", end="", flush=True)
-                except (OSError, ValueError) as e:
-                    logger.error(e)
+    def _handle_execution_event(self, event: DeepAgentExecutionEvent) -> None:
+        self._current_section = None
+        print(
+            f"\n{event.type}: {event.tool_name} "
+            f"(depth={event.depth}, path={event.skill_path})"
+        )
 
-                current_section = provider_event.type
-            try:
-                print(provider_event.content, end="", flush=True)
-            except (OSError, ValueError) as e:
-                logger.error(e)
+    def _handle_stream_event(self, event: DeepAgentStreamEvent) -> None:
+        provider_event = event.provider_event
+        if provider_event.type is ProviderStreamEventType.START:
+            self._current_section = None
+            return
+        if provider_event.type is ProviderStreamEventType.END:
+            if self._current_section is not None:
+                print()
+            self._current_section = None
+            return
+        if (
+            provider_event.type
+            not in {
+                ProviderStreamEventType.REASONING,
+                ProviderStreamEventType.RESPONSE,
+            }
+            or provider_event.content is None
+        ):
             return
 
-        if isinstance(event, DeepAgentExecutionEvent):
-            current_section = None
-            print(
-                f"\n{event.type}: {event.tool_name} "
-                f"(depth={event.depth}, path={event.skill_path})"
+        if provider_event.type is not self._current_section:
+            label = (
+                self._presentation.thinking_label
+                if provider_event.type is ProviderStreamEventType.REASONING
+                else self._presentation.response_stream_label
             )
+            self._print_stream_text(f"\n{label}: ")
+            self._current_section = provider_event.type
 
-    return print_stream_event
+        self._print_stream_text(provider_event.content)
+
+    @staticmethod
+    def _print_stream_text(text: str) -> None:
+        try:
+            print(text, end="", flush=True)
+        except (OSError, ValueError) as error:
+            logger.error(error)
 
 
 def main() -> None:
@@ -102,7 +102,7 @@ def main() -> None:
         provider=provider,
         node=root_node,
         work_root=Path.cwd(),
-        on_stream=create_stream_printer(cli_settings.presentation),
+        on_stream=StreamPrinter(cli_settings.presentation),
     )
     while True:
         user_message = input(cli_settings.presentation.user_prompt)

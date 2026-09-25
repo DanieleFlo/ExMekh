@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 
-from qs.core.models.provider_stream_event import ProviderStreamEvent
+from qs.interfaces.event_handler import ProviderEventHandler
 from qs.interfaces.message import Message
 
 
@@ -13,7 +12,7 @@ class ClientRequest:
     extra: dict | None = None
     tool_choice: str | None = None
     streaming: bool = False
-    on_event: Callable[[ProviderStreamEvent], None] | None = None
+    on_event: ProviderEventHandler | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.message, Message):
@@ -24,8 +23,8 @@ class ClientRequest:
             raise TypeError("Tool choice must be a string")
         if not isinstance(self.streaming, bool):
             raise TypeError("Streaming must be a boolean")
-        if self.on_event is not None and not callable(self.on_event):
-            raise TypeError("on_event must be a callable if provided")
+        if self.on_event is not None:
+            ProviderEventHandler.validate_instance(self.on_event)
 
         if self.extra is not None:
             object.__setattr__(self, "extra", self.extra.copy())

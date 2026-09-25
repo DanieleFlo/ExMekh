@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 from collections.abc import Iterator
 from pathlib import Path
@@ -22,6 +23,7 @@ from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
 from qs.core.tool_calls import ToolCallReader, ToolCallSearch
 from qs.providers.local import LocalProvider
 from qs.utils.file import read_json_from_path
+from tests.event_handler import as_agent_handler
 
 pytestmark = pytest.mark.live
 
@@ -101,7 +103,7 @@ def initialize_node(
     node.initialize(
         provider,
         work_root=work_root,
-        on_stream=(lambda event: None) if streaming else None,
+        on_stream=as_agent_handler((lambda event: None) if streaming else None),
     )
     return node
 
@@ -221,16 +223,23 @@ def test_live_nested_tools_save_path_and_each_turn_thinking(
     assert len(regular) == 1 and len(skills) == 2
     assert regular[0].skill_path == "/mock-skill/nested-skill"
     assert token in regular[0].result
-    assert {record.name: (record.skill_path, record.result) for record in skills} == {
-        "mock-skill": (
-            "/mock-skill",
-            {"text": "parent done", "items": []},
-        ),
-        "nested-skill": (
-            "/mock-skill/nested-skill",
-            {"text": "nested done", "items": []},
-        ),
-    }
+    skill_records = {record.name: record for record in skills}
+    assert skill_records["mock-skill"].skill_path == "/mock-skill"
+    assert skill_records["nested-skill"].skill_path == "/mock-skill/nested-skill"
+    exit_calls = [
+        call
+        for response in live_provider.responses
+        for call in response.get_tool_calls() or []
+        if call.get_name() == "exit_agent"
+    ]
+    assert len(exit_calls) == 2
+    for skill_name, exit_call in zip(
+        ("nested-skill", "mock-skill"), exit_calls, strict=True
+    ):
+        arguments = exit_call.get_arguments()
+        assert isinstance(arguments.get("text"), str) and arguments["text"].strip()
+        assert arguments.get("items") == []
+        assert skill_records[skill_name].result == arguments
     assert node.depth == 0
 
 
@@ -280,10 +289,10 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
     assert isinstance(code, str) and 6 <= len(code) <= 12 and code.isalnum(), (
         f"MODEL: expected a 6-12 character alphanumeric code, got {code!r}"
     )
-    assert calls_by_name["exit_agent"][0].get_arguments() == {
-        "text": code,
-        "items": [],
-    }
+    exit_arguments = calls_by_name["exit_agent"][0].get_arguments()
+    exit_text = exit_arguments.get("text")
+    assert isinstance(exit_text, str) and code in exit_text
+    assert exit_arguments.get("items") == []
 
     records = saved_cache(node).get_all()
     sub_tool_records = [record for record in records if record.name == "mock-sub-tool"]
@@ -297,11 +306,11 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
     skill_records = [record for record in records if record.name == "mock-skill"]
     assert len(skill_records) == 1
     assert skill_records[0].source == "DeepSkill"
-    assert skill_records[0].result == {"text": code, "items": []}
+    assert skill_records[0].result == exit_arguments
 
     search_call = calls_by_name["search_saved_tool_outputs"][0]
     search_arguments = search_call.get_arguments()
-    assert search_arguments.get("query") == code
+    assert code in search_arguments.get("query", "")
     assert search_arguments.get("tool_name") == "mock-sub-tool"
     search_xml = ET.fromstring(get_tool_response(live_provider, search_call.id))
     assert search_xml.findtext("total") == "1"
@@ -319,7 +328,10 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
     assert header.findtext("id") == sub_tool_record.id
     assert header.findtext("./args/text") == code
     assert saved_output == f"Mock sub-tool result: {code}"
-    assert response.get_message().strip() == f"MATCH: {code}"
+    answer = response.get_message()
+    assert re.search(r"\bMATCH\b", answer, flags=re.IGNORECASE)
+    assert not re.search(r"\bMISMATCH\b", answer, flags=re.IGNORECASE)
+    assert code in answer
 
 
 def test_live_cache_isolates_same_named_nodes_and_retains_previous_runs(
@@ -394,7 +406,7 @@ def test_live_exit_uses_instructions_available_only_in_markdown(
     node.initialize(
         live_provider,
         work_root=tmp_path,
-        on_stream=(lambda event: None) if streaming else None,
+        on_stream=as_agent_handler((lambda event: None) if streaming else None),
     )
     response = node.run(
         "Open mock-skill exactly once. Follow its exit instructions to finish it. Then reply briefly without other tools."

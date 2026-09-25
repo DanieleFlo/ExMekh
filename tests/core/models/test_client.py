@@ -18,6 +18,7 @@ from qs.core.models.tool_message import ToolMessage
 from qs.core.models.tools import Tools
 from qs.core.models.user_message import UserMessage
 from qs.interfaces.provider import Provider
+from tests.event_handler import as_provider_handler
 
 
 class StructuredAnswer(BaseModel):
@@ -192,10 +193,11 @@ def test_call_forwards_streaming_options(structured: bool) -> None:
     def callback(event) -> None:
         del event
 
+    handler = as_provider_handler(callback)
     request = ClientRequest(
         UserMessage("question"),
         streaming=True,
-        on_event=callback,
+        on_event=handler,
     )
 
     if structured:
@@ -206,7 +208,7 @@ def test_call_forwards_streaming_options(structured: bool) -> None:
         provider_request = provider.call.call_args.args[0]
 
     assert provider_request.get_streaming() is True
-    assert provider_request.on_event is callback
+    assert provider_request.on_event is handler
 
 
 def test_call_provider_failure_keeps_unanswered_request_in_history() -> None:

@@ -6,7 +6,6 @@ from qs.config.runtime import RUNTIME
 from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.capabilities.defaults import DefaultCapabilities
 from qs.core.agents.deep_agent.stream_event import (
-    DeepAgentEventHandler,
     DeepAgentExecutionEvent,
     DeepAgentStreamEvent,
 )
@@ -17,6 +16,7 @@ from qs.core.models.client import Client
 from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool import Tool
 from qs.core.models.tools import Tools
+from qs.interfaces.event_handler import DeepAgentEventHandler
 from qs.interfaces.provider import Provider
 
 from .agentic_scope import AgenticScope
@@ -64,7 +64,7 @@ class NodeRuntimeConfig:
         self, event: DeepAgentStreamEvent | DeepAgentExecutionEvent
     ) -> None:
         if self.on_stream is not None:
-            self.on_stream(event)
+            self.on_stream.handle(event)
 
     def build_tools(self, runtime_tools: tuple[Tool, ...] = ()) -> Tools:
         return Tools(

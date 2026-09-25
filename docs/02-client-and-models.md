@@ -96,7 +96,7 @@ The internal [`MessageHistory`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core
 
 ## Streaming Architecture
 
-When streaming is enabled in `ClientRequest` or provider calls, events are pushed via a callback receiving [`ProviderStreamEvent`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/models/provider_stream_event.py).
+When streaming is enabled in `ClientRequest` or provider calls, a `ProviderEventHandler` instance receives each `ProviderStreamEvent` through its `handle` method.
 
 ### Stream Event Types ([`ProviderStreamEventType`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/models/provider_stream_event.py))
 - `START`: Emitted when streaming begins.
@@ -107,15 +107,21 @@ When streaming is enabled in `ClientRequest` or provider calls, events are pushe
 - `ERROR`: Emitted if an error occurs during streaming.
 
 ```python
-def on_stream_event(event: ProviderStreamEvent) -> None:
-    if event.type == ProviderStreamEventType.REASONING:
-        print(f"[Thinking]: {event.content}", end="", flush=True)
-    elif event.type == ProviderStreamEventType.RESPONSE:
-        print(event.content, end="", flush=True)
+from qs.core.models.provider_stream_event import ProviderStreamEvent, ProviderStreamEventType
+from qs.interfaces.event_handler import ProviderEventHandler
 
 
-response = client.call_stream(
-    ClientRequest(UserMessage("Explain general relativity")),
-    on_event=on_stream_event,
-)
+class PrintProviderEvents(ProviderEventHandler):
+    def handle(self, event: ProviderStreamEvent) -> None:
+        if event.type == ProviderStreamEventType.REASONING:
+            print(f"[Thinking]: {event.content}", end="", flush=True)
+        elif event.type == ProviderStreamEventType.RESPONSE:
+            print(event.content, end="", flush=True)
+
+
+response = client.call(ClientRequest(
+    UserMessage("Explain general relativity"),
+    streaming=True,
+    on_event=PrintProviderEvents(),
+))
 ```

@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-
 from pydantic import BaseModel
 
 from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.provider_stream_event import ProviderStreamEvent
 from qs.core.models.tools import Tools
+from qs.interfaces.event_handler import ProviderEventHandler
 from qs.interfaces.message import Message
 
 
@@ -21,7 +19,7 @@ class StructuredProviderRequest[ResponseModel: BaseModel](ProviderRequest):
         tool_choice: str | None = None,
         tools: Tools | None = None,
         stream: bool = False,
-        on_event: Callable[[ProviderStreamEvent], None] | None = None,
+        on_event: ProviderEventHandler | None = None,
     ) -> None:
         super().__init__(
             messages,

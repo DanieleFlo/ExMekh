@@ -24,11 +24,13 @@ def _web_tools(work_root: Path):
     return {tool.name: tool for tool in loaded.tools}
 
 
-def _search_with_one_retry(tool, **arguments: object) -> dict[str, object]:
-    result = tool.execute(**arguments)
-    if result.get("error_kind") == "search_failed":
-        time.sleep(2)
+def _search_with_retry(tool, **arguments: object) -> dict[str, object]:
+    for delay in (0, 5, 10, 20):
+        if delay:
+            time.sleep(delay)
         result = tool.execute(**arguments)
+        if result.get("error_kind") != "search_failed":
+            return result
     return result
 
 
@@ -39,7 +41,7 @@ def test_live_search_discovers_official_sources_for_two_queries(tmp_path: Path) 
         ("IANA reserved example domains", "iana.org"),
         ("Python statistics mean standard library documentation", "docs.python.org"),
     ):
-        result = _search_with_one_retry(tools["search-web"], query=query, max_results=5)
+        result = _search_with_retry(tools["search-web"], query=query, max_results=5)
         assert "result_count" in result, result
         assert result["query"] == query
         assert result["result_count"] > 0
@@ -57,7 +59,7 @@ def test_live_news_search_reads_a_source_instead_of_only_snippets(
     tmp_path: Path,
 ) -> None:
     tools = _web_tools(tmp_path)
-    search = _search_with_one_retry(
+    search = _search_with_retry(
         tools["search-web"], query="notizie principali di oggi", max_results=5
     )
     assert search.get("result_count", 0) > 0, search

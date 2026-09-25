@@ -9,12 +9,12 @@ from qs.core.agents.capabilities.capabilities import Capabilities
 from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.capabilities.defaults import DefaultCapabilities
 from qs.core.agents.deep_agent.agent_response import AgentResponse
-from qs.core.agents.deep_agent.stream_event import DeepAgentEventHandler
 from qs.core.agents.hds.hds import HDS
 from qs.core.agents.sub_agent.sub_agent_tool import SubAgentTool
 from qs.core.cache.node_cache import NodeCache
 from qs.core.models.tool import Tool
 from qs.core.tool_calls.memory_tools import ExecutionHistory
+from qs.interfaces.event_handler import DeepAgentEventHandler
 from qs.interfaces.message import Message
 from qs.interfaces.provider import Provider
 
@@ -94,8 +94,8 @@ class Node:
     ) -> CapabilitiesData:
         if not isinstance(provider, Provider):
             raise TypeError("provider must be a Provider")
-        if on_stream is not None and not callable(on_stream):
-            raise TypeError("on_stream must be a callable if provided")
+        if on_stream is not None:
+            DeepAgentEventHandler.validate_instance(on_stream)
 
         self._resolved_default_capabilities = self._default_capabilities
         capabilities = self.load_capabilities(work_root=work_root)

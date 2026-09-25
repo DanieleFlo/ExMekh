@@ -1,6 +1,7 @@
+from qs.interfaces.event_handler import DeepAgentEventHandler
+
 from .stream_event import (
     DeepAgentEvent,
-    DeepAgentEventHandler,
     DeepAgentExecutionEvent,
     DeepAgentExecutionEventType,
     DeepAgentStreamEvent,

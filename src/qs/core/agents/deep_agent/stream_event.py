@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass
 from enum import StrEnum
@@ -58,7 +57,6 @@ class DeepAgentExecutionEvent:
 
 
 type DeepAgentEvent = DeepAgentStreamEvent | DeepAgentExecutionEvent
-type DeepAgentEventHandler = Callable[[DeepAgentEvent], None]
 
 
 def _validate_position(depth: int, skill_path: str) -> None:
