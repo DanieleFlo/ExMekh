@@ -33,12 +33,7 @@ class _NamedOverrideResolver:
                 source = self._find_source(
                     loaded.tools, replacement.replacement_name, "tool"
                 )
-                resolved[target] = Tool(
-                    source.tool,
-                    name=target,
-                    description=source.description,
-                    cache_result=source.cache_result,
-                )
+                resolved[target] = source.with_name(target)
             elif isinstance(replacement, DeepSkillOverride):
                 source = self._find_source(
                     loaded.deep_skills, replacement.replacement_name, "deep skill"

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, Literal, cast
 
 from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill
@@ -36,12 +37,14 @@ class ToolCallExecutor:
         initial_depth: int,
         agentic_scope: AgenticScope,
         exit_content_resolver: ExitContentResolver,
+        work_root: Path | None = None,
     ) -> None:
         self._client = client
         self._exit_tool = exit_tool
         self._depth = initial_depth
         self._agentic_scope = agentic_scope
         self._exit_content_resolver = exit_content_resolver
+        self._work_root = work_root if work_root is not None else Path.cwd()
         self._skill_executions = DeepSkillExecutionTracker()
 
     @property
@@ -145,7 +148,10 @@ class ToolCallExecutor:
             self._depth,
         )
         try:
-            result = called_tool.execute()
+            result = called_tool.execute(
+                work_root=self._work_root,
+                history=tuple(self._client.dump_history()),
+            )
         except (TypeError, ValueError) as error:
             return self._recoverable_error(called_tool, f"Invalid arguments: {error}")
         if isinstance(result, PreformattedToolResult):
@@ -222,7 +228,10 @@ class ToolCallExecutor:
             self._depth,
         )
         try:
-            called_exit_tool.validate_arguments()
+            result = called_exit_tool.execute(
+                work_root=self._work_root,
+                history=tuple(self._client.dump_history()),
+            )
         except (TypeError, ValueError) as error:
             tool_name = called_exit_tool.name
             return self._recoverable_error(
@@ -232,8 +241,6 @@ class ToolCallExecutor:
                 f'{tool_name}(text="… {{{{<id-output>}}}} …", '
                 'items=["<id-output>"].',
             )
-
-        result = called_exit_tool.execute()
         content = self.get_exit_output(result)
         items = cast(list[str], result["items"])
         opening_position = (

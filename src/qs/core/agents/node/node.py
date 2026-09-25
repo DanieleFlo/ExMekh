@@ -113,6 +113,7 @@ class Node:
                 exit_tool=exit_tool,
                 persistent_history=self._persistent_history,
                 initial_depth=self._initial_depth,
+                work_root=work_root,
                 agent_context_id=context_id,
                 runtime_tools=runtime_tools,
                 default_capabilities=defaults,

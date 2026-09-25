@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from qs.config.capabilities import CAPABILITY_FORMAT
+from qs.interfaces.tool_hook import AfterTool, BeforeTool, validate_tool_hooks
 
 type ToolFunction = Callable[..., Any]
 
@@ -18,18 +19,25 @@ _ENTRYPOINT_ATTRIBUTE: Final[str] = CAPABILITY_FORMAT.deep_tool_attribute
 class ToolDefinition:
     name: str | None
     description: str | None
+    before: BeforeTool | None = None
+    after: AfterTool | None = None
 
 
 def deep_tool(
     *,
     name: str | None = None,
     description: str | None = None,
+    before: BeforeTool | None = None,
+    after: AfterTool | None = None,
 ) -> Callable[[ToolFunction], ToolFunction]:
     _validate_definition(name, description)
+    validate_tool_hooks(before, after)
 
     definition = ToolDefinition(
         name=name,
         description=description.strip() if description is not None else None,
+        before=before,
+        after=after,
     )
 
     def decorate(function: ToolFunction) -> ToolFunction:

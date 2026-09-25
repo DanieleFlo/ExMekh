@@ -8,6 +8,7 @@ from qs.core.agents.exit_tool.data import ExitToolData
 from qs.core.agents.exit_tool.decorator import ExitToolFunction
 from qs.core.models.assistant_message import ToolCall
 from qs.core.models.tool import Tool
+from qs.interfaces.tool_hook import AfterTool, BeforeTool
 
 
 class ExitTool(Tool):
@@ -20,6 +21,8 @@ class ExitTool(Tool):
         instructions_path: Path,
         instructions: str,
         folder_path: Path,
+        before: BeforeTool | None = None,
+        after: AfterTool | None = None,
     ) -> None:
         if not isinstance(instructions_path, Path):
             raise TypeError("instructions_path must be a Path")
@@ -32,7 +35,9 @@ class ExitTool(Tool):
         self.instructions_path = instructions_path
         self.instructions, self.references = parse_references(instructions.strip())
         self.folder_path = folder_path
-        super().__init__(function, name=name, description=description)
+        super().__init__(
+            function, name=name, description=description, before=before, after=after
+        )
 
     def render_prompt_section(self) -> str:
         return f'<exit-tool name="{self.name}">{self.instructions}</exit-tool>'
@@ -43,6 +48,24 @@ class ExitTool(Tool):
             raise TypeError("exit tool must return ExitToolData")
 
         return result.dump()
+
+    def validate_arguments(self, arguments: dict[str, Any]) -> None:
+        super().validate_arguments(arguments)
+        ExitToolData(**arguments)
+
+    def execute_with_hooks(
+        self,
+        arguments: dict[str, Any],
+        *,
+        work_root: Path,
+        history: tuple[dict[str, str], ...],
+    ) -> dict[str, str | list[str]]:
+        result = super().execute_with_hooks(
+            arguments, work_root=work_root, history=history
+        )
+        if not isinstance(result, dict):
+            raise TypeError("Exit tool result must be a dictionary")
+        return ExitToolData(**result).dump()
 
     def __str__(self) -> str:
         return f"Name: {self.name}\nType: ExitTool\nInstructions: {self.instructions[:50]}..."
@@ -75,7 +98,16 @@ class CalledExitTool:
         return self._tool_call
 
     def validate_arguments(self) -> None:
-        ExitToolData(**self.arguments)
+        self._exit_tool.validate_arguments(self.arguments)
 
-    def execute(self) -> dict[str, str | list[str]]:
-        return self._exit_tool.execute(**self._tool_call.get_arguments())
+    def execute(
+        self,
+        *,
+        work_root: Path | None = None,
+        history: tuple[dict[str, str], ...] = (),
+    ) -> dict[str, str | list[str]]:
+        return self._exit_tool.execute_with_hooks(
+            self.arguments,
+            work_root=work_root if work_root is not None else Path.cwd(),
+            history=history,
+        )

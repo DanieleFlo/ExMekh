@@ -100,6 +100,8 @@ class DeepTools:
                 bound_function,
                 name=definition.name or tool_path.name,
                 description=description,
+                before=definition.before,
+                after=definition.after,
             )
         except Exception:
             self._module_importer.unload_module(tool_path)

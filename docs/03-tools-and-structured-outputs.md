@@ -68,6 +68,41 @@ def read_workspace_file(work_root: Path, relative_path: str) -> str:
 1. **`work_root` Binding**: Every `@deep_tool` entrypoint MUST declare `work_root: Path` as its first positional argument.
 2. **Internal Binding**: The `DeepAgent` runtime injects `work_root` internally before invocation. `work_root` is automatically removed from the JSON schema generated for the LLM.
 
+### Before and after hooks
+
+`@deep_tool` and `@exit_tool` accept `before` and `after` instances. Plain
+`Tool` objects accept the same constructor arguments. Hooks run for agent tool
+calls and are kept out of the model's tool schema.
+
+```python
+from pathlib import Path
+from typing import Any
+from qs.interfaces.tool_hook import (
+    AfterTool, BeforeTool, ToolArguments, ToolContext, ToolResponse,
+)
+
+class NormalizeInput(BeforeTool):
+    def handle(self, context: ToolContext) -> ToolArguments | ToolResponse | None:
+        # context also contains work_root and the conversation history so far.
+        return ToolArguments({**context.arguments, "query": context.arguments["query"].strip()})
+
+class FormatOutput(AfterTool):
+    def handle(self, context: ToolContext, result: Any) -> Any:
+        return {"answer": result}
+
+@deep_tool(description="Search the project", before=NormalizeInput(), after=FormatOutput())
+def search(work_root: Path, query: str) -> str:
+    ...
+```
+
+`BeforeTool.handle` returns `None` to continue unchanged, `ToolArguments` to
+replace the arguments, or `ToolResponse` to skip the tool and supply a result.
+`AfterTool.handle` receives the effective arguments and the result, including
+one supplied by `BeforeTool`, and returns the final result. The history is a
+snapshot of messages available when the tool starts. Exit tool results must
+still contain valid `text` and `items` fields. Hook instances must implement
+synchronous `handle` methods with the shown number of parameters.
+
 ---
 
 ## 3. Tool Call Resolution & Value Coercion

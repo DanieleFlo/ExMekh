@@ -80,6 +80,32 @@ def test_uses_folder_name_as_default(tmp_path: Path) -> None:
     assert tool.description == "Search project files."
 
 
+def test_loaded_tool_runs_decorator_hooks(tmp_path: Path) -> None:
+    tool_path = _write_tool(
+        tmp_path,
+        main=(
+            "from qs.core.agents.tools.decorator import deep_tool\n"
+            "from qs.interfaces.tool_hook import BeforeTool, AfterTool, ToolArguments\n"
+            "class Before(BeforeTool):\n"
+            "    def handle(self, context):\n"
+            "        return ToolArguments({'query': context.arguments['query'].upper()})\n"
+            "class After(AfterTool):\n"
+            "    def handle(self, context, result):\n"
+            "        return result + '!'\n"
+            "@deep_tool(description='Search.', before=Before(), after=After())\n"
+            "def run(work_root, query: str) -> str:\n"
+            "    return f'{work_root.name}: {query}'\n"
+        ),
+    )
+
+    tool = DeepTools([tool_path], work_root=tmp_path).load()[0]
+
+    assert (
+        tool.execute_with_hooks({"query": "hello"}, work_root=tmp_path, history=())
+        == f"{tmp_path.name}: HELLO!"
+    )
+
+
 def test_rejects_missing_description_even_with_docstring(tmp_path: Path) -> None:
     tool_path = _write_tool(
         tmp_path,

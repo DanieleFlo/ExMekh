@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 
 from qs.config.runtime import RUNTIME
 from qs.core.agents.capabilities.data import CapabilitiesData
@@ -33,6 +34,7 @@ class NodeRuntimeConfig:
     exit_tool: ExitTool
     persistent_history: bool
     initial_depth: int
+    work_root: Path = field(default_factory=Path.cwd)
     agent_context_id: str | None = None
     runtime_tools: tuple[Tool, ...] = ()
     default_capabilities: DefaultCapabilities | None = None
@@ -94,6 +96,7 @@ class NodeRuntimeConfig:
             initial_depth=self.initial_depth,
             agentic_scope=agentic_scope,
             exit_content_resolver=exit_content_resolver,
+            work_root=self.work_root,
         )
 
     def get_hds_name(self) -> str:

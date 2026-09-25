@@ -43,6 +43,8 @@ class ExitTools(DeepTools):
                 instructions_path=instructions_path,
                 instructions=instructions,
                 folder_path=tool_path,
+                before=definition.before,
+                after=definition.after,
             )
         except Exception:
             self._module_importer.unload_module(tool_path)

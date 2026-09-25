@@ -775,6 +775,38 @@ def test_named_tool_override_replaces_a_bundled_tool(tmp_path: Path) -> None:
     )
 
 
+def test_named_tool_override_preserves_source_hooks(tmp_path: Path) -> None:
+    path = write_hds(tmp_path, "application", tools=("target-tool",))
+    write_tool(path, "target-tool")
+    write_tool(path, "source-tool")
+    source_entrypoint = path / "tools" / "source-tool-directory" / "main.py"
+    source_entrypoint.write_text(
+        "from qs.core.agents.tools.decorator import deep_tool\n"
+        "from qs.interfaces.tool_hook import AfterTool\n"
+        "class Suffix(AfterTool):\n"
+        "    def handle(self, context, result):\n"
+        "        return result + '!'\n"
+        "@deep_tool(name='source-tool', description='Source', after=Suffix())\n"
+        "def run(work_root, text: str) -> str:\n"
+        "    return text\n"
+    )
+    node = Node(
+        [path],
+        name_hds="application",
+        default_capabilities=DefaultCapabilities(
+            overrides=ToolOverride("target-tool", "source-tool")
+        ),
+    )
+
+    loaded = node.load_capabilities(work_root=tmp_path)
+    target = next(tool for tool in loaded.tools if tool.name == "target-tool")
+
+    assert (
+        target.execute_with_hooks({"text": "ok"}, work_root=tmp_path, history=())
+        == "ok!"
+    )
+
+
 def test_named_deep_skill_override_replaces_a_bundled_skill(tmp_path: Path) -> None:
     path = write_hds(tmp_path, "application", skills=("mock-skill",))
     write_skill(path, "replacement-skill")

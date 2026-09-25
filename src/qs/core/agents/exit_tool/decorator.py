@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from qs.config.capabilities import CAPABILITY_FORMAT
+from qs.interfaces.tool_hook import AfterTool, BeforeTool, validate_tool_hooks
 
 type ExitToolFunction = Callable[..., Any]
 
@@ -18,6 +19,8 @@ class ExitToolDefinition:
     instructions_path: Path
     name: str | None
     description: str | None
+    before: BeforeTool | None = None
+    after: AfterTool | None = None
 
 
 def exit_tool(
@@ -25,16 +28,21 @@ def exit_tool(
     instructions_path: str | Path,
     name: str | None = None,
     description: str | None = None,
+    before: BeforeTool | None = None,
+    after: AfterTool | None = None,
 ) -> Callable[[ExitToolFunction], ExitToolFunction]:
     if not isinstance(instructions_path, (str, Path)):
         raise TypeError("instructions_path must be a string or Path")
     if isinstance(instructions_path, str) and not instructions_path.strip():
         raise ValueError("instructions_path cannot be blank")
     _validate_definition(name, description)
+    validate_tool_hooks(before, after)
     definition = ExitToolDefinition(
         instructions_path=Path(instructions_path),
         name=name,
         description=description.strip() if description is not None else None,
+        before=before,
+        after=after,
     )
 
     def decorate(function: ExitToolFunction) -> ExitToolFunction:

@@ -664,7 +664,7 @@ def test_run_tool_delegates_execution_to_called_tool() -> None:
 
     result = executor.execute(called_tool)
 
-    called_tool.execute.assert_called_once_with()
+    called_tool.execute.assert_called_once_with(work_root=Path.cwd(), history=())
     client.add_tool_response.assert_not_called()
     client.get_session.assert_not_called()
     response = result.response
@@ -690,7 +690,7 @@ def test_run_tool_prepends_xml_header_when_client_generates_id() -> None:
 
     result = executor.execute(called_tool)
 
-    called_tool.execute.assert_called_once_with()
+    called_tool.execute.assert_called_once_with(work_root=Path.cwd(), history=())
     client.add_tool_response.assert_not_called()
     client.get_session.assert_not_called()
     response = result.response

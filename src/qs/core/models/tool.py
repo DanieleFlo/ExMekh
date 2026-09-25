@@ -5,10 +5,19 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
+from pathlib import Path
 from typing import Any, Literal, get_type_hints
 
 from qs.config.validation import VALIDATION_PATTERNS
 from qs.core.models.assistant_message import ToolCall
+from qs.interfaces.tool_hook import (
+    AfterTool,
+    BeforeTool,
+    ToolArguments,
+    ToolContext,
+    ToolResponse,
+    validate_tool_hooks,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +39,8 @@ class Tool:
         name: str | None = None,
         description: str | None = None,
         cache_result: bool = True,
+        before: BeforeTool | None = None,
+        after: AfterTool | None = None,
     ) -> None:
         self.tool = tool
         self._tool_type: Literal["function"] = "function"
@@ -39,6 +50,9 @@ class Tool:
         if not isinstance(cache_result, bool):
             raise TypeError("cache_result must be a bool")
         self.cache_result = cache_result
+        validate_tool_hooks(before, after)
+        self.before = before
+        self.after = after
         self._check_inputs()
 
     def _resolve_tool_name(self, tool: Callable[..., Any], name: str | None) -> str:
@@ -64,6 +78,32 @@ class Tool:
     def execute(self, **arguments: Any) -> Any:
         return self.tool(**arguments)
 
+    def validate_arguments(self, arguments: dict[str, Any]) -> None:
+        """Validate the final arguments before invoking the tool."""
+        inspect.signature(self.tool).bind(**arguments)
+
+    def execute_with_hooks(
+        self,
+        arguments: dict[str, Any],
+        *,
+        work_root: Path,
+        history: tuple[dict[str, str], ...],
+    ) -> Any:
+        context = ToolContext(dict(arguments), work_root, history)
+        decision = self.before.handle(context) if self.before is not None else None
+        if isinstance(decision, ToolArguments):
+            context = ToolContext(dict(decision.arguments), work_root, history)
+        elif decision is not None and not isinstance(decision, ToolResponse):
+            raise TypeError(
+                "BeforeTool.handle must return ToolArguments, ToolResponse, or None"
+            )
+        if isinstance(decision, ToolResponse):
+            result = decision.result
+        else:
+            self.validate_arguments(context.arguments)
+            result = self.execute(**context.arguments)
+        return self.after.handle(context, result) if self.after is not None else result
+
     def get_name(self) -> str:
         return self.name
 
@@ -78,11 +118,20 @@ class Tool:
         return get_type_hints(callable_tool, include_extras=True)
 
     def with_description(self, description: str) -> Tool:
+        return self._copy(name=self.name, description=description)
+
+    def with_name(self, name: str) -> Tool:
+        """Copy a tool under another registered name, preserving its behavior."""
+        return self._copy(name=name, description=self.description)
+
+    def _copy(self, *, name: str, description: str) -> Tool:
         return Tool(
             self.tool,
-            name=self.name,
+            name=name,
             description=description,
             cache_result=self.cache_result,
+            before=self.before,
+            after=self.after,
         )
 
     def with_description_suffix(self, suffix: str) -> Tool:
@@ -132,8 +181,17 @@ class CalledTool:
     def cache_result(self) -> bool:
         return self._tool.cache_result
 
-    def execute(self) -> Any:
-        return self._tool.execute(**self._tool_call.function.arguments)
+    def execute(
+        self,
+        *,
+        work_root: Path | None = None,
+        history: tuple[dict[str, str], ...] = (),
+    ) -> Any:
+        return self._tool.execute_with_hooks(
+            self.arguments,
+            work_root=work_root if work_root is not None else Path.cwd(),
+            history=history,
+        )
 
     def _validate_matching(self) -> None:
         call_name = self._tool_call.get_name()
