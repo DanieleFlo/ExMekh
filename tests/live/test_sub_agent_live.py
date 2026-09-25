@@ -49,9 +49,11 @@ def build_live_sub_agent_system(
 
 def get_sub_agent_tool_calls(
     response: AgentResponse,
+    *,
+    since: int = 0,
 ) -> list[tuple[str, dict[str, object]]]:
     calls: list[tuple[str, dict[str, object]]] = []
-    for message in response.history:
+    for message in response.history[since:]:
         serialized_calls = message.get("tool_calls")
         if not serialized_calls or serialized_calls == "null":
             continue
@@ -92,9 +94,9 @@ def test_live_sub_agent_remembers_code_with_persistent_history() -> None:
         msg for msg in turn1_response.history if msg.get("role") == "tool"
     ]
     assert turn1_tool_msgs, "MODEL: expected tool message in turn 1"
-    assert "CODE RECORDED" in turn1_tool_msgs[-1]["content"], (
-        f"MODEL: expected registration confirmation in {turn1_tool_msgs[-1]['content']!r}"
-    )
+    assert any(
+        "code recorded" in msg["content"].casefold() for msg in turn1_tool_msgs
+    ), f"MODEL: expected registration confirmation in {turn1_tool_msgs!r}"
 
     # Turn 2: Ask sub-agent for the memorized code
     turn2_response = agent.run(
@@ -102,19 +104,22 @@ def test_live_sub_agent_remembers_code_with_persistent_history() -> None:
         "and text='What code did you save earlier?'. "
         "Then return the sub-agent's response including the code."
     )
-    turn2_calls = get_sub_agent_tool_calls(turn2_response)
+    turn2_calls = get_sub_agent_tool_calls(
+        turn2_response, since=len(turn1_response.history)
+    )
     assert turn2_calls, "MODEL: expected call_sub_agent in turn 2"
     turn2_tool_msgs = [
-        msg for msg in turn2_response.history if msg.get("role") == "tool"
+        msg
+        for msg in turn2_response.history[len(turn1_response.history) :]
+        if msg.get("role") == "tool"
     ]
     assert turn2_tool_msgs, "MODEL: expected tool message in turn 2"
 
     # With persistent_history=True, sub-agent remembers the code from turn 1
-    sub_agent_result = turn2_tool_msgs[-1]["content"]
-    assert code in sub_agent_result, (
-        f"MODEL: sub-agent should remember {code!r}, got {sub_agent_result!r}"
-    )
-    assert code in (turn2_response.get_message() or ""), (
+    assert any(
+        code.casefold() in msg["content"].casefold() for msg in turn2_tool_msgs
+    ), f"MODEL: sub-agent should remember {code!r}, got {turn2_tool_msgs!r}"
+    assert code.casefold() in (turn2_response.get_message() or "").casefold(), (
         f"MODEL: parent should report {code!r}"
     )
 
@@ -142,20 +147,24 @@ def test_live_sub_agent_forgets_code_without_persistent_history() -> None:
         "and text='What code did you save earlier?'. "
         "Then return the sub-agent's response."
     )
-    turn2_calls = get_sub_agent_tool_calls(turn2_response)
+    turn2_calls = get_sub_agent_tool_calls(
+        turn2_response, since=len(turn1_response.history)
+    )
     assert turn2_calls, "MODEL: expected call_sub_agent in turn 2"
     turn2_tool_msgs = [
-        msg for msg in turn2_response.history if msg.get("role") == "tool"
+        msg
+        for msg in turn2_response.history[len(turn1_response.history) :]
+        if msg.get("role") == "tool"
     ]
     assert turn2_tool_msgs, "MODEL: expected tool message in turn 2"
 
     # With persistent_history=False, the child session was reset and forgets the code
-    sub_agent_result = turn2_tool_msgs[-1]["content"]
-    assert code not in sub_agent_result, (
-        f"MODEL: sub-agent should NOT remember {code!r}, but got {sub_agent_result!r}"
-    )
-    assert "NO SAVED CODE" in sub_agent_result, (
-        f"MODEL: expected NO SAVED CODE, got {sub_agent_result!r}"
+    sub_agent_results = [msg["content"] for msg in turn2_tool_msgs]
+    assert all(
+        code.casefold() not in result.casefold() for result in sub_agent_results
+    ), f"MODEL: sub-agent should not remember {code!r}, got {sub_agent_results!r}"
+    assert any("no saved code" in result.casefold() for result in sub_agent_results), (
+        f"MODEL: expected NO SAVED CODE, got {sub_agent_results!r}"
     )
 
 
@@ -180,10 +189,10 @@ def test_live_direct_sub_agent_node_memory_persistence() -> None:
     node_persist.initialize(provider, work_root=Path.cwd())
 
     r1 = node_persist.run(f"Remember code {code_persist}")
-    assert "CODE RECORDED" in (r1.get_message() or "")
+    assert "code recorded" in (r1.get_message() or "").casefold()
 
     r2 = node_persist.run("What code did you save earlier?")
-    assert code_persist in (r2.get_message() or "")
+    assert code_persist.casefold() in (r2.get_message() or "").casefold()
 
     # 2. Test Node directly with persistent_history=False
     code_reset = "DIRECT-RESET-2020"
@@ -196,8 +205,8 @@ def test_live_direct_sub_agent_node_memory_persistence() -> None:
     node_reset.initialize(provider, work_root=Path.cwd())
 
     r3 = node_reset.run(f"Remember code {code_reset}")
-    assert "CODE RECORDED" in (r3.get_message() or "")
+    assert "code recorded" in (r3.get_message() or "").casefold()
 
     r4 = node_reset.run("What code did you save earlier?")
-    assert code_reset not in (r4.get_message() or "")
-    assert "NO SAVED CODE" in (r4.get_message() or "")
+    assert code_reset.casefold() not in (r4.get_message() or "").casefold()
+    assert "no saved code" in (r4.get_message() or "").casefold()

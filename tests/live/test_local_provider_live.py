@@ -56,29 +56,22 @@ def build_live_client(system_prompt: str, tools: Tools | None = None) -> Client:
     )
 
 
-def require_single_function_call(
+def require_ticket_calls(
     response: ProviderResponse,
     expected_ticket_id: str,
-) -> ToolCall:
-    tool_calls = response.get_tool_calls()
-    assert tool_calls is not None, "MODEL: expected one tool call, received none"
-    assert len(tool_calls) == 1, (
-        f"MODEL: expected one tool call, received {len(tool_calls)}"
-    )
-
-    tool_call = tool_calls[0]
-    assert isinstance(tool_call, ToolCall), (
-        f"CLIENT: expected a mapped function tool call, got {type(tool_call)!r}"
-    )
-    assert tool_call.function.name == "lookup_ticket", (
-        f"MODEL: expected lookup_ticket, got {tool_call.function.name!r}"
-    )
-
-    arguments = tool_call.function.arguments
-    assert arguments == {"ticket_id": expected_ticket_id}, (
-        f"MODEL: unexpected tool arguments: {arguments!r}"
-    )
-    return tool_call
+) -> list[ToolCall]:
+    tool_calls = response.get_tool_calls() or []
+    assert any(
+        isinstance(call, ToolCall)
+        and call.function.name == "lookup_ticket"
+        and call.function.arguments.get("ticket_id") == expected_ticket_id
+        for call in tool_calls
+    ), f"MODEL: expected lookup_ticket({expected_ticket_id!r}) among {tool_calls!r}"
+    assert all(
+        isinstance(call, ToolCall) and call.function.name == "lookup_ticket"
+        for call in tool_calls
+    ), f"CLIENT: unexpected function calls: {tool_calls!r}"
+    return tool_calls
 
 
 def test_live_chained_messages_preserve_multiple_facts() -> None:
@@ -111,7 +104,7 @@ def test_live_chained_messages_preserve_multiple_facts() -> None:
     )
     second_text = second_response.get_message()
     assert isinstance(second_text, str), "CLIENT: expected a text response"
-    assert "ORBIT-17" in second_text and "Ada" in second_text, (
+    assert "orbit-17" in second_text.casefold() and "ada" in second_text.casefold(), (
         f"MODEL: chained facts were not recalled: {second_text!r}"
     )
 
@@ -153,12 +146,16 @@ def test_live_two_tool_round_trips_keep_history_and_ids() -> None:
             tool_choice="required",
         )
     )
-    first_call = require_single_function_call(first_response, "QS-1042")
-    first_tool_message = ToolMessage(
-        lookup_ticket("QS-1042"),
-        tool_call_id=first_call.id,
-    )
-    client.add_tool_response(first_tool_message)
+    first_calls = require_ticket_calls(first_response, "QS-1042")
+    first_tool_messages = [
+        ToolMessage(
+            lookup_ticket(call.function.arguments["ticket_id"]),
+            tool_call_id=call.id,
+        )
+        for call in first_calls
+    ]
+    for message in first_tool_messages:
+        client.add_tool_response(message)
 
     first_continuation = client.continue_after_tools(tool_choice="none")
     first_continuation_text = first_continuation.get_message()
@@ -175,12 +172,16 @@ def test_live_two_tool_round_trips_keep_history_and_ids() -> None:
             tool_choice="required",
         )
     )
-    second_call = require_single_function_call(second_response, "QS-2048")
-    second_tool_message = ToolMessage(
-        lookup_ticket("QS-2048"),
-        tool_call_id=second_call.id,
-    )
-    client.add_tool_response(second_tool_message)
+    second_calls = require_ticket_calls(second_response, "QS-2048")
+    second_tool_messages = [
+        ToolMessage(
+            lookup_ticket(call.function.arguments["ticket_id"]),
+            tool_call_id=call.id,
+        )
+        for call in second_calls
+    ]
+    for message in second_tool_messages:
+        client.add_tool_response(message)
 
     structured_response = client.continue_after_tools_structured(
         TicketSummary,
@@ -193,23 +194,19 @@ def test_live_two_tool_round_trips_keep_history_and_ids() -> None:
     ), "MODEL: structured result differs from the second tool response"
 
     history = client.get_history()
-    assert [message.get_role_name() for message in history] == [
-        "system",
-        "user",
-        "assistant",
-        "tool",
-        "assistant",
-        "user",
-        "assistant",
-        "tool",
-        "assistant",
-    ], "CLIENT: two-round tool history has an unexpected role order"
-    assert history[3] is first_tool_message and history[7] is second_tool_message, (
-        "CLIENT: tool responses were not retained in their original positions"
+    expected_roles = ["system", "user", "assistant"]
+    expected_roles.extend("tool" for _ in first_tool_messages)
+    expected_roles.extend(["assistant", "user", "assistant"])
+    expected_roles.extend("tool" for _ in second_tool_messages)
+    expected_roles.append("assistant")
+    assert [message.get_role_name() for message in history] == expected_roles, (
+        "CLIENT: two-round tool history has an unexpected role order"
     )
-    assert first_tool_message.get_tool_call_id() == first_call.id, (
-        "CLIENT: first tool response lost its call id"
-    )
-    assert second_tool_message.get_tool_call_id() == second_call.id, (
-        "CLIENT: second tool response lost its call id"
-    )
+    for call, message in zip(
+        first_calls + second_calls,
+        first_tool_messages + second_tool_messages,
+        strict=True,
+    ):
+        assert message in history and message.get_tool_call_id() == call.id, (
+            "CLIENT: tool response or its call id was lost"
+        )

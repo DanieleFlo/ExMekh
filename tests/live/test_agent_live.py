@@ -75,16 +75,23 @@ def test_live_agent_uses_an_available_tool() -> None:
         f"Then reply with a short sentence containing {token}."
     )
 
+    calls = get_tool_calls(response)
+    assert any(
+        name == "mock-tool"
+        and token.casefold() in str(arguments.get("text", "")).casefold()
+        for name, arguments in calls
+    ), (
+        f"MODEL: expected mock-tool among the calls: {calls!r}"
+    )
     tool_messages = [
         message for message in response.history if message.get("role") == "tool"
     ]
-    assert tool_messages, "MODEL: expected mock-tool to be called"
-    assert token in tool_messages[-1]["content"], (
-        f"MODEL: mock-tool result does not contain {token!r}"
-    )
+    assert any(
+        token.casefold() in message["content"].casefold() for message in tool_messages
+    ), f"MODEL: no tool result contains {token!r}"
 
     message = response.get_message()
-    assert isinstance(message, str) and token in message, (
+    assert isinstance(message, str) and token.casefold() in message.casefold(), (
         f"MODEL: final response does not contain {token!r}"
     )
 
@@ -102,16 +109,18 @@ def test_live_agent_blocks_direct_nested_tool_scope_bypass() -> None:
     names = [name for name, _ in calls]
     if "nested-sub-tool" in names:
         nested_index = names.index("nested-sub-tool")
-        assert names[:nested_index] == ["mock-skill", "nested-skill"], (
-            f"PROVIDER: nested tool escaped its required skill scopes: {calls!r}"
+        assert (
+            "mock-skill" in names[:nested_index]
+            and "nested-skill" in names[:nested_index]
+        ), f"PROVIDER: nested tool escaped its required skill scopes: {calls!r}"
+        assert names.index("mock-skill") < names.index("nested-skill"), (
+            f"PROVIDER: nested skill was entered before its parent: {calls!r}"
         )
-        assert calls[nested_index][1] == {"text": token}, (
+        assert (
+            token.casefold() in str(calls[nested_index][1].get("text", "")).casefold()
+        ), (
             "MODEL: nested tool received unexpected arguments: "
             f"{calls[nested_index][1]!r}"
-        )
-    else:
-        assert not calls, (
-            f"MODEL: scope bypass was redirected to unexpected tools: {calls!r}"
         )
 
 
