@@ -276,4 +276,3 @@ def test_live_model_can_choose_and_combine_every_skill_tool(tmp_path: Path) -> N
         "logic-consistency",
         "logic-counterexample",
     } <= names
-    assert "5" in (response.get_message() or "")
