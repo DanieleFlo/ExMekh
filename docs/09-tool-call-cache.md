@@ -146,8 +146,10 @@ includere, escludere o sovrascrivere singolarmente tramite i nomi seguenti:
   posizione 1-based mostra invece una pagina contigua e i cursori
   `previous-position` e `next-position` disponibili. `limit` accetta valori fra
   2 e 100; `saved-output-id` appare solo se il relativo record è ancora leggibile.
-- `search_saved_tool_outputs(query="", tool_name=None, skill_path=None,
-  offset=0, limit=20)` restituisce XML paginato con anteprime di 240 caratteri.
+- `search_tool_outputs(query="", tool_name=None, skill_path=None,
+  offset=0, limit=20)` cerca gli output salvati e quelli presenti nel runtime,
+  compresi lavori in background e risultati con `cache_result=False`.
+  Restituisce XML paginato con anteprime di 240 caratteri.
 - `read_tool_output(output_id, cursor=None)` restituisce un `XmlHeader` con nome, tipo,
   ID, argomenti e `response-type`, seguito dallo stato o dall'output disponibile.
   Legge anche i lavori attivi e gli output temporanei. Un ID assente produce XML con
@@ -156,6 +158,18 @@ includere, escludere o sovrascrivere singolarmente tramite i nomi seguenti:
 Il runtime espone inoltre `control_tool_execution` per attesa e annullamento.
 Vedi [Esecuzioni dei tool](13-tool-executions.md) per stati, cursori, consegna
 automatica e durata della vista in memoria.
+
+La ricerca usa la radice XML `<tool-outputs>`. Ogni `<record>` conserva nome,
+`type` (`Tool` o `DeepSkill`), ID canonico e `skill-path`, e aggiunge
+`response-type`, `status` e `storage` (`saved` o `runtime`). Per i lavori gestiti
+include la call ID originaria e i tempi. `response-type` distingue `running`,
+`partial`, `final`, `failed` e `cancelled`. Un vecchio record `running` senza
+un'esecuzione nel runtime è `unavailable`, con risposta `failed`.
+
+La vista corrente prevale sulla copia salvata con lo stesso ID, senza duplicati.
+Le anteprime mostrano i dati parziali già filtrati, il risultato o l'errore utile;
+la ricerca non conferma la consegna del risultato finale e non salva gli output
+temporanei. I filtri e la paginazione si applicano all'insieme delle due fonti.
 
 I tool predefiniti non salvano le proprie risposte. I nomi attivi non
 possono essere riutilizzati dalle capability applicative senza un override
@@ -173,10 +187,16 @@ limitati all'invocazione della skill corrente; vedi
 
 ## Ricerca programmatica e archivi separati
 
-`ToolCallSearch(node_cache).as_tool()` crea `search_saved_tool_outputs`, un tool
+`ToolCallSearch(node_cache).as_tool()` crea `search_tool_outputs`, un tool
 di sola lettura da registrare esplicitamente nell'integrazione che lo utilizza.
 Accetta `query`, `tool_name`, `skill_path` esatto, `offset` e `limit` (1–100); restituisce
 `records`, `total` e `next_offset`. Cerca solo nel nodo fornito, mai negli altri.
+
+Con il solo `node_cache` cerca i record salvati. Il costruttore accetta anche
+`execution_manager`, il gestore dello stesso nodo, per includere gli output
+presenti in memoria. Il runtime dell'harness collega automaticamente entrambe
+le fonti. Il precedente nome `search_saved_tool_outputs` va aggiornato anche
+nei selettori e negli override di `DefaultCapabilities`.
 
 | Parametro | Default | Comportamento |
 | --- | --- | --- |

@@ -57,7 +57,7 @@ from tests.event_handler import as_agent_handler
 
 _RUNTIME_TOOL_NAMES = [
     "get_execution_history",
-    "search_saved_tool_outputs",
+    "search_tool_outputs",
     "read_tool_output",
     "control_tool_execution",
 ]
@@ -575,9 +575,10 @@ def test_tool_descriptions_reflect_hds_and_skill_availability(
             "start_position for a head-and-tail overview, or use a 1-based "
             "position and limit from 2 to 100 to read a page."
         ),
-        "search_saved_tool_outputs": (
-            "Search node-scoped saved outputs and return paginated XML previews. "
-            "All filters are optional."
+        "search_tool_outputs": (
+            "Search this node's saved and runtime tool outputs, including "
+            "background work. Return paginated XML previews with status "
+            "and output IDs. All filters are optional."
         ),
         "read_tool_output": (
             "Read the current status and available output of a tool by output ID. "

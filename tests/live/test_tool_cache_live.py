@@ -30,7 +30,7 @@ pytestmark = pytest.mark.live
 _TRANSIENT_TOOL_NAMES = {
     "exit_agent",
     "get_execution_history",
-    "search_saved_tool_outputs",
+    "search_tool_outputs",
     "read_tool_output",
     "control_tool_execution",
 }
@@ -260,7 +260,7 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
         "a unique alphanumeric code containing 6 to 12 letters or digits. Call "
         "mock-sub-tool exactly once with that code as text. Then call exit_agent "
         "with the exact same code as text and items=[]. Back at the root, "
-        "call search_saved_tool_outputs exactly once with query set to the code "
+        "call search_tool_outputs exactly once with query set to the code "
         "and tool_name='mock-sub-tool'. Take the id from the returned XML record "
         "and pass it to read_tool_output exactly once. Compare the code in "
         "the complete saved output with the code returned by exit_agent. If they "
@@ -278,7 +278,7 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
         "mock-skill",
         "mock-sub-tool",
         "exit_agent",
-        "search_saved_tool_outputs",
+        "search_tool_outputs",
         "read_tool_output",
     )
     calls_by_name = {
@@ -318,7 +318,7 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
         for record in skill_records
     )
 
-    search_call = calls_by_name["search_saved_tool_outputs"][0]
+    search_call = calls_by_name["search_tool_outputs"][0]
     search_arguments = search_call.get_arguments()
     assert code.casefold() in search_arguments.get("query", "").casefold()
     assert search_arguments.get("tool_name") == "mock-sub-tool"

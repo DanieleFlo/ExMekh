@@ -1,0 +1,133 @@
+from __future__ import annotations
+
+from dataclasses import replace
+from typing import Any
+
+from qs.config.runtime import RUNTIME
+from qs.core.cache.tool_call_record import ToolCallRecord
+from qs.core.models.xml_header import XmlHeader
+from qs.utils.json import stringify_tool_result
+
+
+class ToolOutputView:
+    """Interpret output records for presentation without reading or changing state."""
+
+    _TIMING_FIELDS = ("started_at", "finished_at", "elapsed_seconds")
+
+    def __init__(self, record: ToolCallRecord) -> None:
+        self._record = record
+
+    def content(self) -> str:
+        """Render a result, preserving the text of a completed skill."""
+        record = self._record
+        if (
+            record.source == "DeepSkill"
+            and isinstance(record.result, dict)
+            and isinstance(record.result.get("text"), str)
+        ):
+            return record.result["text"]
+        return stringify_tool_result(record.result)
+
+    def preview(self, limit: int) -> str:
+        """Show useful progress or diagnostics before truncating a preview."""
+        if type(limit) is not int or limit < 1:
+            raise ValueError("preview limit must be a positive integer")
+        preview = " ".join(self._preview_content().split())
+        return preview if len(preview) <= limit else preview[: limit - 1] + "…"
+
+    def _preview_content(self) -> str:
+        record = self._record
+        content = self.content()
+        if (record.execution or {}).get("status") in (
+            "running",
+            "failed",
+            "cancelled",
+        ) and isinstance(record.result, dict):
+            value = (
+                record.result.get("partial_output")
+                or record.result.get("error")
+                or record.result.get("partial_output_error")
+                or record.result.get("message", content)
+            )
+            return stringify_tool_result(value)
+        return content
+
+    def search_fields(self) -> dict[str, Any]:
+        """Expose XML metadata without making callers interpret execution data."""
+        record = self._record
+        execution = record.execution or {}
+        return {
+            "name": record.name,
+            "type": record.source,
+            "id": record.id,
+            "skill-path": record.skill_path,
+            "response-type": execution.get("response_type", "final"),
+            "status": execution.get("status", "completed"),
+            "storage": execution.get("storage", "saved"),
+            "tool-call-id": record.tool_call_id,
+            **self._detail_fields(execution, self._TIMING_FIELDS),
+        }
+
+    def saved_record(self) -> ToolCallRecord:
+        """Describe stored work whose running state cannot prove it is still active."""
+        record = self._record
+        if record.execution is None:
+            return record
+        execution = self._saved_execution_info()
+        result = (
+            self._saved_content(execution)
+            if execution["status"] == "unavailable"
+            else record.result
+        )
+        return replace(record, result=result, execution=execution)
+
+    def format_saved(self, cursor: int | None) -> str:
+        """Render a saved read; cursors count result characters, excluding warnings."""
+        record = self._record
+        header = XmlHeader(
+            source=record.source, name=record.name, id=record.id, args=record.args
+        )
+        execution = self._saved_execution_info()
+        if execution:
+            header.add_fields(
+                **self._detail_fields(execution, ("tool_call_id", *self._TIMING_FIELDS))
+            )
+            header.add_field("status", execution["status"])
+        header.add_field("response-type", execution.get("response_type", "final"))
+        if cursor is not None:
+            header.add_field("next-cursor", len(self.content()))
+        return header.prepend_to(self._saved_content(execution, cursor))
+
+    def _saved_execution_info(self) -> dict[str, Any]:
+        if self._record.execution is None:
+            return {}
+        execution = dict(self._record.execution)
+        status = execution.get("status", "completed")
+        execution["status"] = "unavailable" if status == "running" else status
+        current_status = execution["status"]
+        execution["response_type"] = {
+            "completed": "final",
+            "unavailable": "failed",
+        }.get(current_status, current_status)
+        execution["storage"] = "saved"
+        return execution
+
+    def _saved_content(
+        self, execution: dict[str, Any], cursor: int | None = None
+    ) -> str:
+        content = self.content()
+        if cursor is not None:
+            content = content[cursor:]
+        if execution.get("status") == "unavailable":
+            content = RUNTIME.unavailable_execution_message + "\n" + content
+        return content
+
+    @staticmethod
+    def _detail_fields(
+        execution: dict[str, Any], names: tuple[str, ...]
+    ) -> dict[str, Any]:
+        return {
+            name.replace("_", "-"): execution[name]
+            for name in names
+            if name in execution
+        }

@@ -43,7 +43,7 @@ the bundled directory in full.
 | Group | Bundled names |
 | --- | --- |
 | Mock | HDS `main`, `mock-sub-agent`; skills `mock-skill`, `nested-skill`; tools `mock-tool`, `mock-sub-tool`, `nested-sub-tool`, `shared-tool` |
-| Harness | Exit tool `exit_agent`; memory tools `get_execution_history`, `search_saved_tool_outputs`, `read_tool_output`; execution control `control_tool_execution`; delegation tool `call_sub_agent` on nodes with children |
+| Harness | Exit tool `exit_agent`; memory tools `get_execution_history`, `search_tool_outputs`, `read_tool_output`; execution control `control_tool_execution`; delegation tool `call_sub_agent` on nodes with children |
 
 There are currently no bundled harness skills. Group switches select all names
 in that group. `include` and `exclude` take names that adjust the switches;

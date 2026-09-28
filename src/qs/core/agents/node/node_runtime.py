@@ -391,11 +391,12 @@ class NodeRuntime(ProviderEventHandler):
 
     def _sync_completed_tool_outputs(self) -> None:
         for snapshot, record in self._execution_manager.completed_to_persist():
-            result = snapshot.output_result()
-            if isinstance(result, PreformattedToolResult):
-                result = result.content
             self._save_tool_record(
-                replace(record, result=result, execution=snapshot.status_info())
+                replace(
+                    record,
+                    result=snapshot.record_result(),
+                    execution=snapshot.status_info(),
+                )
             )
             self._execution_manager.mark_persisted(record.id)
 

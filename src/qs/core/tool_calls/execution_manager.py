@@ -9,7 +9,12 @@ from typing import Any, Literal
 
 from qs.config.runtime import RUNTIME
 from qs.core.cache.tool_call_record import ToolCallRecord
-from qs.core.models.tool import ExecutionOptions, ToolExecutionOperation
+from qs.core.models.tool import (
+    ExecutionOptions,
+    PreformattedToolResult,
+    ToolExecutionOperation,
+)
+from qs.utils.json import stringify_tool_result
 
 type ExecutionStatus = Literal["running", "completed", "failed", "cancelled"]
 
@@ -26,6 +31,7 @@ class ExecutionSnapshot:
     elapsed_seconds: float
     result: Any = None
     error: str | None = None
+    skill_path: str = "/"
 
     @property
     def is_finished(self) -> bool:
@@ -52,13 +58,27 @@ class ExecutionSnapshot:
         if self.status == "completed":
             return self.result
         result = self.status_info()
-        if self.error is not None:
-            result["error"] = self.error
-        elif self.status == "cancelled":
-            result["message"] = "Tool execution was cancelled."
-        else:
-            result["message"] = "Tool execution is still running."
+        diagnostic_field = "error" if self.error is not None else "message"
+        result[diagnostic_field] = self._diagnostic_content()
         return result
+
+    def record_result(self) -> Any:
+        """Return the result value to store, unwrapping preformatted content."""
+        result = self.output_result()
+        return result.content if isinstance(result, PreformattedToolResult) else result
+
+    def output_content(self) -> str:
+        """Render the current result or diagnostic without exposing its representation."""
+        if self.status == "completed":
+            return stringify_tool_result(self.record_result())
+        return self._diagnostic_content()
+
+    def _diagnostic_content(self) -> str:
+        if self.error is not None:
+            return self.error
+        if self.status == "cancelled":
+            return "Tool execution was cancelled."
+        return "Tool execution is still running."
 
 
 @dataclass(slots=True)
@@ -70,6 +90,7 @@ class _Execution:
     arguments: dict[str, Any]
     operation: ToolExecutionOperation
     owner_scope: tuple[str, ...]
+    skill_path: str = "/"
     started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     started_clock: float = field(default_factory=monotonic)
     finished_clock: float | None = None
@@ -95,6 +116,7 @@ class _Execution:
             elapsed_seconds=(self.finished_clock or monotonic()) - self.started_clock,
             result=self.result,
             error=self.error,
+            skill_path=self.skill_path,
         )
 
     def complete(self, result: Any) -> None:
@@ -148,9 +170,18 @@ class ToolExecutionManager:
         owner_scope: tuple[str, ...],
         options: ExecutionOptions,
         output_id: str | None = None,
+        *,
+        skill_path: str = "/",
     ) -> ExecutionSnapshot:
+        if not isinstance(skill_path, str) or not skill_path.startswith("/"):
+            raise ValueError("skill_path must be an absolute skill path")
         execution = _Execution(
-            call_id, name, deepcopy(arguments), operation, owner_scope
+            call_id,
+            name,
+            deepcopy(arguments),
+            operation,
+            owner_scope,
+            skill_path=skill_path,
         )
         execution.output_id = output_id
         with self._lock:
@@ -204,6 +235,15 @@ class ToolExecutionManager:
                 if execution.output_id == output_id:
                     return execution.snapshot()
         return None
+
+    def output_snapshots(self) -> tuple[ExecutionSnapshot, ...]:
+        """Inspect published outputs without acknowledging their delivery."""
+        with self._lock:
+            return tuple(
+                execution.snapshot()
+                for execution in self._executions
+                if execution.output_id is not None
+            )
 
     def partial_output(self, output_id: str, cursor: int) -> tuple[str, int] | None:
         with self._lock:

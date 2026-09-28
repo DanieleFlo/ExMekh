@@ -297,7 +297,7 @@ def test_search_returns_filtered_paginated_xml_previews(tmp_path) -> None:
 
         first = ET.fromstring(
             _content(
-                memory.search_saved_tool_outputs(
+                memory.search_tool_outputs(
                     query="hello",
                     tool_name="fetch",
                     skill_path="/analysis",
@@ -320,7 +320,7 @@ def test_search_returns_filtered_paginated_xml_previews(tmp_path) -> None:
 
         second = ET.fromstring(
             _content(
-                memory.search_saved_tool_outputs(
+                memory.search_tool_outputs(
                     query="hello",
                     tool_name="fetch",
                     skill_path="/analysis",
@@ -377,7 +377,7 @@ def test_memory_tools_are_transient_and_have_reserved_names(tmp_path) -> None:
 
         assert memory.tool_names == (
             "get_execution_history",
-            "search_saved_tool_outputs",
+            "search_tool_outputs",
             "read_tool_output",
         )
         assert all(tool.cache_result is False for tool in memory.tools)

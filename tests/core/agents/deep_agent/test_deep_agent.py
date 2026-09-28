@@ -285,7 +285,7 @@ def test_uses_root_hds_as_system_instructions(tmp_path: Path) -> None:
     assert tools.list_tools() == [
         "exit_agent",
         "get_execution_history",
-        "search_saved_tool_outputs",
+        "search_tool_outputs",
         "read_tool_output",
         "control_tool_execution",
     ]

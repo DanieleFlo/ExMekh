@@ -9,7 +9,7 @@ from qs.config.validation import VALIDATION_PATTERNS
 from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.tool_calls.memory_tools import ExecutionHistory
-from qs.core.tool_calls.output_reader import tool_output_content
+from qs.core.tool_calls.output_view import ToolOutputView
 
 _PLACEHOLDER = re.compile(VALIDATION_PATTERNS.exit_item_placeholder)
 
@@ -172,7 +172,7 @@ class ExitItemResolver:
             {"id": record.id, "name": record.name, "type": record.source},
         )
         content = ET.SubElement(root, "content")
-        output = tool_output_content(record)
+        output = ToolOutputView(record).content()
         if any(not _is_xml_character(character) for character in output):
             content.set("encoding", "base64")
             content.text = base64.b64encode(output.encode("utf-8")).decode("ascii")

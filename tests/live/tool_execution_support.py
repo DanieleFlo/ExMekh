@@ -407,6 +407,7 @@ class LiveExecutionRig:
             include={
                 "exit_agent",
                 "get_execution_history",
+                "search_tool_outputs",
                 "read_tool_output",
                 "control_tool_execution",
                 "call_sub_agent",

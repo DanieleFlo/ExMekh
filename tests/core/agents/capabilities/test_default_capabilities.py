@@ -312,7 +312,7 @@ def test_harness_defaults_support_an_application_hds_without_mocks(
     assert set(request.get_tools().list_tools()) == HARNESS_NAMES - {"call_sub_agent"}
     assert request.get_extra()["agentic"]["allowed_tools"] == [
         "get_execution_history",
-        "search_saved_tool_outputs",
+        "search_tool_outputs",
         "read_tool_output",
         "control_tool_execution",
     ]
@@ -603,7 +603,7 @@ def test_excluding_memory_readers_preserves_internal_cache(tmp_path: Path) -> No
     defaults = DefaultCapabilities(
         exclude={
             "get_execution_history",
-            "search_saved_tool_outputs",
+            "search_tool_outputs",
             "read_tool_output",
         },
         overrides={

@@ -13,7 +13,11 @@ class RuntimeSettings:
     )
     default_agent_context_id: str = "default"
     history_tool_name: str = "get_execution_history"
-    search_tool_name: str = "search_saved_tool_outputs"
+    search_tool_name: str = "search_tool_outputs"
+    unavailable_execution_message: str = (
+        "Execution is unavailable in this runtime; it was not resumed. "
+        "The saved running response is not a final result."
+    )
     read_tool_name: str = "read_tool_output"
     execution_tool_name: str = "control_tool_execution"
     execution_argument_names: frozenset[str] = frozenset(
@@ -59,6 +63,9 @@ class RuntimeSettings:
             "reads when supported. Check response-type for running, partial, final, "
             "failed or cancelled; a failed execution differs from a valid result "
             "reporting failure.\n"
+            f"Use {self.search_tool_name} to find saved and runtime outputs, including "
+            "background work, by text, tool name or skill path. Search returns IDs, "
+            "status and previews; a preview does not acknowledge final delivery.\n"
             "Completed background output is read automatically at a safe history "
             "boundary only in the exact skill instance that started it. After exiting "
             "a skill, keep its output_id and read it explicitly; reopening the skill "

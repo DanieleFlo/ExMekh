@@ -42,6 +42,7 @@ def make_node(tmp_path: Path):
                         "read_tool_output",
                         "control_tool_execution",
                         "get_execution_history",
+                        "search_tool_outputs",
                     },
                     overrides={tool.name: tool},
                 ),
@@ -60,6 +61,47 @@ def read_calls(messages) -> list:
         for call in message.get_tool_calls() or ()
         if call.get_name() == "read_tool_output"
     ]
+
+
+def test_search_finds_uncached_work_after_its_owner_skill_was_compacted(make_node):
+    release = Event()
+    provider = SequenceProvider(
+        [
+            tool_message("mock-skill", {}, "open"),
+            tool_message(
+                "mock-sub-tool",
+                {"text": "work", "execution_mode": "background"},
+                "origin",
+            ),
+            tool_message("exit_agent", {"text": "pending", "items": []}, "exit"),
+            tool_message(
+                "search_tool_outputs",
+                {"tool_name": "mock-sub-tool", "skill_path": "/mock-skill"},
+                "search",
+            ),
+            AssistantMessage("done"),
+        ]
+    )
+    node = make_node(
+        provider,
+        Tool(
+            lambda text: release.wait() and text,
+            name="mock-sub-tool",
+            cache_result=False,
+        ),
+    )
+    try:
+        assert node.run("start").get_message() == "done"
+        from_search = provider.requests[-1].get_messages()[-1].get_message()
+        assert "<skill-path>/mock-skill</skill-path>" in from_search
+        assert "<response-type>running</response-type>" in from_search
+        assert "<storage>runtime</storage>" in from_search
+        assert "<id>output-1</id>" in from_search
+        assert "<tool-call-id>origin</tool-call-id>" in from_search
+        assert read_calls(provider.requests[-1].get_messages()) == []
+    finally:
+        release.set()
+        node.control_tool_execution("origin", wait_seconds=1)
 
 
 @pytest.mark.parametrize(

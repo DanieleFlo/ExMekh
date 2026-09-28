@@ -199,6 +199,7 @@ class ToolCallExecutor:
             self.skill_scope_ids,
             called_tool.execution_options,
             output_id=output_id,
+            skill_path=self.skill_path,
         )
         result = snapshot.output_result()
         if snapshot.is_finished:

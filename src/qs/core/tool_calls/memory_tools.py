@@ -12,7 +12,8 @@ from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.tool import PreformattedToolResult, Tool
 
 from .execution_manager import ToolExecutionManager
-from .output_reader import ToolOutputReader, tool_output_content
+from .output_reader import ToolOutputReader
+from .output_view import ToolOutputView
 from .search import ToolCallSearch
 
 
@@ -190,6 +191,7 @@ class HarnessMemoryTools:
     ) -> None:
         self._history = history
         self._cache_provider = cache_provider
+        self._execution_manager = execution_manager
         self._output_reader = ToolOutputReader(cache_provider, execution_manager)
         self._tools = (
             Tool(
@@ -204,11 +206,12 @@ class HarnessMemoryTools:
                 background_enabled=False,
             ),
             Tool(
-                self.search_saved_tool_outputs,
+                self.search_tool_outputs,
                 name=self.SEARCH_TOOL_NAME,
                 description=(
-                    "Search node-scoped saved outputs and return paginated XML "
-                    "previews. All filters are optional."
+                    "Search this node's saved and runtime tool outputs, including "
+                    "background work. Return paginated XML previews with status "
+                    "and output IDs. All filters are optional."
                 ),
                 cache_result=False,
                 background_enabled=False,
@@ -284,7 +287,7 @@ class HarnessMemoryTools:
         ET.SubElement(element, "to-position").text = str(omitted.end_position)
         ET.SubElement(element, "count").text = str(omitted.count)
 
-    def search_saved_tool_outputs(
+    def search_tool_outputs(
         self,
         query: str = "",
         tool_name: str | None = None,
@@ -292,9 +295,9 @@ class HarnessMemoryTools:
         offset: int = 0,
         limit: int = 20,
     ) -> PreformattedToolResult:
-        """Search saved outputs by text, exact tool name, and exact skill path."""
+        """Search saved and runtime outputs by text, tool name, and skill path."""
         records, total, next_offset = ToolCallSearch(
-            self._cache_provider()
+            self._cache_provider(), self._execution_manager
         ).search_records(
             query=query,
             tool_name=tool_name,
@@ -302,32 +305,29 @@ class HarnessMemoryTools:
             offset=offset,
             limit=limit,
         )
-        root = ET.Element("saved-tool-outputs")
+        root = ET.Element("tool-outputs")
         ET.SubElement(root, "total").text = str(total)
         if next_offset is not None:
             ET.SubElement(root, "next-offset").text = str(next_offset)
         records_element = ET.SubElement(root, "records")
         for record in records:
-            record_element = ET.SubElement(records_element, "record")
-            ET.SubElement(record_element, "name").text = record.name
-            ET.SubElement(record_element, "type").text = record.source
-            ET.SubElement(record_element, "id").text = record.id
-            ET.SubElement(record_element, "skill-path").text = record.skill_path
-            ET.SubElement(record_element, "preview").text = self._preview(record)
+            self._append_search_record(records_element, record)
         return PreformattedToolResult(_render_xml(root))
+
+    @classmethod
+    def _append_search_record(cls, root: ET.Element, record: ToolCallRecord) -> None:
+        element = ET.SubElement(root, "record")
+        output = ToolOutputView(record)
+        for name, value in output.search_fields().items():
+            if value is not None:
+                ET.SubElement(element, name).text = str(value)
+        ET.SubElement(element, "preview").text = output.preview(cls.PREVIEW_LIMIT)
 
     def read_tool_output(
         self, output_id: str, cursor: int | None = None
     ) -> PreformattedToolResult:
         """Read current or saved output by its canonical output ID."""
         return self._output_reader.read(output_id, cursor)
-
-    @classmethod
-    def _preview(cls, record: ToolCallRecord) -> str:
-        preview = " ".join(tool_output_content(record).split())
-        if len(preview) <= cls.PREVIEW_LIMIT:
-            return preview
-        return preview[: cls.PREVIEW_LIMIT - 1] + "…"
 
 
 def _render_xml(root: ET.Element) -> str:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 from contextlib import ExitStack
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 import pytest
 from dotenv import load_dotenv
@@ -63,6 +64,91 @@ def assert_saved_final(rig: LiveExecutionRig, call, output_id: str) -> None:
     assert (
         len([item for item in rig.saved_outputs() if item.tool_call_id == call.id]) == 1
     )
+
+
+@pytest.mark.parametrize("cache_result", [True, False], ids=["saved", "runtime"])
+def test_live_search_tracks_background_work_without_consuming_final_delivery(
+    live_rig, cache_result
+):
+    rig = live_rig(lambda fixture: [ProcessTool(fixture, cache_result=cache_result)])
+    searches = []
+
+    def observe(event):
+        if not event.is_tool_running and event.tool_name == "search_tool_outputs":
+            searches.append(ET.fromstring(rig.outputs[event.tool_call_id]))
+            if len(searches) == 1:
+                rig.finish_all()
+
+    rig.observer = observe
+    rig.node.run(
+        "At root call live_process_job once with label='search-background' and "
+        "execution_mode='background', wait_seconds=60. Then open work-scope. "
+        "Inside the skill call search_tool_outputs with query='search-background' "
+        "and tool_name='live_process_job'. The job finishes after that search. "
+        "Call search_tool_outputs again with the same filters to see the finished job. "
+        "Search returns previews, so then exit_agent(text='search complete', items=[]). "
+        "Back at root use the automatic final output delivery and summarize the outcome."
+    )
+    if len(searches) < 2:
+        pytest.skip(
+            "MODEL: searches before and after completion were not both exercised"
+        )
+    call = rig.one_call("live_process_job")
+    origin = next(
+        event
+        for event in rig.events
+        if event.tool_call_id == call.id and event.is_tool_running
+    )
+    search_events = [
+        event
+        for event in rig.events
+        if event.tool_name == "search_tool_outputs" and not event.is_tool_running
+    ]
+    scoped_searches = [
+        search
+        for search, event in zip(searches, search_events, strict=True)
+        if event.skill_path == "/work-scope"
+    ]
+    if origin.skill_path != "/" or len(scoped_searches) < 2:
+        pytest.skip(
+            "MODEL: root work and searches inside the child skill were not exercised"
+        )
+    searches = scoped_searches[:2]
+    output_id = rig.result(call)[0]["id"]
+    for search in searches:
+        records = [
+            record
+            for record in search.findall("./records/record")
+            if record.findtext("id") == output_id
+        ]
+        assert len(records) == 1, (
+            "CLIENT: background output missing or duplicated in search"
+        )
+        record = records[0]
+        assert record.findtext("tool-call-id") == call.id
+        assert record.findtext("storage") == ("saved" if cache_result else "runtime")
+        assert record.findtext("skill-path") == "/"
+    assert searches[0].findtext("./records/record/response-type") in {
+        "running",
+        "partial",
+    }
+    assert searches[-1].findtext("./records/record/response-type") == "final"
+    assert len(rig.provider.synthetic_reads()) == 1, (
+        "CLIENT: search consumed or duplicated final delivery"
+    )
+    synthetic_ids = {read.id for read in rig.provider.synthetic_reads()}
+    assert all(
+        event.skill_path == "/"
+        for event in rig.events
+        if event.tool_call_id in synthetic_ids
+    ), "CLIENT: final search result was automatically delivered in a foreign scope"
+    rig.assert_completed_job(call)
+    if cache_result:
+        assert_saved_final(rig, call, output_id)
+    else:
+        assert rig.saved_output(output_id) is None, (
+            "CACHE: search persisted an uncached result"
+        )
 
 
 @pytest.mark.parametrize("streaming", [False, True], ids=["ordinary", "streaming"])

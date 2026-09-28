@@ -176,7 +176,11 @@ successivo passaggio del loop. Gli output salvati seguono la durata della
 
 `cache_result=False` conserva stato e risultato soltanto nella vista temporanea
 del runtime, senza scriverli su disco. Le letture di un altro nodo non possono
-accedervi. La ricerca dei risultati salvati elenca soltanto i record della cache.
+accedervi.
+La ricerca `search_tool_outputs` include anche questi output temporanei e i
+lavori in background, con la stessa visibilità per nodo della lettura. Le
+anteprime non confermano la consegna finale e non modificano la cache; gli
+output sono distinti per stato, tipo di risposta e origine `saved` o `runtime`.
 
 Una nuova inizializzazione o il riavvio non riprende i vecchi lavori. I thread
 sono daemon e non impediscono la chiusura del processo; questo non garantisce
@@ -199,14 +203,20 @@ La consegna automatica produce gli eventi della nuova lettura nel loop.
 | `ToolCallExecutor` | Esecuzione delle capability e transizioni delle skill. |
 | `MessageHistory` | Modifica dei messaggi e dei batch, conservando risposte e metadati del provider. |
 | `ToolExecutionManager` | Worker, attese, accesso concorrente e registro degli stati. |
+| `ExecutionSnapshot` | Vista dello stato e metodi pubblici per ottenere contenuto e risultato salvabile. |
 | `ExecutionControlTool` | Contratto del tool globale di attesa e annullamento. |
-| `ToolOutputReader` | Lettura degli output attivi o salvati, cursori, header XML e conferma della consegna. |
+| `ToolOutputReader` | Accesso agli output attivi o salvati, lettura incrementale e conferma della consegna. |
+| `ToolOutputView` | Rappresentazione degli output: contenuto, anteprime, metadati XML e stato dei record salvati. |
+| `ToolCallSearch` | Ricerca filtrata e paginata degli output salvati e del runtime, senza confermare la consegna. |
 
 Il runtime usa operazioni pubbliche della history per inserire chiamate automatiche;
 non ricostruisce i messaggi né interpreta la struttura interna dei batch. Gli adapter
 dei provider chiedono a `Tool` quali argomenti appartengono all'esecuzione e come
 normalizzarli. L'executor restituisce i metadati dell'esecuzione in un unico
 snapshot tipizzato, senza duplicare call ID e stato in campi indipendenti.
+Ricerca, lettura e composizione dei risultati delle skill usano la vista pubblica
+degli output; la rappresentazione dei risultati e lo stato dei record salvati
+sono interpretati nelle classi che ne hanno la responsabilità.
 
 I controlli sono disponibili anche dal codice chiamante:
 

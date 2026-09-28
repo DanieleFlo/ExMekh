@@ -4,12 +4,11 @@ from collections.abc import Callable
 from xml.etree import ElementTree as ET
 
 from qs.core.cache.node_cache import NodeCache
-from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.tool import PreformattedToolResult
 from qs.core.models.xml_header import XmlHeader
-from qs.utils.json import stringify_tool_result
 
 from .execution_manager import ExecutionSnapshot, ToolExecutionManager
+from .output_view import ToolOutputView
 
 
 class ToolOutputReader:
@@ -40,44 +39,12 @@ class ToolOutputReader:
 
         record = self._cache_provider().get(output_id)
         if record is not None:
-            return PreformattedToolResult(self._read_saved(record, cursor))
+            return PreformattedToolResult(ToolOutputView(record).format_saved(cursor))
         root = ET.Element("saved-tool-output")
         ET.SubElement(root, "id").text = output_id
         ET.SubElement(root, "found").text = "false"
         ET.indent(root)
         return PreformattedToolResult(ET.tostring(root, encoding="unicode"))
-
-    @staticmethod
-    def _read_saved(record: ToolCallRecord, cursor: int | None) -> str:
-        header = XmlHeader(
-            source=record.source, name=record.name, id=record.id, args=record.args
-        )
-        execution = record.execution or {}
-        status = execution.get("status", "completed")
-        if record.execution is not None:
-            for name in (
-                "tool_call_id",
-                "started_at",
-                "finished_at",
-                "elapsed_seconds",
-            ):
-                if name in execution:
-                    header.add_field(name.replace("_", "-"), execution[name])
-            header.add_field("status", "unavailable" if status == "running" else status)
-        response_type = "final" if status == "completed" else status
-        if status == "running":
-            response_type = "failed"
-        header.add_field("response-type", response_type)
-        content = tool_output_content(record)
-        if cursor is not None:
-            header.add_field("next-cursor", len(content))
-            content = content[cursor:]
-        if status == "running":
-            content = (
-                "Execution is unavailable in this runtime; it was not resumed. "
-                "The saved running response is not a final result.\n" + content
-            )
-        return header.prepend_to(content)
 
     def _read_execution(
         self, output_id: str, snapshot: ExecutionSnapshot, cursor: int | None
@@ -100,7 +67,7 @@ class ToolOutputReader:
         )
         partial = self._read_partial(output_id, snapshot, cursor)
         if partial is None:
-            content = self._execution_content(snapshot)
+            content = snapshot.output_content()
             response_type = snapshot.response_type
         else:
             content, next_cursor = partial
@@ -108,7 +75,7 @@ class ToolOutputReader:
             response_type = "partial" if content else "running"
             if snapshot.is_finished:
                 response_type = snapshot.response_type
-                final = self._execution_content(snapshot)
+                final = snapshot.output_content()
                 content = f"{content}\n{final}" if content else final
         header.add_field("response-type", response_type)
         return header.prepend_to(content)
@@ -122,26 +89,3 @@ class ToolOutputReader:
         if cursor is not None and partial is None:
             raise ValueError("This tool output does not support cursors")
         return partial
-
-    @staticmethod
-    def _execution_content(snapshot: ExecutionSnapshot) -> str:
-        if snapshot.status == "completed":
-            if isinstance(snapshot.result, PreformattedToolResult):
-                return snapshot.result.content
-            return stringify_tool_result(snapshot.result)
-        if snapshot.error is not None:
-            return snapshot.error
-        if snapshot.status == "cancelled":
-            return "Tool execution was cancelled."
-        return "Tool execution is still running."
-
-
-def tool_output_content(record: ToolCallRecord) -> str:
-    """Render saved content consistently for memory reads and skill returns."""
-    if (
-        record.source == "DeepSkill"
-        and isinstance(record.result, dict)
-        and isinstance(record.result.get("text"), str)
-    ):
-        return record.result["text"]
-    return stringify_tool_result(record.result)

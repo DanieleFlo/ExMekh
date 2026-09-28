@@ -1,8 +1,15 @@
 from threading import Event
+from xml.etree import ElementTree as ET
 
 import pytest
 
-from qs.core.models.tool import ExecutionOptions, ToolExecutionOperation
+from qs.core.cache import SessionCache
+from qs.core.cache.tool_call_record import ToolCallRecord
+from qs.core.models.tool import (
+    ExecutionOptions,
+    PreformattedToolResult,
+    ToolExecutionOperation,
+)
 from qs.core.tool_calls.execution_manager import ToolExecutionManager
 from qs.core.tool_calls.output_reader import ToolOutputReader
 
@@ -52,3 +59,60 @@ def test_unsuccessful_final_read_does_not_acknowledge_delivery():
     with pytest.raises(ValueError, match="does not support cursors"):
         reader.read("output", cursor=0)
     assert manager.next_delivery(("owner",)) is not None
+
+
+def test_saved_running_read_keeps_warning_outside_character_cursor(tmp_path):
+    original = ToolCallRecord(
+        "work",
+        "output",
+        {"label": "saved"},
+        "prima\nrisultato è parziale",
+        tool_call_id="call",
+        execution={"status": "running", "tool_call_id": "call", "started_at": "then"},
+    )
+    cursor = len("prima\n")
+    with SessionCache(tmp_path) as session:
+        cache = session.node("owner")
+        cache.store(original)
+        reader = ToolOutputReader(lambda: cache)
+        prefix, _, content = reader.read("output", cursor).content.partition(
+            "</header>"
+        )
+        header = ET.fromstring(prefix + "</header>")
+        assert header.findtext("status") == "unavailable"
+        assert header.findtext("response-type") == "failed"
+        assert header.findtext("tool-call-id") == "call"
+        assert header.findtext("started-at") == "then"
+        assert int(header.findtext("next-cursor")) == len(original.result)
+        assert "not resumed" in content
+        assert content.endswith(original.result[cursor:])
+        assert cache.get("output") == original
+
+
+def test_final_cursor_read_includes_new_progress_and_preformatted_result():
+    release = Event()
+    progress = "first\nsecond\n"
+    manager = ToolExecutionManager()
+    manager.start(
+        "call",
+        "work",
+        {},
+        ToolExecutionOperation(
+            lambda: release.wait() and PreformattedToolResult("public final receipt"),
+            read_partial=lambda cursor: (progress[cursor:], len(progress)),
+        ),
+        ("owner",),
+        ExecutionOptions(mode="background"),
+        output_id="output",
+    )
+    release.set()
+    assert manager.wait("call", 1).is_finished
+    reader = ToolOutputReader(unavailable_cache, manager)
+    prefix, _, content = reader.read("output", len("first\n")).content.partition(
+        "</header>"
+    )
+    header = ET.fromstring(prefix + "</header>")
+    assert header.findtext("response-type") == "final"
+    assert int(header.findtext("next-cursor")) == len(progress)
+    assert content.strip() == "second\n\npublic final receipt"
+    assert manager.next_delivery(("owner",)) is None

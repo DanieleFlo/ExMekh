@@ -130,7 +130,8 @@ This suite uses the real Responses provider and real Python child processes,
 including file reads, incremental stdout, nonzero exits and termination. It checks
 ordinary and streaming requests, the actual default 60-second deadline, repeated
 bounded waits, background work, cancellation, output cursors, final delivery,
-skill reentry, concurrent jobs, sub-agent isolation, hooks and uncached results
+skill reentry, searches of saved and runtime background output, concurrent jobs,
+sub-agent isolation, hooks and uncached results
 across persistent turns. The minute deadline case takes at least one minute.
 
 HTTP requests keep the SDK's default timeout (currently 600 seconds for reads),

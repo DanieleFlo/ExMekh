@@ -143,9 +143,10 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
             "start_position for a head-and-tail overview, or use a 1-based "
             "position and limit from 2 to 100 to read a page."
         ),
-        "search_saved_tool_outputs": (
-            "Search node-scoped saved outputs and return paginated XML previews. "
-            "All filters are optional."
+        "search_tool_outputs": (
+            "Search this node's saved and runtime tool outputs, including "
+            "background work. Return paginated XML previews with status "
+            "and output IDs. All filters are optional."
         ),
         "read_tool_output": (
             "Read the current status and available output of a tool by output ID. "

@@ -194,7 +194,7 @@ Selected saved outputs can be inserted into that final result through
 selections return a tool error and keep the skill open for correction.
 
 The runtime automatically exposes `get_execution_history`,
-`search_saved_tool_outputs`, `read_tool_output` and `control_tool_execution` in every scope. They
+`search_tool_outputs`, `read_tool_output` and `control_tool_execution` in every scope. They
 return XML, operate only on the current node and do not cache their own results.
 See [Tool output caching](09-tool-call-cache.md) for formats and lifecycle.
 
