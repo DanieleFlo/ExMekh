@@ -178,6 +178,11 @@ interna della cronologia o la cache. La history vive quanto
 il runtime, anche con `persistent_history=False`; dopo la chiusura della sessione
 le vecchie chiamate restano elencate ma gli ID non più recuperabili vengono omessi.
 
+I risultati strutturati letti sono presentati come `<tool-result>` XML, usando
+lo stesso renderer delle risposte immediate e in background. La cache conserva
+i valori JSON originali; la conversione avviene soltanto nella presentazione.
+Vedi [il formato delle risposte](13-tool-executions.md#formato-delle-risposte).
+
 Gli argomenti nell'header hanno un nodo per parametro. Le stringhe sono testo,
 mentre numeri, booleani, `null`, liste e oggetti usano JSON compatto. La lettura
 di una deep skill mostra come contenuto il suo testo finale.

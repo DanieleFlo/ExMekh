@@ -9,6 +9,7 @@ from xml.etree import ElementTree as ET
 from qs.config.runtime import RUNTIME
 from qs.config.validation import VALIDATION_PATTERNS
 from qs.utils.json import to_json_value
+from qs.utils.xml import append_text_element, render_xml
 
 
 @dataclass
@@ -72,32 +73,32 @@ class XmlHeader:
     def to_xml(self) -> str:
         root = ET.Element(self.ROOT_TAG)
 
-        ET.SubElement(root, "name").text = self.name
-        ET.SubElement(root, "type").text = self.source
-        ET.SubElement(root, "id").text = self.id
+        append_text_element(root, "name", self.name)
+        append_text_element(root, "type", self.source)
+        append_text_element(root, "id", self.id)
 
         if self.args is not None:
             args_element = ET.SubElement(root, "args")
             for name, value in self.args.items():
                 if self._XML_NAME.fullmatch(name):
-                    argument = ET.SubElement(args_element, name)
+                    append_text_element(
+                        args_element, name, self._format_argument(value)
+                    )
                 else:
-                    argument = ET.SubElement(args_element, "arg", {"name": name})
-                argument.text = self._format_argument(value)
+                    append_text_element(
+                        args_element,
+                        "arg",
+                        self._format_argument(value),
+                        attributes={"name": name},
+                    )
 
         for key, value in self.fields.items():
             if value is None:
                 continue
 
-            ET.SubElement(root, key).text = str(value)
+            append_text_element(root, key, str(value))
 
-        ET.indent(root)
-
-        return ET.tostring(
-            root,
-            encoding="unicode",
-            short_empty_elements=True,
-        )
+        return render_xml(root)
 
     @staticmethod
     def _format_argument(value: Any) -> str:
@@ -139,6 +140,5 @@ class XmlHeader:
         if leading is None:
             return content
         root, end = leading
-        ET.SubElement(root, key).text = value
-        ET.indent(root)
-        return ET.tostring(root, encoding="unicode") + content[end:]
+        append_text_element(root, key, value)
+        return render_xml(root) + content[end:]

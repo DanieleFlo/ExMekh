@@ -30,6 +30,10 @@ class RuntimeSettings:
     sub_agent_tool_name: str = "call_sub_agent"
     sub_agent_argument_names: frozenset[str] = frozenset({"sub_agent", "text"})
     memory_preview_limit: int = 240
+    memory_default_page_limit: int = 20
+    memory_max_page_limit: int = 100
+    history_min_page_limit: int = 2
+    history_head_divisor: int = 4
     deep_thinking_skill_name: str = "deep-thinking"
     deep_thinking_token_limit: int = 200
     thinking_summary_prompt: str = (

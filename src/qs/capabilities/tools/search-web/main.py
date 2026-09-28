@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from qs.config.web import WEB_NAVIGATION
 from qs.core.agents.tools.decorator import deep_tool
 from qs.core.web_navigation.errors import WebNavigationError
 from qs.core.web_navigation.tool_output import missing_dependency, navigation_error
@@ -18,8 +19,8 @@ from qs.core.web_navigation.tool_output import missing_dependency, navigation_er
 def run(
     work_root: Path,
     query: str,
-    max_results: int = 5,
-    timeout_seconds: int = 30,
+    max_results: int = WEB_NAVIGATION.default_search_results,
+    timeout_seconds: int = WEB_NAVIGATION.default_timeout_seconds,
     image_path: str | None = None,
 ) -> dict[str, object]:
     try:

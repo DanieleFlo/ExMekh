@@ -6,6 +6,7 @@ from xml.etree import ElementTree as ET
 from qs.core.cache.node_cache import NodeCache
 from qs.core.models.tool import PreformattedToolResult
 from qs.core.models.xml_header import XmlHeader
+from qs.utils.xml import append_text_element, render_xml
 
 from .execution_manager import ExecutionSnapshot, ToolExecutionManager
 from .output_view import ToolOutputView
@@ -41,10 +42,9 @@ class ToolOutputReader:
         if record is not None:
             return PreformattedToolResult(ToolOutputView(record).format_saved(cursor))
         root = ET.Element("saved-tool-output")
-        ET.SubElement(root, "id").text = output_id
-        ET.SubElement(root, "found").text = "false"
-        ET.indent(root)
-        return PreformattedToolResult(ET.tostring(root, encoding="unicode"))
+        append_text_element(root, "id", output_id)
+        append_text_element(root, "found", "false")
+        return PreformattedToolResult(render_xml(root))
 
     def _read_execution(
         self, output_id: str, snapshot: ExecutionSnapshot, cursor: int | None

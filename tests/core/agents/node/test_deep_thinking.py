@@ -308,8 +308,9 @@ def test_existing_saved_output_header_is_annotated_in_skill(tmp_path: Path) -> N
         node.run("investigate")
         content = _tool_content(provider.requests[3], "read")
         assert _header(content).findtext("thinking") == "read trace"
-        assert '"status": "consistent"' in content
-        assert '"backend": "z3"' in content
+        body = content.split("</header>\n", 1)[1]
+        assert ET.fromstring(body).findtext("status") == "consistent"
+        assert ET.fromstring(body).findtext("backend") == "z3"
 
 
 def test_headerless_tool_result_does_not_trigger_summarizer(tmp_path: Path) -> None:

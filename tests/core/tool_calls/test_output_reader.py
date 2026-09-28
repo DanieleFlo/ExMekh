@@ -1,3 +1,4 @@
+import base64
 from threading import Event
 from xml.etree import ElementTree as ET
 
@@ -12,10 +13,37 @@ from qs.core.models.tool import (
 )
 from qs.core.tool_calls.execution_manager import ToolExecutionManager
 from qs.core.tool_calls.output_reader import ToolOutputReader
+from qs.utils.xml import stringify_tool_result
 
 
 def unavailable_cache():
     raise AssertionError("Transient output must not depend on the cache")
+
+
+def test_missing_output_identifier_with_control_characters_remains_readable(tmp_path):
+    output_id = "missing\x00"
+    with SessionCache(tmp_path) as session:
+        reader = ToolOutputReader(lambda: session.node("node"))
+        root = ET.fromstring(reader.read(output_id).content)
+
+    assert root.findtext("found") == "false"
+    identifier = root.find("id")
+    assert identifier.get("encoding") == "base64"
+    assert (
+        base64.b64decode(identifier.text).decode("utf-8", "surrogatepass") == output_id
+    )
+
+
+def test_saved_structured_result_uses_the_same_xml_as_immediate_output(tmp_path):
+    result = {"title": "Wikipedia", "page_dates": {"published": None}}
+    record = ToolCallRecord("read-web-page", "output", {}, result)
+    with SessionCache(tmp_path) as session:
+        cache = session.node("node")
+        cache.store(record)
+        content = ToolOutputReader(lambda: cache).read("output").content
+        body = content.split("</header>\n", 1)[1]
+        assert body == stringify_tool_result(result)
+        assert cache.get("output").result == result
 
 
 def test_runtime_output_is_read_without_opening_the_cache_and_acknowledges_delivery():

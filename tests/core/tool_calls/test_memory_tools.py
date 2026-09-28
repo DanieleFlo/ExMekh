@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from xml.etree import ElementTree as ET
 
 import pytest
@@ -11,6 +12,19 @@ from qs.core.tool_calls.memory_tools import ExecutionHistory, HarnessMemoryTools
 
 def _content(result: PreformattedToolResult) -> str:
     return result.content
+
+
+def test_history_preserves_control_characters_in_call_identifiers(tmp_path) -> None:
+    call_id = "call\x00\ud800"
+    history = ExecutionHistory()
+    history.record("work", call_id)
+    with SessionCache(tmp_path) as session:
+        memory = HarnessMemoryTools(history, lambda: session.node("node"))
+        root = ET.fromstring(memory.get_execution_history().content)
+
+    identifier = root.find("call/id")
+    assert identifier.get("encoding") == "base64"
+    assert base64.b64decode(identifier.text).decode("utf-8", "surrogatepass") == call_id
 
 
 def test_saved_unfinished_execution_is_not_reported_as_a_final_result(tmp_path) -> None:

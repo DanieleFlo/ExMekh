@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Literal
 
+from qs.config.reasoning import MATH
 from qs.core.agents.tools.decorator import deep_tool
 from qs.core.reasoning_tools.math import MathInputError
 
@@ -32,7 +33,7 @@ def run(
     lower_bound: str | None = None,
     upper_bound: str | None = None,
     matrix: list[list[float]] | None = None,
-    precision: int = 15,
+    precision: int = MATH.default_precision,
 ) -> dict[str, object]:
     del work_root
     try:

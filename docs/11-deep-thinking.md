@@ -1,5 +1,11 @@
 # Deep Thinking
 
+Structured tool results use XML in both immediate and background execution.
+The XML header carries runtime metadata; the `<tool-result>` body carries typed
+result fields, including extracted Markdown or semantic AST data. Python return
+values and cache storage retain their structured data. See
+[response formatting](13-tool-executions.md#formato-delle-risposte).
+
 `deep-thinking` is a bundled harness skill for research and checked analysis.
 Its description and instructions are in English. It is selected by
 `DefaultCapabilities(harness=True)` and listed in the bundled `main` HDS.

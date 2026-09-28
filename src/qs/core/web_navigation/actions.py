@@ -5,10 +5,12 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from qs.config.web import WEB_NAVIGATION
+
 from .errors import WebNavigationError
 from .security import NavigationPolicy, validate_public_url
 
-MAX_ACTIONS = 10
+MAX_ACTIONS = WEB_NAVIGATION.max_actions
 ACTION_KINDS = {"click", "fill", "select", "scroll", "wait", "navigate", "back"}
 
 
@@ -65,12 +67,15 @@ def _validate_action(*, index: int, action: dict[str, Any]) -> None:
     if kind in {"fill", "select"}:
         _require_text(action, "value", index=index, allow_empty=kind == "fill")
     if kind == "scroll":
-        delta = action.get("delta_y", 800)
+        delta = action.get("delta_y", WEB_NAVIGATION.default_scroll_pixels)
         if isinstance(delta, bool) or not isinstance(delta, (int, float)):
             raise WebNavigationError(
                 f"Action {index} delta_y must be numeric.", kind="invalid_actions"
             )
-        action["delta_y"] = max(-5000, min(5000, int(delta)))
+        action["delta_y"] = max(
+            -WEB_NAVIGATION.max_scroll_pixels,
+            min(WEB_NAVIGATION.max_scroll_pixels, int(delta)),
+        )
     if kind == "wait":
         selector = action.get("selector")
         milliseconds = action.get("milliseconds")
@@ -85,7 +90,9 @@ def _validate_action(*, index: int, action: dict[str, Any]) -> None:
                     f"Action {index} milliseconds must be an integer.",
                     kind="invalid_actions",
                 )
-            action["milliseconds"] = max(0, min(5000, milliseconds))
+            action["milliseconds"] = max(
+                0, min(WEB_NAVIGATION.max_action_wait_ms, milliseconds)
+            )
     if kind == "navigate":
         action["url"] = validate_public_url(_require_text(action, "url", index=index))
 
@@ -224,7 +231,7 @@ async def _wait_for_page_effect(
     page: Any, *, before: tuple[str, str], timeout_ms: int
 ) -> bool:
     """Wait until a click changes URL or rendered DOM and the state stabilizes."""
-    deadline_ms = min(timeout_ms, 5000)
+    deadline_ms = min(timeout_ms, WEB_NAVIGATION.action_effect_timeout_ms)
     elapsed_ms = 0
     previous = before
     changed = False
@@ -239,6 +246,6 @@ async def _wait_for_page_effect(
         else:
             stable_observations = 0
         previous = current
-        await page.wait_for_timeout(100)
-        elapsed_ms += 100
+        await page.wait_for_timeout(WEB_NAVIGATION.action_poll_interval_ms)
+        elapsed_ms += WEB_NAVIGATION.action_poll_interval_ms
     return changed

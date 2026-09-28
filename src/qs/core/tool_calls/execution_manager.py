@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -14,7 +15,7 @@ from qs.core.models.tool import (
     PreformattedToolResult,
     ToolExecutionOperation,
 )
-from qs.utils.json import stringify_tool_result
+from qs.utils.xml import stringify_tool_result
 
 type ExecutionStatus = Literal["running", "completed", "failed", "cancelled"]
 
@@ -244,6 +245,48 @@ class ToolExecutionManager:
                 for execution in self._executions
                 if execution.output_id is not None
             )
+
+    def output_records(
+        self, stored_records: Mapping[str, ToolCallRecord]
+    ) -> tuple[ToolCallRecord, ...]:
+        """Describe published outputs and progress without consuming delivery."""
+        return tuple(
+            self._output_record(snapshot, stored_records)
+            for snapshot in self.output_snapshots()
+        )
+
+    def _output_record(
+        self,
+        snapshot: ExecutionSnapshot,
+        stored_records: Mapping[str, ToolCallRecord],
+    ) -> ToolCallRecord:
+        if snapshot.output_id is None:
+            raise ValueError("A published execution must have an output ID")
+        stored = stored_records.get(snapshot.output_id)
+        result = snapshot.record_result()
+        execution = {
+            **snapshot.status_info(),
+            "response_type": snapshot.response_type,
+            "storage": "saved" if stored is not None else "runtime",
+        }
+        if not snapshot.is_finished:
+            try:
+                partial = self.partial_output(snapshot.output_id, 0)
+                if partial is not None and partial[0]:
+                    result = {**result, "partial_output": partial[0]}
+                    execution["response_type"] = "partial"
+            except Exception as error:
+                result = {**result, "partial_output_error": str(error)}
+        return ToolCallRecord(
+            name=snapshot.name,
+            id=snapshot.output_id,
+            args=snapshot.arguments,
+            result=result,
+            skill_path=snapshot.skill_path,
+            tool_call_id=snapshot.call_id,
+            thinking=stored.thinking if stored is not None else None,
+            execution=execution,
+        )
 
     def partial_output(self, output_id: str, cursor: int) -> tuple[str, int] | None:
         with self._lock:

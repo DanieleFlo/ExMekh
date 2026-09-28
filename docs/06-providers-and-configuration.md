@@ -66,12 +66,24 @@ Configuration lives in `src/qs/config/` and is separated by responsibility:
 | `capabilities.py` | `CapabilityFormat`, `CapabilityText` | Fixed capability layout, metadata fields, and bundled descriptions |
 | `validation.py` | `ValidationPatterns` | Fixed patterns for names, references, and cache paths |
 | `runtime.py` | `RuntimeSettings` | Fixed harness tool names, limits, and instructions |
+| `web.py` | `WebNavigationSettings` | Shared web tool defaults, timeouts, cache lifetime, and navigation, output, and image resource budgets |
+| `web.py` | `WebRankingSettings` | Embedding model defaults, cache capacity, and BM25/RRF ranking weights |
+| `web.py` | `WebFormat` | Fixed web cache layout, OpenVINO artifact filenames, image formats, MIME types, and user agent |
+| `reasoning.py` | `MathSettings`, `FormalLogicSettings` | Shared calculation precision, logic timeouts, input budgets, and solver resource limits |
 
 The settings classes are frozen. To customize an application, construct its own
 settings instance or set the environment variables below before starting the CLI.
 Runtime protocol values are kept separate because changing them independently
 would break the corresponding tools and cached data. Explicit arguments to
 `LocalProvider` and the tokenizer still take precedence over defaults.
+
+Web and reasoning defaults are centralized in `WEB_NAVIGATION`, `WEB_RANKING`,
+`MATH`, and `FORMAL_LOGIC`. Their bundled tool entrypoints use the same defaults
+as the core implementations. Memory pagination defaults and limits are part of
+`RUNTIME`. These modules do not read environment variables; the `QS_*` variables
+below apply only to the settings that explicitly support environment loading.
+Default function arguments and existing module-level constant aliases are bound
+when their modules are imported; these constants are not a live reconfiguration API.
 
 ### Environment variables
 

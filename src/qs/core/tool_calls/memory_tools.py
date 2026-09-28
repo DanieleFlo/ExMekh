@@ -10,6 +10,7 @@ from qs.config.runtime import RUNTIME
 from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.tool import PreformattedToolResult, Tool
+from qs.utils.xml import append_text_element, render_xml
 
 from .execution_manager import ToolExecutionManager
 from .output_reader import ToolOutputReader
@@ -29,12 +30,14 @@ class ExecutionHistoryEntry:
         self.saved_output_id = output_id
         self.saved_session_dir = session_dir
 
-    def is_recoverable(self, cache: NodeCache) -> bool:
-        return (
+    def recoverable_output_id(self, cache: NodeCache) -> str | None:
+        if (
             self.saved_output_id is not None
             and self.saved_session_dir == cache.session_dir
             and cache.has(self.saved_output_id)
-        )
+        ):
+            return self.saved_output_id
+        return None
 
     def read_output(self, cache: NodeCache) -> ToolCallRecord | None:
         if self.saved_output_id is None or self.saved_session_dir != cache.session_dir:
@@ -109,7 +112,7 @@ class ExecutionHistory:
         self,
         *,
         start_position: int | None = None,
-        limit: int = 20,
+        limit: int = RUNTIME.memory_default_page_limit,
     ) -> ExecutionHistoryView:
         self._validate_navigation(start_position, limit)
         if start_position is None:
@@ -122,7 +125,7 @@ class ExecutionHistory:
         if total <= limit:
             return ExecutionHistoryView("overview", total, entries)
 
-        head_count = max(1, limit // 4)
+        head_count = max(1, limit // RUNTIME.history_head_divisor)
         tail_count = limit - head_count
         omitted_start = head_count + 1
         omitted_end = total - tail_count
@@ -171,8 +174,15 @@ class ExecutionHistory:
             type(start_position) is not int or start_position < 1
         ):
             raise ValueError("start_position must be a positive integer or None")
-        if type(limit) is not int or not 2 <= limit <= 100:
-            raise ValueError("limit must be between 2 and 100")
+        if (
+            type(limit) is not int
+            or not RUNTIME.history_min_page_limit
+            <= limit
+            <= RUNTIME.memory_max_page_limit
+        ):
+            raise ValueError(
+                f"limit must be between {RUNTIME.history_min_page_limit} and {RUNTIME.memory_max_page_limit}"
+            )
 
 
 class HarnessMemoryTools:
@@ -200,7 +210,8 @@ class HarnessMemoryTools:
                 description=(
                     "Return navigable XML history of capability calls. Omit "
                     "start_position for a head-and-tail overview, or use a "
-                    "1-based position and limit from 2 to 100 to read a page."
+                    f"1-based position and limit from {RUNTIME.history_min_page_limit} "
+                    f"to {RUNTIME.memory_max_page_limit} to read a page."
                 ),
                 cache_result=False,
                 background_enabled=False,
@@ -241,22 +252,22 @@ class HarnessMemoryTools:
     def get_execution_history(
         self,
         start_position: int | None = None,
-        limit: int = 20,
+        limit: int = RUNTIME.memory_default_page_limit,
     ) -> PreformattedToolResult:
         """Return overview or one position-based page of node execution history."""
         view = self._history.select(start_position=start_position, limit=limit)
         cache = self._cache_provider()
         root = ET.Element("execution-history")
-        ET.SubElement(root, "total").text = str(view.total)
-        ET.SubElement(root, "view").text = view.mode
+        append_text_element(root, "total", str(view.total))
+        append_text_element(root, "view", view.mode)
         if view.start_position is not None:
-            ET.SubElement(root, "start-position").text = str(view.start_position)
+            append_text_element(root, "start-position", str(view.start_position))
         if view.end_position is not None:
-            ET.SubElement(root, "end-position").text = str(view.end_position)
+            append_text_element(root, "end-position", str(view.end_position))
         if view.previous_position is not None:
-            ET.SubElement(root, "previous-position").text = str(view.previous_position)
+            append_text_element(root, "previous-position", str(view.previous_position))
         if view.next_position is not None:
-            ET.SubElement(root, "next-position").text = str(view.next_position)
+            append_text_element(root, "next-position", str(view.next_position))
 
         for entry in view.entries:
             if (
@@ -265,7 +276,7 @@ class HarnessMemoryTools:
             ):
                 self._append_omitted(root, view.omitted)
             self._append_history_entry(root, entry, cache)
-        return PreformattedToolResult(_render_xml(root))
+        return PreformattedToolResult(render_xml(root))
 
     @staticmethod
     def _append_history_entry(
@@ -274,18 +285,19 @@ class HarnessMemoryTools:
         cache: NodeCache,
     ) -> None:
         call = ET.SubElement(root, "call")
-        ET.SubElement(call, "position").text = str(entry.position)
-        ET.SubElement(call, "name").text = entry.name
-        ET.SubElement(call, "id").text = entry.call_id
-        if entry.is_recoverable(cache):
-            ET.SubElement(call, "saved-output-id").text = entry.saved_output_id
+        append_text_element(call, "position", str(entry.position))
+        append_text_element(call, "name", entry.name)
+        append_text_element(call, "id", entry.call_id)
+        output_id = entry.recoverable_output_id(cache)
+        if output_id is not None:
+            append_text_element(call, "saved-output-id", output_id)
 
     @staticmethod
     def _append_omitted(root: ET.Element, omitted: OmittedHistoryRange) -> None:
         element = ET.SubElement(root, "omitted")
-        ET.SubElement(element, "from-position").text = str(omitted.start_position)
-        ET.SubElement(element, "to-position").text = str(omitted.end_position)
-        ET.SubElement(element, "count").text = str(omitted.count)
+        append_text_element(element, "from-position", str(omitted.start_position))
+        append_text_element(element, "to-position", str(omitted.end_position))
+        append_text_element(element, "count", str(omitted.count))
 
     def search_tool_outputs(
         self,
@@ -293,7 +305,7 @@ class HarnessMemoryTools:
         tool_name: str | None = None,
         skill_path: str | None = None,
         offset: int = 0,
-        limit: int = 20,
+        limit: int = RUNTIME.memory_default_page_limit,
     ) -> PreformattedToolResult:
         """Search saved and runtime outputs by text, tool name, and skill path."""
         records, total, next_offset = ToolCallSearch(
@@ -306,13 +318,13 @@ class HarnessMemoryTools:
             limit=limit,
         )
         root = ET.Element("tool-outputs")
-        ET.SubElement(root, "total").text = str(total)
+        append_text_element(root, "total", str(total))
         if next_offset is not None:
-            ET.SubElement(root, "next-offset").text = str(next_offset)
+            append_text_element(root, "next-offset", str(next_offset))
         records_element = ET.SubElement(root, "records")
         for record in records:
             self._append_search_record(records_element, record)
-        return PreformattedToolResult(_render_xml(root))
+        return PreformattedToolResult(render_xml(root))
 
     @classmethod
     def _append_search_record(cls, root: ET.Element, record: ToolCallRecord) -> None:
@@ -320,16 +332,11 @@ class HarnessMemoryTools:
         output = ToolOutputView(record)
         for name, value in output.search_fields().items():
             if value is not None:
-                ET.SubElement(element, name).text = str(value)
-        ET.SubElement(element, "preview").text = output.preview(cls.PREVIEW_LIMIT)
+                append_text_element(element, name, str(value))
+        append_text_element(element, "preview", output.preview(cls.PREVIEW_LIMIT))
 
     def read_tool_output(
         self, output_id: str, cursor: int | None = None
     ) -> PreformattedToolResult:
         """Read current or saved output by its canonical output ID."""
         return self._output_reader.read(output_id, cursor)
-
-
-def _render_xml(root: ET.Element) -> str:
-    ET.indent(root)
-    return ET.tostring(root, encoding="unicode", short_empty_elements=True)

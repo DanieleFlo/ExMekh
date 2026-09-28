@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
+from qs.config.web import WEB_FORMAT, WEB_NAVIGATION
+
 from .actions import execute_actions
 from .ast import build_semantic_ast
 from .content import extract_page_dates, select_primary_html
@@ -28,10 +30,10 @@ from .security import (
 )
 
 OutputMode = Literal["markdown", "ast", "hybrid"]
-MAX_MARKDOWN_CHARS = 24000
-CACHE_TTL_SECONDS = 900
-CACHE_FORMAT_VERSION = 2
-CHROMIUM_INSTALL_TIMEOUT_SECONDS = 300
+MAX_MARKDOWN_CHARS = WEB_NAVIGATION.max_markdown_chars
+CACHE_TTL_SECONDS = WEB_NAVIGATION.cache_ttl_seconds
+CACHE_FORMAT_VERSION = WEB_FORMAT.cache_format_version
+CHROMIUM_INSTALL_TIMEOUT_SECONDS = WEB_NAVIGATION.chromium_install_timeout_seconds
 _CRAWL_ENV_LOCK = threading.Lock()
 
 
@@ -46,19 +48,23 @@ def crawl_page(
     """Run one isolated Crawl4AI browser lifecycle and return normalized output."""
     normalized_url = validate_public_url(url)
     mode = _validate_output_mode(output_mode)
-    if type(timeout_seconds) is not int or not 1 <= timeout_seconds <= 120:
+    if (
+        type(timeout_seconds) is not int
+        or not 1 <= timeout_seconds <= WEB_NAVIGATION.max_timeout_seconds
+    ):
         raise WebNavigationError(
-            "timeout_seconds must be between 1 and 120.", kind="invalid_timeout"
+            f"timeout_seconds must be between 1 and {WEB_NAVIGATION.max_timeout_seconds}.",
+            kind="invalid_timeout",
         )
     root = Path(workroot).resolve() if workroot is not None else Path.cwd().resolve()
-    cache_root = root / ".qs" / "web-cache"
+    cache_root = root / WEB_FORMAT.cache_directory
     if actions is None:
         cached = _read_page_cache(cache_root=cache_root, url=normalized_url, mode=mode)
         if cached is not None:
             return cached
     with _CRAWL_ENV_LOCK:
-        previous_directory = os.environ.get("CRAWL4_AI_BASE_DIRECTORY")
-        os.environ["CRAWL4_AI_BASE_DIRECTORY"] = str(cache_root)
+        previous_directory = os.environ.get(WEB_FORMAT.crawler_directory_env_var)
+        os.environ[WEB_FORMAT.crawler_directory_env_var] = str(cache_root)
         try:
             payload = _crawl_with_browser_recovery(
                 url=normalized_url,
@@ -69,9 +75,9 @@ def crawl_page(
             )
         finally:
             if previous_directory is None:
-                os.environ.pop("CRAWL4_AI_BASE_DIRECTORY", None)
+                os.environ.pop(WEB_FORMAT.crawler_directory_env_var, None)
             else:
-                os.environ["CRAWL4_AI_BASE_DIRECTORY"] = previous_directory
+                os.environ[WEB_FORMAT.crawler_directory_env_var] = previous_directory
     if actions is None:
         _write_page_cache(
             cache_root=cache_root,
@@ -257,9 +263,9 @@ async def _crawl_page(
     )
     markdown_generator = DefaultMarkdownGenerator(
         content_filter=filter_class(
-            threshold=0.48,
+            threshold=WEB_NAVIGATION.pruning_threshold,
             threshold_type="fixed",
-            min_word_threshold=20,
+            min_word_threshold=WEB_NAVIGATION.pruning_min_words,
         )
     )
     run_config = CrawlerRunConfig(
@@ -349,7 +355,13 @@ def _extract_markdown(result: Any, *, prefer_raw: bool = False) -> tuple[str, bo
     else:
         fit_markdown = str(getattr(markdown_result, "fit_markdown", "") or "")
         raw_markdown = str(getattr(markdown_result, "raw_markdown", "") or "")
-        minimum_fit_chars = min(500, max(120, len(raw_markdown) // 8))
+        minimum_fit_chars = min(
+            WEB_NAVIGATION.maximum_fit_chars,
+            max(
+                WEB_NAVIGATION.minimum_fit_chars,
+                len(raw_markdown) // WEB_NAVIGATION.fit_length_divisor,
+            ),
+        )
         value = (
             raw_markdown
             if prefer_raw
@@ -369,7 +381,7 @@ def _cache_path(*, cache_root: Path, url: str, mode: str) -> Path:
     digest = hashlib.sha256(
         f"{CACHE_FORMAT_VERSION}\0{mode}\0{url}".encode("utf-8")
     ).hexdigest()
-    return cache_root / "page-cache" / f"{digest}.json"
+    return cache_root / WEB_FORMAT.page_cache_folder / f"{digest}.json"
 
 
 def _read_page_cache(*, cache_root: Path, url: str, mode: str) -> dict[str, Any] | None:

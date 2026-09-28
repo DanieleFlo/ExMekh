@@ -10,6 +10,8 @@ import time
 from dataclasses import dataclass
 from typing import Any, Literal
 
+from qs.config.reasoning import FORMAL_LOGIC
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -43,7 +45,10 @@ class _FormulaBuilder:
 
     def build(self, node: object, *, depth: int = 0) -> _Term:
         self._nodes += 1
-        if self._nodes > 200 or depth > 16:
+        if (
+            self._nodes > FORMAL_LOGIC.max_formula_nodes
+            or depth > FORMAL_LOGIC.max_formula_depth
+        ):
             raise FormalLogicError("Formula exceeds its size or depth limit.")
         if not isinstance(node, dict):
             raise FormalLogicError("Each formula node must be an object.")
@@ -56,9 +61,13 @@ class _FormulaBuilder:
             value = node["const"]
             if type(value) is bool:
                 return _Term(self._z3.BoolVal(value, ctx=self._context), "Bool", True)
-            if type(value) is int and abs(value) <= 10**12:
+            if type(value) is int and abs(value) <= FORMAL_LOGIC.max_numeric_magnitude:
                 return _Term(self._z3.IntVal(value, ctx=self._context), "Int", True)
-            if type(value) is float and math.isfinite(value) and abs(value) <= 10**12:
+            if (
+                type(value) is float
+                and math.isfinite(value)
+                and abs(value) <= FORMAL_LOGIC.max_numeric_magnitude
+            ):
                 return _Term(
                     self._z3.RealVal(str(value), ctx=self._context), "Real", True
                 )
@@ -115,8 +124,13 @@ class _FormulaBuilder:
     def _build_variadic(self, node: dict[str, Any], *, op: str, depth: int) -> _Term:
         self._keys(node, {"op", "args"})
         args = node["args"]
-        if not isinstance(args, list) or not 2 <= len(args) <= 10:
-            raise FormalLogicError(f"{op} needs 2-10 operands.")
+        if (
+            not isinstance(args, list)
+            or not 2 <= len(args) <= FORMAL_LOGIC.max_operands
+        ):
+            raise FormalLogicError(
+                f"{op} needs 2-{FORMAL_LOGIC.max_operands} operands."
+            )
         terms = [self.build(item, depth=depth + 1) for item in args]
         for term in terms:
             self._require(term, "Bool")
@@ -218,7 +232,7 @@ def check_logic(
     variables: dict[str, Literal["Bool", "Int", "Real"]],
     premises: list[dict[str, Any]],
     conclusion: dict[str, Any] | None = None,
-    timeout_seconds: int = 5,
+    timeout_seconds: int = FORMAL_LOGIC.default_timeout_seconds,
 ) -> dict[str, object]:
     """Check a bounded formal formula; natural-language translation is external."""
     _validate_request(task, variables, premises, conclusion, timeout_seconds)
@@ -230,7 +244,11 @@ def check_logic(
     formulas = [_boolean(builder.build(item)) for item in premises]
     goal = _boolean(builder.build(conclusion)) if conclusion is not None else None
     solver = z3.Solver(ctx=ctx)
-    solver.set(unsat_core=True, max_memory=128, rlimit=1_000_000)
+    solver.set(
+        unsat_core=True,
+        max_memory=FORMAL_LOGIC.solver_max_memory_mb,
+        rlimit=FORMAL_LOGIC.solver_resource_limit,
+    )
     for index, formula in enumerate(formulas):
         solver.assert_and_track(formula, z3.Bool(f"__qs_premise_{index}", ctx=ctx))
     base: dict[str, object] = {"backend": "z3", "task": task}
@@ -299,7 +317,7 @@ def _validate_request(
         raise FormalLogicError("Unknown logic task.", kind="unsupported_operation")
     if (
         not isinstance(variables, dict)
-        or len(variables) > 32
+        or len(variables) > FORMAL_LOGIC.max_variables
         or any(
             not isinstance(name, str)
             or re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", name) is None
@@ -310,20 +328,29 @@ def _validate_request(
         )
     ):
         raise FormalLogicError(
-            "Declare up to 32 Bool, Int, or Real variables with simple names."
+            f"Declare up to {FORMAL_LOGIC.max_variables} Bool, Int, or Real variables with simple names."
         )
-    if not isinstance(premises, list) or len(premises) > 20:
-        raise FormalLogicError("premises must be a list of at most 20 formulas.")
+    if not isinstance(premises, list) or len(premises) > FORMAL_LOGIC.max_premises:
+        raise FormalLogicError(
+            f"premises must be a list of at most {FORMAL_LOGIC.max_premises} formulas."
+        )
     if task != "consistency" and conclusion is None:
         raise FormalLogicError("conclusion is required for this task.")
-    if type(timeout_seconds) is not int or not 1 <= timeout_seconds <= 30:
-        raise FormalLogicError("timeout_seconds must be between 1 and 30.")
+    if (
+        type(timeout_seconds) is not int
+        or not 1 <= timeout_seconds <= FORMAL_LOGIC.max_timeout_seconds
+    ):
+        raise FormalLogicError(
+            f"timeout_seconds must be between 1 and {FORMAL_LOGIC.max_timeout_seconds}."
+        )
     try:
         size = len(json.dumps([variables, premises, conclusion]))
     except (TypeError, ValueError, RecursionError) as error:
         raise FormalLogicError("Formulas must be JSON serializable.") from error
-    if size > 12000:
-        raise FormalLogicError("Request exceeds the 12000 character limit.")
+    if size > FORMAL_LOGIC.max_request_chars:
+        raise FormalLogicError(
+            f"Request exceeds the {FORMAL_LOGIC.max_request_chars} character limit."
+        )
 
 
 def _boolean(term: _Term) -> Any:
@@ -372,7 +399,7 @@ def logic_tool_result(
     variables: dict[str, Literal["Bool", "Int", "Real"]],
     premises: list[dict[str, Any]],
     conclusion: dict[str, Any] | None = None,
-    timeout_seconds: int = 5,
+    timeout_seconds: int = FORMAL_LOGIC.default_timeout_seconds,
 ) -> dict[str, object]:
     """Convert validation and dependency failures to stable tool results."""
     try:

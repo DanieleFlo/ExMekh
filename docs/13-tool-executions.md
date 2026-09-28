@@ -4,6 +4,52 @@ Il runtime del nodo gestisce i tool di lavoro con un protocollo comune. Gli
 argomenti aggiunti allo schema del modello sono consumati dall'harness: la
 funzione Python continua a ricevere soltanto i propri argomenti applicativi.
 
+## Formato delle risposte
+
+XML è lo standard dei risultati strutturati presentati al modello, sia in
+modalità `wait` sia in `background`. Il runtime antepone l'header `<header>`
+e converte dizionari, liste e valori scalari non testuali in un corpo `<tool-result>`.
+La stessa conversione vale per `control_tool_execution`, la consegna automatica
+e `read_tool_output`, anche quando legge un record già salvato.
+
+I nomi dei campi del risultato restano quelli Python (per esempio
+`tool_call_id` e `output_id`); i metadati nell'header conservano i nomi esistenti
+con trattini. Oggetti e array usano `type="object"` e `type="array"`, gli
+elementi delle liste sono `<item>`. I tipi scalari sono `string`, `integer`,
+`number`, `boolean` e `null`; booleani e null restano distinti da stringhe vuote.
+Le chiavi non valide come nomi XML usano `<field><key>…</key><value>…</value></field>`.
+Il testo usa escaping XML; caratteri non rappresentabili in XML sono codificati
+in base64 con `encoding="base64"` (UTF-8 con `surrogatepass`).
+
+Header, cronologia, anteprime di ricerca e diagnostiche di lettura usano lo stesso
+renderer XML per preservare caratteri di controllo e ritorni a capo. I nomi degli
+argomenti non validi come nomi XML restano attributi `name` di nodi `<arg>`;
+se contengono caratteri non rappresentabili, l'attributo usa base64 e aggiunge
+`name-encoding="base64"`. I valori strutturati degli argomenti nell'header
+mantengono il formato JSON compatto.
+
+Esempio del corpo restituito all'avvio di un lavoro ancora attivo (tempi omessi):
+
+```xml
+<tool-result type="object">
+  <status type="string">running</status>
+  <tool_call_id type="string">call-example</tool_call_id>
+  <output_id type="string">output-example</output_id>
+  <message type="string">Tool execution is still running.</message>
+</tool-result>
+```
+
+Un risultato di `read-web-page` espone campi come `<title>`, `<status_code>` e
+`<markdown>` nello stesso corpo. `output_mode="markdown"` sceglie il contenuto
+estratto dalla pagina: non il formato del messaggio del runtime. Il Markdown
+rimane testo all'interno del campo XML e il contenuto web resta non attendibile.
+
+Le stringhe prodotte direttamente dai tool, i risultati preformattati, i dati
+incrementali e le diagnostiche di lettura restano testo. I ritorni Python e i
+record della cache rimangono strutturati; lo storage, gli argomenti delle tool
+call e gli export della history continuano a usare JSON. Chi analizza il corpo
+strutturato delle risposte deve leggere XML anziché usare `json.loads`.
+
 ## Modalità e limiti
 
 | Argomento | Default | Comportamento |

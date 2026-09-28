@@ -20,7 +20,7 @@ from qs.core.models.tool import CalledTool, PreformattedToolResult
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.xml_header import XmlHeader
 from qs.core.tool_calls.execution_manager import ExecutionSnapshot, ToolExecutionManager
-from qs.utils.json import stringify_tool_result
+from qs.utils.xml import stringify_tool_result
 
 from .agentic_scope import AgenticScope
 from .tool_call_resolver import ResolvedToolCall

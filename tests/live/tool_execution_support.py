@@ -36,6 +36,7 @@ from qs.core.models.xml_header import XmlHeader
 from qs.providers.local import LocalProvider
 from tests.event_handler import as_agent_handler
 from tests.live.test_tool_cache_live import CacheTestTokenizer
+from tests.tool_result_support import parse_tool_result
 
 # A stdin gate models externally completed work without relying on inference latency.
 _WORKER = """\
@@ -496,7 +497,7 @@ class LiveExecutionRig:
         header, body = split_output(
             self.outputs.get(call.id) or self.provider.output(call.id)
         )
-        return header, json.loads(body)
+        return header, parse_tool_result(body)
 
     def assert_completed_job(self, call: ToolCall) -> LiveProcess:
         job = self.fixture.job(call.id)

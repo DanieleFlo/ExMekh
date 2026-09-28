@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import math
 from typing import Any, overload
 
@@ -23,13 +22,6 @@ def to_json_value(value: object) -> JsonValue:
     Only ancestors count as cycles, so shared references remain ordinary data.
     """
     return _convert(value, set())
-
-
-def stringify_tool_result(value: object) -> str:
-    """Render a tool result exactly as it is shown in a tool response."""
-    if isinstance(value, str):
-        return value
-    return json.dumps(value, ensure_ascii=True, default=str)
 
 
 def _convert(value: object, ancestors: set[int]) -> JsonValue:

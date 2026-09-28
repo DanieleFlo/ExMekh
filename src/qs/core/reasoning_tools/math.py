@@ -7,6 +7,8 @@ import math
 import operator
 from typing import Any
 
+from qs.config.reasoning import MATH
+
 
 class MathInputError(ValueError):
     pass
@@ -19,12 +21,17 @@ def calculate(
     lower_bound: str | None = None,
     upper_bound: str | None = None,
     matrix: list[list[float]] | None = None,
-    precision: int = 15,
+    precision: int = MATH.default_precision,
 ) -> dict[str, object]:
     import sympy as sp
 
-    if type(precision) is not int or not 2 <= precision <= 50:
-        raise MathInputError("precision must be between 2 and 50")
+    if (
+        type(precision) is not int
+        or not MATH.min_precision <= precision <= MATH.max_precision
+    ):
+        raise MathInputError(
+            f"precision must be between {MATH.min_precision} and {MATH.max_precision}"
+        )
     if (
         not isinstance(variable, str)
         or not variable.isidentifier()
@@ -61,10 +68,12 @@ def _calculate_matrix(sp: Any, operation: str, matrix: list[list[float]] | None)
     if (
         not isinstance(matrix, list)
         or not matrix
-        or len(matrix) > 20
+        or len(matrix) > MATH.max_matrix_dimension
         or any(not isinstance(row, list) or len(row) != len(matrix) for row in matrix)
     ):
-        raise MathInputError("matrix must be square and at most 20 by 20")
+        raise MathInputError(
+            f"matrix must be square and at most {MATH.max_matrix_dimension} by {MATH.max_matrix_dimension}"
+        )
     if any(type(value) not in (int, float) for row in matrix for value in row):
         raise MathInputError("matrix entries must be numbers")
     if any(
@@ -123,13 +132,13 @@ def _calculate_expression(
 def _parse(expression: str) -> Any:
     import sympy as sp
 
-    if len(expression) > 2000:
+    if len(expression) > MATH.max_expression_chars:
         raise MathInputError("expression is too long")
     try:
         tree = ast.parse(expression, mode="eval")
     except SyntaxError as error:
         raise MathInputError("invalid expression syntax") from error
-    if sum(1 for _ in ast.walk(tree)) > 250:
+    if sum(1 for _ in ast.walk(tree)) > MATH.max_expression_nodes:
         raise MathInputError("expression is too complex")
     functions = {
         "sin": sp.sin,
@@ -150,7 +159,7 @@ def _parse(expression: str) -> Any:
 
     def convert(node: ast.AST) -> Any:
         if isinstance(node, ast.Constant) and type(node.value) in (int, float):
-            if len(str(node.value)) > 100:
+            if len(str(node.value)) > MATH.max_number_chars:
                 raise MathInputError("number is too large")
             if isinstance(node.value, float) and not math.isfinite(node.value):
                 raise MathInputError("numbers must be finite")
@@ -171,9 +180,11 @@ def _parse(expression: str) -> Any:
                 if (
                     not isinstance(node.right, ast.Constant)
                     or type(node.right.value) not in (int, float)
-                    or abs(node.right.value) > 100
+                    or abs(node.right.value) > MATH.max_exponent
                 ):
-                    raise MathInputError("exponents must be numeric and at most 100")
+                    raise MathInputError(
+                        f"exponents must be numeric and at most {MATH.max_exponent}"
+                    )
             return binary[type(node.op)](convert(node.left), convert(node.right))
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
             function = functions.get(node.func.id)

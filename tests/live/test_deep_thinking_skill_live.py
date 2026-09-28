@@ -26,6 +26,7 @@ from qs.core.models.tool_message import ToolMessage
 from qs.interfaces.provider import Provider
 from qs.interfaces.tokenizer import Tokenizer
 from qs.providers.local import LocalProvider
+from tests.tool_result_support import parse_tool_result
 
 pytestmark = pytest.mark.live
 
@@ -73,7 +74,7 @@ class _ScriptedProvider(Provider):
             isinstance(latest_message, ToolMessage)
             and latest_message.get_name() == "search-web"
         ):
-            search_result = _json_body(latest_message.get_message())
+            search_result = _xml_body(latest_message.get_message())
             if (
                 search_result.get("error_kind") == "search_failed"
                 and self.search_retries < 2
@@ -190,8 +191,8 @@ def _tool_messages(requests: list[ProviderRequest]) -> dict[str, str]:
     }
 
 
-def _json_body(content: str) -> dict[str, object]:
-    return json.loads(content.split("</header>", 1)[1].strip())
+def _xml_body(content: str) -> dict[str, object]:
+    return parse_tool_result(content)
 
 
 def test_live_full_skill_uses_every_tool_in_one_task(tmp_path: Path) -> None:
@@ -222,13 +223,13 @@ def test_live_full_skill_uses_every_tool_in_one_task(tmp_path: Path) -> None:
             if provider.search_retries
             else "search"
         )
-        assert _json_body(outputs[search_call_id])["result_count"] > 0
+        assert _xml_body(outputs[search_call_id])["result_count"] > 0
         assert "statistics" in outputs["read"].lower()
         assert MATH_URL in outputs["navigate"]
-        assert _json_body(outputs["calculate"])["result"] == "5.00000000000000"
-        assert _json_body(outputs["consistency"])["status"] == "consistent"
-        assert _json_body(outputs["check"])["status"] == "valid"
-        assert _json_body(outputs["counterexample"])["status"] == "found"
+        assert _xml_body(outputs["calculate"])["result"] == "5.00000000000000"
+        assert _xml_body(outputs["consistency"])["status"] == "consistent"
+        assert _xml_body(outputs["check"])["status"] == "valid"
+        assert _xml_body(outputs["counterexample"])["status"] == "found"
         for call_id in (
             "search",
             "read",

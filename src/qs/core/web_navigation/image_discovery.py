@@ -6,7 +6,7 @@ import asyncio
 import ipaddress
 import json
 import socket
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, Sequence, Set
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
@@ -18,19 +18,21 @@ from aiohttp.abc import AbstractResolver
 from lxml import html
 from PIL import Image, UnidentifiedImageError
 
+from qs.config.web import WEB_FORMAT, WEB_NAVIGATION
+
 from .errors import WebNavigationError
 
-MAX_LOCAL_IMAGE_BYTES = 10 * 1024 * 1024
-MAX_REMOTE_IMAGE_BYTES = 10 * 1024 * 1024
-MAX_HTML_BYTES = 2 * 1024 * 1024
-MAX_IMAGE_PIXELS = 20_000_000
-MAX_REDIRECTS = 3
-IMAGE_DISCOVERY_CONCURRENCY = 4
-IMAGE_CANDIDATE_LIMIT = 15
-ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP"}
-ALLOWED_IMAGE_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
-HTML_MIME_TYPES = {"text/html", "application/xhtml+xml"}
-USER_AGENT = "qs/0.1"
+MAX_LOCAL_IMAGE_BYTES = WEB_NAVIGATION.max_local_image_bytes
+MAX_REMOTE_IMAGE_BYTES = WEB_NAVIGATION.max_remote_image_bytes
+MAX_HTML_BYTES = WEB_NAVIGATION.max_html_bytes
+MAX_IMAGE_PIXELS = WEB_NAVIGATION.max_image_pixels
+MAX_REDIRECTS = WEB_NAVIGATION.max_redirects
+IMAGE_DISCOVERY_CONCURRENCY = WEB_NAVIGATION.image_discovery_concurrency
+IMAGE_CANDIDATE_LIMIT = WEB_NAVIGATION.image_candidate_limit
+ALLOWED_IMAGE_FORMATS = WEB_FORMAT.allowed_image_formats
+ALLOWED_IMAGE_MIME_TYPES = WEB_FORMAT.allowed_image_mime_types
+HTML_MIME_TYPES = WEB_FORMAT.html_mime_types
+USER_AGENT = WEB_FORMAT.user_agent
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,14 +105,14 @@ def load_local_query_image(*, image_path: str, workroot: Path | None) -> Image.I
         ) from error
     if not resolved.is_file() or resolved.stat().st_size > MAX_LOCAL_IMAGE_BYTES:
         raise WebNavigationError(
-            "image_path must be an image file no larger than 10 MB.",
+            f"image_path must be an image file no larger than {MAX_LOCAL_IMAGE_BYTES / (1024 * 1024):g} MB.",
             kind="invalid_image",
         )
     try:
         content = resolved.read_bytes()
         if len(content) > MAX_LOCAL_IMAGE_BYTES:
             raise WebNavigationError(
-                "image_path must be an image file no larger than 10 MB.",
+                f"image_path must be an image file no larger than {MAX_LOCAL_IMAGE_BYTES / (1024 * 1024):g} MB.",
                 kind="invalid_image",
             )
         return decode_image(content)
@@ -136,7 +138,7 @@ def decode_image(content: bytes) -> Image.Image:
             width, height = image.size
             if width < 1 or height < 1 or width * height > MAX_IMAGE_PIXELS:
                 raise WebNavigationError(
-                    "Image dimensions exceed the 20 megapixel limit.",
+                    f"Image dimensions exceed the {MAX_IMAGE_PIXELS / 1_000_000:g} megapixel limit.",
                     kind="invalid_image",
                 )
             image.verify()
@@ -227,7 +229,7 @@ async def _robots_allows(url: str) -> bool:
         content, _ = await _fetch_bytes(
             robots_url,
             allowed_mime_types={"text/plain", "text/html"},
-            max_bytes=256 * 1024,
+            max_bytes=WEB_NAVIGATION.max_robots_bytes,
         )
     except (WebNavigationError, aiohttp.ClientError, asyncio.TimeoutError):
         return True
@@ -237,7 +239,7 @@ async def _robots_allows(url: str) -> bool:
 
 
 async def _fetch_bytes(
-    url: str, *, allowed_mime_types: set[str], max_bytes: int
+    url: str, *, allowed_mime_types: Set[str], max_bytes: int
 ) -> tuple[bytes, str]:
     """Fetch public content with pinned DNS, manual redirects, and byte limits."""
     current_url = _canonicalize_remote_url(url)
@@ -246,7 +248,9 @@ async def _fetch_bytes(
         connector = aiohttp.TCPConnector(
             resolver=PublicResolver(), use_dns_cache=False, ttl_dns_cache=0
         )
-        timeout = aiohttp.ClientTimeout(total=10)
+        timeout = aiohttp.ClientTimeout(
+            total=WEB_NAVIGATION.image_fetch_timeout_seconds
+        )
         async with aiohttp.ClientSession(
             connector=connector,
             timeout=timeout,
@@ -292,7 +296,9 @@ async def _fetch_bytes(
                     )
                 chunks: list[bytes] = []
                 size = 0
-                async for chunk in response.content.iter_chunked(64 * 1024):
+                async for chunk in response.content.iter_chunked(
+                    WEB_NAVIGATION.download_chunk_bytes
+                ):
                     size += len(chunk)
                     if size > max_bytes:
                         raise WebNavigationError(

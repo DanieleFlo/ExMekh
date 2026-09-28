@@ -147,6 +147,26 @@ def test_runtime_final_replaces_cached_running_view_without_duplicates_or_acknow
         assert cache.get("output-call").result == "old running preview"
 
 
+def test_runtime_output_records_preserve_saved_annotations_without_mutation(output_rig):
+    _, manager, _, _ = output_rig
+    stored = ToolCallRecord(
+        "work", "output-call", {}, "old preview", thinking="saved annotation"
+    )
+    records = {stored.id: stored}
+    with pending_job(manager) as release:
+        release.set()
+        assert manager.wait("call", 1).is_finished
+
+        record = manager.output_records(records)[0]
+
+        assert record.result == "finished receipt"
+        assert record.thinking == "saved annotation"
+        assert record.execution["storage"] == "saved"
+        assert stored.result == "old preview"
+        assert records == {stored.id: stored}
+        assert manager.next_delivery(("owner",)) is not None
+
+
 @pytest.mark.parametrize(
     ("result", "status", "response_type", "preview"),
     [

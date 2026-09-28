@@ -8,7 +8,7 @@ from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.tool import Tool
 
-from .execution_manager import ExecutionSnapshot, ToolExecutionManager
+from .execution_manager import ToolExecutionManager
 from .output_view import ToolOutputView
 
 
@@ -35,7 +35,7 @@ class ToolCallSearch:
         tool_name: str | None = None,
         skill_path: str | None = None,
         offset: int = 0,
-        limit: int = 20,
+        limit: int = RUNTIME.memory_default_page_limit,
     ) -> dict[str, Any]:
         """Search saved and runtime calls by text and exact skill path, with pagination.
 
@@ -61,7 +61,7 @@ class ToolCallSearch:
         tool_name: str | None = None,
         skill_path: str | None = None,
         offset: int = 0,
-        limit: int = 20,
+        limit: int = RUNTIME.memory_default_page_limit,
     ) -> tuple[list[ToolCallRecord], int, int | None]:
         """Return matching records and pagination metadata."""
         if not isinstance(query, str):
@@ -76,8 +76,10 @@ class ToolCallSearch:
             raise ValueError("skill_path must be an absolute skill path")
         if type(offset) is not int or offset < 0:
             raise ValueError("offset must be a non-negative integer")
-        if type(limit) is not int or not 1 <= limit <= 100:
-            raise ValueError("limit must be between 1 and 100")
+        if type(limit) is not int or not 1 <= limit <= RUNTIME.memory_max_page_limit:
+            raise ValueError(
+                f"limit must be between 1 and {RUNTIME.memory_max_page_limit}"
+            )
         needle = query.casefold()
         matches = [
             record
@@ -95,39 +97,6 @@ class ToolCallSearch:
             for record in self._cache.get_all()
         }
         if self._execution_manager is not None:
-            for snapshot in self._execution_manager.output_snapshots():
-                record = self._execution_record(
-                    snapshot, records.get(snapshot.output_id)
-                )
+            for record in self._execution_manager.output_records(records):
                 records[record.id] = record
         return tuple(records.values())
-
-    def _execution_record(
-        self, snapshot: ExecutionSnapshot, stored: ToolCallRecord | None
-    ) -> ToolCallRecord:
-        if snapshot.output_id is None:
-            raise ValueError("A searchable execution must have an output ID")
-        result = snapshot.record_result()
-        execution = {
-            **snapshot.status_info(),
-            "response_type": snapshot.response_type,
-            "storage": "saved" if stored is not None else "runtime",
-        }
-        if not snapshot.is_finished:
-            try:
-                partial = self._execution_manager.partial_output(snapshot.output_id, 0)
-                if partial is not None and partial[0]:
-                    result = {**result, "partial_output": partial[0]}
-                    execution["response_type"] = "partial"
-            except Exception as error:
-                result = {**result, "partial_output_error": str(error)}
-        return ToolCallRecord(
-            name=snapshot.name,
-            id=snapshot.output_id,
-            args=snapshot.arguments,
-            result=result,
-            skill_path=snapshot.skill_path,
-            tool_call_id=snapshot.call_id,
-            thinking=stored.thinking if stored is not None else None,
-            execution=execution,
-        )

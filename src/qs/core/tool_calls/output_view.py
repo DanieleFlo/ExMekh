@@ -6,7 +6,7 @@ from typing import Any
 from qs.config.runtime import RUNTIME
 from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.xml_header import XmlHeader
-from qs.utils.json import stringify_tool_result
+from qs.utils.xml import stringify_tool_result
 
 
 class ToolOutputView:

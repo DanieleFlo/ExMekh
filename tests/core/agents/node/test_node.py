@@ -678,7 +678,7 @@ def test_run_tool_delegates_execution_to_called_tool() -> None:
     client.add_tool_response.assert_not_called()
     client.get_session.assert_not_called()
     response = result.response
-    assert response.get_message() == '{"echo": "hello"}'
+    assert ET.fromstring(response.get_message()).findtext("echo") == "hello"
     assert response.get_tool_call_id() == "call-123"
     assert response.get_name() == "echo"
 
@@ -705,7 +705,9 @@ def test_run_tool_prepends_xml_header_when_client_generates_id() -> None:
     client.get_session.assert_not_called()
     response = result.response
     expected_header = XmlHeader(source="Tool", name="echo", id="id-tool").to_xml()
-    assert response.get_message() == f'{expected_header}\n{{"echo": "hello"}}'
+    assert response.get_message().startswith(expected_header + "\n")
+    body = response.get_message().split("</header>\n", 1)[1]
+    assert ET.fromstring(body).findtext("echo") == "hello"
     assert response.get_tool_call_id() == "call-123"
     assert response.get_name() == "echo"
 
@@ -915,7 +917,10 @@ def test_exit_items_retry_keeps_skill_open_then_compacts_selected_output(
     skill_result = response.skill_executions[0].output
     assert skill_result is not None
     assert skill_result.count('<tool-output id="out-1"') == 1
-    assert "A &lt; B" in skill_result
+    embedded_output = ET.fromstring(skill_result.split("Result: ", 1)[1])
+    assert (
+        ET.fromstring(embedded_output.findtext("content")).findtext("echo") == "A < B"
+    )
     assert any(
         isinstance(message, ToolMessage)
         and message.get_tool_call_id() == "open"
@@ -1192,7 +1197,8 @@ def test_streams_context_across_nested_skills_and_tools(
 
     nested_tool_end = tool_events[5]
     assert nested_tool_end.history[-1]["role"] == "tool"
-    assert nested_tool_end.history[-1]["content"].endswith('{"echo": "work"}')
+    body = nested_tool_end.history[-1]["content"].split("</header>\n", 1)[1]
+    assert ET.fromstring(body).findtext("echo") == "work"
     parent_tree = nested_tool_end.history_tree[0]
     assert parent_tree["skill"] == "mock-skill"
     assert parent_tree["output"] is None
@@ -1333,7 +1339,8 @@ def test_regular_tool_does_not_change_depth_and_serializes_its_result(
 
     assert node.depth == 0
     tool_message = cast(ToolMessage, provider.requests[1].get_messages()[-1])
-    assert tool_message.get_message().endswith('{"echo": "hello"}')
+    body = tool_message.get_message().split("</header>\n", 1)[1]
+    assert ET.fromstring(body).findtext("echo") == "hello"
     assert "<response-type>final</response-type>" in tool_message.get_message()
 
 
@@ -1860,7 +1867,8 @@ def test_skill_compaction_preserves_preceding_parallel_tool_responses(
         "work",
         "open",
     ]
-    assert tool_messages[0].get_message().endswith('{"echo": "before"}')
+    body = tool_messages[0].get_message().split("</header>\n", 1)[1]
+    assert ET.fromstring(body).findtext("echo") == "before"
     assert tool_messages[1].get_message() == "skill done"
     records = node._runtime._tool_cache.get_all()
     assert {record.tool_call_id: record.skill_path for record in records} == {

@@ -8,9 +8,11 @@ import socket
 from collections.abc import Awaitable, Callable
 from urllib.parse import urljoin, urlparse
 
+from qs.config.web import WEB_NAVIGATION
+
 from .errors import WebNavigationError
 
-MAX_MAIN_FRAME_NAVIGATIONS = 5
+MAX_MAIN_FRAME_NAVIGATIONS = WEB_NAVIGATION.max_main_frame_navigations
 
 
 def normalized_origin(url: str) -> tuple[str, str, int]:

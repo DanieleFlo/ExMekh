@@ -8,14 +8,16 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
+from qs.config.web import WEB_NAVIGATION
+
 from .errors import WebNavigationError
 
 if TYPE_CHECKING:
     from PIL import Image
 
-MAX_SEARCH_RESULTS = 10
-SEARCH_CANDIDATE_LIMIT = 50
-SEARCH_BACKENDS = "duckduckgo,brave,mojeek,startpage,wikipedia,yahoo"
+MAX_SEARCH_RESULTS = WEB_NAVIGATION.max_search_results
+SEARCH_CANDIDATE_LIMIT = WEB_NAVIGATION.search_candidate_limit
+SEARCH_BACKENDS = WEB_NAVIGATION.search_backends
 _TRACKING_PARAMETERS = {"fbclid", "gclid", "mc_cid", "mc_eid"}
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,8 +25,8 @@ _LOGGER = logging.getLogger(__name__)
 def search_web(
     query: str,
     *,
-    max_results: int = 5,
-    timeout_seconds: int = 30,
+    max_results: int = WEB_NAVIGATION.default_search_results,
+    timeout_seconds: int = WEB_NAVIGATION.default_timeout_seconds,
 ) -> dict[str, object]:
     """Search several non-Google providers and return bounded candidate pages."""
     from .ranking import rank_results  # noqa: PLC0415 - optional search extra
@@ -48,8 +50,8 @@ def search_web_multimodal(
     query: str,
     *,
     local_image: Image.Image,
-    max_results: int = 5,
-    timeout_seconds: int = 30,
+    max_results: int = WEB_NAVIGATION.default_search_results,
+    timeout_seconds: int = WEB_NAVIGATION.default_timeout_seconds,
 ) -> dict[str, object]:
     """Search with text discovery and an optional SigLIP2 visual reranking stage."""
     from .image_discovery import (  # noqa: PLC0415
@@ -117,10 +119,11 @@ def _validate_search_arguments(
     if (
         isinstance(timeout_seconds, bool)
         or not isinstance(timeout_seconds, int)
-        or not 1 <= timeout_seconds <= 120
+        or not 1 <= timeout_seconds <= WEB_NAVIGATION.max_timeout_seconds
     ):
         raise WebNavigationError(
-            "timeout_seconds must be between 1 and 120.", kind="invalid_timeout"
+            f"timeout_seconds must be between 1 and {WEB_NAVIGATION.max_timeout_seconds}.",
+            kind="invalid_timeout",
         )
     return normalized_query
 

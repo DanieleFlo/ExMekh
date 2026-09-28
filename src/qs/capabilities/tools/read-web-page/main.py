@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Literal
 
+from qs.config.web import WEB_NAVIGATION
 from qs.core.agents.tools.decorator import deep_tool
 from qs.core.web_navigation.errors import WebNavigationError
 from qs.core.web_navigation.tool_output import missing_dependency, navigation_error
@@ -19,7 +20,7 @@ def run(
     work_root: Path,
     url: str,
     output_mode: Literal["markdown", "ast", "hybrid"] = "markdown",
-    timeout_seconds: int = 30,
+    timeout_seconds: int = WEB_NAVIGATION.default_timeout_seconds,
 ) -> dict[str, object]:
     try:
         from qs.core.web_navigation.crawler import crawl_page

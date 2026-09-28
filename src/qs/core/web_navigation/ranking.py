@@ -16,16 +16,18 @@ import numpy as np
 from numpy.typing import NDArray
 from PIL import Image
 
+from qs.config.web import WEB_FORMAT, WEB_RANKING
+
 from .image_discovery import DiscoveredImage, decode_image
 
-GRANITE_MODEL_NAME = "ibm-granite/granite-embedding-311m-multilingual-r2"
-EMBEDDING_CACHE_SIZE = 2_048
-RRF_K = 60
-BM25_RRF_WEIGHT = 1.0
-SEMANTIC_RRF_WEIGHT = 1.0
-PROVIDER_RRF_WEIGHT = 0.25
-IMAGE_RRF_WEIGHT = 1.0
-SIGLIP_MODEL_NAME = "google/siglip2-base-patch16-224"
+GRANITE_MODEL_NAME = WEB_RANKING.granite_model_name
+EMBEDDING_CACHE_SIZE = WEB_RANKING.embedding_cache_size
+RRF_K = WEB_RANKING.rrf_k
+BM25_RRF_WEIGHT = WEB_RANKING.bm25_rrf_weight
+SEMANTIC_RRF_WEIGHT = WEB_RANKING.semantic_rrf_weight
+PROVIDER_RRF_WEIGHT = WEB_RANKING.provider_rrf_weight
+IMAGE_RRF_WEIGHT = WEB_RANKING.image_rrf_weight
+SIGLIP_MODEL_NAME = WEB_RANKING.siglip_model_name
 
 Embedding = NDArray[np.float32]
 _LOGGER = logging.getLogger(__name__)
@@ -55,7 +57,7 @@ class OpenVINOEmbeddingBackend:
         self,
         model_name: str = GRANITE_MODEL_NAME,
         *,
-        device: str = "CPU",
+        device: str = WEB_RANKING.openvino_device,
     ) -> None:
         """Download the official INT8 IR and compile it with OpenVINO Runtime."""
         import openvino as ov
@@ -65,11 +67,11 @@ class OpenVINOEmbeddingBackend:
         selected_device = device.upper()
         model_xml = hf_hub_download(
             repo_id=model_name,
-            filename="openvino/openvino_model_qint8_quantized.xml",
+            filename=WEB_FORMAT.openvino_model_xml,
         )
         hf_hub_download(
             repo_id=model_name,
-            filename="openvino/openvino_model_qint8_quantized.bin",
+            filename=WEB_FORMAT.openvino_model_bin,
         )
         self._tokenizer = AutoTokenizer.from_pretrained(model_name)
         core = ov.Core()
@@ -125,7 +127,7 @@ class SigLIPEmbeddingBackend:
         inputs = self._processor(
             text=list(texts),
             padding="max_length",
-            max_length=64,
+            max_length=WEB_RANKING.siglip_text_max_length,
             truncation=True,
             return_tensors="pt",
         ).to(self._device)
@@ -304,19 +306,25 @@ def bm25_scores(query: str, results: Sequence[Mapping[str, object]]) -> list[int
                 + (len(documents) - document_frequency + 0.5)
                 / (document_frequency + 0.5)
             )
-            normalization = frequency + 1.2 * (
-                0.25 + 0.75 * length / max(1.0, average_length)
+            normalization = frequency + WEB_RANKING.bm25_k1 * (
+                1
+                - WEB_RANKING.bm25_b
+                + WEB_RANKING.bm25_b * length / max(1.0, average_length)
             )
             score += (
                 inverse_frequency
                 * frequency
-                * 2.2
+                * (WEB_RANKING.bm25_k1 + 1)
                 / normalization
-                * min(query_frequency, 2)
+                * min(query_frequency, WEB_RANKING.max_query_term_frequency)
             )
         searchable = f"{result.get('title', '')} {result.get('snippet', '')}".lower()
-        score += sum(3.0 for phrase in phrases if phrase and phrase in searchable)
-        scores.append(round(score * 100))
+        score += sum(
+            WEB_RANKING.phrase_bonus
+            for phrase in phrases
+            if phrase and phrase in searchable
+        )
+        scores.append(round(score * WEB_RANKING.score_scale))
     return scores
 
 
@@ -500,4 +508,4 @@ def _weighted_document_tokens(result: Mapping[str, object]) -> list[str]:
     title = _tokenize(result.get("title", ""))
     url = _tokenize(result.get("url", ""))
     snippet = _tokenize(result.get("snippet", ""))
-    return title * 4 + url * 2 + snippet
+    return title * WEB_RANKING.title_weight + url * WEB_RANKING.url_weight + snippet

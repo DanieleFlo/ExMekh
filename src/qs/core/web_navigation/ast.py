@@ -9,8 +9,10 @@ from urllib.parse import urljoin
 
 from lxml import html as lxml_html
 
-MAX_AST_NODES = 400
-MAX_AST_TEXT_CHARS = 32000
+from qs.config.web import WEB_NAVIGATION
+
+MAX_AST_NODES = WEB_NAVIGATION.max_ast_nodes
+MAX_AST_TEXT_CHARS = WEB_NAVIGATION.max_ast_text_chars
 _SKIPPED_TAGS = {"script", "style", "noscript", "template", "svg", "canvas"}
 _KINDS = {
     "header": "region",
@@ -209,8 +211,8 @@ def _stat_pair(element: Any) -> tuple[str, str] | None:
     if (
         not has_stat_identity
         or not has_numeric_value
-        or len(label) > 80
-        or len(value) > 120
+        or len(label) > WEB_NAVIGATION.max_stat_label_chars
+        or len(value) > WEB_NAVIGATION.max_stat_value_chars
     ):
         return None
     return label, value

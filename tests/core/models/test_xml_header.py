@@ -1,4 +1,6 @@
+import base64
 from typing import Any, cast
+from xml.etree import ElementTree as ET
 
 import pytest
 
@@ -193,3 +195,53 @@ def test_rejects_non_string_argument_names() -> None:
 def test_leading_header_requires_a_complete_well_formed_xml_block() -> None:
     assert not XmlHeader.has_leading_header("<header><name>missing close")
     assert not XmlHeader.has_leading_header("<header><name></header>")
+
+
+def test_header_text_preserves_control_characters_and_line_endings() -> None:
+    text = "reasoning\x00\ud800"
+    argument = "first\r\nsecond\rtail"
+    header = XmlHeader(
+        source="Tool", name="inspect", id="output", args={"text": argument}
+    ).add_field("thinking", text)
+
+    root = ET.fromstring(header.to_xml())
+
+    assert root.findtext("args/text") == argument
+    thinking = root.find("thinking")
+    assert thinking.get("encoding") == "base64"
+    assert base64.b64decode(thinking.text).decode("utf-8", "surrogatepass") == text
+
+
+def test_annotation_preserves_the_header_and_tool_authored_body() -> None:
+    body = "# Tool output\r\n<custom>unchanged</custom>"
+    header = XmlHeader(source="Tool", name="inspect", id="output")
+    content = header.prepend_to(body)
+    annotation = "reasoning\x00\ud800"
+
+    annotated = XmlHeader.add_field_to_content(content, "thinking", annotation)
+
+    header_text, remaining = annotated.split("</header>\n", 1)
+    root = ET.fromstring(header_text + "</header>")
+    assert remaining == body
+    thinking = root.find("thinking")
+    assert thinking.get("encoding") == "base64"
+    assert (
+        base64.b64decode(thinking.text).decode("utf-8", "surrogatepass") == annotation
+    )
+
+
+def test_argument_names_with_control_characters_use_encoded_attributes() -> None:
+    argument_name = "name\x00\ud800"
+    header = XmlHeader(
+        source="Tool", name="inspect", id="output", args={argument_name: "value"}
+    )
+
+    root = ET.fromstring(header.to_xml())
+
+    argument = root.find("args/arg")
+    assert argument.text == "value"
+    assert argument.get("name-encoding") == "base64"
+    assert (
+        base64.b64decode(argument.get("name")).decode("utf-8", "surrogatepass")
+        == argument_name
+    )

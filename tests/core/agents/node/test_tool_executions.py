@@ -1,5 +1,6 @@
 from pathlib import Path
 from threading import Event
+from xml.etree import ElementTree as ET
 
 import pytest
 
@@ -61,6 +62,43 @@ def read_calls(messages) -> list:
         for call in message.get_tool_calls() or ()
         if call.get_name() == "read_tool_output"
     ]
+
+
+def test_background_status_control_and_saved_result_use_xml(make_node):
+    release = Event()
+    page = {"title": "Wikipedia", "markdown": "# Wikipedia\nFree <&> encyclopedia"}
+    provider = SequenceProvider(
+        [
+            tool_message("mock-tool", {"execution_mode": "background"}, "origin"),
+            tool_message(
+                "control_tool_execution",
+                {"tool_call_id": "origin", "wait_seconds": 0.01},
+                "control",
+            ),
+            AssistantMessage("pending"),
+        ]
+    )
+    node = make_node(provider, Tool(lambda: release.wait() and page, name="mock-tool"))
+    try:
+        node.run("start")
+        messages = provider.requests[-1].get_messages()
+        outputs = {
+            message.get_name(): ET.fromstring(
+                message.get_message().split("</header>\n", 1)[1]
+            )
+            for message in messages
+            if isinstance(message, ToolMessage)
+        }
+        for name in ("mock-tool", "control_tool_execution"):
+            assert outputs[name].tag == "tool-result"
+            assert outputs[name].findtext("status") == "running"
+            assert outputs[name].findtext("tool_call_id") == "origin"
+            assert outputs[name].findtext("output_id") == "output-1"
+    finally:
+        release.set()
+        node.control_tool_execution("origin", wait_seconds=1)
+    body = node.read_tool_output("output-1").content.split("</header>\n", 1)[1]
+    assert ET.fromstring(body).findtext("markdown") == page["markdown"]
 
 
 def test_search_finds_uncached_work_after_its_owner_skill_was_compacted(make_node):
@@ -362,9 +400,10 @@ def test_control_wait_has_its_own_call_id_and_no_output_content(make_node) -> No
             "wait-call",
         ]
         content = results[-1].get_message()
-        assert '"status": "running"' in content
-        assert '"output_id": "output-1"' in content
-        assert '"result"' not in content
+        body = ET.fromstring(content.split("</header>\n", 1)[1])
+        assert body.findtext("status") == "running"
+        assert body.findtext("output_id") == "output-1"
+        assert body.find("result") is None
         assert (
             node.control_tool_execution("origin", "cancel")["cancellation_supported"]
             is False
