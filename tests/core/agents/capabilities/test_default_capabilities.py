@@ -12,6 +12,7 @@ from qs.core.agents.capabilities.defaults import (
     RUNTIME_NAMES,
     DefaultCapabilities,
 )
+from qs.core.agents.capabilities.layout import CapabilitiesLayout
 from qs.core.agents.deep_skill.deep_skill import DeepSkill
 from qs.core.agents.deep_skill.metadata import DeepSkillMetadata
 from qs.core.agents.exit_tool.data import ExitToolData
@@ -39,6 +40,22 @@ DEEP_THINKING_TOOLS = {
     "logic-consistency",
     "logic-counterexample",
 }
+
+
+def test_runtime_tool_sources_use_the_bundled_tools_directory(tmp_path: Path) -> None:
+    bundled_tools = BUILTIN_CAPABILITIES_PATH / "tools"
+    assert all((bundled_tools / name / "main.py").is_file() for name in RUNTIME_NAMES)
+
+    application_root = tmp_path / "capabilities"
+    application_bash = application_root / "tools" / "bash"
+    application_bash.mkdir(parents=True)
+    layout = CapabilitiesLayout(
+        [application_root], default_path=BUILTIN_CAPABILITIES_PATH
+    )
+    layout.prepare()
+    paths = layout.tool_paths()
+    assert application_bash in paths
+    assert all(bundled_tools / name not in paths for name in RUNTIME_NAMES)
 
 
 class StubTokenizer(Tokenizer):
@@ -315,6 +332,7 @@ def test_harness_defaults_support_an_application_hds_without_mocks(
         "search_tool_outputs",
         "read_tool_output",
         "control_tool_execution",
+        "bash",
     ]
 
 
@@ -637,6 +655,7 @@ def test_excluding_memory_readers_preserves_internal_cache(tmp_path: Path) -> No
             "exit_agent",
             "deep-thinking",
             "control_tool_execution",
+            "bash",
         }
         | DEEP_THINKING_TOOLS
     )

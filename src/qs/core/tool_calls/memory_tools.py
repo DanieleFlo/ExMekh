@@ -6,6 +6,15 @@ from pathlib import Path
 from typing import Literal
 from xml.etree import ElementTree as ET
 
+from qs.capabilities.tools.get_execution_history.main import (
+    create_tool as create_history_tool,
+)
+from qs.capabilities.tools.read_tool_output.main import (
+    create_tool as create_read_tool,
+)
+from qs.capabilities.tools.search_tool_outputs.main import (
+    create_tool as create_search_tool,
+)
 from qs.config.runtime import RUNTIME
 from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.tool_call_record import ToolCallRecord
@@ -204,41 +213,9 @@ class HarnessMemoryTools:
         self._execution_manager = execution_manager
         self._output_reader = ToolOutputReader(cache_provider, execution_manager)
         self._tools = (
-            Tool(
-                self.get_execution_history,
-                name=self.HISTORY_TOOL_NAME,
-                description=(
-                    "Return navigable XML history of capability calls. Omit "
-                    "start_position for a head-and-tail overview, or use a "
-                    f"1-based position and limit from {RUNTIME.history_min_page_limit} "
-                    f"to {RUNTIME.memory_max_page_limit} to read a page."
-                ),
-                cache_result=False,
-                background_enabled=False,
-            ),
-            Tool(
-                self.search_tool_outputs,
-                name=self.SEARCH_TOOL_NAME,
-                description=(
-                    "Search this node's saved and runtime tool outputs, including "
-                    "background work. Return paginated XML previews with status "
-                    "and output IDs. All filters are optional."
-                ),
-                cache_result=False,
-                background_enabled=False,
-            ),
-            Tool(
-                self.read_tool_output,
-                name=self.READ_TOOL_NAME,
-                description=(
-                    "Read the current status and available output of a tool by "
-                    "output ID. Use an optional cursor to read only new output; "
-                    "omit it to read the complete output. Includes the final "
-                    "result when available."
-                ),
-                cache_result=False,
-                background_enabled=False,
-            ),
+            create_history_tool(self),
+            create_search_tool(self),
+            create_read_tool(self),
         )
 
     @property

@@ -60,6 +60,7 @@ _RUNTIME_TOOL_NAMES = [
     "search_tool_outputs",
     "read_tool_output",
     "control_tool_execution",
+    "bash",
 ]
 
 
@@ -589,6 +590,12 @@ def test_tool_descriptions_reflect_hds_and_skill_availability(
             "Wait for a tool execution by its original tool_call_id, or request "
             "cancellation. Waiting returns as soon as the work finishes or "
             "the wait limit expires; read its output with read_tool_output."
+        ),
+        "bash": (
+            "Run a command in Bash from the node workroot. Each call starts an "
+            "independent process. Read incremental stdout/stderr with "
+            "read_tool_output(output_id, cursor); wait or cancel with "
+            "control_tool_execution(tool_call_id). Requires Bash on PATH."
         ),
     }
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from qs.capabilities.tools.search_tool_outputs.main import create_raw_search_tool
 from qs.config.runtime import RUNTIME
 from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.tool_call_record import ToolCallRecord
@@ -22,12 +23,8 @@ class ToolCallSearch:
         self._execution_manager = execution_manager
 
     def as_tool(self) -> Tool:
-        return Tool(
-            self.search,
-            name=RUNTIME.search_tool_name,
-            cache_result=False,
-            background_enabled=False,
-        )
+        """Keep the existing adapter API; its tool definition lives in capabilities."""
+        return create_raw_search_tool(self)
 
     def search(
         self,

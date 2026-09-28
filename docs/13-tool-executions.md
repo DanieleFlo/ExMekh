@@ -186,6 +186,35 @@ non viene ripetuto su frammenti e l'output grezzo non può aggirarlo. Finché
 Before non ha autorizzato e creato l'operazione, non sono disponibili né output
 parziali né callback di annullamento.
 
+## Tool Bash
+
+La definizione del tool si trova in `src/qs/capabilities/tools/bash/main.py`,
+accanto agli altri tool dell'harness in `capabilities/tools`. Il runtime
+fornisce workroot e gestore dei lavori al momento della costruzione del nodo.
+
+`DefaultCapabilities` include il tool globale `bash(command, execution_mode,
+wait_seconds)`, disponibile a ogni livello del nodo. Ogni chiamata avvia una
+nuova istanza di Bash nella `workroot`, anche se un'altra chiamata Bash è ancora
+attiva. Serve l'eseguibile `bash` nel `PATH`: se manca, l'esecuzione termina con
+stato `failed` e un messaggio esplicito. Non viene usata un'altra shell.
+
+Il risultato finale contiene `command`, `cwd`, `status: exited`, `exit_code`,
+`stdout`, `stderr`, `started_at` e `finished_at`. Un exit code diverso da zero è
+un risultato valido con stato di esecuzione `completed`. Un errore di avvio o
+lettura produce invece `failed`. Per l'output incrementale usare
+`read_tool_output(output_id, cursor=0)` e poi il `next-cursor` restituito:
+i frammenti sono etichettati `[stdout]` o `[stderr]`. La lettura finale con
+cursore aggiunge l'eventuale frammento residuo e il risultato strutturato;
+senza cursore restituisce il risultato completo.
+
+`control_tool_execution(tool_call_id, action="cancel")` interrompe il processo e
+i suoi figli quando applicabile. Su Windows usa `psutil` per terminare l'albero;
+su POSIX invia `SIGKILL` al gruppo di processi. Se l'annullamento non riesce,
+il tool di controllo segnala un errore e il lavoro mantiene il proprio stato.
+Gli hook Before possono cambiare il comando o rispondere senza avviare Bash;
+gli hook After possono filtrare il risultato. Quando è presente un hook After,
+l'output parziale grezzo resta nascosto, anche nelle letture e nelle attese.
+
 ## Consegna automatica e livello di esecuzione
 
 Quando un lavoro termina, il runtime accoda la lettura automatica. Al primo

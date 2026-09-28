@@ -4,13 +4,13 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any, Final, Literal
 
+from qs.capabilities.tools.call_sub_agent.main import SubAgentTool
 from qs.config.runtime import RUNTIME
 from qs.core.agents.capabilities.capabilities import Capabilities
 from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.capabilities.defaults import DefaultCapabilities
 from qs.core.agents.deep_agent.agent_response import AgentResponse
 from qs.core.agents.hds.hds import HDS
-from qs.core.agents.sub_agent.sub_agent_tool import SubAgentTool
 from qs.core.cache.node_cache import NodeCache
 from qs.core.models.tool import PreformattedToolResult, Tool
 from qs.core.tool_calls.memory_tools import ExecutionHistory

@@ -1,3 +1,3 @@
-from qs.core.agents.sub_agent.sub_agent_tool import SubAgentTool
+from qs.capabilities.tools.call_sub_agent.main import SubAgentTool
 
 __all__ = ["SubAgentTool"]

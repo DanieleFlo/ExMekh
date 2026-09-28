@@ -288,6 +288,7 @@ def test_uses_root_hds_as_system_instructions(tmp_path: Path) -> None:
         "search_tool_outputs",
         "read_tool_output",
         "control_tool_execution",
+        "bash",
     ]
 
 

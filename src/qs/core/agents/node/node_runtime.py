@@ -7,6 +7,8 @@ from functools import partial
 from typing import Any, Final, Literal, cast
 from uuid import uuid4
 
+from qs.capabilities.tools.bash.main import BashTool
+from qs.capabilities.tools.control_tool_execution.main import ExecutionControlTool
 from qs.config.runtime import RUNTIME
 from qs.core.agents.deep_agent.agent_response import AgentResponse
 from qs.core.agents.deep_agent.stream_event import (
@@ -27,7 +29,6 @@ from qs.core.models.provider_stream_event import ProviderStreamEvent
 from qs.core.models.tool import PreformattedToolResult
 from qs.core.models.user_message import ErrorUserMessage, UserMessage
 from qs.core.tool_calls.execution_manager import ToolExecutionManager
-from qs.core.tool_calls.execution_tools import ExecutionControlTool
 from qs.core.tool_calls.memory_tools import ExecutionHistory, HarnessMemoryTools
 from qs.interfaces.event_handler import ProviderEventHandler
 from qs.interfaces.message import Message
@@ -67,14 +68,18 @@ class NodeRuntime(ProviderEventHandler):
         self._thinking_annotation_resolver = ThinkingAnnotationResolver(config.provider)
         defaults = config.default_capabilities
         self._execution_control = ExecutionControlTool(self._execution_manager)
-        harness_tools = (*self._memory_tools.tools, self._execution_control)
+        harness_tools = (*self._memory_tools.tools, self._execution_control, BashTool())
         if defaults is not None:
             harness_tools = tuple(
-                (
-                    defaults.tool_override(tool.name) or tool
-                ).without_background_execution()
+                defaults.tool_override(tool.name) or tool
                 for tool in harness_tools
                 if defaults.includes(tool.name)
+            )
+            harness_tools = tuple(
+                tool
+                if tool.name == RUNTIME.bash_tool_name
+                else tool.without_background_execution()
+                for tool in harness_tools
             )
         self._runtime_tools = (*config.runtime_tools, *harness_tools)
         self._validate_runtime_tool_names()

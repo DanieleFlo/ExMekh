@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,6 +23,10 @@ class CapabilityFormat:
     inherits_parent_tools_field: str = "inherits-parent-tools"
     exit_tool_field: str = "exit-tool"
     agent_context_id_field: str = "agent-context-id"
+
+    @property
+    def bundled_root(self) -> Path:
+        return Path(__file__).resolve().parents[1] / self.root_folder
 
 
 CAPABILITY_FORMAT = CapabilityFormat()

@@ -18,8 +18,10 @@ capabilities/
 ├── tools/
 │   ├── mock-tool/
 │   │   └── main.py             # Entrypoint with @deep_tool function
-│   └── shared-tool/
-│       └── main.py
+│   ├── shared-tool/
+│   │   └── main.py
+│   └── bash/
+│       └── main.py             # Runtime-bound harness tool
 └── exit-tool/
     └── finish/
         ├── main.py             # Entrypoint with @exit_tool function
@@ -27,6 +29,15 @@ capabilities/
 ```
 
 The [`CapabilitiesLayout`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/agents/capabilities/layout.py) class verifies directory integrity and automatically creates missing subfolders when initialized.
+
+Bundled runtime tools also live under `src/qs/capabilities/tools/<name>/main.py`:
+`bash`, `get_execution_history`, `search_tool_outputs`, `read_tool_output`,
+`control_tool_execution`, and `call_sub_agent`. They need node-local state, so
+`NodeRuntime` binds them after loading the ordinary `@deep_tool` resources.
+The ordinary tool loader excludes only these bundled runtime directories;
+application capability roots still load their own tools through `@deep_tool`.
+The bundled root is resolved relative to the `qs` package, like HDS, deep
+skills, and exit tools.
 
 ## Per-node default capabilities
 
@@ -43,7 +54,7 @@ the bundled directory in full.
 | Group | Bundled names |
 | --- | --- |
 | Mock | HDS `main`, `mock-sub-agent`; skills `mock-skill`, `nested-skill`; tools `mock-tool`, `mock-sub-tool`, `nested-sub-tool`, `shared-tool` |
-| Harness | Exit tool `exit_agent`; memory tools `get_execution_history`, `search_tool_outputs`, `read_tool_output`; execution control `control_tool_execution`; delegation tool `call_sub_agent` on nodes with children |
+| Harness | Exit tool `exit_agent`; memory tools `get_execution_history`, `search_tool_outputs`, `read_tool_output`; execution control `control_tool_execution`; Bash tool `bash`; delegation tool `call_sub_agent` on nodes with children |
 
 There are currently no bundled harness skills. Group switches select all names
 in that group. `include` and `exclude` take names that adjust the switches;

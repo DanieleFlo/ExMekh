@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Final
 
 from qs.config.capabilities import CAPABILITY_FORMAT
+from qs.config.runtime import RUNTIME
 
 
 class CapabilityType(StrEnum):
@@ -70,7 +71,18 @@ class CapabilitiesLayout:
         return self._type_folder_paths(CapabilityType.DEEP_SKILL)
 
     def tool_paths(self) -> tuple[Path, ...]:
-        return self._child_paths(CapabilityType.TOOLS)
+        return tuple(
+            path
+            for path in self._child_paths(CapabilityType.TOOLS)
+            if not self._is_bundled_runtime_tool(path)
+        )
+
+    @staticmethod
+    def _is_bundled_runtime_tool(path: Path) -> bool:
+        return (
+            path.name in RUNTIME.runtime_tool_names
+            and path.parent.parent.resolve() == CAPABILITY_FORMAT.bundled_root.resolve()
+        )
 
     def exit_tool_paths(self) -> tuple[Path, ...]:
         return self._child_paths(CapabilityType.EXIT_TOOL)

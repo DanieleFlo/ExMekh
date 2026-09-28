@@ -158,4 +158,10 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
             "cancellation. Waiting returns as soon as the work finishes or "
             "the wait limit expires; read its output with read_tool_output."
         ),
+        "bash": (
+            "Run a command in Bash from the node workroot. Each call starts an "
+            "independent process. Read incremental stdout/stderr with "
+            "read_tool_output(output_id, cursor); wait or cancel with "
+            "control_tool_execution(tool_call_id). Requires Bash on PATH."
+        ),
     }

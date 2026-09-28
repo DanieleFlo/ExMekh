@@ -36,20 +36,13 @@ _HARNESS_RESOURCE_TYPES: dict[str, type[Tool]] = {
     RUNTIME.search_tool_name: Tool,
     RUNTIME.read_tool_name: Tool,
     RUNTIME.execution_tool_name: Tool,
+    RUNTIME.bash_tool_name: Tool,
     RUNTIME.sub_agent_tool_name: Tool,
 }
 _RESOURCE_TYPES = MappingProxyType(_MOCK_RESOURCE_TYPES | _HARNESS_RESOURCE_TYPES)
 MOCK_NAMES = frozenset(_MOCK_RESOURCE_TYPES)
 HARNESS_NAMES = frozenset(_HARNESS_RESOURCE_TYPES)
-RUNTIME_NAMES = frozenset(
-    {
-        RUNTIME.history_tool_name,
-        RUNTIME.search_tool_name,
-        RUNTIME.read_tool_name,
-        RUNTIME.execution_tool_name,
-        RUNTIME.sub_agent_tool_name,
-    }
-)
+RUNTIME_NAMES = RUNTIME.runtime_tool_names
 _MAIN_HDS_DEPENDENCIES = frozenset(
     {
         RUNTIME.exit_tool_name,
@@ -99,9 +92,7 @@ OverrideInput = Mapping[str, Override] | Iterable[NamedOverride] | NamedOverride
 class DefaultCapabilities:
     """Select bundled capabilities and replace loaded resources for one node."""
 
-    CAPABILITIES_PATH = (
-        Path(__file__).resolve().parents[3] / CAPABILITY_FORMAT.root_folder
-    )
+    CAPABILITIES_PATH = CAPABILITY_FORMAT.bundled_root
 
     def __init__(
         self,
