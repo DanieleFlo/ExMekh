@@ -121,6 +121,9 @@ def test_rejects_invalid_hooks_at_registration() -> None:
     with pytest.raises(TypeError, match="before must be a BeforeTool"):
         deep_tool(before=object())
 
+    with pytest.raises(TypeError, match="after must be an AfterTool"):
+        deep_tool(after=object())
+
     class WrongSignature(BeforeTool):
         def handle(self) -> None:
             pass
@@ -134,6 +137,50 @@ def test_rejects_invalid_hooks_at_registration() -> None:
 
     with pytest.raises(TypeError, match="must be synchronous"):
         deep_tool(after=AsyncAfter())
+
+
+@pytest.mark.parametrize("managed", [False, True])
+def test_invalid_before_hook_response_prevents_execution(tmp_path, managed) -> None:
+    class InvalidResponse(BeforeTool):
+        def handle(self, context: ToolContext):
+            return "unsupported response"
+
+    def work() -> None:
+        pytest.fail("An invalid hook response must stop the tool")
+
+    tool = Tool(work, before=InvalidResponse())
+    with pytest.raises(TypeError, match="BeforeTool.handle must return"):
+        if managed:
+            operation = tool.create_execution_with_hooks(
+                {}, call_id="call", work_root=tmp_path, history=()
+            )
+            operation.run()
+        else:
+            tool.execute_with_hooks({}, work_root=tmp_path, history=())
+
+
+def test_managed_before_hook_can_answer_without_creating_work(tmp_path) -> None:
+    after_results = []
+
+    class AnswerEarly(BeforeTool):
+        def handle(self, context: ToolContext) -> ToolResponse:
+            return ToolResponse("shortcut")
+
+    class FormatAnswer(AfterTool):
+        def handle(self, context: ToolContext, result: Any) -> str:
+            after_results.append(result)
+            return f"public: {result}"
+
+    def work() -> None:
+        pytest.fail("The before hook already answered")
+
+    operation = Tool(
+        work, before=AnswerEarly(), after=FormatAnswer()
+    ).create_execution_with_hooks({}, call_id="call", work_root=tmp_path, history=())
+
+    assert operation.run() == "public: shortcut"
+    assert after_results == ["shortcut"]
+    assert operation.cancel is None and operation.read_partial is None
 
 
 def test_exit_hooks_can_fix_arguments_and_change_output(tmp_path: Path) -> None:

@@ -24,6 +24,12 @@ def test_rejects_invalid_metadata(
         deep_tool(name=name, description=description)
 
 
+@pytest.mark.parametrize("background_enabled", [None, 0, "false"])
+def test_rejects_non_boolean_background_policy(background_enabled) -> None:
+    with pytest.raises(TypeError, match="background_enabled must be a bool"):
+        deep_tool(background_enabled=background_enabled)
+
+
 def test_rejects_non_function_entrypoint() -> None:
     class CallableObject:
         def __call__(self) -> None:

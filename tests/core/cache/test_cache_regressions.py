@@ -17,6 +17,11 @@ from qs.core.tool_calls import (
 from qs.utils.file import read_json_from_path, write_json_atomically
 
 
+def test_tool_call_record_rejects_non_dictionary_execution_metadata():
+    with pytest.raises(TypeError, match="execution must be a dictionary or None"):
+        ToolCallRecord("work", "output", {}, "result", execution=[])
+
+
 def test_sessions_are_scoped_to_resolved_directory(tmp_path):
     pool = SessionPool()
     try:

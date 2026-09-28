@@ -317,3 +317,53 @@ def test_recorded_tool_call_rejects_an_unrelated_batch_without_mutating_history(
         with history.record_tool_call(call, batch_call_id="opening"):
             pytest.fail("Unrelated batch should be rejected before execution")
     assert history.get_history() == before
+
+
+@pytest.mark.parametrize(
+    "messages", [[], [SystemMessage("rules"), UserMessage("start")]]
+)
+def test_replacing_latest_tool_calls_requires_an_assistant_message(messages):
+    history = MessageHistory(messages)
+
+    with pytest.raises(TypeError, match="last message must be an assistant"):
+        history.replace_latest_tool_calls([ToolCall("call", FunctionCall("work", {}))])
+
+    assert history.get_history() == messages
+
+
+@pytest.mark.parametrize(
+    ("messages", "error", "message"),
+    [
+        ([], TypeError, "last message must be a tool response"),
+        (
+            [SystemMessage("rules"), UserMessage("start")],
+            TypeError,
+            "last message must be a tool response",
+        ),
+        (
+            [SystemMessage("rules"), ToolMessage("done", "opening")],
+            ValueError,
+            "no assistant message",
+        ),
+        (
+            [
+                SystemMessage("rules"),
+                AssistantMessage(None),
+                ToolMessage("done", "opening"),
+            ],
+            ValueError,
+            "does not contain the batch call",
+        ),
+    ],
+)
+def test_recorded_tool_call_rejects_malformed_batches_atomically(
+    messages, error, message
+):
+    history = MessageHistory(messages)
+    call = ToolCall("read", FunctionCall("read_tool_output", {}))
+
+    with pytest.raises(error, match=message):
+        with history.record_tool_call(call, batch_call_id="opening"):
+            pytest.fail("Malformed batches must be rejected before execution")
+
+    assert history.get_history() == messages

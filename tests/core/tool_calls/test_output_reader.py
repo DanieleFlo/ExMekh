@@ -20,6 +20,12 @@ def unavailable_cache():
     raise AssertionError("Transient output must not depend on the cache")
 
 
+@pytest.mark.parametrize("cursor", [-1, True, 0.5, "0"])
+def test_invalid_cursors_are_rejected_before_accessing_storage(cursor):
+    with pytest.raises(ValueError, match="cursor must be a non-negative integer"):
+        ToolOutputReader(unavailable_cache).read("output", cursor)
+
+
 def test_missing_output_identifier_with_control_characters_remains_readable(tmp_path):
     output_id = "missing\x00"
     with SessionCache(tmp_path) as session:

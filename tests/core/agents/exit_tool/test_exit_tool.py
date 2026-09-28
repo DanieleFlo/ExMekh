@@ -6,6 +6,7 @@ import pytest
 from qs.core.agents.exit_tool.data import ExitToolData
 from qs.core.agents.exit_tool.exit_tool import CalledExitTool, ExitTool
 from qs.core.models.assistant_message import FunctionCall, ToolCall
+from qs.interfaces.tool_hook import AfterTool, ToolContext
 
 
 def _function(text: str, items: list[str]) -> ExitToolData:
@@ -75,6 +76,20 @@ def test_exit_tool_executes_and_validates_return_type(tmp_path: Path) -> None:
     )
     with pytest.raises(TypeError, match="must return ExitToolData"):
         invalid.execute()
+
+
+def test_exit_tool_rejects_a_non_dictionary_after_hook_result(tmp_path: Path) -> None:
+    class InvalidOutput(AfterTool):
+        def handle(self, context: ToolContext, result):
+            return "invalid exit output"
+
+    tool = _exit_tool(tmp_path)
+    tool.after = InvalidOutput()
+
+    with pytest.raises(TypeError, match="Exit tool result must be a dictionary"):
+        tool.execute_with_hooks(
+            {"text": "done", "items": []}, work_root=tmp_path, history=()
+        )
 
 
 def test_called_exit_tool_validates_types_and_exposes_call_id(tmp_path: Path) -> None:

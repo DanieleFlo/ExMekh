@@ -1,3 +1,4 @@
+import inspect
 from typing import cast
 
 import pytest
@@ -6,7 +7,12 @@ from qs.core.models.assistant_message import (
     FunctionCall,
     ToolCall,
 )
-from qs.core.models.tool import CalledTool, PreformattedToolResult, Tool
+from qs.core.models.tool import (
+    CalledTool,
+    ExecutionOptions,
+    PreformattedToolResult,
+    Tool,
+)
 
 
 def documented_tool(query: str) -> str:
@@ -86,6 +92,59 @@ def test_tool_preserves_disabled_cache_policy_in_description_copies() -> None:
 def test_tool_rejects_non_boolean_cache_policy() -> None:
     with pytest.raises(TypeError, match="cache_result must be a bool"):
         Tool(documented_tool, cache_result=cast(bool, "false"))
+
+
+@pytest.mark.parametrize("background_enabled", [None, 0, "false"])
+def test_tool_rejects_non_boolean_background_policy(background_enabled) -> None:
+    with pytest.raises(TypeError, match="background_enabled must be a bool"):
+        Tool(documented_tool, background_enabled=background_enabled)
+
+
+@pytest.mark.parametrize(
+    "function",
+    [lambda execution_mode: execution_mode, lambda wait_seconds: wait_seconds],
+)
+def test_reserved_execution_parameters_require_synchronous_tools(function) -> None:
+    with pytest.raises(ValueError, match="reserved execution names"):
+        Tool(function, name="work")
+
+    tool = Tool(function, name="work", background_enabled=False)
+    parameter_name = next(iter(inspect.signature(function).parameters))
+    assert tool.execute(**{parameter_name: "business value"}) == "business value"
+
+
+def test_execution_options_reject_unknown_modes() -> None:
+    with pytest.raises(ValueError, match="execution_mode must be"):
+        ExecutionOptions(mode="unknown")
+
+
+def test_execution_parameters_precede_variadic_keyword_arguments() -> None:
+    def work(value: str, **options: object) -> str:
+        return value
+
+    signature = Tool(work).get_signature()
+
+    assert tuple(signature.parameters) == (
+        "value",
+        "execution_mode",
+        "wait_seconds",
+        "options",
+    )
+    assert signature.parameters["options"].kind == inspect.Parameter.VAR_KEYWORD
+    assert signature.bind(
+        value="text", execution_mode="background", extra=1
+    ).arguments == {
+        "value": "text",
+        "execution_mode": "background",
+        "options": {"extra": 1},
+    }
+
+
+def test_synchronous_tool_schema_exposes_only_business_parameters() -> None:
+    tool = Tool(documented_tool, background_enabled=False)
+
+    assert tool.get_type_hints() == {"query": str, "return": str}
+    assert tuple(tool.get_signature().parameters) == ("query",)
 
 
 def test_preformatted_tool_result_requires_text() -> None:

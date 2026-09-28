@@ -6,9 +6,15 @@ import pytest
 
 from qs.core.agents.capabilities.defaults import DefaultCapabilities
 from qs.core.agents.node.node import Node
+from qs.core.agents.node.types import ToolExecutionResult
 from qs.core.cache import SessionCache
 from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.tool import PreformattedToolResult, Tool, ToolExecutionOperation
+from qs.core.models.tool import (
+    ExecutionOptions,
+    PreformattedToolResult,
+    Tool,
+    ToolExecutionOperation,
+)
 from qs.core.models.tool_message import ToolMessage
 from qs.interfaces.tool_hook import AfterTool, BeforeTool, ToolArguments, ToolContext
 from tests.core.agents.node.test_node import (
@@ -16,6 +22,7 @@ from tests.core.agents.node.test_node import (
     _function_call,
     _write_nested_capabilities,
 )
+from tests.tool_result_support import parse_tool_result
 
 
 def tool_message(name: str, arguments: dict, call_id: str) -> AssistantMessage:
@@ -461,6 +468,141 @@ class ProgressTool(Tool):
         return ToolExecutionOperation(
             run, read_partial=lambda cursor: ("raw-progress"[cursor:], 12)
         )
+
+
+def test_initial_progress_failure_is_reported_without_stopping_the_worker(
+    make_node, monkeypatch
+):
+    release = Event()
+
+    def unavailable_progress(cursor):
+        raise OSError("progress pipe unavailable")
+
+    class UnavailableProgressTool(ProgressTool):
+        def create_execution(self, arguments, **context):
+            operation = super().create_execution(arguments, **context)
+            operation.read_partial = unavailable_progress
+            return operation
+
+    tool = UnavailableProgressTool(release)
+    provider = SequenceProvider(
+        [
+            tool_message(
+                "mock-tool", {"text": "done", "execution_mode": "background"}, "origin"
+            ),
+            AssistantMessage("pending"),
+        ]
+    )
+    node = make_node(provider, tool)
+    manager = node._runtime._execution_manager
+    start = manager.start
+
+    def start_after_progress_is_ready(*arguments, **options):
+        snapshot = start(*arguments, **options)
+        assert tool.started.wait(1)
+        return snapshot
+
+    monkeypatch.setattr(manager, "start", start_after_progress_is_ready)
+    try:
+        node.run("start")
+        result = parse_tool_result(
+            provider.requests[-1].get_messages()[-1].get_message()
+        )
+        assert result["status"] == "running"
+        assert result["partial_output_error"] == "progress pipe unavailable"
+        assert manager.by_output_id("output-1").status == "running"
+    finally:
+        release.set()
+        assert (
+            node.control_tool_execution("origin", wait_seconds=1)["status"]
+            == "completed"
+        )
+
+    assert node.read_tool_output("output-1").content.endswith("done")
+
+
+@pytest.mark.parametrize("invalid_id", [None, "", "   "])
+def test_invalid_provider_output_ids_use_a_recoverable_runtime_id(
+    make_node, invalid_id
+):
+    provider = SequenceProvider(
+        [
+            tool_message("mock-tool", {}, "origin"),
+            AssistantMessage("done"),
+        ]
+    )
+    node = make_node(provider, Tool(lambda: "receipt", name="mock-tool"))
+    provider.generate_id = lambda: invalid_id
+
+    node.run("start")
+
+    (record,) = node._runtime._get_tool_cache().get_all()
+    assert len(record.id) == 32
+    assert int(record.id, 16) >= 0
+    assert (
+        f"<id>{record.id}</id>"
+        in provider.requests[-1].get_messages()[-1].get_message()
+    )
+    assert node.read_tool_output(record.id).content.endswith("receipt")
+
+
+def test_runtime_rejects_managed_results_without_an_output_identifier(
+    make_node, monkeypatch
+):
+    provider = SequenceProvider([tool_message("mock-tool", {}, "origin")])
+    node = make_node(provider, Tool(lambda: "done", name="mock-tool"))
+    runtime = node._runtime
+    snapshot = runtime._execution_manager.start(
+        "unpublished",
+        "work",
+        {},
+        ToolExecutionOperation(lambda: "done"),
+        ("root",),
+        ExecutionOptions(),
+    )
+    result = ToolExecutionResult(
+        response=ToolMessage("incomplete metadata", "origin", "mock-tool"),
+        execution=snapshot,
+    )
+    monkeypatch.setattr(
+        runtime._executor, "execute", lambda *arguments, **options: result
+    )
+
+    with pytest.raises(
+        RuntimeError, match="Managed tool execution is missing its output ID"
+    ):
+        node.run("start")
+
+    assert len(provider.requests) == 1
+    assert runtime._client.get_history()[-1].get_message() == "incomplete metadata"
+
+
+def test_automatic_delivery_ignores_a_snapshot_without_a_published_id(
+    make_node, monkeypatch
+):
+    provider = SequenceProvider([AssistantMessage("done")])
+    node = make_node(provider, Tool(lambda: "receipt", name="mock-tool"))
+    manager = node._runtime._execution_manager
+    snapshot = manager.start(
+        "unpublished",
+        "work",
+        {},
+        ToolExecutionOperation(lambda: "done"),
+        ("root",),
+        ExecutionOptions(),
+    )
+    original_call = provider.call
+
+    def call_with_incomplete_delivery(request):
+        response = original_call(request)
+        monkeypatch.setattr(manager, "next_delivery", lambda owner_scope: snapshot)
+        return response
+
+    monkeypatch.setattr(provider, "call", call_with_incomplete_delivery)
+
+    assert node.run("continue").get_message() == "done"
+    assert read_calls(provider.requests[-1].get_messages()) == []
+    assert node._runtime._get_tool_cache().get_all() == []
 
 
 def test_hooked_custom_execution_filters_final_output_once_and_hides_raw_progress(

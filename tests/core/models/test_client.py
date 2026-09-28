@@ -25,6 +25,18 @@ class StructuredAnswer(BaseModel):
     value: int
 
 
+def test_add_user_message_rejects_other_roles_without_changing_history() -> None:
+    provider = MagicMock(spec=Provider)
+    system = SystemMessage("rules")
+    client = Client(provider, system)
+
+    with pytest.raises(TypeError, match="Expected a user message"):
+        client.add_user_message(AssistantMessage("unexpected answer"))
+
+    assert client.get_history() == [system]
+    provider.call.assert_not_called()
+
+
 def test_init_accepts_provider_returned_by_mapper() -> None:
     provider = MagicMock(spec=Provider)
     system_message = SystemMessage("rules")

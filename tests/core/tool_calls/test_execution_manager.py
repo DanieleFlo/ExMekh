@@ -1,8 +1,9 @@
 from dataclasses import replace
-from threading import Event
+from threading import Event, Thread
 
 import pytest
 
+from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.tool import ExecutionOptions, ToolExecutionOperation
 from qs.core.tool_calls import execution_manager
 from qs.core.tool_calls.execution_manager import ToolExecutionManager
@@ -316,3 +317,202 @@ def test_partial_output_errors_do_not_change_the_execution_state() -> None:
         assert manager.by_output_id("output").status == "running"
     finally:
         release.set()
+
+
+@pytest.mark.parametrize("skill_path", [None, 42, "relative/path"])
+def test_invalid_skill_paths_are_rejected_before_starting_work(skill_path):
+    manager = ToolExecutionManager()
+
+    def work():
+        pytest.fail("Invalid scope must be rejected before starting a worker")
+
+    with pytest.raises(ValueError, match="skill_path must be an absolute skill path"):
+        manager.start(
+            "call",
+            "work",
+            {},
+            ToolExecutionOperation(work),
+            ("root",),
+            ExecutionOptions(),
+            skill_path=skill_path,
+        )
+
+    assert manager.output_snapshots() == ()
+
+
+def test_unpublished_execution_status_omits_the_output_identifier():
+    manager = ToolExecutionManager()
+    snapshot = manager.start(
+        "call",
+        "work",
+        {},
+        ToolExecutionOperation(lambda: "done"),
+        ("root",),
+        ExecutionOptions(),
+    )
+
+    status = snapshot.status_info()
+
+    assert status["status"] == "completed"
+    assert status["tool_call_id"] == "call"
+    assert "finished_at" in status
+    assert "output_id" not in status
+
+
+def test_output_records_reject_a_snapshot_without_a_published_identifier(monkeypatch):
+    manager = ToolExecutionManager()
+    snapshot = manager.start(
+        "call",
+        "work",
+        {},
+        ToolExecutionOperation(lambda: "done"),
+        ("root",),
+        ExecutionOptions(),
+    )
+    monkeypatch.setattr(manager, "output_snapshots", lambda: (snapshot,))
+
+    with pytest.raises(ValueError, match="published execution must have an output ID"):
+        manager.output_records({})
+
+
+def test_finished_work_does_not_invoke_its_cancellation_callback():
+    def cancel():
+        pytest.fail("Finished work must not be cancelled")
+
+    manager = ToolExecutionManager()
+    manager.start(
+        "call",
+        "work",
+        {},
+        ToolExecutionOperation(lambda: "done", cancel),
+        ("root",),
+        ExecutionOptions(),
+        output_id="output",
+    )
+
+    supported, cancelled, snapshot = manager.cancel("call")
+
+    assert supported is True and cancelled is False
+    assert snapshot.status == "completed" and snapshot.result == "done"
+
+
+@pytest.mark.parametrize(
+    "failure", [RuntimeError("cannot stop worker"), "not a boolean"]
+)
+def test_cancellation_failures_keep_the_worker_running(failure):
+    release = Event()
+
+    def cancel():
+        if isinstance(failure, Exception):
+            raise failure
+        return failure
+
+    manager = ToolExecutionManager()
+    manager.start(
+        "call",
+        "work",
+        {},
+        ToolExecutionOperation(release.wait, cancel),
+        ("root",),
+        ExecutionOptions(mode="background"),
+        output_id="output",
+    )
+    try:
+        with pytest.raises(ValueError, match="Cancellation failed") as caught:
+            manager.cancel("call")
+        expected_cause = RuntimeError if isinstance(failure, Exception) else TypeError
+        assert isinstance(caught.value.__cause__, expected_cause)
+        assert manager.by_output_id("output").status == "running"
+    finally:
+        release.set()
+        assert manager.wait("call", 1).is_finished
+
+
+def test_late_worker_failure_does_not_replace_confirmed_cancellation(monkeypatch):
+    release = Event()
+    workers = []
+
+    def create_thread(**arguments):
+        worker = Thread(**arguments)
+        workers.append(worker)
+        return worker
+
+    def work():
+        release.wait()
+        raise RuntimeError("process terminated after cancellation")
+
+    monkeypatch.setattr(execution_manager, "Thread", create_thread)
+    manager = ToolExecutionManager()
+    manager.start(
+        "call",
+        "work",
+        {},
+        ToolExecutionOperation(work, cancel=lambda: True),
+        ("root",),
+        ExecutionOptions(mode="background"),
+        output_id="output",
+    )
+    try:
+        assert manager.cancel("call")[1] is True
+    finally:
+        release.set()
+        workers[0].join(timeout=1)
+
+    assert not workers[0].is_alive()
+    snapshot = manager.by_output_id("output")
+    assert snapshot.status == "cancelled"
+    assert snapshot.result is None and snapshot.error is None
+
+
+@pytest.mark.parametrize("method", ["wait", "cancel"])
+def test_reused_completed_call_ids_require_an_unambiguous_output_identifier(method):
+    manager = ToolExecutionManager()
+    for output_id in ("first", "second"):
+        manager.start(
+            "same",
+            "work",
+            {},
+            ToolExecutionOperation(lambda: "done"),
+            ("root",),
+            ExecutionOptions(),
+            output_id=output_id,
+        )
+
+    with pytest.raises(ValueError, match="Ambiguous tool call ID"):
+        if method == "wait":
+            manager.wait("same", 1)
+        else:
+            manager.cancel("same")
+
+    assert manager.by_output_id("first").result == "done"
+    assert manager.by_output_id("second").result == "done"
+
+
+def test_marking_unknown_outputs_does_not_acknowledge_known_work():
+    manager = ToolExecutionManager()
+    manager.mark_persisted("missing")
+    manager.mark_delivered("missing")
+    release = Event()
+    record = ToolCallRecord(
+        "work", "output", {}, "pending", execution={"status": "running"}
+    )
+    manager.start(
+        "call",
+        "work",
+        {},
+        ToolExecutionOperation(release.wait),
+        ("root",),
+        ExecutionOptions(mode="background"),
+        output_id="output",
+    )
+    try:
+        manager.attach_output("call", "output", record)
+    finally:
+        release.set()
+        assert manager.wait("call", 1).is_finished
+
+    manager.mark_persisted("missing")
+    manager.mark_delivered("missing")
+
+    assert manager.next_delivery(("root",)).output_id == "output"
+    assert [stored for _, stored in manager.completed_to_persist()] == [record]
