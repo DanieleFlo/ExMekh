@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, Literal
 
 from qs.config.runtime import RUNTIME
 from qs.core.agents.capabilities.capabilities import Capabilities
@@ -12,7 +12,7 @@ from qs.core.agents.deep_agent.agent_response import AgentResponse
 from qs.core.agents.hds.hds import HDS
 from qs.core.agents.sub_agent.sub_agent_tool import SubAgentTool
 from qs.core.cache.node_cache import NodeCache
-from qs.core.models.tool import Tool
+from qs.core.models.tool import PreformattedToolResult, Tool
 from qs.core.tool_calls.memory_tools import ExecutionHistory
 from qs.interfaces.event_handler import DeepAgentEventHandler
 from qs.interfaces.message import Message
@@ -139,7 +139,7 @@ class Node:
         if defaults is not None:
             override = defaults.tool_override(RUNTIME.sub_agent_tool_name)
             if override is not None:
-                return (override,)
+                return (override.without_background_execution(),)
         self._sub_agent_tool = SubAgentTool(self._children)
         return (self._sub_agent_tool,)
 
@@ -169,6 +169,25 @@ class Node:
         if self._runtime is None:
             raise RuntimeError("Node must be initialized before run")
         return self._runtime.run(user_message)
+
+    def control_tool_execution(
+        self,
+        tool_call_id: str,
+        action: Literal["wait", "cancel"] = "wait",
+        wait_seconds: float = RUNTIME.default_tool_wait_seconds,
+    ) -> dict[str, Any]:
+        """Control node-local work without changing the conversation history."""
+        if self._runtime is None:
+            raise RuntimeError("Node must be initialized before controlling tool work")
+        return self._runtime.control_tool_execution(tool_call_id, action, wait_seconds)
+
+    def read_tool_output(
+        self, output_id: str, cursor: int | None = None
+    ) -> PreformattedToolResult:
+        """Read node-local output; a final read acknowledges automatic delivery."""
+        if self._runtime is None:
+            raise RuntimeError("Node must be initialized before reading tool output")
+        return self._runtime.read_tool_output(output_id, cursor)
 
     def restore_history(
         self,

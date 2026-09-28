@@ -288,9 +288,7 @@ def test_existing_saved_output_header_is_annotated_in_skill(tmp_path: Path) -> N
                     AssistantMessage(
                         None,
                         tool_calls=[
-                            _call(
-                                "read_saved_tool_output", "read", output_id="output-1"
-                            )
+                            _call("read_tool_output", "read", output_id="output-1")
                         ],
                     ),
                     "read trace",

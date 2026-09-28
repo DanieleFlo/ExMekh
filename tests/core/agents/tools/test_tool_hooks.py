@@ -60,7 +60,11 @@ def test_hooks_change_arguments_and_result(tmp_path: Path) -> None:
     )
     assert result == "changed!"
     assert calls == ["changed"]
-    assert tuple(tool.get_signature().parameters) == ("value",)
+    assert tuple(tool.get_signature().parameters) == (
+        "value",
+        "execution_mode",
+        "wait_seconds",
+    )
 
 
 def test_before_can_answer_without_calling_tool(tmp_path: Path) -> None:

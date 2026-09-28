@@ -76,8 +76,9 @@ With `DefaultCapabilities`, a node can exclude or override `call_sub_agent`;
 an override must be a `Tool` named `call_sub_agent`. Selection is independent
 for each parent and child. See [per-node defaults](04-capabilities-and-catalog.md#per-node-default-capabilities).
 
-Calling the tool runs `child.run(text)`, so the child receives the value exactly
-as a new user message. Repeated calls follow the child's `persistent_history`
+Calling the tool runs `child.run(text)` synchronously, without a 60-second limit
+or background mode. The child receives the value exactly as a new user message.
+Repeated calls follow the child's `persistent_history`
 setting. A grandchild is not selectable directly: its parent must delegate to it
 in a subsequent `call_sub_agent` call.
 
@@ -193,7 +194,7 @@ Selected saved outputs can be inserted into that final result through
 selections return a tool error and keep the skill open for correction.
 
 The runtime automatically exposes `get_execution_history`,
-`search_saved_tool_outputs` and `read_saved_tool_output` in every scope. They
+`search_saved_tool_outputs`, `read_tool_output` and `control_tool_execution` in every scope. They
 return XML, operate only on the current node and do not cache their own results.
 See [Tool output caching](09-tool-call-cache.md) for formats and lifecycle.
 
@@ -214,3 +215,15 @@ preserves ordinary tool responses from the opening batch.
 
 The session cache synchronizes storage operations across threads. It does not
 make concurrent `run()` calls on the same runtime safe.
+
+### Managed work tools
+
+Work tools accept `execution_mode="wait"` (default, up to 60 seconds) or
+`"background"`, with an optional `wait_seconds` limit. Expiring that wait
+returns control while the work continues. `control_tool_execution` waits or
+requests supported cancellation by the original `tool_call_id`;
+`read_tool_output` reads status and output by the stable `output_id`.
+Completed results are inserted as a new assistant read call and tool result
+at a safe history boundary in the exact original skill instance. Returning to
+the same skill later requires an explicit read. See
+[Tool Executions](13-tool-executions.md) for limits, hooks, cursors and lifecycle.

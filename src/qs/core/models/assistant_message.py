@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from copy import copy
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
 from pydantic_core import to_json
 
@@ -48,6 +49,13 @@ class AssistantMessage(Message[str | None]):
 
     def get_tool_calls(self) -> list[ToolCall] | None:
         return self._tool_calls
+
+    def with_tool_calls(self, tool_calls: Sequence[ToolCall]) -> Self:
+        """Copy the message with new calls, preserving provider metadata."""
+        message = copy(self)
+        message._tool_calls = list(tool_calls)
+        message._check_inputs()
+        return message
 
     def message_dump(self) -> dict[str, str]:
         content = self._content

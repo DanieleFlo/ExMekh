@@ -25,7 +25,7 @@ class OpenAIFunctionToolCallResolver:
         tools: Tools,
     ) -> tuple[Tool, dict[str, Any]]:
         tool = self._registered_tool(call.get_name(), tools)
-        arguments = self._parse_arguments(call)
+        arguments = tool.normalize_call_arguments(self._parse_arguments(call))
         bound_arguments = self._bind_arguments(tool, arguments)
         return tool, self._coerce_arguments(tool, bound_arguments)
 

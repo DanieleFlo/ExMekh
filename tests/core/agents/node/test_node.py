@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
+from threading import Event
 from types import SimpleNamespace
 from typing import cast
 from unittest.mock import MagicMock
@@ -18,7 +19,7 @@ from qs.core.agents.deep_agent.stream_event import (
 from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill
 from qs.core.agents.exit_tool.exit_tool import ExitTool
 from qs.core.agents.hds.hds import HDS
-from qs.core.agents.node import Node
+from qs.core.agents.node import DefaultCapabilities, Node
 from qs.core.agents.node.agentic_scope import AgenticScope
 from qs.core.agents.node.node_runtime import NodeRuntime
 from qs.core.agents.node.node_runtime_config import NodeRuntimeConfig
@@ -48,15 +49,17 @@ from qs.core.models.tool_message import ToolMessage
 from qs.core.models.user_message import ErrorUserMessage, UserMessage
 from qs.core.models.xml_header import XmlHeader
 from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
+from qs.core.tool_calls.execution_manager import ToolExecutionManager
 from qs.core.tool_calls.memory_tools import ExecutionHistory
 from qs.interfaces.provider import Provider
 from qs.interfaces.tokenizer import Tokenizer
 from tests.event_handler import as_agent_handler
 
-_MEMORY_TOOL_NAMES = [
+_RUNTIME_TOOL_NAMES = [
     "get_execution_history",
     "search_saved_tool_outputs",
-    "read_saved_tool_output",
+    "read_tool_output",
+    "control_tool_execution",
 ]
 
 
@@ -576,9 +579,15 @@ def test_tool_descriptions_reflect_hds_and_skill_availability(
             "Search node-scoped saved outputs and return paginated XML previews. "
             "All filters are optional."
         ),
-        "read_saved_tool_output": (
-            "Read one saved output by ID as an XML header followed by its "
-            "complete content."
+        "read_tool_output": (
+            "Read the current status and available output of a tool by output ID. "
+            "Use an optional cursor to read only new output; omit it to read the "
+            "complete output. Includes the final result when available."
+        ),
+        "control_tool_execution": (
+            "Wait for a tool execution by its original tool_call_id, or request "
+            "cancellation. Waiting returns as soon as the work finishes or "
+            "the wait limit expires; read its output with read_tool_output."
         ),
     }
 
@@ -714,6 +723,7 @@ def test_tool_failure_still_emits_the_end_state() -> None:
         exit_content_resolver=MagicMock(),
     )
     runtime = object.__new__(NodeRuntime)
+    runtime._execution_manager = ToolExecutionManager()
     runtime._client = client
     runtime._executor = executor
     runtime._emit_tool_state = MagicMock()
@@ -1017,7 +1027,7 @@ def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:
         {
             "agentic": {
                 "agent_context_id": "main",
-                "allowed_tools": ["mock-tool", *_MEMORY_TOOL_NAMES],
+                "allowed_tools": ["mock-tool", *_RUNTIME_TOOL_NAMES],
                 "allowed_skills": ["mock-skill"],
             }
         },
@@ -1027,7 +1037,7 @@ def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:
                 "allowed_tools": [
                     "mock-sub-tool",
                     "shared-tool",
-                    *_MEMORY_TOOL_NAMES,
+                    *_RUNTIME_TOOL_NAMES,
                     "exit_agent",
                 ],
                 "allowed_skills": ["nested-skill"],
@@ -1040,7 +1050,7 @@ def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:
                     "nested-sub-tool",
                     "shared-tool",
                     "mock-sub-tool",
-                    *_MEMORY_TOOL_NAMES,
+                    *_RUNTIME_TOOL_NAMES,
                     "exit_agent",
                 ],
                 "allowed_skills": [],
@@ -1052,7 +1062,7 @@ def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:
                 "allowed_tools": [
                     "mock-sub-tool",
                     "shared-tool",
-                    *_MEMORY_TOOL_NAMES,
+                    *_RUNTIME_TOOL_NAMES,
                     "exit_agent",
                 ],
                 "allowed_skills": ["nested-skill"],
@@ -1063,7 +1073,7 @@ def test_agentic_scope_tracks_nested_skills_and_returns(tmp_path: Path) -> None:
         {
             "agentic": {
                 "agent_context_id": "main",
-                "allowed_tools": ["mock-tool", *_MEMORY_TOOL_NAMES],
+                "allowed_tools": ["mock-tool", *_RUNTIME_TOOL_NAMES],
                 "allowed_skills": ["mock-skill"],
                 "operation": "return",
                 "skill_call_id": "parent-skill-call",
@@ -1180,10 +1190,8 @@ def test_streams_context_across_nested_skills_and_tools(
     ]
 
     nested_tool_end = tool_events[5]
-    assert nested_tool_end.history[-1] == {
-        "role": "tool",
-        "content": '{"echo": "work"}',
-    }
+    assert nested_tool_end.history[-1]["role"] == "tool"
+    assert nested_tool_end.history[-1]["content"].endswith('{"echo": "work"}')
     parent_tree = nested_tool_end.history_tree[0]
     assert parent_tree["skill"] == "mock-skill"
     assert parent_tree["output"] is None
@@ -1324,7 +1332,8 @@ def test_regular_tool_does_not_change_depth_and_serializes_its_result(
 
     assert node.depth == 0
     tool_message = cast(ToolMessage, provider.requests[1].get_messages()[-1])
-    assert tool_message.get_message() == '{"echo": "hello"}'
+    assert tool_message.get_message().endswith('{"echo": "hello"}')
+    assert "<response-type>final</response-type>" in tool_message.get_message()
 
 
 def test_positive_initial_depth_requires_a_tool_on_first_request(
@@ -1385,6 +1394,142 @@ def test_executor_returns_raw_result_without_saving() -> None:
     client.get_session.assert_not_called()
     client.add_tool_response.assert_not_called()
     client.replace_history_from.assert_not_called()
+
+
+def test_background_tool_output_is_readable_after_node_returns(tmp_path: Path) -> None:
+    release = Event()
+    started = Event()
+
+    def work(text: str) -> str:
+        started.set()
+        release.wait()
+        return f"finished: {text}"
+
+    provider = SequenceProvider(
+        [
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "mock-tool",
+                        {"text": "task", "execution_mode": "background"},
+                        call_id="original-call",
+                    )
+                ],
+            ),
+            AssistantMessage("continuing"),
+        ]
+    )
+    provider.generate_id = lambda: "output-one"
+    defaults = DefaultCapabilities(
+        harness=False,
+        include={"read_tool_output", "control_tool_execution"},
+        overrides={"mock-tool": Tool(work, name="mock-tool")},
+    )
+    with SessionCache(tmp_path / "cache") as session:
+        provider.get_session = lambda: session
+        node = Node(
+            [_write_runnable_capabilities(tmp_path)],
+            name_hds="main",
+            default_capabilities=defaults,
+        )
+        node.initialize(provider, work_root=tmp_path)
+        try:
+            response = node.run("start")
+            assert response.get_message() == "continuing"
+            assert started.wait(1)
+            reader = node._runtime._memory_tools
+            assert (
+                "<response-type>running</response-type>"
+                in reader.read_tool_output("output-one").content
+            )
+        finally:
+            release.set()
+
+        assert node._runtime._execution_manager.wait("original-call", 1).status == (
+            "completed"
+        )
+        final = reader.read_tool_output("output-one").content
+        assert "<response-type>final</response-type>" in final
+        assert "finished: task" in final
+
+
+def test_completed_background_output_is_inserted_before_next_inference(
+    tmp_path: Path,
+) -> None:
+    release = Event()
+    finished = Event()
+
+    def work(text: str) -> str:
+        release.wait()
+        finished.set()
+        return f"finished: {text}"
+
+    provider = SequenceProvider(
+        [
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call(
+                        "mock-tool",
+                        {"text": "task", "execution_mode": "background"},
+                        call_id="original-call",
+                    )
+                ],
+            ),
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call("get_execution_history", {}, call_id="history")
+                ],
+            ),
+            AssistantMessage("done"),
+        ]
+    )
+    original_call = provider.call
+
+    def call(request: ProviderRequest) -> ProviderResponse:
+        if len(provider.requests) == 1:
+            release.set()
+            assert finished.wait(1)
+        return original_call(request)
+
+    provider.call = call
+    provider.generate_id = lambda: "output-one"
+    defaults = DefaultCapabilities(
+        harness=False,
+        include={"get_execution_history", "read_tool_output"},
+        overrides={"mock-tool": Tool(work, name="mock-tool")},
+    )
+    with SessionCache(tmp_path / "cache") as session:
+        provider.get_session = lambda: session
+        node = Node(
+            [_write_runnable_capabilities(tmp_path)],
+            name_hds="main",
+            default_capabilities=defaults,
+        )
+        node.initialize(provider, work_root=tmp_path)
+        try:
+            assert node.run("start").get_message() == "done"
+        finally:
+            release.set()
+
+    continuation = provider.requests[2].get_messages()
+    synthetic_calls = [
+        call
+        for message in continuation
+        if isinstance(message, AssistantMessage)
+        for call in message.get_tool_calls() or ()
+        if call.get_name() == "read_tool_output"
+    ]
+    assert len(synthetic_calls) == 1
+    assert synthetic_calls[0].get_arguments() == {"output_id": "output-one"}
+    assert any(
+        isinstance(message, ToolMessage)
+        and message.get_tool_call_id() == synthetic_calls[0].get_id()
+        and "finished: task" in message.get_message()
+        for message in continuation
+    )
 
 
 def test_executor_returns_preformatted_transient_content_without_header() -> None:
@@ -1714,7 +1859,7 @@ def test_skill_compaction_preserves_preceding_parallel_tool_responses(
         "work",
         "open",
     ]
-    assert tool_messages[0].get_message() == '{"echo": "before"}'
+    assert tool_messages[0].get_message().endswith('{"echo": "before"}')
     assert tool_messages[1].get_message() == "skill done"
     records = node._runtime._tool_cache.get_all()
     assert {record.tool_call_id: record.skill_path for record in records} == {
@@ -1937,6 +2082,7 @@ def test_runtime_saves_none_result(tmp_path: Path) -> None:
     runtime = object.__new__(NodeRuntime)
     runtime._client = client
     runtime._node_id = "test-node"
+    runtime._execution_manager = ToolExecutionManager()
     runtime._tool_cache = session.node("test-node")
     runtime._emit_tool_state = MagicMock()
     runtime._executor = ToolCallExecutor(
@@ -2084,6 +2230,7 @@ def test_runtime_captures_arguments_before_tool_mutates_them(tmp_path: Path) -> 
     with SessionCache(tmp_path) as session:
         client = MagicMock(spec=Client)
         runtime = object.__new__(NodeRuntime)
+        runtime._execution_manager = ToolExecutionManager()
         runtime._client = client
         runtime._tool_cache = session.node("node")
         runtime._emit_tool_state = MagicMock()

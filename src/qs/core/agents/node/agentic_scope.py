@@ -43,6 +43,10 @@ class AgenticScope:
     def node_id(self) -> str:
         return self._hds.get_name()
 
+    @property
+    def pending_return_call_id(self) -> str | None:
+        return self._pending_return_skill_call_id
+
     def build_extra(
         self,
         active_skills: tuple[DeepSkill, ...],

@@ -36,7 +36,12 @@ class ExitTool(Tool):
         self.instructions, self.references = parse_references(instructions.strip())
         self.folder_path = folder_path
         super().__init__(
-            function, name=name, description=description, before=before, after=after
+            function,
+            name=name,
+            description=description,
+            background_enabled=False,
+            before=before,
+            after=after,
         )
 
     def render_prompt_section(self) -> str:

@@ -19,6 +19,30 @@ from qs.core.providers.to_openai_response_request_mapper import (
     ToOpenAIResponseRequestMapper,
 )
 
+STRICT_EXECUTION_PROPERTIES = {
+    "execution_mode": {
+        "anyOf": [
+            {
+                "enum": ["wait", "background"],
+                "type": "string",
+                "description": "Wait up to wait_seconds, or return immediately while the tool continues.",
+            },
+            {"type": "null"},
+        ],
+        "description": "Null uses the default: wait.",
+    },
+    "wait_seconds": {
+        "anyOf": [
+            {
+                "type": "number",
+                "description": "Maximum initial wait in seconds; the tool continues after this time.",
+            },
+            {"type": "null"},
+        ],
+        "description": "Null uses the default: 60.0.",
+    },
+}
+
 
 def search(query: Annotated[str, "Text to search"]) -> str:
     """Search documents."""
@@ -61,10 +85,11 @@ def test_map_request_preserves_agentic_options_and_flattens_tools() -> None:
                         "query": {
                             "type": "string",
                             "description": "Text to search",
-                        }
+                        },
+                        **STRICT_EXECUTION_PROPERTIES,
                     },
                     "additionalProperties": False,
-                    "required": ["query"],
+                    "required": ["query", "execution_mode", "wait_seconds"],
                 },
                 "strict": True,
             }
@@ -125,7 +150,8 @@ def test_map_request_maps_bound_tool_schema_without_work_root(tmp_path: Path) ->
     payload = ToOpenAIResponseRequestMapper.map_request(request, model="model")
 
     assert payload["tools"][0]["parameters"]["properties"] == {
-        "command": {"type": "string"}
+        "command": {"type": "string"},
+        **STRICT_EXECUTION_PROPERTIES,
     }
 
 
@@ -165,7 +191,25 @@ def test_map_tools_omits_empty_description() -> None:
     assert "description" not in mapped[0]
     assert mapped[0]["strict"] is True
     assert mapped[0]["parameters"]["properties"]["value"] == {"type": "integer"}
-    assert mapped[0]["parameters"]["required"] == ["value"]
+    assert mapped[0]["parameters"]["required"] == [
+        "value",
+        "execution_mode",
+        "wait_seconds",
+    ]
+
+
+def test_strict_null_execution_options_use_runtime_defaults() -> None:
+    call = ResponseFunctionToolCall(
+        type="function_call",
+        id="item",
+        call_id="call",
+        name="search",
+        arguments='{"query":"docs","execution_mode":null,"wait_seconds":null}',
+    )
+    _, arguments = OpenAIResponseToolMapper.resolve_tool_call(
+        call, Tools([Tool(search)])
+    )
+    assert arguments == {"query": "docs"}
 
 
 def test_resolve_tool_call_rejects_invalid_response_type() -> None:

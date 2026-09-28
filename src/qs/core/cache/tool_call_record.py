@@ -33,6 +33,7 @@ class ToolCallRecord:
     tool_call_id: str | None = None
     thinking: str | None = None
     source: Literal["Tool", "DeepSkill"] = "Tool"
+    execution: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.name, str):
@@ -65,6 +66,10 @@ class ToolCallRecord:
 
         object.__setattr__(self, "args", to_json_value(self.args))
         object.__setattr__(self, "result", to_json_value(self.result))
+        if self.execution is not None:
+            if not isinstance(self.execution, dict):
+                raise TypeError("execution must be a dictionary or None")
+            object.__setattr__(self, "execution", to_json_value(self.execution))
 
         if not isinstance(self.skill_path, str):
             raise TypeError("skill_path must be a string")
@@ -82,6 +87,7 @@ class ToolCallRecord:
             "tool_call_id": self.tool_call_id,
             "thinking": self.thinking,
             "type": self.source,
+            **({"execution": self.execution} if self.execution is not None else {}),
         }
 
     @classmethod
@@ -104,6 +110,7 @@ class ToolCallRecord:
             tool_call_id=record_dict.get("tool_call_id"),
             thinking=record_dict.get("thinking"),
             source=record_dict.get("type", "Tool"),
+            execution=record_dict.get("execution"),
         )
 
     @classmethod

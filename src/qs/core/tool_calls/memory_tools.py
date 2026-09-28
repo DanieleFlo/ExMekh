@@ -10,9 +10,9 @@ from qs.config.runtime import RUNTIME
 from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.tool import PreformattedToolResult, Tool
-from qs.core.models.xml_header import XmlHeader
-from qs.utils.json import stringify_tool_result
 
+from .execution_manager import ToolExecutionManager
+from .output_reader import ToolOutputReader, tool_output_content
 from .search import ToolCallSearch
 
 
@@ -186,9 +186,11 @@ class HarnessMemoryTools:
         self,
         history: ExecutionHistory,
         cache_provider: Callable[[], NodeCache],
+        execution_manager: ToolExecutionManager | None = None,
     ) -> None:
         self._history = history
         self._cache_provider = cache_provider
+        self._output_reader = ToolOutputReader(cache_provider, execution_manager)
         self._tools = (
             Tool(
                 self.get_execution_history,
@@ -199,6 +201,7 @@ class HarnessMemoryTools:
                     "1-based position and limit from 2 to 100 to read a page."
                 ),
                 cache_result=False,
+                background_enabled=False,
             ),
             Tool(
                 self.search_saved_tool_outputs,
@@ -208,15 +211,19 @@ class HarnessMemoryTools:
                     "previews. All filters are optional."
                 ),
                 cache_result=False,
+                background_enabled=False,
             ),
             Tool(
-                self.read_saved_tool_output,
+                self.read_tool_output,
                 name=self.READ_TOOL_NAME,
                 description=(
-                    "Read one saved output by ID as an XML header followed by "
-                    "its complete content."
+                    "Read the current status and available output of a tool by "
+                    "output ID. Use an optional cursor to read only new output; "
+                    "omit it to read the complete output. Includes the final "
+                    "result when available."
                 ),
                 cache_result=False,
+                background_enabled=False,
             ),
         )
 
@@ -309,22 +316,11 @@ class HarnessMemoryTools:
             ET.SubElement(record_element, "preview").text = self._preview(record)
         return PreformattedToolResult(_render_xml(root))
 
-    def read_saved_tool_output(self, output_id: str) -> PreformattedToolResult:
-        """Read one complete saved output by its opaque output ID."""
-        record = self._cache_provider().get(output_id)
-        if record is None:
-            root = ET.Element("saved-tool-output")
-            ET.SubElement(root, "id").text = output_id
-            ET.SubElement(root, "found").text = "false"
-            return PreformattedToolResult(_render_xml(root))
-
-        header = XmlHeader(
-            source=record.source,
-            name=record.name,
-            id=record.id,
-            args=record.args,
-        )
-        return PreformattedToolResult(header.prepend_to(tool_output_content(record)))
+    def read_tool_output(
+        self, output_id: str, cursor: int | None = None
+    ) -> PreformattedToolResult:
+        """Read current or saved output by its canonical output ID."""
+        return self._output_reader.read(output_id, cursor)
 
     @classmethod
     def _preview(cls, record: ToolCallRecord) -> str:
@@ -337,14 +333,3 @@ class HarnessMemoryTools:
 def _render_xml(root: ET.Element) -> str:
     ET.indent(root)
     return ET.tostring(root, encoding="unicode", short_empty_elements=True)
-
-
-def tool_output_content(record: ToolCallRecord) -> str:
-    """Render saved content consistently for memory reads and skill returns."""
-    if (
-        record.source == "DeepSkill"
-        and isinstance(record.result, dict)
-        and isinstance(record.result.get("text"), str)
-    ):
-        return record.result["text"]
-    return stringify_tool_result(record.result)

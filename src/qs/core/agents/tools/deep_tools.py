@@ -102,6 +102,7 @@ class DeepTools:
                 description=description,
                 before=definition.before,
                 after=definition.after,
+                background_enabled=definition.background_enabled,
             )
         except Exception:
             self._module_importer.unload_module(tool_path)

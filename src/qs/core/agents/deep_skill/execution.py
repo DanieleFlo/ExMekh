@@ -103,6 +103,13 @@ class DeepSkillExecutionTracker:
     def active_path(self) -> str:
         return "/" + "/".join(skill.name for skill in self.active_skills)
 
+    @property
+    def active_scope_ids(self) -> tuple[str, ...]:
+        return tuple(
+            f"{execution.opening_tool_call_id}:{execution.opening_history_position}"
+            for execution in self._active
+        )
+
     def history_tree(
         self,
         current_history: list[Message] | None = None,

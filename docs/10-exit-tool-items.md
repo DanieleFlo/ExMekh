@@ -30,7 +30,7 @@ Ogni output usa un blocco XML:
 
 `id` è sempre l'ID canonico dell'output. `type` è `Tool` o `DeepSkill`.
 Il contenuto è completo: per le deep skill è il testo finale, per gli altri
-tool è la stessa rappresentazione letta da `read_saved_tool_output`. Caratteri
+tool è la stessa rappresentazione letta da `read_tool_output`. Caratteri
 XML speciali vengono escapati; se il contenuto contiene caratteri non ammessi
 da XML 1.0, `<content encoding="base64">` conserva tutti i byte UTF-8.
 
@@ -61,13 +61,18 @@ Un errore interno o di storage continua invece a propagarsi.
 
 ## Istruzioni inserite nei prompt
 
-Il runtime aggiunge il seguente blocco al system prompt di **ogni** HDS:
+Il runtime aggiunge `harness-output-guidance` al system prompt di **ogni** HDS.
+La parte relativa alla selezione degli output è:
 
 ```text
 <harness-output-guidance>
-Quando concludi una skill, inserisci in items solo gli ID degli output completi che il chiamante deve leggere subito. Preferisci il saved-output-id mostrato dalla cronologia; l'ID della chiamata è accettato se non è ambiguo. Se il risultato servirà in una skill successiva, comunica nel text soltanto l'ID e chiedi di recuperarlo con read_saved_tool_output: duplicare l'output nel messaggio consuma contesto. Usa items=[] quando basta il testo.
+Quando concludi una skill, inserisci in items solo gli ID degli output completi che il chiamante deve leggere subito. Preferisci il saved-output-id mostrato dalla cronologia; l'ID della chiamata è accettato se non è ambiguo. Se il risultato servirà in una skill successiva, comunica nel text soltanto l'ID e chiedi di recuperarlo con read_tool_output: duplicare l'output nel messaggio consuma contesto. Usa items=[] quando basta il testo.
 </harness-output-guidance>
 ```
+
+Il blocco comprende anche le modalità di esecuzione, il controllo dei lavori
+e le regole di lettura e consegna automatica, descritte in
+[Esecuzioni dei tool](13-tool-executions.md).
 
 La guida è nel system prompt perché vale per l'intera esecuzione del nodo,
 anche quando un HDS applicativo sostituisce quello incluso nel progetto. La

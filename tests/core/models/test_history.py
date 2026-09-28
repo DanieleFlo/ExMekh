@@ -3,9 +3,11 @@ from unittest.mock import patch
 
 import pytest
 
-from qs.core.models.assistant_message import AssistantMessage
+from qs.core.models.assistant_message import AssistantMessage, FunctionCall, ToolCall
 from qs.core.models.function_message import FunctionMessage
 from qs.core.models.history import MessageHistory
+from qs.core.models.model_thinking import ModelThinking
+from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.user_message import UserMessage
@@ -249,3 +251,69 @@ def test_replace_from_rejects_non_integer_index(start_index: object) -> None:
 
     with pytest.raises(TypeError, match="start_index must be an integer"):
         history.replace_from(start_index, [])
+
+
+@pytest.mark.parametrize("read_count", [1, 2])
+def test_harness_reads_preserve_the_return_batch_and_provider_metadata(read_count):
+    original = ToolCall("opening", FunctionCall("skill", {}))
+    sibling = ToolCall("sibling", FunctionCall("work", {}))
+    thinking = ModelThinking("opening reasoning")
+    opening = ProviderResponse(
+        AssistantMessage("open", name="agent", tool_calls=[sibling, original]),
+        thinking=thinking,
+    )
+    sibling_reply = ToolMessage("work done", "sibling")
+    return_reply = ToolMessage("skill done", "opening")
+    history = MessageHistory(
+        [
+            SystemMessage("rules"),
+            UserMessage("start"),
+            opening,
+            sibling_reply,
+            return_reply,
+        ]
+    )
+    for index in range(read_count):
+        call = ToolCall(f"read-{index}", FunctionCall("read_tool_output", {}))
+        with history.record_tool_call(call, batch_call_id="opening"):
+            history.add(ToolMessage("final output", call.id))
+
+    messages = history.get_history()
+    updated = messages[2]
+    assert isinstance(updated, ProviderResponse)
+    assert updated.thinking is thinking
+    assert updated.get_name() == "agent" and updated.get_message() == "open"
+    assert [call.id for call in updated.get_tool_calls()] == [
+        "sibling",
+        "opening",
+        *(f"read-{index}" for index in range(read_count)),
+    ]
+    assert messages[3] is sibling_reply and messages[-1] is return_reply
+    assert opening.get_tool_calls() == [sibling, original]
+    assert len(messages) == 5 + read_count
+
+
+def test_recorded_tool_call_restores_return_reply_when_execution_raises():
+    opening = ToolCall("opening", FunctionCall("skill", {}))
+    reply = ToolMessage("skill done", "opening")
+    history = MessageHistory(
+        [SystemMessage("rules"), AssistantMessage(None, tool_calls=[opening]), reply]
+    )
+    read = ToolCall("read", FunctionCall("read_tool_output", {}))
+    with pytest.raises(RuntimeError, match="failed read"):
+        with history.record_tool_call(read, batch_call_id="opening"):
+            history.add(ToolMessage("read error", "read"))
+            raise RuntimeError("failed read")
+    assert history.get_history()[-1] is reply
+
+
+def test_recorded_tool_call_rejects_an_unrelated_batch_without_mutating_history():
+    history = MessageHistory(
+        [SystemMessage("rules"), ToolMessage("different return", "other")]
+    )
+    before = history.get_history()
+    call = ToolCall("read", FunctionCall("read_tool_output", {}))
+    with pytest.raises(ValueError, match="does not belong"):
+        with history.record_tool_call(call, batch_call_id="opening"):
+            pytest.fail("Unrelated batch should be rejected before execution")
+    assert history.get_history() == before

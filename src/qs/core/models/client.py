@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
+from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
+from qs.core.models.assistant_message import ToolCall
 from qs.core.models.client_request import ClientRequest
 from qs.core.models.history import MessageHistory
 from qs.core.models.provider_request import ProviderRequest
@@ -74,6 +77,17 @@ class Client:
         messages: list[TypeOfMessage],
     ) -> None:
         self._history.replace_from(start_index, messages)
+
+    def add_tool_calls(self, calls: Sequence[ToolCall]) -> None:
+        self._history.add_tool_calls(calls)
+
+    def replace_latest_tool_calls(self, calls: Sequence[ToolCall]) -> None:
+        self._history.replace_latest_tool_calls(calls)
+
+    def record_tool_call(
+        self, call: ToolCall, *, batch_call_id: str | None = None
+    ) -> AbstractContextManager[None]:
+        return self._history.record_tool_call(call, batch_call_id=batch_call_id)
 
     def call(self, request: ClientRequest) -> ProviderResponse:
         provider_request = self._prepare_request(request)
@@ -173,6 +187,11 @@ class Client:
             tool_response.get_tool_call_id(),
             len(self._history.get_history()),
         )
+
+    def add_user_message(self, message: Message[TypeOfMessage]) -> None:
+        if message.get_role_name() != "user":
+            raise TypeError("Expected a user message")
+        self._history.add(message)
 
     def _get_tool_continuation_messages(self) -> list[Message[TypeOfMessage]]:
         messages = self._history.get_history()

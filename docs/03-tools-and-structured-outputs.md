@@ -28,10 +28,16 @@ def calculate_discount(
     return max(0.0, price - discount)
 
 
-tools = Tools([Tool(calculate_discount)])
+tools = Tools([Tool(calculate_discount, background_enabled=False)])
 ```
 
 ### Supported Type Annotations
+In `NodeRuntime`, work tools default to managed execution and add
+`execution_mode` and `wait_seconds` to the model schema without changing the
+Python function signature. The standalone `Client` example above disables
+this protocol because it does not execute the agent loop. See
+[Tool Executions](13-tool-executions.md) for background work and custom handles.
+
 The schema builder inspects standard Python type hints and docstrings:
 - **Primitives**: `int`, `float`, `str`, `bool`, `None`
 - **Containers**: `list[T]`, `set[T]`, `tuple[T, ...]`, `dict[K, V]`

@@ -185,17 +185,17 @@ def test_group_presets_and_individual_selection() -> None:
         mocks=True,
         harness=True,
         include={"mock-tool"},
-        exclude={"mock-skill", "read_saved_tool_output"},
+        exclude={"mock-skill", "read_tool_output"},
     )
     assert selected.includes("mock-tool")
     assert selected.mocks and selected.harness
     assert selected.include == {"mock-tool"}
-    assert selected.exclude == {"mock-skill", "read_saved_tool_output"}
+    assert selected.exclude == {"mock-skill", "read_tool_output"}
     assert not selected.includes("mock-skill")
-    assert not selected.includes("read_saved_tool_output")
+    assert not selected.includes("read_tool_output")
     assert DefaultCapabilities(
-        harness=False, include={"read_saved_tool_output"}
-    ).selected_names == {"read_saved_tool_output"}
+        harness=False, include={"read_tool_output"}
+    ).selected_names == {"read_tool_output"}
 
 
 def test_mock_main_loads_its_required_skill_without_full_harness(
@@ -313,7 +313,8 @@ def test_harness_defaults_support_an_application_hds_without_mocks(
     assert request.get_extra()["agentic"]["allowed_tools"] == [
         "get_execution_history",
         "search_saved_tool_outputs",
-        "read_saved_tool_output",
+        "read_tool_output",
+        "control_tool_execution",
     ]
 
 
@@ -603,7 +604,7 @@ def test_excluding_memory_readers_preserves_internal_cache(tmp_path: Path) -> No
         exclude={
             "get_execution_history",
             "search_saved_tool_outputs",
-            "read_saved_tool_output",
+            "read_tool_output",
         },
         overrides={
             "main": make_hds("main", tools=("mock-tool",)),
@@ -635,6 +636,7 @@ def test_excluding_memory_readers_preserves_internal_cache(tmp_path: Path) -> No
             "mock-tool",
             "exit_agent",
             "deep-thinking",
+            "control_tool_execution",
         }
         | DEEP_THINKING_TOOLS
     )

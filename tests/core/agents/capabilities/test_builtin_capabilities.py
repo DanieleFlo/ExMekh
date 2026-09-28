@@ -147,8 +147,14 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
             "Search node-scoped saved outputs and return paginated XML previews. "
             "All filters are optional."
         ),
-        "read_saved_tool_output": (
-            "Read one saved output by ID as an XML header followed by its "
-            "complete content."
+        "read_tool_output": (
+            "Read the current status and available output of a tool by output ID. "
+            "Use an optional cursor to read only new output; omit it to read the "
+            "complete output. Includes the final result when available."
+        ),
+        "control_tool_execution": (
+            "Wait for a tool execution by its original tool_call_id, or request "
+            "cancellation. Waiting returns as soon as the work finishes or "
+            "the wait limit expires; read its output with read_tool_output."
         ),
     }

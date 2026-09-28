@@ -31,7 +31,8 @@ _TRANSIENT_TOOL_NAMES = {
     "exit_agent",
     "get_execution_history",
     "search_saved_tool_outputs",
-    "read_saved_tool_output",
+    "read_tool_output",
+    "control_tool_execution",
 }
 
 
@@ -261,7 +262,7 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
         "with the exact same code as text and items=[]. Back at the root, "
         "call search_saved_tool_outputs exactly once with query set to the code "
         "and tool_name='mock-sub-tool'. Take the id from the returned XML record "
-        "and pass it to read_saved_tool_output exactly once. Compare the code in "
+        "and pass it to read_tool_output exactly once. Compare the code in "
         "the complete saved output with the code returned by exit_agent. If they "
         "are identical, answer exactly 'MATCH: <code>', replacing <code> with the "
         "actual code. Otherwise answer exactly 'MISMATCH'. Do not call any other "
@@ -278,7 +279,7 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
         "mock-sub-tool",
         "exit_agent",
         "search_saved_tool_outputs",
-        "read_saved_tool_output",
+        "read_tool_output",
     )
     calls_by_name = {
         name: [call for call in calls if call.get_name() == name]
@@ -308,7 +309,7 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
     sub_tool_record = next(
         record for record in sub_tool_records if record.tool_call_id == sub_tool_call.id
     )
-    assert sub_tool_record.args == {"text": code}
+    assert sub_tool_record.args["text"] == code
     assert code.casefold() in sub_tool_record.result.casefold()
 
     skill_records = [record for record in records if record.name == "mock-skill"]
@@ -330,8 +331,9 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
         for record in search_xml.findall("./records/record")
     )
 
-    read_call = calls_by_name["read_saved_tool_output"][0]
-    assert read_call.get_arguments() == {"output_id": sub_tool_record.id}
+    read_call = calls_by_name["read_tool_output"][0]
+    assert read_call.get_arguments()["output_id"] == sub_tool_record.id
+    assert read_call.get_arguments().get("cursor") is None
     read_response = get_tool_response(live_provider, read_call.id)
     header_xml, saved_output = read_response.split("</header>\n", maxsplit=1)
     header = ET.fromstring(header_xml + "</header>")

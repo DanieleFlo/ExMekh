@@ -35,6 +35,7 @@ _HARNESS_RESOURCE_TYPES: dict[str, type[Tool]] = {
     RUNTIME.history_tool_name: Tool,
     RUNTIME.search_tool_name: Tool,
     RUNTIME.read_tool_name: Tool,
+    RUNTIME.execution_tool_name: Tool,
     RUNTIME.sub_agent_tool_name: Tool,
 }
 _RESOURCE_TYPES = MappingProxyType(_MOCK_RESOURCE_TYPES | _HARNESS_RESOURCE_TYPES)
@@ -45,6 +46,7 @@ RUNTIME_NAMES = frozenset(
         RUNTIME.history_tool_name,
         RUNTIME.search_tool_name,
         RUNTIME.read_tool_name,
+        RUNTIME.execution_tool_name,
         RUNTIME.sub_agent_tool_name,
     }
 )

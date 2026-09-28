@@ -17,6 +17,7 @@ from qs.core.models.client import Client
 from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool import Tool
 from qs.core.models.tools import Tools
+from qs.core.tool_calls.execution_manager import ToolExecutionManager
 from qs.interfaces.event_handler import DeepAgentEventHandler
 from qs.interfaces.provider import Provider
 
@@ -83,6 +84,8 @@ class NodeRuntimeConfig:
         runtime_tool_names: tuple[str, ...] = (),
         *,
         exit_content_resolver: ExitContentResolver,
+        execution_manager: ToolExecutionManager | None = None,
+        scope_prefix: str = "",
     ) -> ToolCallExecutor:
         agentic_scope = AgenticScope(
             hds=self.hds,
@@ -97,6 +100,8 @@ class NodeRuntimeConfig:
             agentic_scope=agentic_scope,
             exit_content_resolver=exit_content_resolver,
             work_root=self.work_root,
+            execution_manager=execution_manager,
+            scope_prefix=scope_prefix,
         )
 
     def get_hds_name(self) -> str:

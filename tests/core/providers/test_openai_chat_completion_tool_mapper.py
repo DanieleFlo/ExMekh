@@ -16,6 +16,20 @@ from qs.core.providers.openai_chat_completion_tool_mapper import (
     OpenAIChatCompletionToolMapper,
 )
 
+EXECUTION_PROPERTIES = {
+    "execution_mode": {
+        "enum": ["wait", "background"],
+        "type": "string",
+        "description": "Wait up to wait_seconds, or return immediately while the tool continues.",
+        "default": "wait",
+    },
+    "wait_seconds": {
+        "type": "number",
+        "description": "Maximum initial wait in seconds; the tool continues after this time.",
+        "default": 60.0,
+    },
+}
+
 
 class Filters(TypedDict):
     category: str
@@ -44,6 +58,7 @@ def test_map_tool_builds_openai_function_schema_from_annotations() -> None:
             "parameters": {
                 "type": "object",
                 "properties": {
+                    **EXECUTION_PROPERTIES,
                     "query": {"type": "string", "description": "Text to search"},
                     "filters": {
                         "type": "object",
@@ -96,7 +111,10 @@ def test_map_tool_supports_bound_partial_parameters(tmp_path: Path) -> None:
 
     assert mapped["function"]["parameters"] == {
         "type": "object",
-        "properties": {"query": {"type": "string", "description": "Query to run"}},
+        "properties": {
+            "query": {"type": "string", "description": "Query to run"},
+            **EXECUTION_PROPERTIES,
+        },
         "additionalProperties": False,
         "required": ["query"],
     }
@@ -113,7 +131,7 @@ def test_map_tool_omits_non_json_default_and_empty_required_list() -> None:
 
     assert parameters == {
         "type": "object",
-        "properties": {"value": {}},
+        "properties": {"value": {}, **EXECUTION_PROPERTIES},
         "additionalProperties": False,
     }
     assert "description" not in mapped["function"]

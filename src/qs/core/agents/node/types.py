@@ -9,6 +9,7 @@ from qs.core.models.user_message import (
     ImagesUserMessage,
     TextsUserMessage,
 )
+from qs.core.tool_calls.execution_manager import ExecutionSnapshot
 
 type NodeUserMessage = str | TextsUserMessage | ImagesUserMessage | FilesUserMessage
 
@@ -32,6 +33,7 @@ class ToolExecutionResult:
     cache_identity: CacheIdentity | None = None
     replace_history_from: int | None = None
     preserved_responses: tuple[ToolMessage, ...] = ()
+    execution: ExecutionSnapshot | None = None
 
 
 @dataclass(frozen=True, slots=True)

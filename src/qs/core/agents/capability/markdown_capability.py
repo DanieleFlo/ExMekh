@@ -33,6 +33,7 @@ class MarkdownCapability[MetadataType: CapabilityMetadata](Tool, ABC):
             tool=self._render_body,
             name=name,
             description=metadata.get_description(),
+            background_enabled=False,
         )
 
     @abstractmethod

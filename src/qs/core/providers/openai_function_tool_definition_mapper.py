@@ -89,6 +89,11 @@ class OpenAIFunctionToolDefinitionMapper:
             )
             if not strict:
                 self._add_default(schema, parameter)
+            elif tool.is_execution_argument(parameter.name):
+                schema = {
+                    "anyOf": [schema, {"type": "null"}],
+                    "description": f"Null uses the default: {parameter.default}.",
+                }
             properties[parameter.name] = schema
             if strict or self._is_required(parameter):
                 required.append(parameter.name)

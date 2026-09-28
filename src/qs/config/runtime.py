@@ -14,7 +14,14 @@ class RuntimeSettings:
     default_agent_context_id: str = "default"
     history_tool_name: str = "get_execution_history"
     search_tool_name: str = "search_saved_tool_outputs"
-    read_tool_name: str = "read_saved_tool_output"
+    read_tool_name: str = "read_tool_output"
+    execution_tool_name: str = "control_tool_execution"
+    execution_argument_names: frozenset[str] = frozenset(
+        {"execution_mode", "wait_seconds"}
+    )
+    default_tool_wait_seconds: float = 60.0
+    max_tool_wait_seconds: float = 300.0
+    max_active_tool_executions: int = 16
     exit_tool_name: str = "exit_agent"
     sub_agent_tool_name: str = "call_sub_agent"
     sub_agent_argument_names: frozenset[str] = frozenset({"sub_agent", "text"})
@@ -37,6 +44,27 @@ class RuntimeSettings:
             "If a later skill needs the result, provide only its ID in text "
             f"and ask the caller to retrieve it with {self.read_tool_name}: repeating the output "
             "in the message consumes context. Use items=[] when text alone is enough.\n"
+            "Work tools accept execution_mode='wait' (default) or 'background'. "
+            f"Wait returns the result if ready within wait_seconds (default {self.default_tool_wait_seconds:g}, "
+            f"greater than 0 and at most {self.max_tool_wait_seconds:g}); otherwise the work continues. "
+            "Background returns immediately. Null execution options use defaults. "
+            "Skill navigation, harness control/read tools and call_sub_agent stay "
+            "synchronous; call_sub_agent waits until the child finishes.\n"
+            "A running response provides the original tool_call_id and output_id. "
+            f"Use {self.execution_tool_name}(tool_call_id, action='wait', "
+            f"wait_seconds={self.default_tool_wait_seconds:g}) to wait again or action='cancel' to request supported "
+            "cancellation; a wait limit never stops the work. "
+            f"Use {self.read_tool_name}(output_id) from any scope of this node for "
+            "status, timings and available output. Use its next-cursor for incremental "
+            "reads when supported. Check response-type for running, partial, final, "
+            "failed or cancelled; a failed execution differs from a valid result "
+            "reporting failure.\n"
+            "Completed background output is read automatically at a safe history "
+            "boundary only in the exact skill instance that started it. After exiting "
+            "a skill, keep its output_id and read it explicitly; reopening the skill "
+            "does not restore that instance. A final manual read prevents duplicate "
+            "automatic delivery. Transient outputs live only in this runtime; "
+            "background work is not resumed after a runtime restart.\n"
             "</harness-output-guidance>"
         )
 

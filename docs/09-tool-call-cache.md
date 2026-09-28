@@ -105,6 +105,7 @@ come sessione attiva.
 | `result` | Risultato della funzione convertito in JSON, prima della formattazione XML. |
 | `skill_path` | Percorso logico della skill; `/` indica lo scope radice. |
 | `thinking` | Testo esposto dal provider nel turno della chiamata, oppure `null`. |
+| `execution` | Metadati opzionali del lavoro gestito: stato, tempi, call ID e ID dell'output. Assente nei record precedenti. |
 
 Nel runtime `id` corrisponde all'ID dell'header XML, quando disponibile; altrimenti
 è un UUID. `tool_call_id` conserva l'ID del tool ordinario o della chiamata che
@@ -147,9 +148,14 @@ includere, escludere o sovrascrivere singolarmente tramite i nomi seguenti:
   2 e 100; `saved-output-id` appare solo se il relativo record è ancora leggibile.
 - `search_saved_tool_outputs(query="", tool_name=None, skill_path=None,
   offset=0, limit=20)` restituisce XML paginato con anteprime di 240 caratteri.
-- `read_saved_tool_output(output_id)` restituisce un `XmlHeader` con nome, tipo,
-  ID e argomenti, seguito dal contenuto completo. Un ID assente produce XML con
+- `read_tool_output(output_id, cursor=None)` restituisce un `XmlHeader` con nome, tipo,
+  ID, argomenti e `response-type`, seguito dallo stato o dall'output disponibile.
+  Legge anche i lavori attivi e gli output temporanei. Un ID assente produce XML con
   `found=false`, senza interrompere l'agente.
+
+Il runtime espone inoltre `control_tool_execution` per attesa e annullamento.
+Vedi [Esecuzioni dei tool](13-tool-executions.md) per stati, cursori, consegna
+automatica e durata della vista in memoria.
 
 I tool predefiniti non salvano le proprie risposte. I nomi attivi non
 possono essere riutilizzati dalle capability applicative senza un override
@@ -238,14 +244,16 @@ l'esecuzione di più `run` sullo stesso `NodeRuntime`.
 
 | Situazione | Effetto |
 | --- | --- |
-| Il tool solleva `TypeError` o `ValueError` durante l'esecuzione | L'errore torna al modello come risposta del tool, senza salvare un output; il modello può correggere gli argomenti e riprovare. |
-| Il tool solleva un'altra eccezione | Nessun record di successo viene salvato; l'errore risale al chiamante. |
+| Un lavoro gestito o un suo hook solleva un'eccezione | Stato `failed` e diagnostica leggibili; la cache conserva il fallimento se il tool consente il salvataggio. Un risultato valido che segnala un esito negativo resta `completed`. |
+| Un tool sincrono solleva `TypeError` o `ValueError` | L'errore torna al modello senza salvare un output; il modello può correggere gli argomenti e riprovare. |
+| Un tool sincrono solleva un'altra eccezione | L'errore risale al chiamante. |
 | Lo storage fallisce dopo l'esecuzione | La risposta è già applicata alla cronologia; la funzione può avere già prodotto effetti esterni. |
 | Un record non è leggibile o è incoerente | Viene escluso dalla lettura e dagli elenchi. |
 | Una vista appartiene a una sessione chiusa | Le operazioni sulla vista sollevano `RuntimeError`. |
 
-L'evento `TOOL_END`, quando lo streaming è attivo, segnala la fine del tentativo
-di esecuzione anche in caso di errore; non è da solo una conferma di salvataggio.
+L'evento `TOOL_END`, quando lo streaming è attivo, segnala il ritorno della
+chiamata anche in caso di errore o risposta `running`; non è da solo una
+conferma di completamento del lavoro o di salvataggio.
 
 
 ## Thinking del turno di chiamata

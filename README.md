@@ -38,6 +38,7 @@ Explore the detailed documentation in the [`docs/`](docs) directory:
 10. **[Exit Tool Items](docs/10-exit-tool-items.md)**: Select saved outputs, place them in the skill result, and correct invalid references.
 11. **[Deep Thinking](docs/11-deep-thinking.md)**: Runtime dependencies, tool contracts, web boundaries, and thinking headers.
 12. **[Event Handler Interfaces](docs/12-event-handler-interfaces.md)**: Implement typed event handlers with registration-time validation.
+13. **[Tool Executions](docs/13-tool-executions.md)**: Wait or continue in background, control executions, read results, and deliver completed output in its original skill instance.
 
 ---
 
@@ -93,7 +94,7 @@ provider = LocalProvider(model="Qwen3.8-27B-UD-Q4_K_S")
 client = Client(
     provider=provider,
     system_message=SystemMessage("You are a helpful assistant."),
-    tools=Tools([Tool(get_weather)]),
+    tools=Tools([Tool(get_weather, background_enabled=False)]),
 )
 
 # Make request
@@ -166,7 +167,7 @@ node = Node(
     default_capabilities=DefaultCapabilities(
         mocks=False,
         harness=True,
-        exclude={"read_saved_tool_output"},
+        exclude={"read_tool_output"},
     ),
 )
 ```

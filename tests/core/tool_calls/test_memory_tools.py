@@ -13,6 +13,58 @@ def _content(result: PreformattedToolResult) -> str:
     return result.content
 
 
+def test_saved_unfinished_execution_is_not_reported_as_a_final_result(tmp_path) -> None:
+    with SessionCache(tmp_path) as session:
+        cache = session.node("node")
+        cache.store(
+            ToolCallRecord(
+                "work",
+                "output",
+                {},
+                {"status": "running"},
+                execution={
+                    "status": "running",
+                    "tool_call_id": "call",
+                    "started_at": "then",
+                },
+            )
+        )
+        memory = HarnessMemoryTools(ExecutionHistory(), lambda: cache)
+        output = memory.read_tool_output("output").content
+        assert "<status>unavailable</status>" in output
+        assert "<response-type>failed</response-type>" in output
+        assert "not resumed" in output
+
+
+@pytest.mark.parametrize("status", ["failed", "cancelled"])
+def test_saved_terminal_state_retains_its_xml_type(tmp_path, status) -> None:
+    with SessionCache(tmp_path) as session:
+        cache = session.node("node")
+        record = ToolCallRecord(
+            "work", "output", {}, "diagnostic", execution={"status": status}
+        )
+        cache.store(record)
+        memory = HarnessMemoryTools(ExecutionHistory(), lambda: cache)
+        assert (
+            f"<response-type>{status}</response-type>"
+            in memory.read_tool_output("output").content
+        )
+        assert ToolCallRecord.from_dict(record.to_dict()).execution == record.execution
+
+
+def test_valid_result_with_negative_status_remains_final(tmp_path) -> None:
+    with SessionCache(tmp_path) as session:
+        cache = session.node("node")
+        cache.store(
+            ToolCallRecord("work", "output", {}, {"status": "failed", "ok": False})
+        )
+        memory = HarnessMemoryTools(ExecutionHistory(), lambda: cache)
+        assert (
+            "<response-type>final</response-type>"
+            in memory.read_tool_output("output").content
+        )
+
+
 def test_history_reports_only_live_recoverable_output_ids(tmp_path) -> None:
     with SessionCache(tmp_path) as session:
         cache = session.node("node")
@@ -295,7 +347,7 @@ def test_read_returns_header_arguments_and_display_content(tmp_path) -> None:
         )
         memory = HarnessMemoryTools(ExecutionHistory(), lambda: cache)
 
-        content = _content(memory.read_saved_tool_output("skill-output"))
+        content = _content(memory.read_tool_output("skill-output"))
 
         header, result = content.split("</header>\n", maxsplit=1)
         parsed = ET.fromstring(header + "</header>")
@@ -311,7 +363,7 @@ def test_read_missing_id_is_non_destructive_xml(tmp_path) -> None:
     with SessionCache(tmp_path) as session:
         memory = HarnessMemoryTools(ExecutionHistory(), lambda: session.node("node"))
 
-        assert _content(memory.read_saved_tool_output("missing")) == (
+        assert _content(memory.read_tool_output("missing")) == (
             "<saved-tool-output>\n"
             "  <id>missing</id>\n"
             "  <found>false</found>\n"
@@ -326,7 +378,7 @@ def test_memory_tools_are_transient_and_have_reserved_names(tmp_path) -> None:
         assert memory.tool_names == (
             "get_execution_history",
             "search_saved_tool_outputs",
-            "read_saved_tool_output",
+            "read_tool_output",
         )
         assert all(tool.cache_result is False for tool in memory.tools)
 

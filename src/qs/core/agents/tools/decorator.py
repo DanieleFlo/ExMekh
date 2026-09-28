@@ -21,6 +21,7 @@ class ToolDefinition:
     description: str | None
     before: BeforeTool | None = None
     after: AfterTool | None = None
+    background_enabled: bool = True
 
 
 def deep_tool(
@@ -29,15 +30,19 @@ def deep_tool(
     description: str | None = None,
     before: BeforeTool | None = None,
     after: AfterTool | None = None,
+    background_enabled: bool = True,
 ) -> Callable[[ToolFunction], ToolFunction]:
     _validate_definition(name, description)
     validate_tool_hooks(before, after)
+    if not isinstance(background_enabled, bool):
+        raise TypeError("background_enabled must be a bool")
 
     definition = ToolDefinition(
         name=name,
         description=description.strip() if description is not None else None,
         before=before,
         after=after,
+        background_enabled=background_enabled,
     )
 
     def decorate(function: ToolFunction) -> ToolFunction:

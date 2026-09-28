@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
+from qs.core.models.assistant_message import AssistantMessage, ToolCall
+from qs.core.models.tool_message import ToolMessage
 from qs.interfaces.message import Message
 
 if TYPE_CHECKING:
@@ -94,6 +98,62 @@ class MessageHistory:
 
     def get_copy_of_history(self) -> list[Message[TypeOfMessage]]:
         return [message.copy() for message in self._history]
+
+    def add_tool_calls(self, tool_calls: Sequence[ToolCall]) -> None:
+        self.add(AssistantMessage(None, tool_calls=list(tool_calls)))
+
+    def replace_latest_tool_calls(self, tool_calls: Sequence[ToolCall]) -> None:
+        if not self._history or not isinstance(self._history[-1], AssistantMessage):
+            raise TypeError("The last message must be an assistant message")
+        self.replace_from(
+            len(self._history) - 1,
+            [self._history[-1].with_tool_calls(tool_calls)],
+        )
+
+    @contextmanager
+    def record_tool_call(
+        self, call: ToolCall, *, batch_call_id: str | None = None
+    ) -> Iterator[None]:
+        """Record a harness call and keep an existing batch's final reply last."""
+        if batch_call_id is None:
+            self.add_tool_calls([call])
+            yield
+            return
+
+        final_reply = self._extend_tool_batch(call, batch_call_id)
+        try:
+            yield
+        finally:
+            self.add(final_reply)
+
+    def _extend_tool_batch(self, call: ToolCall, batch_call_id: str) -> ToolMessage:
+        if not self._history or not isinstance(self._history[-1], ToolMessage):
+            raise TypeError("The last message must be a tool response")
+        final_reply = self._history[-1]
+        if final_reply.get_tool_call_id() != batch_call_id:
+            raise ValueError("The final tool response does not belong to this batch")
+        opening_index = next(
+            (
+                index
+                for index in reversed(range(len(self._history)))
+                if isinstance(self._history[index], AssistantMessage)
+            ),
+            None,
+        )
+        if opening_index is None:
+            raise ValueError("The tool batch has no assistant message")
+        opening = self._history[opening_index]
+        calls = opening.get_tool_calls() or ()
+        if not any(item.id == batch_call_id for item in calls):
+            raise ValueError("The assistant message does not contain the batch call")
+        self.replace_from(
+            opening_index,
+            [
+                opening.with_tool_calls([*calls, call]),
+                *self._history[opening_index + 1 : -1],
+            ],
+        )
+        return final_reply
 
     def replace_from(
         self, start_index: int, messages: list[Message[TypeOfMessage]]

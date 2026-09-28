@@ -35,6 +35,7 @@ class SubAgentTool(Tool):
             self._call_sub_agent,
             name=self.NAME,
             description=self._describe_children({}),
+            background_enabled=False,
         )
 
     def set_child_descriptions(self, descriptions: dict[str, str]) -> None:
