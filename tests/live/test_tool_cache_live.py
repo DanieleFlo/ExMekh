@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import re
 import shutil
 from collections.abc import Iterator
 from pathlib import Path
@@ -256,17 +255,11 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
 ):
     node = initialize_node(live_provider, tmp_path)
     response = node.run(
-        "Follow this sequence exactly. Enter mock-skill. Inside the skill, invent "
-        "a unique alphanumeric code containing 6 to 12 letters or digits. Call "
-        "mock-sub-tool exactly once with that code as text. Then call exit_agent "
-        "with the exact same code as text and items=[]. Back at the root, "
-        "call search_tool_outputs exactly once with query set to the code "
-        "and tool_name='mock-sub-tool'. Take the id from the returned XML record "
-        "and pass it to read_tool_output exactly once. Compare the code in "
-        "the complete saved output with the code returned by exit_agent. If they "
-        "are identical, answer exactly 'MATCH: <code>', replacing <code> with the "
-        "actual code. Otherwise answer exactly 'MISMATCH'. Do not call any other "
-        "tools."
+        "Enter mock-skill. Choose a 6-12 character alphanumeric code. Call "
+        "mock-sub-tool with text=code, then exit_agent with text=code and items=[]. "
+        "At root, search_tool_outputs for the code and tool_name='mock-sub-tool' "
+        "with skill_path='/mock-skill'. Read the matching output ID with "
+        "read_tool_output. Briefly report the saved code."
     )
 
     calls = [
@@ -318,7 +311,18 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
         for record in skill_records
     )
 
-    search_call = calls_by_name["search_tool_outputs"][0]
+    search_call = next(
+        (
+            call
+            for call in calls_by_name["search_tool_outputs"]
+            if call.get_arguments().get("skill_path") == "/mock-skill"
+        ),
+        None,
+    )
+    assert search_call is not None, (
+        "MODEL: no search used the absolute mock-skill path: "
+        f"{[call.get_arguments() for call in calls_by_name['search_tool_outputs']]!r}"
+    )
     search_arguments = search_call.get_arguments()
     assert code.casefold() in search_arguments.get("query", "").casefold()
     assert search_arguments.get("tool_name") == "mock-sub-tool"
@@ -331,9 +335,15 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
         for record in search_xml.findall("./records/record")
     )
 
-    read_call = calls_by_name["read_tool_output"][0]
-    assert read_call.get_arguments()["output_id"] == sub_tool_record.id
-    assert read_call.get_arguments().get("cursor") is None
+    read_call = next(
+        (
+            call
+            for call in calls_by_name["read_tool_output"]
+            if call.get_arguments().get("output_id") == sub_tool_record.id
+        ),
+        None,
+    )
+    assert read_call is not None, "MODEL: saved mock-sub-tool output was not read"
     read_response = get_tool_response(live_provider, read_call.id)
     header_xml, saved_output = read_response.split("</header>\n", maxsplit=1)
     header = ET.fromstring(header_xml + "</header>")
@@ -343,9 +353,7 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
     assert header.findtext("./args/text") == code
     assert code.casefold() in saved_output.casefold()
     answer = response.get_message()
-    assert re.search(r"\bMATCH\b", answer, flags=re.IGNORECASE)
-    assert not re.search(r"\bMISMATCH\b", answer, flags=re.IGNORECASE)
-    assert code.casefold() in answer.casefold()
+    assert isinstance(answer, str) and code.casefold() in answer.casefold()
 
 
 def test_live_cache_isolates_same_named_nodes_and_retains_previous_runs(

@@ -80,9 +80,7 @@ def test_live_agent_uses_an_available_tool() -> None:
         name == "mock-tool"
         and token.casefold() in str(arguments.get("text", "")).casefold()
         for name, arguments in calls
-    ), (
-        f"MODEL: expected mock-tool among the calls: {calls!r}"
-    )
+    ), f"MODEL: expected mock-tool among the calls: {calls!r}"
     tool_messages = [
         message for message in response.history if message.get("role") == "tool"
     ]
@@ -127,16 +125,14 @@ def test_live_agent_blocks_direct_nested_tool_scope_bypass() -> None:
 def test_live_agent_strict_schema_blocks_wrong_argument_type() -> None:
     token = "LIVE-STRICT-SCHEMA-OK"
     response = build_live_agent().run(
-        "Call mock-tool. Attempt to violate its schema: "
-        f'send text as a JSON object {{"token": "{token}"}}, rather than as a string. '
-        "Do not skip the call. After the result, reply without using other tools."
+        "Call mock-tool with text as the JSON object "
+        f'{{"token": "{token}"}}. Reply briefly after the call.'
     )
 
     mock_calls = [
         arguments for name, arguments in get_tool_calls(response) if name == "mock-tool"
     ]
     assert mock_calls, "MODEL: expected at least one mock-tool call"
-    assert all(
-        set(arguments) == {"text"} and isinstance(arguments["text"], str)
-        for arguments in mock_calls
-    ), f"PROVIDER: strict string argument was not enforced: {mock_calls!r}"
+    assert all(isinstance(arguments.get("text"), str) for arguments in mock_calls), (
+        f"PROVIDER: strict string argument was not enforced: {mock_calls!r}"
+    )

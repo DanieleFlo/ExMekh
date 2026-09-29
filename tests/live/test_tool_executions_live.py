@@ -81,13 +81,11 @@ def test_live_search_tracks_background_work_without_consuming_final_delivery(
 
     rig.observer = observe
     rig.node.run(
-        "At root call live_process_job once with label='search-background' and "
-        "execution_mode='background', wait_seconds=60. Then open work-scope. "
-        "Inside the skill call search_tool_outputs with query='search-background' "
-        "and tool_name='live_process_job'. The job finishes after that search. "
-        "Call search_tool_outputs again with the same filters to see the finished job. "
-        "Search returns previews, so then exit_agent(text='search complete', items=[]). "
-        "Back at root use the automatic final output delivery and summarize the outcome."
+        "At root start live_process_job(label='search-background', "
+        "execution_mode='background'). Open work-scope. There, search_tool_outputs "
+        "twice for query='search-background' and tool_name='live_process_job', "
+        "omitting skill_path. The job finishes after the first search. "
+        "Exit with exit_agent(text='done', items=[]). Reply briefly at root."
     )
     if len(searches) < 2:
         pytest.skip(
@@ -480,27 +478,24 @@ def test_live_skill_instance_controls_automatic_delivery(live_rig, scope_change)
     rig.observer = observe
     if scope_change == "nested":
         response = rig.node.run(
-            "Open work-scope. Inside it call live_process_job once with label='scope', "
-            "execution_mode='background', wait_seconds=60. "
-            "Then open inner-scope. The process completes while you are nested. "
-            "Inside inner-scope call exit_agent(text='inner done', items=[]). "
-            "Back in the original work-scope use the automatic final read, "
-            "then exit_agent with a summary in text and items=[]. "
-            "Finally at root summarize the outcome in your own words."
+            "Open work-scope. Start live_process_job(label='scope', "
+            "execution_mode='background'). Open inner-scope; the job finishes there. "
+            "Exit inner-scope with exit_agent(text='done', items=[]). "
+            "After the automatic final read, exit work-scope with "
+            "exit_agent(text='done', items=[]). "
+            "Reply briefly at root."
         )
     else:
         rig.node.run(
-            "Open work-scope. Inside it call live_process_job once with label='scope', "
-            "execution_mode='background', wait_seconds=60. "
-            "Then exit_agent(text='work pending', items=[]), leaving the job in background. "
-            "At root briefly acknowledge that work continues. Do not wait or read the job."
+            "Open work-scope. Start live_process_job(label='scope', "
+            "execution_mode='background'), then exit_agent(text='pending', items=[]). "
+            "At root reply briefly without waiting or reading."
         )
         output_id = rig.result(rig.one_call("live_process_job"))[0]["id"]
         response = rig.node.run(
-            "Open work-scope again. The previous job will finish as you enter this new instance. "
-            f"Inside the skill read the previous output with read_tool_output(output_id='{output_id}', "
-            "cursor=null). Then exit_agent with a summary in text and items=[]. "
-            "At root briefly summarize the outcome."
+            "Open work-scope again; the previous job finishes as you enter. "
+            f"Read its output with read_tool_output(output_id='{output_id}'), "
+            "then exit_agent(text='done', items=[]). Reply briefly at root."
         )
     call = rig.one_call("live_process_job")
     origin = next(
@@ -567,10 +562,10 @@ def test_live_hooks_filter_progress_and_run_once(live_rig):
         ]
     )
     rig.node.run(
-        "Call live_process_job once with label='HOOKS', execution_mode='background', wait_seconds=60. "
-        "Read its XML output ID with read_tool_output(cursor=null) while running. "
-        "Then call control_tool_execution(original tool_call_id, action='wait', wait_seconds=2). "
-        "Use the automatic final read and summarize the outcome in your own words."
+        "Start live_process_job(label='HOOKS', execution_mode='background'). "
+        "While it runs, read its output ID with read_tool_output. Then wait for "
+        "the original tool_call_id with control_tool_execution(wait_seconds=2). "
+        "Reply briefly after the automatic final read."
     )
     call = rig.one_call("live_process_job")
     assert len(contexts) == len(results) == 1, (
@@ -597,16 +592,14 @@ def test_live_hooks_filter_progress_and_run_once(live_rig):
 def test_live_uncached_output_survives_to_next_persistent_turn(live_rig):
     rig = live_rig(lambda fixture: [ProcessTool(fixture, cache_result=False)])
     first = rig.node.run(
-        "Call live_process_job once with label='next-turn', execution_mode='background', wait_seconds=60. "
-        "Do not wait or read it. Briefly acknowledge that work continues."
+        "Start live_process_job(label='next-turn', execution_mode='background'). "
+        "Reply briefly without waiting or reading."
     )
     call = rig.one_call("live_process_job")
     assert first.get_message()
     assert not rig.provider.synthetic_reads()
     rig.finish_all()
-    rig.node.run(
-        "Use the completed result provided by the harness and summarize the outcome in your own words."
-    )
+    rig.node.run("Briefly report the completed result provided by the harness.")
     rig.assert_completed_job(call)
     output_id = rig.result(call)[0]["id"]
     assert len(rig.provider.synthetic_reads()) == 1
