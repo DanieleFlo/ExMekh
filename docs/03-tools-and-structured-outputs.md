@@ -117,6 +117,11 @@ snapshot of messages available when the tool starts. Exit tool results must
 still contain valid `text` and `items` fields. Hook instances must implement
 synchronous `handle` methods with the shown number of parameters.
 
+Direct `execute_with_hooks` calls and managed `create_execution_with_hooks`
+operations apply each hook once and use the same result finalization. Exit tools
+validate and normalize `text` and `items` after the after hook in both paths.
+Calling `execute` directly runs the callable without hooks.
+
 ---
 
 ## 3. Tool Call Resolution & Value Coercion

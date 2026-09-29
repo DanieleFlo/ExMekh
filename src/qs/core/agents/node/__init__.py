@@ -3,6 +3,7 @@ from qs.core.agents.capabilities.defaults import (
     DefaultCapabilities,
     ToolOverride,
 )
+from qs.core.models.tool_hooks import ToolHooks
 
 from .node import Node
 from .types import NodeUserMessage
@@ -12,5 +13,6 @@ __all__ = [
     "DefaultCapabilities",
     "Node",
     "NodeUserMessage",
+    "ToolHooks",
     "ToolOverride",
 ]

@@ -12,6 +12,7 @@ from qs.capabilities.tools.control_tool_execution.execution_control_tool import 
     ExecutionControlTool,
 )
 from qs.config.runtime import RUNTIME
+from qs.core.agents.capabilities.tool_composer import _DefaultToolComposer
 from qs.core.agents.deep_agent.agent_response import AgentResponse
 from qs.core.agents.deep_agent.stream_event import (
     DeepAgentExecutionEvent,
@@ -79,18 +80,9 @@ class NodeRuntime(ProviderEventHandler):
             self._execution_control,
             BashTool(work_root=config.work_root),
         )
-        if defaults is not None:
-            harness_tools = tuple(
-                defaults.tool_override(tool.name) or tool
-                for tool in harness_tools
-                if defaults.includes(tool.name)
-            )
-            harness_tools = tuple(
-                tool
-                if tool.name == RUNTIME.bash_tool_name
-                else tool.without_background_execution()
-                for tool in harness_tools
-            )
+        harness_tools = _DefaultToolComposer(defaults).compose_runtime_tools(
+            harness_tools
+        )
         self._runtime_tools = (*config.runtime_tools, *harness_tools)
         self._validate_runtime_tool_names()
         self._resolver = ToolCallResolver(

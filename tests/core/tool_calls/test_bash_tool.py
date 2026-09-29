@@ -13,6 +13,7 @@ from qs.core.agents.node.node import Node
 from qs.core.cache import SessionCache
 from qs.core.models.assistant_message import AssistantMessage, FunctionCall, ToolCall
 from qs.core.models.tool import ExecutionOptions, PreformattedToolResult, Tool
+from qs.core.models.tool_hooks import ToolHooks
 from qs.core.models.tool_message import ToolMessage
 from qs.core.tool_calls.execution_manager import ToolExecutionManager
 from qs.interfaces.tool_hook import (
@@ -214,6 +215,22 @@ def test_bash_hooks_modify_command_and_hide_raw_progress(
     assert "redacted" in content
     assert "filtered" not in content
     assert "secret" not in content.split("</header>", 1)[1]
+
+
+def test_copied_bash_hooks_preserve_cancellation_and_filter_progress(
+    bash_executable: str, tmp_path: Path
+) -> None:
+    original = BashTool(executable=bash_executable)
+    tool = original.with_hooks(ToolHooks(before=ReplaceCommand(), after=HideOutput()))
+    operation = tool.create_execution_with_hooks(
+        {"command": "printf secret"}, call_id="copied", work_root=tmp_path, history=()
+    )
+
+    assert isinstance(tool, BashTool)
+    assert operation.run() == {"exit_code": 0, "stdout": "redacted"}
+    assert operation.cancel is not None
+    assert operation.read_partial is None
+    assert original.before is None and original.after is None
 
 
 def test_bash_before_hook_can_block_launch(tmp_path: Path) -> None:

@@ -9,6 +9,7 @@ from qs.config.runtime import RUNTIME
 from qs.core.agents.capabilities.capabilities import Capabilities
 from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.capabilities.defaults import DefaultCapabilities
+from qs.core.agents.capabilities.tool_composer import _DefaultToolComposer
 from qs.core.agents.deep_agent.agent_response import AgentResponse
 from qs.core.agents.hds.hds import HDS
 from qs.core.cache.node_cache import NodeCache
@@ -128,20 +129,19 @@ class Node:
     ) -> tuple[Tool, ...]:
         self._sub_agent_tool = None
         if not self._children:
-            if (
-                defaults is not None
-                and RUNTIME.sub_agent_tool_name in defaults.overrides
+            if defaults is not None and defaults.customizes_tool(
+                RUNTIME.sub_agent_tool_name
             ):
                 raise ValueError("call_sub_agent requires at least one child node")
             return ()
         if defaults is not None and not defaults.includes(RUNTIME.sub_agent_tool_name):
             return ()
-        if defaults is not None:
-            override = defaults.tool_override(RUNTIME.sub_agent_tool_name)
-            if override is not None:
-                return (override.without_background_execution(),)
-        self._sub_agent_tool = SubAgentTool(self._children, work_root)
-        return (self._sub_agent_tool,)
+        tool = _DefaultToolComposer(defaults).compose_runtime_tool(
+            SubAgentTool(self._children, work_root)
+        )
+        if isinstance(tool, SubAgentTool):
+            self._sub_agent_tool = tool
+        return (tool,) if tool is not None else ()
 
     def get_hds(self) -> HDS:
         if self._hds is None:

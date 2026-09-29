@@ -38,13 +38,7 @@ class _NamedOverrideResolver:
                 source = self._find_source(
                     loaded.deep_skills, replacement.replacement_name, "deep skill"
                 )
-                resolved[target] = DeepSkill(
-                    name=target,
-                    markdown_path=source.markdown_path,
-                    metadata=source.metadata,
-                    body=source.body,
-                    references=source.references,
-                )
+                resolved[target] = source.copy(name=target)
             else:
                 resolved[target] = replacement
 

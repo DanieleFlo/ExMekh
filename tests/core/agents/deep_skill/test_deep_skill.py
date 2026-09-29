@@ -3,7 +3,7 @@ from typing import cast
 
 import pytest
 
-from qs.core.agents.deep_skill.catalog import SkillCatalog
+from qs.core.agents.deep_skill.catalog import SkillCatalog, SkillCatalogEntry
 from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill, DeepSkill
 from qs.core.agents.deep_skill.execution import DeepSkillExecutionTracker
 from qs.core.agents.deep_skill.metadata import DeepSkillMetadata
@@ -101,6 +101,40 @@ def test_rejects_non_catalog_attachment(tmp_path: Path) -> None:
 
     with pytest.raises(TypeError, match="catalog must be SkillCatalog"):
         skill.attach_catalog(cast(SkillCatalog, object()))
+
+
+@pytest.mark.parametrize("name", [None, "renamed"])
+def test_copy_keeps_the_capability_type_and_binds_a_fresh_catalog(
+    tmp_path: Path, name: str | None
+) -> None:
+    class SpecializedSkill(DeepSkill):
+        pass
+
+    original = SpecializedSkill(
+        name="original",
+        markdown_path=tmp_path / "skill.md",
+        metadata=_metadata(),
+        body="Body",
+        references=(),
+    )
+    original.attach_catalog(
+        SkillCatalog(sub_tools=(SkillCatalogEntry("original-tool", "Original"),))
+    )
+
+    copied = original.copy(name=name)
+
+    assert isinstance(copied, SpecializedSkill)
+    assert copied is not original
+    assert copied.get_name() == ("original" if name is None else name)
+    assert copied.get_description() == original.get_description()
+    assert copied.catalog is None
+    copied.attach_catalog(
+        SkillCatalog(sub_tools=(SkillCatalogEntry("copied-tool", "Copied"),))
+    )
+    assert "copied-tool" in copied.execute()
+    assert "original-tool" not in copied.execute()
+    assert "original-tool" in original.execute()
+    assert "copied-tool" not in original.execute()
 
 
 def test_gets_direct_tool_names(tmp_path: Path) -> None:

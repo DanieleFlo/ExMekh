@@ -8,7 +8,7 @@ from qs.core.agents.exit_tool.data import ExitToolData
 from qs.core.agents.exit_tool.decorator import ExitToolFunction
 from qs.core.models.assistant_message import ToolCall
 from qs.core.models.tool import Tool
-from qs.interfaces.tool_hook import AfterTool, BeforeTool
+from qs.interfaces.tool_hook import AfterTool, BeforeTool, ToolContext
 
 
 class ExitTool(Tool):
@@ -58,16 +58,10 @@ class ExitTool(Tool):
         super().validate_arguments(arguments)
         ExitToolData(**arguments)
 
-    def execute_with_hooks(
-        self,
-        arguments: dict[str, Any],
-        *,
-        work_root: Path,
-        history: tuple[dict[str, str], ...],
+    def _finalize_result(
+        self, context: ToolContext, result: Any
     ) -> dict[str, str | list[str]]:
-        result = super().execute_with_hooks(
-            arguments, work_root=work_root, history=history
-        )
+        result = super()._finalize_result(context, result)
         if not isinstance(result, dict):
             raise TypeError("Exit tool result must be a dictionary")
         return ExitToolData(**result).dump()

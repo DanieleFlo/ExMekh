@@ -78,7 +78,10 @@ def test_exit_tool_executes_and_validates_return_type(tmp_path: Path) -> None:
         invalid.execute()
 
 
-def test_exit_tool_rejects_a_non_dictionary_after_hook_result(tmp_path: Path) -> None:
+@pytest.mark.parametrize("managed", [False, True])
+def test_exit_tool_rejects_a_non_dictionary_after_hook_result(
+    tmp_path: Path, managed: bool
+) -> None:
     class InvalidOutput(AfterTool):
         def handle(self, context: ToolContext, result):
             return "invalid exit output"
@@ -87,9 +90,60 @@ def test_exit_tool_rejects_a_non_dictionary_after_hook_result(tmp_path: Path) ->
     tool.after = InvalidOutput()
 
     with pytest.raises(TypeError, match="Exit tool result must be a dictionary"):
-        tool.execute_with_hooks(
-            {"text": "done", "items": []}, work_root=tmp_path, history=()
-        )
+        arguments = {"text": "done", "items": []}
+        if managed:
+            tool.create_execution_with_hooks(
+                arguments, call_id="exit", work_root=tmp_path, history=()
+            ).run()
+        else:
+            tool.execute_with_hooks(arguments, work_root=tmp_path, history=())
+
+
+@pytest.mark.parametrize("managed", [False, True])
+def test_exit_tool_normalizes_the_after_hook_result_once(
+    tmp_path: Path, managed: bool
+) -> None:
+    results = []
+
+    class ChangeOutput(AfterTool):
+        def handle(self, context: ToolContext, result):
+            results.append(result)
+            return {"text": " changed ", "items": [" item "]}
+
+    tool = _exit_tool(tmp_path)
+    tool.after = ChangeOutput()
+    arguments = {"text": "done", "items": []}
+
+    if managed:
+        result = tool.create_execution_with_hooks(
+            arguments, call_id="exit", work_root=tmp_path, history=()
+        ).run()
+    else:
+        result = tool.execute_with_hooks(arguments, work_root=tmp_path, history=())
+
+    assert result == {"text": "changed", "items": ["item"]}
+    assert results == [{"text": "done", "items": []}]
+
+
+@pytest.mark.parametrize("managed", [False, True])
+def test_exit_tool_rejects_invalid_fields_from_after_hooks(
+    tmp_path: Path, managed: bool
+) -> None:
+    class InvalidOutput(AfterTool):
+        def handle(self, context: ToolContext, result):
+            return {"text": "done", "items": "invalid"}
+
+    tool = _exit_tool(tmp_path)
+    tool.after = InvalidOutput()
+
+    with pytest.raises(TypeError, match="items must be a list"):
+        arguments = {"text": "done", "items": []}
+        if managed:
+            tool.create_execution_with_hooks(
+                arguments, call_id="exit", work_root=tmp_path, history=()
+            ).run()
+        else:
+            tool.execute_with_hooks(arguments, work_root=tmp_path, history=())
 
 
 def test_called_exit_tool_validates_types_and_exposes_call_id(tmp_path: Path) -> None:

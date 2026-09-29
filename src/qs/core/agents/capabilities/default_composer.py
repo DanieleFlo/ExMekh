@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path
 
 from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.capabilities.defaults import RUNTIME_NAMES, DefaultCapabilities
+from qs.core.agents.capabilities.tool_composer import _DefaultToolComposer
 from qs.core.agents.deep_skill.deep_skill import DeepSkill
 from qs.core.agents.exit_tool.exit_tool import ExitTool
 from qs.core.agents.hds.hds import HDS
@@ -21,6 +23,7 @@ class _DefaultCapabilitiesComposer:
         tool_paths: Sequence[Path],
     ) -> None:
         self._defaults = defaults
+        self._tool_composer = _DefaultToolComposer(defaults)
         self._builtin_root = builtin_root.resolve()
         self._tool_paths = tuple(tool_paths)
 
@@ -29,7 +32,18 @@ class _DefaultCapabilitiesComposer:
         selected = self._select_loaded(loaded)
         composed = self._apply_overrides(selected)
         self._validate_selected_names(composed)
-        return composed
+        return self._apply_tool_hooks(composed)
+
+    def _apply_tool_hooks(self, composed: CapabilitiesData) -> CapabilitiesData:
+        return replace(
+            composed,
+            tools=tuple(
+                self._tool_composer.apply_hooks(tool) for tool in composed.tools
+            ),
+            exit_tools=tuple(
+                self._tool_composer.apply_hooks(tool) for tool in composed.exit_tools
+            ),
+        )
 
     def _validate_override_targets(self, loaded: CapabilitiesData) -> None:
         tool_names = {tool.name for tool in loaded.tools}
@@ -98,9 +112,9 @@ class _DefaultCapabilitiesComposer:
             if name in RUNTIME_NAMES:
                 continue
             if isinstance(replacement, DeepSkill):
-                skills.append(self._copy_skill(replacement))
+                skills.append(replacement.copy())
             elif isinstance(replacement, HDS):
-                hds.append(self._copy_hds(replacement))
+                hds.append(replacement.copy())
             elif isinstance(replacement, ExitTool):
                 exit_tools.append(replacement)
             elif isinstance(replacement, Tool):
@@ -131,23 +145,3 @@ class _DefaultCapabilitiesComposer:
                 "Selected default capabilities are missing: "
                 + ", ".join(sorted(missing))
             )
-
-    @staticmethod
-    def _copy_skill(skill: DeepSkill) -> DeepSkill:
-        return DeepSkill(
-            name=skill.name,
-            markdown_path=skill.markdown_path,
-            metadata=skill.metadata,
-            body=skill.body,
-            references=skill.references,
-        )
-
-    @staticmethod
-    def _copy_hds(hds: HDS) -> HDS:
-        return HDS(
-            name=hds.name,
-            markdown_path=hds.markdown_path,
-            metadata=hds.metadata,
-            body=hds.body,
-            references=hds.references,
-        )

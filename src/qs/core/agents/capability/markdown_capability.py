@@ -49,6 +49,16 @@ class MarkdownCapability[MetadataType: CapabilityMetadata](Tool, ABC):
     def get_direct_tool_names(self) -> set[str]:
         return self.metadata.get_direct_tool_names()
 
+    def copy(self, *, name: str | None = None) -> Self:
+        """Create a fresh capability without node-specific attachments."""
+        return type(self)(
+            name=self.get_name() if name is None else name,
+            markdown_path=self.markdown_path,
+            metadata=self.metadata,
+            body=self.body,
+            references=self.references,
+        )
+
     @classmethod
     def from_markdown[MarkdownType: CapabilityMarkdown[Any]](
         cls,

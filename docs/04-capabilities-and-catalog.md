@@ -105,6 +105,54 @@ Named overrides also work when the target is an application tool or skill. The
 target name stays stable in provider schemas, allowed scopes, and calls. The
 existing mapping form remains available for direct Python object replacements.
 
+To customize only the hooks of a selected bundled tool, pass `tool_hooks`.
+`ToolHooks` accepts the existing `BeforeTool` and `AfterTool` interfaces:
+
+```python
+from typing import Any
+
+from qs.core.agents.node import DefaultCapabilities, ToolHooks
+from qs.interfaces.tool_hook import AfterTool, BeforeTool, ToolArguments, ToolContext
+
+
+class NormalizeCommand(BeforeTool):
+    def handle(self, context: ToolContext) -> ToolArguments:
+        return ToolArguments({"command": context.arguments["command"].strip()})
+
+
+class TrimOutput(AfterTool):
+    def handle(self, context: ToolContext, result: Any) -> Any:
+        return {**result, "stdout": result["stdout"].strip()}
+
+
+defaults = DefaultCapabilities(
+    tool_hooks={
+        "bash": ToolHooks(before=NormalizeCommand(), after=TrimOutput()),
+        "read-web-page": ToolHooks(after=None),
+    },
+)
+```
+
+Omitting a field preserves its original hook; an explicit `None` removes it;
+an instance replaces it. Hooks are applied after object or named overrides,
+under the target's exposed name, and are not automatically chained. This works
+for loaded tools, runtime harness tools, `call_sub_agent`, and exit tools.
+Tools retain their signatures, cache policies, and specialized execution behavior.
+Runtime overrides also retain the default tool's execution restrictions: control,
+memory, and delegation tools stay synchronous even if their replacement supports
+background execution.
+For direct Python tool objects, `tool.with_hooks(ToolHooks(after=None))` returns
+a copy with the same rules.
+
+Hook configuration does not select capabilities. Unknown names, HDS or skill
+targets, and unselected or excluded tools raise errors at configuration time.
+Configuring `call_sub_agent` hooks on a node without children raises an error
+during initialization. Tools are copied without changing shared overrides;
+the supplied hook instances are reused. Use separate instances when a hook
+needs mutable state specific to one node. See
+[tool hook execution](03-tools-and-structured-outputs.md#before-and-after-hooks) for the
+argument and result contracts.
+
 For a smaller selection, use `mocks=False` and `include={"mock-tool"}` with an
 application HDS that declares `mock-tool` in `sub-tools`. Likewise,
 `harness=False` with `include={"exit_agent", "get_execution_history"}` keeps

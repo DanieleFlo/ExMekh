@@ -7,11 +7,12 @@ from copy import copy
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
-from typing import Annotated, Any, Literal, get_type_hints
+from typing import Annotated, Any, Literal, Self, get_type_hints
 
 from qs.config.runtime import RUNTIME
 from qs.config.validation import VALIDATION_PATTERNS
 from qs.core.models.assistant_message import ToolCall
+from qs.core.models.tool_hooks import ToolHooks
 from qs.interfaces.tool_hook import (
     AfterTool,
     BeforeTool,
@@ -165,6 +166,9 @@ class Tool:
         else:
             self.validate_arguments(context.arguments)
             result = self.execute(**context.arguments)
+        return self._finalize_result(context, result)
+
+    def _finalize_result(self, context: ToolContext, result: Any) -> Any:
         return self.after.handle(context, result) if self.after is not None else result
 
     def _prepare_context(
@@ -222,9 +226,7 @@ class Tool:
                 if self.after is None:
                     operation.read_partial = work.read_partial
                 result = work.run()
-            return (
-                self.after.handle(context, result) if self.after is not None else result
-            )
+            return self._finalize_result(context, result)
 
         operation = ToolExecutionOperation(run)
         return operation
@@ -280,27 +282,35 @@ class Tool:
             ]
         return hints
 
-    def with_description(self, description: str) -> Tool:
+    def with_description(self, description: str) -> Self:
         return self._copy(name=self.name, description=description)
 
-    def with_name(self, name: str) -> Tool:
+    def with_name(self, name: str) -> Self:
         """Copy a tool under another registered name, preserving its behavior."""
         return self._copy(name=name, description=self.description)
 
-    def _copy(self, *, name: str, description: str) -> Tool:
+    def with_hooks(self, hooks: ToolHooks) -> Self:
+        """Copy a tool with selected hooks replaced, preserving its behavior."""
+        if not isinstance(hooks, ToolHooks):
+            raise TypeError("hooks must be a ToolHooks instance")
+        copied = copy(self)
+        copied.before, copied.after = hooks.resolve(self.before, self.after)
+        return copied
+
+    def _copy(self, *, name: str, description: str) -> Self:
         copied = copy(self)
         copied.name = self._resolve_tool_name(self.tool, name)
         copied.description = description
         copied._check_inputs()
         return copied
 
-    def without_background_execution(self) -> Tool:
+    def without_background_execution(self) -> Self:
         """Keep structural tool overrides synchronous without mutating the source."""
         copied = copy(self)
         copied.background_enabled = False
         return copied
 
-    def with_description_suffix(self, suffix: str) -> Tool:
+    def with_description_suffix(self, suffix: str) -> Self:
         description = " ".join(part for part in (self.description, suffix) if part)
         return self.with_description(description)
 

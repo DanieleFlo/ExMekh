@@ -12,6 +12,7 @@ from qs.core.agents.deep_skill.deep_skill import DeepSkill
 from qs.core.agents.exit_tool.exit_tool import ExitTool
 from qs.core.agents.hds.hds import HDS
 from qs.core.models.tool import Tool
+from qs.core.models.tool_hooks import ToolHooks
 
 _MOCK_RESOURCE_TYPES: dict[str, type[Tool]] = {
     "main": HDS,
@@ -91,7 +92,7 @@ OverrideInput = Mapping[str, Override] | Iterable[NamedOverride] | NamedOverride
 
 
 class DefaultCapabilities:
-    """Select bundled capabilities and replace loaded resources for one node."""
+    """Select bundled capabilities and customize loaded resources for one node."""
 
     CAPABILITIES_PATH = CAPABILITY_FORMAT.bundled_root
 
@@ -103,6 +104,7 @@ class DefaultCapabilities:
         include: Iterable[str] = (),
         exclude: Iterable[str] = (),
         overrides: OverrideInput = None,
+        tool_hooks: Mapping[str, ToolHooks] | None = None,
     ) -> None:
         if not isinstance(mocks, bool) or not isinstance(harness, bool):
             raise TypeError("mocks and harness must be bool")
@@ -121,14 +123,23 @@ class DefaultCapabilities:
         )
         if mocks:
             selected |= _MAIN_HDS_DEPENDENCIES
+        selected_names = frozenset(
+            (selected | included | replacements.keys()) - excluded
+        )
+        hooks = self._validate_tool_hooks(tool_hooks)
+        unselected = hooks.keys() - selected_names
+        if unselected:
+            raise ValueError(
+                "Tool hooks require selected capabilities: "
+                + ", ".join(sorted(unselected))
+            )
         self._mocks = mocks
         self._harness = harness
         self._include = included
         self._exclude = excluded
-        self._selected_names = frozenset(
-            (selected | included | replacements.keys()) - excluded
-        )
+        self._selected_names = selected_names
         self._overrides = MappingProxyType(replacements)
+        self._tool_hooks = MappingProxyType(hooks)
 
     @property
     def mocks(self) -> bool:
@@ -158,6 +169,10 @@ class DefaultCapabilities:
     def overrides(self) -> Mapping[str, Override]:
         return self._overrides
 
+    @property
+    def tool_hooks(self) -> Mapping[str, ToolHooks]:
+        return self._tool_hooks
+
     def includes(self, name: str) -> bool:
         return name in self._selected_names
 
@@ -171,6 +186,12 @@ class DefaultCapabilities:
             raise TypeError(f"Override for '{name}' is not a resolved Tool")
         return replacement
 
+    def tool_hooks_for(self, name: str) -> ToolHooks | None:
+        return self._tool_hooks.get(name)
+
+    def customizes_tool(self, name: str) -> bool:
+        return name in self._overrides or name in self._tool_hooks
+
     def with_overrides(
         self, resolved: Mapping[str, HDS | DeepSkill | ExitTool | Tool]
     ) -> DefaultCapabilities:
@@ -181,7 +202,26 @@ class DefaultCapabilities:
             include=self._include,
             exclude=self._exclude,
             overrides=resolved,
+            tool_hooks=self._tool_hooks,
         )
+
+    @classmethod
+    def _validate_tool_hooks(
+        cls, tool_hooks: Mapping[str, ToolHooks] | None
+    ) -> dict[str, ToolHooks]:
+        if tool_hooks is None:
+            return {}
+        if not isinstance(tool_hooks, Mapping):
+            raise TypeError("tool_hooks must be a mapping")
+        cls._validate_default_names(tool_hooks, "tool_hooks")
+        hooks: dict[str, ToolHooks] = {}
+        for name, configuration in tool_hooks.items():
+            if _RESOURCE_TYPES[name] not in (Tool, ExitTool):
+                raise TypeError(f"Tool hooks for '{name}' require a tool or exit tool")
+            if not isinstance(configuration, ToolHooks):
+                raise TypeError(f"Tool hooks for '{name}' must be a ToolHooks instance")
+            hooks[name] = configuration
+        return hooks
 
     @staticmethod
     def _normalize_names(names: Iterable[str], label: str) -> frozenset[str]:
