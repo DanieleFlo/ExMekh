@@ -1,14 +1,31 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 from qs.config.runtime import RUNTIME
+from qs.core.agents.tools.decorator import bind_deep_tool, deep_tool
 from qs.core.models.tool import Tool
 
 if TYPE_CHECKING:
     from qs.core.agents.node.node import Node
+
+
+@deep_tool(
+    name=RUNTIME.sub_agent_tool_name,
+    description="Send a user message to one direct sub-agent and return its final response.",
+    background_enabled=False,
+)
+def run(
+    work_root: Path,
+    delegate: Callable[..., str],
+    sub_agent: str,
+    text: str,
+) -> str:
+    del work_root
+    return delegate(sub_agent=sub_agent, text=text)
 
 
 class SubAgentTool(Tool):
@@ -17,7 +34,7 @@ class SubAgentTool(Tool):
     NAME = RUNTIME.sub_agent_tool_name
     _ARGUMENT_NAMES = RUNTIME.sub_agent_argument_names
 
-    def __init__(self, children: Sequence[Node]) -> None:
+    def __init__(self, children: Sequence[Node], work_root: Path | None = None) -> None:
         child_names = tuple(child.name_hds for child in children)
         if not child_names:
             raise ValueError("SubAgentTool requires at least one child")
@@ -31,9 +48,10 @@ class SubAgentTool(Tool):
 
         self._children = dict(zip(child_names, children, strict=True))
         self._child_names = child_names
+        bound = bind_deep_tool(run, work_root or Path.cwd(), self.execute)
         super().__init__(
-            self._call_sub_agent,
-            name=self.NAME,
+            bound.tool,
+            name=bound.name,
             description=self._describe_children({}),
             background_enabled=False,
         )

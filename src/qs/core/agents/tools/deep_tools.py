@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Sequence
-from functools import partial
 from pathlib import Path
 from types import ModuleType
 from typing import Final
@@ -11,6 +10,7 @@ from qs.config.capabilities import CAPABILITY_FORMAT
 from qs.core.agents.tools.decorator import (
     ToolDefinition,
     ToolFunction,
+    bind_deep_tool,
     get_tool_definition,
 )
 from qs.core.agents.tools.module_importer import ToolModuleImporter
@@ -94,15 +94,8 @@ class DeepTools:
                     f"Tool entrypoint '{entrypoint_path}' must have a description"
                 )
 
-            bound_function = partial(function, self._work_root)
-            bound_function.__doc__ = ""
-            return Tool(
-                bound_function,
-                name=definition.name or tool_path.name,
-                description=description,
-                before=definition.before,
-                after=definition.after,
-                background_enabled=definition.background_enabled,
+            return bind_deep_tool(
+                function, self._work_root, name=definition.name or tool_path.name
             )
         except Exception:
             self._module_importer.unload_module(tool_path)

@@ -59,6 +59,7 @@ class NodeRuntime(ProviderEventHandler):
             self._execution_history,
             self._get_tool_cache,
             self._execution_manager,
+            config.work_root,
         )
         self._exit_items = ExitItemResolver(
             self._execution_history,
@@ -67,8 +68,14 @@ class NodeRuntime(ProviderEventHandler):
         self._run_start_position = 0
         self._thinking_annotation_resolver = ThinkingAnnotationResolver(config.provider)
         defaults = config.default_capabilities
-        self._execution_control = ExecutionControlTool(self._execution_manager)
-        harness_tools = (*self._memory_tools.tools, self._execution_control, BashTool())
+        self._execution_control = ExecutionControlTool(
+            self._execution_manager, config.work_root
+        )
+        harness_tools = (
+            *self._memory_tools.tools,
+            self._execution_control,
+            BashTool(work_root=config.work_root),
+        )
         if defaults is not None:
             harness_tools = tuple(
                 defaults.tool_override(tool.name) or tool

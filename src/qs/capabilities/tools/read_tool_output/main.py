@@ -2,25 +2,36 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from collections.abc import Callable
+from pathlib import Path
 
 from qs.config.runtime import RUNTIME
-from qs.core.models.tool import Tool
-
-if TYPE_CHECKING:
-    from qs.core.tool_calls.memory_tools import HarnessMemoryTools
+from qs.core.agents.tools.decorator import bind_deep_tool, deep_tool
+from qs.core.models.tool import PreformattedToolResult, Tool
 
 
-def create_tool(memory: HarnessMemoryTools) -> Tool:
-    return Tool(
-        memory.read_tool_output,
-        name=RUNTIME.read_tool_name,
-        description=(
-            "Read the current status and available output of a tool by "
-            "output ID. Use an optional cursor to read only new output; "
-            "omit it to read the complete output. Includes the final "
-            "result when available."
-        ),
-        cache_result=False,
-        background_enabled=False,
-    )
+@deep_tool(
+    name=RUNTIME.read_tool_name,
+    description=(
+        "Read the current status and available output of a tool by "
+        "output ID. Use an optional cursor to read only new output; "
+        "omit it to read the complete output. Includes the final "
+        "result when available."
+    ),
+    background_enabled=False,
+)
+def run(
+    work_root: Path,
+    read_output: Callable[[str, int | None], PreformattedToolResult],
+    output_id: str,
+    cursor: int | None = None,
+) -> PreformattedToolResult:
+    del work_root
+    return read_output(output_id, cursor)
+
+
+def create_tool(
+    read_output: Callable[[str, int | None], PreformattedToolResult],
+    work_root: Path,
+) -> Tool:
+    return bind_deep_tool(run, work_root, read_output, cache_result=False)

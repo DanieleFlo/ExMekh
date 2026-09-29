@@ -33,9 +33,12 @@ The [`CapabilitiesLayout`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/agen
 Bundled runtime tools also live under `src/qs/capabilities/tools/<name>/main.py`:
 `bash`, `get_execution_history`, `search_tool_outputs`, `read_tool_output`,
 `control_tool_execution`, and `call_sub_agent`. They need node-local state, so
-`NodeRuntime` binds them after loading the ordinary `@deep_tool` resources.
-The ordinary tool loader excludes only these bundled runtime directories;
-application capability roots still load their own tools through `@deep_tool`.
+`NodeRuntime` binds their decorated entrypoints to node-local methods after
+loading the ordinary `@deep_tool` resources. Search, history rendering, and
+output reading live with their tool implementations; core
+modules retain compatibility imports for existing callers. The ordinary tool
+loader excludes only these bundled runtime directories; application capability
+roots still load their own tools through `@deep_tool`.
 The bundled root is resolved relative to the `qs` package, like HDS, deep
 skills, and exit tools.
 
@@ -54,10 +57,10 @@ the bundled directory in full.
 | Group | Bundled names |
 | --- | --- |
 | Mock | HDS `main`, `mock-sub-agent`; skills `mock-skill`, `nested-skill`; tools `mock-tool`, `mock-sub-tool`, `nested-sub-tool`, `shared-tool` |
-| Harness | Exit tool `exit_agent`; memory tools `get_execution_history`, `search_tool_outputs`, `read_tool_output`; execution control `control_tool_execution`; Bash tool `bash`; delegation tool `call_sub_agent` on nodes with children |
+| Harness | Skill `deep-thinking` with web, calculation, and logic tools; exit tool `exit_agent`; memory tools `get_execution_history`, `search_tool_outputs`, `read_tool_output`; execution control `control_tool_execution`; Bash tool `bash`; delegation tool `call_sub_agent` on nodes with children |
 
-There are currently no bundled harness skills. Group switches select all names
-in that group. `include` and `exclude` take names that adjust the switches;
+Group switches select all names in that group. `include` and `exclude` take names
+that adjust the switches;
 `overrides` accepts `ToolOverride(target_name, replacement_name)` and
 `DeepSkillOverride(target_name, replacement_name)`. The replacement name refers
 to a resource loaded from any `capabilities_paths` directory, including the

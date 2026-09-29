@@ -4,27 +4,29 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
-from xml.etree import ElementTree as ET
 
 from qs.capabilities.tools.get_execution_history.main import (
     create_tool as create_history_tool,
 )
+from qs.capabilities.tools.get_execution_history.main import (
+    render_execution_history,
+)
 from qs.capabilities.tools.read_tool_output.main import (
     create_tool as create_read_tool,
 )
+from qs.capabilities.tools.read_tool_output.output_reader import ToolOutputReader
 from qs.capabilities.tools.search_tool_outputs.main import (
     create_tool as create_search_tool,
+)
+from qs.capabilities.tools.search_tool_outputs.main import (
+    render_search_results,
 )
 from qs.config.runtime import RUNTIME
 from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.tool import PreformattedToolResult, Tool
-from qs.utils.xml import append_text_element, render_xml
 
 from .execution_manager import ToolExecutionManager
-from .output_reader import ToolOutputReader
-from .output_view import ToolOutputView
-from .search import ToolCallSearch
 
 
 @dataclass(slots=True)
@@ -200,22 +202,23 @@ class HarnessMemoryTools:
     HISTORY_TOOL_NAME = RUNTIME.history_tool_name
     SEARCH_TOOL_NAME = RUNTIME.search_tool_name
     READ_TOOL_NAME = RUNTIME.read_tool_name
-    PREVIEW_LIMIT = RUNTIME.memory_preview_limit
 
     def __init__(
         self,
         history: ExecutionHistory,
         cache_provider: Callable[[], NodeCache],
         execution_manager: ToolExecutionManager | None = None,
+        work_root: Path | None = None,
     ) -> None:
+        resolved_work_root = work_root or Path.cwd()
         self._history = history
         self._cache_provider = cache_provider
         self._execution_manager = execution_manager
         self._output_reader = ToolOutputReader(cache_provider, execution_manager)
         self._tools = (
-            create_history_tool(self),
-            create_search_tool(self),
-            create_read_tool(self),
+            create_history_tool(self.get_execution_history, resolved_work_root),
+            create_search_tool(self.search_tool_outputs, resolved_work_root),
+            create_read_tool(self.read_tool_output, resolved_work_root),
         )
 
     @property
@@ -231,50 +234,9 @@ class HarnessMemoryTools:
         start_position: int | None = None,
         limit: int = RUNTIME.memory_default_page_limit,
     ) -> PreformattedToolResult:
-        """Return overview or one position-based page of node execution history."""
-        view = self._history.select(start_position=start_position, limit=limit)
-        cache = self._cache_provider()
-        root = ET.Element("execution-history")
-        append_text_element(root, "total", str(view.total))
-        append_text_element(root, "view", view.mode)
-        if view.start_position is not None:
-            append_text_element(root, "start-position", str(view.start_position))
-        if view.end_position is not None:
-            append_text_element(root, "end-position", str(view.end_position))
-        if view.previous_position is not None:
-            append_text_element(root, "previous-position", str(view.previous_position))
-        if view.next_position is not None:
-            append_text_element(root, "next-position", str(view.next_position))
-
-        for entry in view.entries:
-            if (
-                view.omitted is not None
-                and entry.position == view.omitted.end_position + 1
-            ):
-                self._append_omitted(root, view.omitted)
-            self._append_history_entry(root, entry, cache)
-        return PreformattedToolResult(render_xml(root))
-
-    @staticmethod
-    def _append_history_entry(
-        root: ET.Element,
-        entry: ExecutionHistoryEntry,
-        cache: NodeCache,
-    ) -> None:
-        call = ET.SubElement(root, "call")
-        append_text_element(call, "position", str(entry.position))
-        append_text_element(call, "name", entry.name)
-        append_text_element(call, "id", entry.call_id)
-        output_id = entry.recoverable_output_id(cache)
-        if output_id is not None:
-            append_text_element(call, "saved-output-id", output_id)
-
-    @staticmethod
-    def _append_omitted(root: ET.Element, omitted: OmittedHistoryRange) -> None:
-        element = ET.SubElement(root, "omitted")
-        append_text_element(element, "from-position", str(omitted.start_position))
-        append_text_element(element, "to-position", str(omitted.end_position))
-        append_text_element(element, "count", str(omitted.count))
+        return render_execution_history(
+            self._history, self._cache_provider(), start_position, limit
+        )
 
     def search_tool_outputs(
         self,
@@ -284,36 +246,17 @@ class HarnessMemoryTools:
         offset: int = 0,
         limit: int = RUNTIME.memory_default_page_limit,
     ) -> PreformattedToolResult:
-        """Search saved and runtime outputs by text, tool name, and skill path."""
-        records, total, next_offset = ToolCallSearch(
-            self._cache_provider(), self._execution_manager
-        ).search_records(
-            query=query,
-            tool_name=tool_name,
-            skill_path=skill_path,
-            offset=offset,
-            limit=limit,
+        return render_search_results(
+            self._cache_provider(),
+            self._execution_manager,
+            query,
+            tool_name,
+            skill_path,
+            offset,
+            limit,
         )
-        root = ET.Element("tool-outputs")
-        append_text_element(root, "total", str(total))
-        if next_offset is not None:
-            append_text_element(root, "next-offset", str(next_offset))
-        records_element = ET.SubElement(root, "records")
-        for record in records:
-            self._append_search_record(records_element, record)
-        return PreformattedToolResult(render_xml(root))
-
-    @classmethod
-    def _append_search_record(cls, root: ET.Element, record: ToolCallRecord) -> None:
-        element = ET.SubElement(root, "record")
-        output = ToolOutputView(record)
-        for name, value in output.search_fields().items():
-            if value is not None:
-                append_text_element(element, name, str(value))
-        append_text_element(element, "preview", output.preview(cls.PREVIEW_LIMIT))
 
     def read_tool_output(
         self, output_id: str, cursor: int | None = None
     ) -> PreformattedToolResult:
-        """Read current or saved output by its canonical output ID."""
         return self._output_reader.read(output_id, cursor)

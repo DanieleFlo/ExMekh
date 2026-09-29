@@ -1,0 +1,68 @@
+"""The bundled runtime tools expose only model-supplied arguments."""
+
+import inspect
+from pathlib import Path
+from types import SimpleNamespace
+from typing import get_type_hints
+
+from qs.capabilities.tools.bash.main import BashTool
+from qs.capabilities.tools.bash.main import run as run_bash
+from qs.capabilities.tools.call_sub_agent.main import SubAgentTool
+from qs.capabilities.tools.call_sub_agent.main import run as run_sub_agent
+from qs.capabilities.tools.control_tool_execution.main import ExecutionControlTool
+from qs.capabilities.tools.control_tool_execution.main import run as run_control
+from qs.capabilities.tools.get_execution_history.main import run as run_history
+from qs.capabilities.tools.read_tool_output.main import run as run_read
+from qs.capabilities.tools.search_tool_outputs.main import run as run_search
+from qs.capabilities.tools.search_tool_outputs.raw_search import run as run_raw_search
+from qs.core.agents.tools.decorator import get_tool_definition
+from qs.core.providers.openai_chat_completion_annotation_schema_builder import (
+    OpenAIChatCompletionAnnotationSchemaBuilder,
+)
+from qs.core.providers.openai_function_tool_definition_mapper import (
+    OpenAIFunctionToolDefinitionMapper,
+)
+from qs.core.tool_calls.execution_manager import ToolExecutionManager
+from qs.core.tool_calls.memory_tools import ExecutionHistory, HarnessMemoryTools
+
+
+def test_runtime_entrypoints_are_decorated_and_start_with_work_root() -> None:
+    for function in (
+        run_bash,
+        run_sub_agent,
+        run_control,
+        run_history,
+        run_read,
+        run_search,
+        run_raw_search,
+    ):
+        assert get_tool_definition(function) is not None
+        assert next(iter(inspect.signature(function).parameters)) == "work_root"
+        assert get_type_hints(function)
+
+
+def test_runtime_state_is_absent_from_model_schemas(tmp_path: Path) -> None:
+    memory = HarnessMemoryTools(ExecutionHistory(), lambda: None, work_root=tmp_path)
+    child = SimpleNamespace(name_hds="writer")
+    tools = (
+        *memory.tools,
+        ExecutionControlTool(ToolExecutionManager(), tmp_path),
+        BashTool(work_root=tmp_path),
+        SubAgentTool([child], tmp_path),
+    )
+    mapper = OpenAIFunctionToolDefinitionMapper(
+        OpenAIChatCompletionAnnotationSchemaBuilder()
+    )
+    schemas = {
+        tool.name: set(mapper.map(tool, strict=True).get_parameters()["properties"])
+        for tool in tools
+    }
+
+    assert schemas == {
+        "get_execution_history": {"start_position", "limit"},
+        "search_tool_outputs": {"query", "tool_name", "skill_path", "offset", "limit"},
+        "read_tool_output": {"output_id", "cursor"},
+        "control_tool_execution": {"tool_call_id", "action", "wait_seconds"},
+        "bash": {"command", "execution_mode", "wait_seconds"},
+        "call_sub_agent": {"sub_agent", "text"},
+    }

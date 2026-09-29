@@ -74,6 +74,14 @@ def read_workspace_file(work_root: Path, relative_path: str) -> str:
 1. **`work_root` Binding**: Every `@deep_tool` entrypoint MUST declare `work_root: Path` as its first positional argument.
 2. **Internal Binding**: The `DeepAgent` runtime injects `work_root` internally before invocation. `work_root` is automatically removed from the JSON schema generated for the LLM.
 
+Bundled harness tools follow the same decorated entrypoint convention. Runtime
+dependencies follow `work_root`; memory, control, and delegation tools bind
+public methods of their owning classes. Binding hides these dependencies and
+the work root from the model schema. The regular capability loader
+handles ordinary tools, while the node assembles its stateful harness tools.
+Specialized wrappers may add cancellation, progress reads, or a dynamic
+description, but their callable and metadata still come from `@deep_tool`.
+
 ### Before and after hooks
 
 `@deep_tool` and `@exit_tool` accept `before` and `after` instances. Plain

@@ -103,7 +103,7 @@ class Node:
         hds = capabilities.get_hds(self._name_hds)
         exit_tool_name = hds.get_exit_tool_name()
         exit_tool = capabilities.get_exit_tool(exit_tool_name)
-        runtime_tools = self._build_runtime_tools(defaults)
+        runtime_tools = self._build_runtime_tools(defaults, work_root)
         context_id = self._agent_context_id or hds.get_agent_context_id()
         self._runtime = NodeRuntime(
             NodeRuntimeConfig(
@@ -124,7 +124,7 @@ class Node:
         return capabilities
 
     def _build_runtime_tools(
-        self, defaults: DefaultCapabilities | None
+        self, defaults: DefaultCapabilities | None, work_root: Path
     ) -> tuple[Tool, ...]:
         self._sub_agent_tool = None
         if not self._children:
@@ -140,7 +140,7 @@ class Node:
             override = defaults.tool_override(RUNTIME.sub_agent_tool_name)
             if override is not None:
                 return (override.without_background_execution(),)
-        self._sub_agent_tool = SubAgentTool(self._children)
+        self._sub_agent_tool = SubAgentTool(self._children, work_root)
         return (self._sub_agent_tool,)
 
     def get_hds(self) -> HDS:
