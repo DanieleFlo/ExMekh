@@ -1,23 +1,31 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import Any
 
 from qs.config.capabilities import CAPABILITY_FORMAT
 from qs.core.agents.capability.markdown_capability import MarkdownCapability
 from qs.core.agents.capability.parser import CapabilityMarkdownParser
 
 
-class MarkdownCapabilityCollection[Resource: MarkdownCapability]:
+class MarkdownCapabilityCollection[Resource: MarkdownCapability[Any]](ABC):
     MARKDOWN_SUFFIX = CAPABILITY_FORMAT.markdown_suffix
-    resource_class: type[Resource]
-    parser_factory: Callable[[], CapabilityMarkdownParser]
     resource_label = "Capability"
     duplicate_label = "capability"
 
     def __init__(self, folder_paths: Sequence[Path]) -> None:
         self._parser = self.parser_factory()
         self._folder_paths = self._validate_folder_paths(folder_paths)
+
+    @property
+    @abstractmethod
+    def resource_class(self) -> type[Resource]: ...
+
+    @property
+    @abstractmethod
+    def parser_factory(self) -> Callable[[], CapabilityMarkdownParser[Any, Any]]: ...
 
     def load(self) -> tuple[Resource, ...]:
         return tuple(

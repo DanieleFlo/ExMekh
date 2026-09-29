@@ -8,6 +8,7 @@ from qs.core.agents.capabilities.defaults import RUNTIME_NAMES, DefaultCapabilit
 from qs.core.agents.deep_skill.deep_skill import DeepSkill
 from qs.core.agents.exit_tool.exit_tool import ExitTool
 from qs.core.agents.hds.hds import HDS
+from qs.core.models.tool import Tool
 
 
 class _DefaultCapabilitiesComposer:
@@ -102,8 +103,12 @@ class _DefaultCapabilitiesComposer:
                 hds.append(self._copy_hds(replacement))
             elif isinstance(replacement, ExitTool):
                 exit_tools.append(replacement)
-            else:
+            elif isinstance(replacement, Tool):
                 tools.append(replacement)
+            else:
+                raise TypeError(
+                    f"Override for '{name}' must be resolved before composition"
+                )
 
         return CapabilitiesData(
             tuple(skills), tuple(tools), tuple(hds), tuple(exit_tools)

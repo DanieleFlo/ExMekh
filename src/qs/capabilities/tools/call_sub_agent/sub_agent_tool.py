@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 from qs.config.runtime import RUNTIME
-from qs.core.agents.tools.decorator import bind_deep_tool
-from qs.core.models.tool import Tool
+from qs.core.agents.tools.deep_tool import DeepTool
 
 from .main import run
 
@@ -15,7 +14,7 @@ if TYPE_CHECKING:
     from qs.core.agents.node.node import Node
 
 
-class SubAgentTool(Tool):
+class SubAgentTool(DeepTool):
     """Delegate a user message to one of a node's direct children."""
 
     NAME = RUNTIME.sub_agent_tool_name
@@ -35,12 +34,11 @@ class SubAgentTool(Tool):
 
         self._children = dict(zip(child_names, children, strict=True))
         self._child_names = child_names
-        bound = bind_deep_tool(run, work_root or Path.cwd(), self._call_sub_agent)
         super().__init__(
-            bound.tool,
-            name=bound.name,
+            run,
+            work_root or Path.cwd(),
+            self._call_sub_agent,
             description=self._describe_children({}),
-            background_enabled=False,
         )
 
     def set_child_descriptions(self, descriptions: dict[str, str]) -> None:
@@ -64,11 +62,11 @@ class SubAgentTool(Tool):
         return self._child_names
 
     def get_type_hints(self) -> dict[str, Any]:
-        child_name = Literal.__getitem__(self._child_names)
         return {
             "sub_agent": Annotated[
-                child_name,
+                str,
                 f"Name of the direct sub-agent that should receive the message. Available: {', '.join(self._child_names)}.",
+                {"enum": list(self._child_names)},
             ],
             "text": Annotated[
                 str,

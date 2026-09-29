@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Set as AbstractSet
+from typing import Any
 
 from qs.core.agents.capabilities.index import CapabilitiesIndex
 from qs.core.agents.capability.markdown_capability import MarkdownCapability
@@ -11,7 +12,7 @@ class CapabilitiesValidator:
     def __init__(self, index: CapabilitiesIndex) -> None:
         self._index = index
 
-    def validate(self, resources: tuple[MarkdownCapability, ...]) -> None:
+    def validate(self, resources: tuple[MarkdownCapability[Any], ...]) -> None:
         for tool in self._index.exit_tools.values():
             self._validate_reference_group(
                 f"Exit tool '{tool.name}'",
@@ -22,7 +23,7 @@ class CapabilitiesValidator:
         for resource in resources:
             self._validate_resource(resource)
 
-    def _validate_resource(self, resource: MarkdownCapability) -> None:
+    def _validate_resource(self, resource: MarkdownCapability[Any]) -> None:
         label = f"{resource.resource_type} '{resource.name}'"
         self._validate_reference_group(
             label,

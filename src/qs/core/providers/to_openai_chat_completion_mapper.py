@@ -180,7 +180,7 @@ class ToOpenAIChatCompletionMapper:
     @classmethod
     def map_structured_assistant_message(
         cls,
-        assistant_message: StructuredAssistantMessage,
+        assistant_message: StructuredAssistantMessage[BaseModel],
     ) -> ChatCompletionAssistantMessageParam:
         role = assistant_message.get_role_name()
 

@@ -9,7 +9,9 @@ from PIL import Image
 from qs.interfaces.message import Message
 
 
-class UserMessage(Message):
+class UserMessage(
+    Message["str | TextsUserMessage | ImagesUserMessage | FilesUserMessage"]
+):
     def __init__(
         self,
         content: str | TextsUserMessage | ImagesUserMessage | FilesUserMessage,

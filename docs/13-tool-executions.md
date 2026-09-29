@@ -275,6 +275,7 @@ La consegna automatica produce gli eventi della nuova lettura nel loop.
 | `Node` | Interfaccia pubblica per eseguire l'agente, controllare i lavori e leggere gli output. |
 | `NodeRuntime` | Ciclo conversazionale, persistenza e consegna dei risultati al livello proprietario. |
 | `Tool` | Argomenti di esecuzione, firma pubblica, hook e creazione dell'operazione. |
+| `DeepTool` | Collegamento dell'entrypoint decorato al workroot e alle dipendenze runtime, conservando metadati e hook. |
 | `ToolCallExecutor` | Esecuzione delle capability e transizioni delle skill. |
 | `MessageHistory` | Modifica dei messaggi e dei batch, conservando risposte e metadati del provider. |
 | `ToolExecutionManager` | Worker, attese, accesso concorrente e registro degli stati. |
@@ -292,6 +293,12 @@ snapshot tipizzato, senza duplicare call ID e stato in campi indipendenti.
 Ricerca, lettura e composizione dei risultati delle skill usano la vista pubblica
 degli output; la rappresentazione dei risultati e lo stato dei record salvati
 sono interpretati nelle classi che ne hanno la responsabilità.
+
+I tool specializzati derivano da `DeepTool`: il costruttore comune applica i
+metadati di `@deep_tool` e nasconde gli argomenti runtime dalla firma pubblica.
+Ogni tool mantiene nella propria cartella l'esecuzione e la presentazione che
+gli appartengono. Il lettore degli output separa l'accesso al manager dalla
+formattazione XML e conferma la consegna dopo una lettura finale riuscita.
 
 I controlli sono disponibili anche dal codice chiamante:
 

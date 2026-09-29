@@ -32,6 +32,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pyright>=1.1.414",
     "pytest>=8.0.0",
     "pytest-cov>=6.0.0",
     "ruff>=0.16.3",
@@ -43,6 +44,21 @@ testpaths = ["tests"]
 markers = [
     "live: contacts public web services or a model provider and runs only with explicit opt-in",
 ]
+
+[tool.pyright]
+include = ["src"]
+extraPaths = ["src"]
+pythonVersion = "3.13"
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "standard"
+strictListInference = true
+strictDictionaryInference = true
+strictSetInference = true
+reportMissingTypeArgument = "error"
+reportUninitializedInstanceVariable = "error"
+reportUnnecessaryCast = "error"
+reportUnnecessaryTypeIgnoreComment = "error"
 
 [tool.coverage.run]
 branch = true

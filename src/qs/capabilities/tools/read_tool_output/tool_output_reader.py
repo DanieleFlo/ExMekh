@@ -26,16 +26,11 @@ class ToolOutputReader:
         """Read output; a successful final read acknowledges automatic delivery."""
         if cursor is not None and (type(cursor) is not int or cursor < 0):
             raise ValueError("cursor must be a non-negative integer or None")
-        snapshot = (
-            self._execution_manager.by_output_id(output_id)
-            if self._execution_manager is not None
-            else None
-        )
-        if snapshot is not None:
-            content = self._read_execution(output_id, snapshot, cursor)
-            if snapshot.is_finished:
-                self._execution_manager.mark_delivered(output_id)
-            return PreformattedToolResult(content)
+        manager = self._execution_manager
+        if manager is not None:
+            active_output = self._read_active_output(manager, output_id, cursor)
+            if active_output is not None:
+                return active_output
 
         record = self._cache_provider().get(output_id)
         if record is not None:
@@ -45,8 +40,29 @@ class ToolOutputReader:
         append_text_element(root, "found", "false")
         return PreformattedToolResult(render_xml(root))
 
-    def _read_execution(
-        self, output_id: str, snapshot: ExecutionSnapshot, cursor: int | None
+    def _read_active_output(
+        self, manager: ToolExecutionManager, output_id: str, cursor: int | None
+    ) -> PreformattedToolResult | None:
+        snapshot = manager.by_output_id(output_id)
+        if snapshot is None:
+            return None
+
+        partial = None
+        if cursor is not None or not snapshot.is_finished:
+            partial = manager.partial_output(output_id, cursor or 0)
+            if cursor is not None and partial is None:
+                raise ValueError("This tool output does not support cursors")
+
+        content = self._format_execution(output_id, snapshot, partial)
+        if snapshot.is_finished:
+            manager.mark_delivered(output_id)
+        return PreformattedToolResult(content)
+
+    def _format_execution(
+        self,
+        output_id: str,
+        snapshot: ExecutionSnapshot,
+        partial: tuple[str, int] | None,
     ) -> str:
         header = XmlHeader(
             source="Tool", name=snapshot.name, id=output_id, args=snapshot.arguments
@@ -64,7 +80,6 @@ class ToolOutputReader:
                 ),
             }
         )
-        partial = self._read_partial(output_id, snapshot, cursor)
         if partial is None:
             content = snapshot.output_content()
             response_type = snapshot.response_type
@@ -78,13 +93,3 @@ class ToolOutputReader:
                 content = f"{content}\n{final}" if content else final
         header.add_field("response-type", response_type)
         return header.prepend_to(content)
-
-    def _read_partial(
-        self, output_id: str, snapshot: ExecutionSnapshot, cursor: int | None
-    ) -> tuple[str, int] | None:
-        if cursor is None and snapshot.is_finished:
-            return None
-        partial = self._execution_manager.partial_output(output_id, cursor or 0)
-        if cursor is not None and partial is None:
-            raise ValueError("This tool output does not support cursors")
-        return partial

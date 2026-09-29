@@ -14,7 +14,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from qs.config.web import WEB_FORMAT, WEB_NAVIGATION
 
@@ -28,6 +28,9 @@ from .security import (
     normalized_origin,
     validate_public_url,
 )
+
+if TYPE_CHECKING:
+    from crawl4ai.async_crawler_strategy import AsyncPlaywrightCrawlerStrategy
 
 OutputMode = Literal["markdown", "ast", "hybrid"]
 MAX_MARKDOWN_CHARS = WEB_NAVIGATION.max_markdown_chars
@@ -97,20 +100,23 @@ def _crawl_with_browser_recovery(
     actions: Sequence[Mapping[str, Any]] | None,
 ) -> dict[str, Any]:
     """Install a missing headless browser once and retry the same crawl."""
-    arguments = {
-        "url": url,
-        "output_mode": output_mode,
-        "timeout_seconds": timeout_seconds,
-        "cache_root": cache_root,
-        "actions": actions,
-    }
+
+    async def crawl() -> dict[str, Any]:
+        return await _crawl_page(
+            url=url,
+            output_mode=output_mode,
+            timeout_seconds=timeout_seconds,
+            cache_root=cache_root,
+            actions=actions,
+        )
+
     try:
-        return asyncio.run(_crawl_page(**arguments))
+        return asyncio.run(crawl())
     except WebNavigationError as error:
         if error.kind != "browser_unavailable":
             raise
     _install_headless_chromium()
-    return asyncio.run(_crawl_page(**arguments))
+    return asyncio.run(crawl())
 
 
 def _install_headless_chromium() -> None:
@@ -282,11 +288,10 @@ async def _crawl_page(
         url=url, actions=actions, timeout_ms=timeout_seconds * 1000
     )
     crawler = AsyncWebCrawler(config=browser_config, base_directory=str(cache_root))
-    crawler.crawler_strategy.set_hook(
-        "on_page_context_created", capture.configure_context
-    )
+    strategy = cast("AsyncPlaywrightCrawlerStrategy", crawler.crawler_strategy)
+    strategy.set_hook("on_page_context_created", capture.configure_context)
     if actions:
-        crawler.crawler_strategy.set_hook("before_retrieve_html", capture.apply_actions)
+        strategy.set_hook("before_retrieve_html", capture.apply_actions)
     try:
         await crawler.start()
         result = await crawler.arun(url=url, config=run_config)

@@ -56,7 +56,7 @@ class HarnessMemoryTools:
 
     @property
     def tool_names(self) -> tuple[str, ...]:
-        return tuple(tool.name for tool in self._tools)
+        return tuple(tool.get_name() for tool in self._tools)
 
     def get_execution_history(
         self,

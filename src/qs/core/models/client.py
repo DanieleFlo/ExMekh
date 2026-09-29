@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING
 
@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from qs.core.models.assistant_message import ToolCall
 from qs.core.models.client_request import ClientRequest
-from qs.core.models.history import MessageHistory
+from qs.core.models.history import HistoryMessage, MessageHistory
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.structured_provider_request import StructuredProviderRequest
@@ -18,14 +18,11 @@ from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.tools import Tools
 from qs.interfaces.event_handler import ProviderEventHandler
-from qs.interfaces.message import Message
 from qs.interfaces.provider import Provider
 from qs.interfaces.tokenizer import Tokenizer
 
 if TYPE_CHECKING:
     from qs.core.cache.session_cache import SessionCache
-
-    from .type_of_message import TypeOfMessage
 
 logger = logging.getLogger(__name__)
 
@@ -62,19 +59,19 @@ class Client:
     def get_session(self) -> SessionCache:
         return self._provider.get_session()
 
-    def get_history(self) -> list[Message[TypeOfMessage]]:
+    def get_history(self) -> list[HistoryMessage]:
         return self._history.get_history()
 
     def dump_history(self) -> list[dict[str, str]]:
         return self._history.dump_history()
 
-    def copy_history(self) -> list[Message[TypeOfMessage]]:
+    def copy_history(self) -> list[HistoryMessage]:
         return self._history.get_copy_of_history()
 
     def replace_history_from(
         self,
         start_index: int,
-        messages: list[TypeOfMessage],
+        messages: Sequence[HistoryMessage],
     ) -> None:
         self._history.replace_from(start_index, messages)
 
@@ -108,7 +105,7 @@ class Client:
     def continue_after_tools(
         self,
         *,
-        extra: dict[str, dict[str, object]] | None = None,
+        extra: Mapping[str, object] | None = None,
         tool_choice: str | None = None,
         streaming: bool = False,
         on_event: ProviderEventHandler | None = None,
@@ -157,7 +154,7 @@ class Client:
         response_model: type[ResponseModel],
         *,
         strict: bool = True,
-        extra: dict | None = None,
+        extra: Mapping[str, object] | None = None,
         tool_choice: str | None = None,
         streaming: bool = False,
         on_event: ProviderEventHandler | None = None,
@@ -188,12 +185,12 @@ class Client:
             len(self._history.get_history()),
         )
 
-    def add_user_message(self, message: Message[TypeOfMessage]) -> None:
+    def add_user_message(self, message: HistoryMessage) -> None:
         if message.get_role_name() != "user":
             raise TypeError("Expected a user message")
         self._history.add(message)
 
-    def _get_tool_continuation_messages(self) -> list[Message[TypeOfMessage]]:
+    def _get_tool_continuation_messages(self) -> list[HistoryMessage]:
         messages = self._history.get_history()
         if not isinstance(messages[-1], ToolMessage):
             raise TypeError("The last message must be a tool response")

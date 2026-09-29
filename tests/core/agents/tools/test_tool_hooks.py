@@ -1,4 +1,3 @@
-from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -8,6 +7,7 @@ from qs.core.agents.exit_tool.data import ExitToolData
 from qs.core.agents.exit_tool.decorator import exit_tool, get_exit_tool_definition
 from qs.core.agents.exit_tool.exit_tool import ExitTool
 from qs.core.agents.tools.decorator import deep_tool, get_tool_definition
+from qs.core.agents.tools.deep_tool import DeepTool
 from qs.core.models.assistant_message import FunctionCall, ToolCall
 from qs.core.models.tool import CalledTool, Tool
 from qs.interfaces.tool_hook import (
@@ -47,12 +47,7 @@ def test_hooks_change_arguments_and_result(tmp_path: Path) -> None:
     assert definition is not None
     assert definition.before is before
     assert definition.after is after
-    tool = Tool(
-        partial(entrypoint, tmp_path),
-        name="entrypoint",
-        before=definition.before,
-        after=definition.after,
-    )
+    tool = DeepTool(entrypoint, tmp_path)
     result = tool.execute_with_hooks(
         {"value": "original"},
         work_root=tmp_path,

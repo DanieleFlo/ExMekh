@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from pydantic import BaseModel
 
 from qs.core.models.provider_request import ProviderRequest
@@ -11,11 +13,11 @@ from qs.interfaces.message import Message
 class StructuredProviderRequest[ResponseModel: BaseModel](ProviderRequest):
     def __init__(
         self,
-        messages: list[Message],
+        messages: list[Message[object]],
         response_model: type[ResponseModel],
         *,
         strict: bool = True,
-        extra: dict | None = None,
+        extra: Mapping[str, object] | None = None,
         tool_choice: str | None = None,
         tools: Tools | None = None,
         stream: bool = False,

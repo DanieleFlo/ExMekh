@@ -54,7 +54,7 @@ class ToOpenAIResponseMapper:
     @classmethod
     def map_structured_assistant_message(
         cls,
-        message: StructuredAssistantMessage,
+        message: StructuredAssistantMessage[BaseModel],
     ) -> list[dict[str, Any]]:
         content = message.get_message()
         if not isinstance(content, BaseModel):
@@ -79,7 +79,7 @@ class ToOpenAIResponseMapper:
         raise TypeError("Responses API does not support legacy function messages")
 
     @classmethod
-    def map_message(cls, message: Message) -> list[dict[str, Any]]:
+    def map_message(cls, message: Message[object]) -> list[dict[str, Any]]:
         if isinstance(message, SystemMessage):
             return cls.map_system_message(message)
         if isinstance(message, UserMessage):

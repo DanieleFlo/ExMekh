@@ -3,12 +3,11 @@ from __future__ import annotations
 import inspect
 from collections.abc import Callable
 from dataclasses import dataclass
-from functools import partial, wraps
+from functools import wraps
 from pathlib import Path
 from typing import Any, Final
 
 from qs.config.capabilities import CAPABILITY_FORMAT
-from qs.core.models.tool import Tool
 from qs.interfaces.tool_hook import AfterTool, BeforeTool, validate_tool_hooks
 
 type ToolFunction = Callable[..., Any]
@@ -108,27 +107,3 @@ def get_tool_definition(
         return definition
 
     return None
-
-
-def bind_deep_tool(
-    function: ToolFunction,
-    work_root: Path,
-    *runtime_arguments: Any,
-    name: str | None = None,
-    cache_result: bool = True,
-) -> Tool:
-    """Bind runtime-only arguments while retaining decorator metadata."""
-    definition = get_tool_definition(function)
-    if definition is None or definition.description is None:
-        raise ValueError("Tool function must have @deep_tool with a description")
-    bound_function = partial(function, work_root, *runtime_arguments)
-    bound_function.__doc__ = ""
-    return Tool(
-        bound_function,
-        name=name or definition.name or function.__name__,
-        description=definition.description,
-        cache_result=cache_result,
-        before=definition.before,
-        after=definition.after,
-        background_enabled=definition.background_enabled,
-    )

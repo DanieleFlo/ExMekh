@@ -4,6 +4,7 @@ import json
 from collections.abc import Iterable
 from pathlib import Path
 from threading import Lock
+from typing import Any
 from urllib.request import urlopen
 
 from tokenizers import Encoding
@@ -33,7 +34,7 @@ class QwenTokenizer(SequentialTokenizer):
         }
         return (token for token in vocabulary if token not in special_tokens)
 
-    def _download_tokenizer_data(self) -> dict:
+    def _download_tokenizer_data(self) -> dict[str, Any]:
         with urlopen(
             QWEN_TOKENIZER.download_url,
             timeout=TokenizerSettings.from_environment().download_timeout_seconds,

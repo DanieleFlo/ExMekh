@@ -1,4 +1,5 @@
 from dataclasses import FrozenInstanceError
+from types import MappingProxyType
 
 import pytest
 
@@ -38,6 +39,14 @@ def test_request_preserves_streaming_callback() -> None:
     assert request.on_event is handler
 
 
+def test_request_copies_extra_from_a_read_only_mapping() -> None:
+    source = {"temperature": 0.2}
+    request = ClientRequest(UserMessage("question"), extra=MappingProxyType(source))
+    source["temperature"] = 1
+
+    assert request.extra == {"temperature": 0.2}
+
+
 def test_request_is_frozen() -> None:
     request = ClientRequest(UserMessage("question"))
 
@@ -49,7 +58,7 @@ def test_request_is_frozen() -> None:
     ("arguments", "message"),
     [
         ({"message": object()}, "Message instance"),
-        ({"message": UserMessage("question"), "extra": object()}, "dictionary"),
+        ({"message": UserMessage("question"), "extra": object()}, "mapping"),
         ({"message": UserMessage("question"), "tool_choice": object()}, "string"),
         ({"message": UserMessage("question"), "streaming": 1}, "boolean"),
         (

@@ -19,7 +19,7 @@ class MetadataParser[MetadataType: CapabilityMetadata](Protocol):
 
 class CapabilityMarkdownParser[
     MetadataType: CapabilityMetadata,
-    MarkdownType: CapabilityMarkdown,
+    MarkdownType: CapabilityMarkdown[Any],
 ]:
     FRONT_MATTER_PATTERN: Final[re.Pattern[str]] = re.compile(
         VALIDATION_PATTERNS.capability_front_matter, re.DOTALL

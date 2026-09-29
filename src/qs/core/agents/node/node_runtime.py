@@ -126,9 +126,9 @@ class NodeRuntime(ProviderEventHandler):
 
     def _validate_runtime_tool_names(self) -> None:
         capability_names = {
-            tool.name for tool in self._config.capabilities.get_all_tools()
+            tool.get_name() for tool in self._config.capabilities.get_all_tools()
         }
-        runtime_names = tuple(tool.name for tool in self._runtime_tools)
+        runtime_names = tuple(tool.get_name() for tool in self._runtime_tools)
         duplicate_runtime_names = {
             name for name in runtime_names if runtime_names.count(name) > 1
         }
@@ -294,7 +294,7 @@ class NodeRuntime(ProviderEventHandler):
         skills = [call for call in calls if isinstance(call, CalledDeepSkill)]
         exits = [call for call in calls if isinstance(call, CalledExitTool)]
         active_calls = tools + skills[:1] if skills else tools + exits
-        deferred_calls = skills[1:] + exits if skills else []
+        deferred_calls: list[ResolvedToolCall] = [*skills[1:], *exits] if skills else []
 
         annotation_provider = (
             partial(self._thinking_annotation_resolver.resolve, thinking)

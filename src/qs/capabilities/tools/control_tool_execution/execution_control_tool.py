@@ -4,32 +4,24 @@ from pathlib import Path
 from typing import Any, Literal
 
 from qs.config.runtime import RUNTIME
-from qs.core.agents.tools.decorator import bind_deep_tool
-from qs.core.models.tool import Tool
+from qs.core.agents.tools.deep_tool import DeepTool
 from qs.core.tool_calls.execution_manager import ToolExecutionManager
 
 from .main import run
 
 
-class ExecutionControlTool(Tool):
+class ExecutionControlTool(DeepTool):
     """Expose bounded waits and cancellation without owning conversation state."""
 
     def __init__(
         self, manager: ToolExecutionManager, work_root: Path | None = None
     ) -> None:
         self._manager = manager
-        bound = bind_deep_tool(
+        super().__init__(
             run,
             work_root or Path.cwd(),
             self.control_tool_execution,
             cache_result=False,
-        )
-        super().__init__(
-            bound.tool,
-            name=bound.name,
-            description=bound.description,
-            cache_result=False,
-            background_enabled=False,
         )
 
     def control_tool_execution(

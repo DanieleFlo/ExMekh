@@ -77,12 +77,12 @@ class ToOpenAIChatCompletionRequestMapper:
     @classmethod
     def _map_messages(
         cls,
-        messages: list[Message],
+        messages: list[Message[object]],
     ) -> list[ChatCompletionMessageParam]:
         return [cls._map_message(message) for message in messages]
 
     @staticmethod
-    def _map_message(message: Message) -> ChatCompletionMessageParam:
+    def _map_message(message: Message[object]) -> ChatCompletionMessageParam:
         if isinstance(message, SystemMessage):
             return ToOpenAIChatCompletionMapper.map_system_message(message)
         if isinstance(message, UserMessage):

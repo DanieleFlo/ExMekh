@@ -5,15 +5,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from qs.core.agents.tools.decorator import bind_deep_tool
-from qs.core.models.tool import Tool, ToolExecutionOperation
+from qs.core.agents.tools.deep_tool import DeepTool
+from qs.core.models.tool import ToolExecutionOperation
 from qs.interfaces.tool_hook import AfterTool, BeforeTool
 
 from .bash_process import _BashProcess
 from .main import run
 
 
-class BashTool(Tool):
+class BashTool(DeepTool):
     """Launch a fresh Bash interface for each original tool call."""
 
     def __init__(
@@ -26,13 +26,10 @@ class BashTool(Tool):
         after: AfterTool | None = None,
     ) -> None:
         self._executable = executable
-        bound = bind_deep_tool(
-            run, work_root or Path.cwd(), executable, cache_result=cache_result
-        )
         super().__init__(
-            bound.tool,
-            name=bound.name,
-            description=bound.description,
+            run,
+            work_root or Path.cwd(),
+            executable,
             cache_result=cache_result,
             before=before,
             after=after,

@@ -3,20 +3,18 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
-from typing import TYPE_CHECKING
 
 from qs.core.models.assistant_message import AssistantMessage, ToolCall
 from qs.core.models.tool_message import ToolMessage
 from qs.interfaces.message import Message
 
-if TYPE_CHECKING:
-    from .type_of_message import TypeOfMessage
-
 logger = logging.getLogger(__name__)
+
+type HistoryMessage = Message[object]
 
 
 class MessageHistory:
-    def __init__(self, history: list[TypeOfMessage] | None = None):
+    def __init__(self, history: Sequence[HistoryMessage] | None = None):
         if history is not None:
             self._history = list(history)
         else:
@@ -42,7 +40,7 @@ class MessageHistory:
                 )
 
     def _is_valid_transition(
-        self, previous: Message[TypeOfMessage], current: Message[TypeOfMessage]
+        self, previous: HistoryMessage, current: HistoryMessage
     ) -> bool:
         previous_role = previous.get_role_name()
         current_role = current.get_role_name()
@@ -63,9 +61,7 @@ class MessageHistory:
 
         return True
 
-    def add(
-        self, message: Message[TypeOfMessage] | list[Message[TypeOfMessage]]
-    ) -> MessageHistory:
+    def add(self, message: HistoryMessage | list[HistoryMessage]) -> MessageHistory:
         if isinstance(message, Message):
             return self._add_single_message(message)
         elif (
@@ -79,24 +75,22 @@ class MessageHistory:
                 "Item must be an instance of Message or a list of Message instances"
             )
 
-    def _add_single_message(self, message: Message[TypeOfMessage]) -> MessageHistory:
+    def _add_single_message(self, message: HistoryMessage) -> MessageHistory:
         candidate = MessageHistory([*self._history, message])
         candidate.check_history()
         self._history = candidate.get_history()
         return MessageHistory(self._history)
 
-    def _add_multiple_messages(
-        self, messages: list[Message[TypeOfMessage]]
-    ) -> MessageHistory:
+    def _add_multiple_messages(self, messages: list[HistoryMessage]) -> MessageHistory:
         candidate = MessageHistory([*self._history, *messages])
         candidate.check_history()
         self._history = candidate.get_history()
         return MessageHistory(self._history)
 
-    def get_history(self) -> list[Message[TypeOfMessage]]:
+    def get_history(self) -> list[HistoryMessage]:
         return list(self._history)
 
-    def get_copy_of_history(self) -> list[Message[TypeOfMessage]]:
+    def get_copy_of_history(self) -> list[HistoryMessage]:
         return [message.copy() for message in self._history]
 
     def add_tool_calls(self, tool_calls: Sequence[ToolCall]) -> None:
@@ -132,17 +126,7 @@ class MessageHistory:
         final_reply = self._history[-1]
         if final_reply.get_tool_call_id() != batch_call_id:
             raise ValueError("The final tool response does not belong to this batch")
-        opening_index = next(
-            (
-                index
-                for index in reversed(range(len(self._history)))
-                if isinstance(self._history[index], AssistantMessage)
-            ),
-            None,
-        )
-        if opening_index is None:
-            raise ValueError("The tool batch has no assistant message")
-        opening = self._history[opening_index]
+        opening_index, opening = self._latest_assistant_message()
         calls = opening.get_tool_calls() or ()
         if not any(item.id == batch_call_id for item in calls):
             raise ValueError("The assistant message does not contain the batch call")
@@ -155,8 +139,15 @@ class MessageHistory:
         )
         return final_reply
 
+    def _latest_assistant_message(self) -> tuple[int, AssistantMessage]:
+        for index in reversed(range(len(self._history))):
+            message = self._history[index]
+            if isinstance(message, AssistantMessage):
+                return index, message
+        raise ValueError("The tool batch has no assistant message")
+
     def replace_from(
-        self, start_index: int, messages: list[Message[TypeOfMessage]]
+        self, start_index: int, messages: Sequence[HistoryMessage]
     ) -> None:
         if not isinstance(start_index, int) or isinstance(start_index, bool):
             raise TypeError("start_index must be an integer")

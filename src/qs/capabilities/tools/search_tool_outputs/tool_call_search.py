@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from qs.config.runtime import RUNTIME
-from qs.core.agents.tools.decorator import bind_deep_tool
+from qs.core.agents.tools.deep_tool import DeepTool
 from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.tool import Tool
@@ -25,9 +25,7 @@ class ToolCallSearch:
         self._execution_manager = execution_manager
 
     def as_tool(self) -> Tool:
-        return bind_deep_tool(
-            run_raw_search, Path.cwd(), self.search, cache_result=False
-        )
+        return DeepTool(run_raw_search, Path.cwd(), self.search, cache_result=False)
 
     def search(
         self,

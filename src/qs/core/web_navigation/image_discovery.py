@@ -14,7 +14,7 @@ from urllib.parse import urljoin, urlparse, urlunparse
 from urllib.robotparser import RobotFileParser
 
 import aiohttp
-from aiohttp.abc import AbstractResolver
+from aiohttp.abc import AbstractResolver, ResolveResult
 from lxml import html
 from PIL import Image, UnidentifiedImageError
 
@@ -49,7 +49,7 @@ class PublicResolver(AbstractResolver):
 
     async def resolve(
         self, host: str, port: int = 0, family: int = socket.AF_UNSPEC
-    ) -> list[dict[str, object]]:
+    ) -> list[ResolveResult]:
         """Resolve one host and reject mixed public/private DNS responses."""
         loop = asyncio.get_running_loop()
         try:

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from qs.core.models.provider_stream_event import ProviderStreamEvent
 from qs.core.models.tools import Tools
 from qs.interfaces.event_handler import ProviderEventHandler
@@ -9,9 +11,9 @@ from qs.interfaces.message import Message
 class ProviderRequest:
     def __init__(
         self,
-        messages: list[Message],
+        messages: list[Message[object]],
         *,
-        extra: dict[str, dict[str, dict[str, object]]] | None = None,
+        extra: Mapping[str, object] | None = None,
         tool_choice: str | None = None,
         tools: Tools | None = None,
         stream: bool = False,
@@ -27,15 +29,15 @@ class ProviderRequest:
         self._reasoning_effort_override = reasoning_effort_override
         self._check_provider_inputs()
         self._messages = messages.copy()
-        self._extra = extra.copy() if extra is not None else None
+        self._extra = dict(extra) if extra is not None else None
 
     def _check_provider_inputs(self) -> None:
         if not isinstance(self._messages, list) or not self._messages:
             raise ValueError("Expected a non-empty list of Messages")
         if not all(isinstance(message, Message) for message in self._messages):
             raise TypeError("All messages must be Message instances")
-        if self._extra is not None and not isinstance(self._extra, dict):
-            raise TypeError("Extra provider data must be a dictionary")
+        if self._extra is not None and not isinstance(self._extra, Mapping):
+            raise TypeError("Extra provider data must be a mapping")
         if self._tool_choice is not None and not isinstance(self._tool_choice, str):
             raise TypeError("Tool choice must be a string")
         if self._tools is not None and not isinstance(self._tools, Tools):
@@ -50,11 +52,11 @@ class ProviderRequest:
         ):
             raise ValueError("Reasoning effort override must be a non-empty string")
 
-    def get_messages(self) -> list[Message]:
+    def get_messages(self) -> list[Message[object]]:
         return self._messages.copy()
 
-    def get_extra(self) -> dict | None:
-        return self._extra.copy() if self._extra is not None else None
+    def get_extra(self) -> dict[str, object] | None:
+        return dict(self._extra) if self._extra is not None else None
 
     def get_tool_choice(self) -> str | None:
         return self._tool_choice

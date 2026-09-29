@@ -63,7 +63,7 @@ class ToOpenAIResponseRequestMapper:
         )
 
     @classmethod
-    def _map_messages(cls, messages: list[Message]) -> list[dict[str, Any]]:
+    def _map_messages(cls, messages: list[Message[object]]) -> list[dict[str, Any]]:
         mapped: list[dict[str, Any]] = []
         for message in messages:
             mapped.extend(ToOpenAIResponseMapper.map_message(message))

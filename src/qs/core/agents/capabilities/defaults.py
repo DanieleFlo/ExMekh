@@ -4,6 +4,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
+from typing import cast
 
 from qs.config.capabilities import CAPABILITY_FORMAT
 from qs.config.runtime import RUNTIME
@@ -250,12 +251,14 @@ class DefaultCapabilities:
         if isinstance(overrides, _NamedOverride):
             return ((overrides.target_name, overrides),)
         if isinstance(overrides, Mapping):
-            return tuple(overrides.items())
+            return tuple(cast(Mapping[str, Override], overrides).items())
         if isinstance(overrides, Iterable) and not isinstance(overrides, (str, bytes)):
-            descriptors = tuple(overrides)
-            if not all(isinstance(item, _NamedOverride) for item in descriptors):
-                raise TypeError("overrides must contain only override descriptors")
-            return tuple((item.target_name, item) for item in descriptors)
+            entries: list[tuple[str, Override]] = []
+            for item in overrides:
+                if not isinstance(item, _NamedOverride):
+                    raise TypeError("overrides must contain only override descriptors")
+                entries.append((item.target_name, item))
+            return tuple(entries)
         raise TypeError("overrides must be a mapping or iterable of overrides")
 
 

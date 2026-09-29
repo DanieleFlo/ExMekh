@@ -7,6 +7,7 @@ import logging
 import math
 import re
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -29,7 +30,7 @@ class _Term:
 
 
 class _FormulaBuilder:
-    def __init__(self, z3: Any, ctx: Any, variables: dict[str, str]) -> None:
+    def __init__(self, z3: Any, ctx: Any, variables: Mapping[str, str]) -> None:
         self._z3 = z3
         constructors = {
             "Bool": z3.Bool,

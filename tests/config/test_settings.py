@@ -37,6 +37,16 @@ def test_provider_settings_read_environment(monkeypatch: pytest.MonkeyPatch) -> 
     assert settings.api_key_env_var == "API_KEY"
 
 
+@pytest.mark.parametrize("api", ["", "invalid"])
+def test_provider_settings_reject_invalid_api(
+    monkeypatch: pytest.MonkeyPatch, api: str
+) -> None:
+    monkeypatch.setenv("QS_API", api)
+
+    with pytest.raises(ValueError, match="QS_API must be"):
+        ProviderSettings.from_environment()
+
+
 def test_cli_settings_read_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("QS_ROOT_HDS", "custom-root")
     monkeypatch.setenv("QS_CHILD_HDS", "custom-child")

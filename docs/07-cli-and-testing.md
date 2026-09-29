@@ -36,6 +36,28 @@ python -m qs.main
 
 Unit tests verify client models, capabilities loading, schema coercion, node execution, and provider mappers without contacting external LLM servers.
 
+### Static checks
+
+```shell
+uv run --locked pyright
+uv run --locked ruff check src tests
+uv run --locked ruff format --check src tests
+```
+
+Pylance and the Pyright CLI share the `[tool.pyright]` configuration in
+`pyproject.toml`. The type check covers all production code under `src`, targets
+Python 3.13, and uses the project's `.venv`. VS Code selects that environment
+by default and reports diagnostics across the workspace.
+
+The project uses `standard` checking with strict inference for lists,
+dictionaries and sets. Missing generic type arguments, uninitialized instance
+attributes, unnecessary casts and unused `type: ignore` comments are errors.
+Fix the underlying types before adding an exception. Test code remains covered
+by Ruff and pytest; the Pyright CLI gate covers `src`.
+
+See the [Pyright configuration reference](https://github.com/microsoft/pyright/blob/main/docs/configuration.md)
+for the shared settings.
+
 ### Executing Unit Tests
 
 ```shell

@@ -9,7 +9,7 @@ import re
 import threading
 from collections import Counter, OrderedDict
 from collections.abc import Mapping, Sequence
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol, cast
 from urllib.parse import urlparse
 
 import numpy as np
@@ -19,6 +19,9 @@ from PIL import Image
 from qs.config.web import WEB_FORMAT, WEB_RANKING
 
 from .image_discovery import DiscoveredImage, decode_image
+
+if TYPE_CHECKING:
+    from torch import Tensor
 
 GRANITE_MODEL_NAME = WEB_RANKING.granite_model_name
 EMBEDDING_CACHE_SIZE = WEB_RANKING.embedding_cache_size
@@ -38,6 +41,7 @@ class EmbeddingBackend(Protocol):
 
     def encode(self, texts: Sequence[str]) -> Embedding:
         """Return one normalized embedding for every supplied text."""
+        ...
 
 
 class ImageEmbeddingBackend(Protocol):
@@ -45,9 +49,11 @@ class ImageEmbeddingBackend(Protocol):
 
     def encode_texts(self, texts: Sequence[str]) -> Embedding:
         """Return one normalized embedding for every supplied text."""
+        ...
 
     def encode_images(self, images: Sequence[Image.Image]) -> Embedding:
         """Return one normalized embedding for every supplied image."""
+        ...
 
 
 class OpenVINOEmbeddingBackend:
@@ -345,13 +351,14 @@ def compute_semantic_similarity(
     else:
         resolved_cache = EmbeddingLRUCache()
     with _SEMANTIC_INFERENCE_LOCK:
-        cached: list[Embedding | None] = []
+        cached: dict[int, Embedding] = {}
         missing_indices: list[int] = []
         for index, result in enumerate(results):
             embedding = resolved_cache.get(str(result["url"]))
-            cached.append(embedding)
             if embedding is None:
                 missing_indices.append(index)
+            else:
+                cached[index] = embedding
 
         texts = [query]
         texts.extend(build_embedding_text(results[index]) for index in missing_indices)
@@ -364,7 +371,10 @@ def compute_semantic_similarity(
             cached[result_index] = document_embedding
             resolved_cache.put(str(results[result_index]["url"]), document_embedding)
 
-        return [float(np.dot(query_embedding, embedding)) for embedding in cached]
+        return [
+            float(np.dot(query_embedding, cached[index]))
+            for index in range(len(results))
+        ]
 
 
 def compute_image_similarity(
@@ -483,10 +493,10 @@ def _ranking_from_scores(scores: Sequence[int | float]) -> list[int]:
     return sorted(range(len(scores)), key=lambda index: (-scores[index], index))
 
 
-def _extract_feature_tensor(value: object) -> object:
+def _extract_feature_tensor(value: object) -> Tensor:
     """Return a feature tensor across supported Transformers output variants."""
     pooled = getattr(value, "pooler_output", None)
-    return pooled if pooled is not None else value
+    return cast("Tensor", pooled if pooled is not None else value)
 
 
 def _ranking_from_indexed_scores(scores: Sequence[tuple[int, float]]) -> list[int]:

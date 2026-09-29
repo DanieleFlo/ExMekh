@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, cast
 
 from lxml import html as lxml_html
 
@@ -66,7 +66,7 @@ def select_primary_html(html: str) -> tuple[str, str]:
     _remove_boilerplate(selected)
     if scope == "main":
         _remove_small_recommendation_articles(selected)
-    return lxml_html.tostring(selected, encoding="unicode"), scope
+    return cast(str, lxml_html.tostring(selected, encoding="unicode")), scope
 
 
 def extract_page_dates(

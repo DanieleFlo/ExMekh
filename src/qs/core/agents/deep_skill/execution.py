@@ -22,7 +22,7 @@ class DeepSkillExecution:
     opening_history_position: int = 0
     end_index: int | None = None
     output: str | None = None
-    history: list[Message] = field(default_factory=list)
+    history: list[Message[object]] = field(default_factory=list)
     children: list[DeepSkillExecution] = field(default_factory=list)
     preceding_tool_responses: tuple[ToolMessage, ...] = ()
 
@@ -52,7 +52,7 @@ class DeepSkillExecution:
         *,
         end_index: int,
         output: str,
-        history: list[Message],
+        history: list[Message[object]],
     ) -> None:
         if self.output is not None:
             raise RuntimeError("Deep skill execution is already closed")
@@ -63,7 +63,7 @@ class DeepSkillExecution:
 
     def history_tree(
         self,
-        current_history: list[Message] | None = None,
+        current_history: list[Message[object]] | None = None,
     ) -> dict[str, Any]:
         history = self.history
         if self.output is None and current_history is not None:
@@ -112,7 +112,7 @@ class DeepSkillExecutionTracker:
 
     def history_tree(
         self,
-        current_history: list[Message] | None = None,
+        current_history: list[Message[object]] | None = None,
     ) -> list[dict[str, str]]:
         return [execution.history_tree(current_history) for execution in self._roots]
 
@@ -165,7 +165,7 @@ class DeepSkillExecutionTracker:
         *,
         end_index: int,
         output: str,
-        history: list[Message],
+        history: list[Message[object]],
     ) -> DeepSkillExecution:
         if not self._active:
             raise RuntimeError("Cannot close a deep skill when none is active")

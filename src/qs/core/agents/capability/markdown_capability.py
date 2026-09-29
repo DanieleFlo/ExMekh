@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Self
+from typing import Any, Self
 
 from qs.core.agents.capabilities.resource_type import ResourceType
 from qs.core.agents.capability.loader import MarkdownLoader
@@ -50,7 +50,7 @@ class MarkdownCapability[MetadataType: CapabilityMetadata](Tool, ABC):
         return self.metadata.get_direct_tool_names()
 
     @classmethod
-    def from_markdown[MarkdownType: CapabilityMarkdown](
+    def from_markdown[MarkdownType: CapabilityMarkdown[Any]](
         cls,
         markdown_path: Path,
         parser: CapabilityMarkdownParser[MetadataType, MarkdownType],

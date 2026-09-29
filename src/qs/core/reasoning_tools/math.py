@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import math
 import operator
+from collections.abc import Callable
 from typing import Any
 
 from qs.config.reasoning import MATH
@@ -119,13 +120,14 @@ def _calculate_expression(
     elif operation == "differentiate":
         result = sp.diff(value, symbol)
     else:
-        if (lower_bound is None) != (upper_bound is None):
+        if lower_bound is None and upper_bound is None:
+            result = sp.integrate(value, symbol)
+        elif lower_bound is None or upper_bound is None:
             raise MathInputError("integrate requires both bounds or neither")
-        result = (
-            sp.integrate(value, symbol)
-            if lower_bound is None
-            else sp.integrate(value, (symbol, _parse(lower_bound), _parse(upper_bound)))
-        )
+        else:
+            result = sp.integrate(
+                value, (symbol, _parse(lower_bound), _parse(upper_bound))
+            )
     return result
 
 
@@ -149,7 +151,7 @@ def _parse(expression: str) -> Any:
         "sqrt": sp.sqrt,
         "Abs": sp.Abs,
     }
-    binary = {
+    binary: dict[type[ast.operator], Callable[[Any, Any], Any]] = {
         ast.Add: operator.add,
         ast.Sub: operator.sub,
         ast.Mult: operator.mul,
@@ -175,17 +177,21 @@ def _parse(expression: str) -> Any:
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
             value = convert(node.operand)
             return value if isinstance(node.op, ast.UAdd) else -value
-        if isinstance(node, ast.BinOp) and type(node.op) in binary:
+        if isinstance(node, ast.BinOp):
+            operation = binary.get(type(node.op))
+            if operation is None:
+                raise MathInputError("expression contains unsupported syntax")
             if isinstance(node.op, ast.Pow):
                 if (
                     not isinstance(node.right, ast.Constant)
-                    or type(node.right.value) not in (int, float)
+                    or not isinstance(node.right.value, (int, float))
+                    or isinstance(node.right.value, bool)
                     or abs(node.right.value) > MATH.max_exponent
                 ):
                     raise MathInputError(
                         f"exponents must be numeric and at most {MATH.max_exponent}"
                     )
-            return binary[type(node.op)](convert(node.left), convert(node.right))
+            return operation(convert(node.left), convert(node.right))
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
             function = functions.get(node.func.id)
             if function is not None and not node.keywords and 1 <= len(node.args) <= 2:

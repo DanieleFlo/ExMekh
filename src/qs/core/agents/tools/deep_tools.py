@@ -10,9 +10,9 @@ from qs.config.capabilities import CAPABILITY_FORMAT
 from qs.core.agents.tools.decorator import (
     ToolDefinition,
     ToolFunction,
-    bind_deep_tool,
     get_tool_definition,
 )
+from qs.core.agents.tools.deep_tool import DeepTool
 from qs.core.agents.tools.module_importer import ToolModuleImporter
 from qs.core.models.tool import Tool
 
@@ -94,7 +94,7 @@ class DeepTools:
                     f"Tool entrypoint '{entrypoint_path}' must have a description"
                 )
 
-            return bind_deep_tool(
+            return DeepTool(
                 function, self._work_root, name=definition.name or tool_path.name
             )
         except Exception:

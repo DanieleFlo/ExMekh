@@ -1,3 +1,5 @@
+from types import MappingProxyType
+
 import pytest
 
 from qs.core.models.assistant_message import AssistantMessage
@@ -76,6 +78,14 @@ def test_request_preserves_streaming_and_executes_callback() -> None:
     assert events == [event]
 
 
+def test_request_copies_extra_from_a_read_only_mapping() -> None:
+    source = {"temperature": 0.2}
+    request = ProviderRequest([SystemMessage("rules")], extra=MappingProxyType(source))
+    source["temperature"] = 1
+
+    assert request.get_extra() == {"temperature": 0.2}
+
+
 def test_execute_on_stream_event_without_callback_is_a_noop() -> None:
     request = ProviderRequest([SystemMessage("rules")])
     event = ProviderStreamEvent(ProviderStreamEventType.START)
@@ -92,7 +102,7 @@ def test_request_rejects_invalid_messages(messages) -> None:
 def test_request_rejects_invalid_options() -> None:
     messages = [SystemMessage("rules")]
 
-    with pytest.raises(TypeError, match="dictionary"):
+    with pytest.raises(TypeError, match="mapping"):
         ProviderRequest(messages, extra="invalid")
 
     with pytest.raises(TypeError, match="Tool choice"):
