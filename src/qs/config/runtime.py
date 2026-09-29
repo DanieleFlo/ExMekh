@@ -11,6 +11,11 @@ class RuntimeSettings:
         "A response without a tool call and without content is not allowed. "
         "Respond with either a tool call or non-empty content."
     )
+    inactive_steering_message: str = "steer() requires an active run()"
+    concurrent_run_message: str = "A run() is already active on this node"
+    invalid_steering_messages: str = (
+        "Expected a non-empty sequence of UserMessage instances"
+    )
     default_agent_context_id: str = "default"
     history_tool_name: str = "get_execution_history"
     search_tool_name: str = "search_tool_outputs"
@@ -70,6 +75,7 @@ class RuntimeSettings:
             f"Wait returns the result if ready within wait_seconds (default {self.default_tool_wait_seconds:g}, "
             f"greater than 0 and at most {self.max_tool_wait_seconds:g}); otherwise the work continues. "
             "Background returns immediately. Null execution options use defaults. "
+            "External user steering may release a wait early; the work still continues. "
             "Skill navigation, harness control/read tools and call_sub_agent stay "
             "synchronous; call_sub_agent waits until the child finishes.\n"
             "A running response provides the original tool_call_id and output_id. "

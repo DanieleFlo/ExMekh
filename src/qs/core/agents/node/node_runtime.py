@@ -42,6 +42,7 @@ from .node_runtime_config import NodeRuntimeConfig
 from .thinking_annotation import ThinkingAnnotationResolver
 from .tool_call_executor import ToolCallExecutor
 from .tool_call_resolver import ResolvedToolCall, ToolCallResolver
+from .turn_control import TurnControl
 from .types import NodeUserMessage
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,7 @@ class NodeRuntime(ProviderEventHandler):
         self._tool_cache: NodeCache | None = None
         self._execution_history = ExecutionHistory()
         self._execution_manager = ToolExecutionManager()
+        self._turn_control = TurnControl(self._execution_manager)
         self._memory_tools = HarnessMemoryTools(
             self._execution_history,
             self._get_tool_cache,
@@ -134,6 +136,37 @@ class NodeRuntime(ProviderEventHandler):
             raise ValueError(f"Harness runtime tool names are reserved: {names}")
 
     def run(self, user_message: NodeUserMessage) -> AgentResponse:
+        with self._turn_control.run():
+            return self._run_turn(user_message)
+
+    def steer(self, user_message: NodeUserMessage) -> None:
+        """Accept guidance without mutating history or invoking the provider."""
+        self._turn_control.steer(user_message)
+
+    def _continue_with_steering(self) -> ProviderResponse | None:
+        messages = self._turn_control.take_user_messages()
+        if not messages:
+            return None
+        return self._client.continue_with_user_messages(
+            messages,
+            extra=self._executor.build_agentic_extra(),
+            tool_choice=self._current_tool_choice(),
+            streaming=self._config.is_streaming(),
+            on_event=self,
+        )
+
+    def _continue_after_tools(self) -> ProviderResponse:
+        steered_response = self._continue_with_steering()
+        if steered_response is not None:
+            return steered_response
+        return self._client.continue_after_tools(
+            extra=self._executor.build_agentic_extra(),
+            tool_choice=self._current_tool_choice(),
+            streaming=self._config.is_streaming(),
+            on_event=self,
+        )
+
+    def _run_turn(self, user_message: NodeUserMessage) -> AgentResponse:
         if not self._config.is_persistent_history():
             self._reset_session()
 
@@ -151,21 +184,17 @@ class NodeRuntime(ProviderEventHandler):
         if pending_result is not None and self._has_read_tool():
             self._client.add_user_message(UserMessage(content=user_message))
             self._deliver_completed_tool_outputs()
-            response = self._client.continue_after_tools(
+            response = self._continue_after_tools()
+        else:
+            response = self._client.continue_with_user_messages(
+                (
+                    UserMessage(content=user_message),
+                    *self._turn_control.take_user_messages(),
+                ),
                 extra=self._executor.build_agentic_extra(),
                 tool_choice=self._current_tool_choice(),
                 streaming=self._config.is_streaming(),
                 on_event=self,
-            )
-        else:
-            response = self._client.call(
-                ClientRequest(
-                    message=UserMessage(content=user_message),
-                    extra=self._executor.build_agentic_extra(),
-                    tool_choice=self._current_tool_choice(),
-                    streaming=self._config.is_streaming(),
-                    on_event=self,
-                )
             )
         response = self._route_until_complete(response)
         logger.info(
@@ -216,13 +245,7 @@ class NodeRuntime(ProviderEventHandler):
                 self._sync_completed_tool_outputs()
                 self._deliver_completed_tool_outputs()
 
-                tool_choice = self._current_tool_choice()
-                response = self._client.continue_after_tools(
-                    extra=self._executor.build_agentic_extra(),
-                    tool_choice=tool_choice,
-                    streaming=self._config.is_streaming(),
-                    on_event=self,
-                )
+                response = self._continue_after_tools()
                 self._executor.acknowledge_agentic_extra()
                 continue
 
@@ -230,17 +253,22 @@ class NodeRuntime(ProviderEventHandler):
             if isinstance(content, str) and content.strip():
                 self._sync_completed_tool_outputs()
                 if self._deliver_completed_tool_outputs():
-                    response = self._client.continue_after_tools(
-                        extra=self._executor.build_agentic_extra(),
-                        tool_choice=self._current_tool_choice(),
-                        streaming=self._config.is_streaming(),
-                        on_event=self,
-                    )
+                    response = self._continue_after_tools()
                     continue
-                return response
+                steered_response = self._continue_with_steering()
+                if steered_response is not None:
+                    response = steered_response
+                    continue
+                if self._turn_control.try_close():
+                    return response
+                continue
 
             self._sync_completed_tool_outputs()
             self._deliver_completed_tool_outputs()
+            steered_response = self._continue_with_steering()
+            if steered_response is not None:
+                response = steered_response
+                continue
             response = self._client.call(
                 ClientRequest(
                     message=ErrorUserMessage(self.EMPTY_RESPONSE_MESSAGE),
@@ -342,10 +370,11 @@ class NodeRuntime(ProviderEventHandler):
             if result.replace_history_from is None:
                 self._client.add_tool_response(result.response)
             else:
-                self._client.replace_history_from(
+                replayed_messages = self._client.compact_history_from(
                     result.replace_history_from,
                     messages=[*result.preserved_responses, result.response],
                 )
+                self._turn_control.preserve_user_messages(replayed_messages)
             if result.save_result:
                 identity = result.cache_identity
                 record = ToolCallRecord(

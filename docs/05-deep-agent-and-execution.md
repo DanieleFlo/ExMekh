@@ -39,6 +39,42 @@ response = agent.run("Analyze the codebase and run tests.")
 print("Response:", response.get_message())
 ```
 
+### Steering an active run
+
+`agent.steer(user_message) -> None` sends additional user guidance to the active
+root run. `node.steer(user_message)` provides the same operation for that node.
+It accepts the same text, image, file and text-list inputs as `run()` and copies
+the input before queuing it. No callback interface or configuration is required.
+
+Call `steer()` from the frontend while `run()` is executing on another thread,
+or from an event handler. `steer()` returns once the message is queued; only the
+original `run()` returns the final `AgentResponse`. It does not start another
+agent loop or wait for the model to answer.
+
+The runtime queues guidance before releasing managed tool waits. The work
+continues in background with its original identifiers. The active loop inserts
+messages in acceptance order after completing the current tool batch and before
+resuming inference. Messages received during an inference wait for its response;
+that response's tool calls still receive their corresponding results before
+guidance is inserted. Messages survive skill compaction and are kept in the
+calling scope when the skill returns.
+
+Calling `steer()` without an active run raises `RuntimeError`. Concurrent `run()`
+calls on the same node also raise `RuntimeError`; use `steer()` to update the
+current turn. Acceptance and normal turn closure are synchronized: an accepted
+message is processed before `run()` returns normally. If the run fails, its
+exception propagates and pending guidance is discarded rather than carried into
+a later turn. Already inserted messages follow the node's history policy.
+
+Steering through `DeepAgent` targets the root. It does not modify a child's
+history or interrupt `call_sub_agent`: the root inserts guidance after the
+synchronous child call returns. Other tools with `background_enabled=False`
+also finish before queued guidance is inserted. A background job that outlives
+`run()` does not make that run active for steering.
+
+See [tool execution and external steering](13-tool-executions.md#steering-esterno)
+for the wait, output and delivery behavior.
+
 ---
 
 ## 2. Skill Navigation & Depth Tracking

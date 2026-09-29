@@ -10,13 +10,53 @@ from qs.core.models.model_thinking import ModelThinking
 from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool_message import ToolMessage
-from qs.core.models.user_message import UserMessage
+from qs.core.models.user_message import ErrorUserMessage, TextsUserMessage, UserMessage
 from qs.interfaces.message import Message
 
 
 @dataclass
 class NotAMessage:
     content: str
+
+
+def test_compaction_returns_only_removed_external_input_in_order():
+    content = TextsUserMessage(["first"])
+    history = MessageHistory(
+        [
+            SystemMessage("rules"),
+            UserMessage("start"),
+            AssistantMessage("skill"),
+            UserMessage(content, name="author"),
+            ErrorUserMessage("application feedback"),
+            UserMessage("second"),
+        ]
+    )
+    replacement = ToolMessage("skill result", "opening", "skill")
+
+    replay = history.compact_from(2, [replacement])
+    content.texts.append("later mutation")
+
+    assert [message.get_message() for message in replay] == [
+        TextsUserMessage(["first"]),
+        "second",
+    ]
+    assert replay[0].get_name() == "author"
+    assert [message.get_message() for message in history.get_history()] == [
+        "rules",
+        "start",
+        "skill result",
+    ]
+
+
+@pytest.mark.parametrize("start_index", [-1, 10, True, "2"])
+def test_compaction_rejects_invalid_index_without_changing_history(start_index):
+    history = MessageHistory([SystemMessage("rules"), UserMessage("keep")])
+    before = history.get_history()
+
+    with pytest.raises((TypeError, IndexError)):
+        history.compact_from(start_index, [])
+
+    assert history.get_history() == before
 
 
 class AlternativeSystemMessage(Message[str]):
@@ -34,6 +74,23 @@ def test_init_creates_empty_history_by_default() -> None:
     history = MessageHistory()
 
     assert history.get_history() == []
+
+
+def test_steering_messages_after_tools_and_each_other_are_valid(caplog) -> None:
+    history = MessageHistory(
+        [
+            SystemMessage("rules"),
+            UserMessage("initial"),
+            AssistantMessage(
+                None, tool_calls=[ToolCall("origin", FunctionCall("work", {}))]
+            ),
+            ToolMessage("running", "origin", "work"),
+            UserMessage("first correction"),
+            UserMessage("second correction"),
+        ]
+    )
+    history.check_history()
+    assert "Wrong message sequence" not in caplog.text
 
 
 def test_init_preserves_supplied_message_list() -> None:

@@ -170,6 +170,12 @@ class Node:
             raise RuntimeError("Node must be initialized before run")
         return self._runtime.run(user_message)
 
+    def steer(self, user_message: NodeUserMessage) -> None:
+        """Queue guidance and release managed tool waits in this node's active run."""
+        if self._runtime is None:
+            raise RuntimeError(RUNTIME.inactive_steering_message)
+        self._runtime.steer(user_message)
+
     def control_tool_execution(
         self,
         tool_call_id: str,

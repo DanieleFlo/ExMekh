@@ -130,6 +130,47 @@ resta `cancelled`: l'output del lavoro interrotto non viene esposto come un
 risultato completato. Se il callback restituisce `False`, un eventuale
 completamento naturale conserva il proprio risultato.
 
+## Steering esterno
+
+`DeepAgent.steer(user_message) -> None` e `Node.steer(user_message) -> None`
+accodano indicazioni nella `run()` attiva senza avviare un secondo loop. La
+risposta finale viene restituita dalla `run()` originale. Il frontend può
+ricevere input su un thread distinto da quello che esegue `run()`; il metodo è
+utilizzabile anche da un handler degli eventi, senza attendere la risposta.
+
+Il messaggio viene copiato e accodato prima di sbloccare l'attesa. Si sbloccano
+sia l'attesa iniziale dei tool gestiti sia `control_tool_execution(...,
+action="wait")`. Finché i messaggi sono pendenti, le ulteriori attese del manager
+restituiscono lo stato disponibile senza bloccare, comprese eventuali altre
+chiamate nello stesso batch e controlli Python concorrenti. Dopo il consumo dei
+messaggi, le attese successive tornano al comportamento ordinario.
+
+Lo sblocco non termina il lavoro e non modifica lo stato in `completed` o
+`cancelled`: il risultato segue il percorso già previsto per un'attesa scaduta,
+con XML, output ID canonico, eventuali dati parziali filtrati e consegna finale.
+Se il lavoro è già terminato quando il runtime acquisisce lo stato, conserva il
+risultato finale. Hook, output e cache non vengono duplicati.
+
+Solo il loop modifica la history. Completa il batch, esegue le letture
+automatiche disponibili e inserisce i messaggi nell'ordine di accettazione al
+confine della successiva richiesta al provider. Un messaggio arrivato dopo quel
+confine attende la risposta dell'inferenza in corso. Durante la compattazione,
+gli input dell'utente vengono mantenuti nel livello chiamante; le diagnostiche
+`ErrorUserMessage` restano locali alla skill.
+
+Un'inferenza attiva e i tool con `background_enabled=False` non vengono
+interrotti. `call_sub_agent` resta sincrono: lo steering su `DeepAgent` riguarda
+la history del nodo radice e viene elaborato dopo il ritorno del figlio. Per
+indirizzare esplicitamente un figlio attivo si usa il suo `Node.steer()`.
+
+Senza una `run()` attiva, `steer()` solleva `RuntimeError`, anche quando rimangono
+lavori in background. Le `run()` concorrenti sullo stesso nodo sono rifiutate.
+Accettazione e chiusura del turno sono sincronizzate: una richiesta accettata
+viene elaborata prima del ritorno normale di `run()`. Se il turno fallisce,
+l'eccezione viene propagata, le indicazioni ancora pendenti vengono eliminate e
+le attese vengono ripristinate; nessuna indicazione pendente passa al turno
+successivo. I messaggi già inseriti seguono la policy della history.
+
 ## Lettura e output incrementale
 
 `read_tool_output(output_id, cursor=None)` sostituisce il precedente nome
@@ -274,10 +315,11 @@ La consegna automatica produce gli eventi della nuova lettura nel loop.
 | --- | --- |
 | `Node` | Interfaccia pubblica per eseguire l'agente, controllare i lavori e leggere gli output. |
 | `NodeRuntime` | Ciclo conversazionale, persistenza e consegna dei risultati al livello proprietario. |
+| `TurnControl` | Ammissione esclusiva delle run, coda degli steer, chiusura atomica e rilascio delle attese. |
 | `Tool` | Argomenti di esecuzione, firma pubblica, hook e creazione dell'operazione. |
 | `DeepTool` | Collegamento dell'entrypoint decorato al workroot e alle dipendenze runtime, conservando metadati e hook. |
 | `ToolCallExecutor` | Esecuzione delle capability e transizioni delle skill. |
-| `MessageHistory` | Modifica dei messaggi e dei batch, conservando risposte e metadati del provider. |
+| `MessageHistory` | Modifica dei messaggi e dei batch, conservando risposte, metadati e input esterni da riproporre dopo la compattazione. |
 | `ToolExecutionManager` | Worker, attese, accesso concorrente e registro degli stati. |
 | `ExecutionSnapshot` | Vista dello stato e metodi pubblici per ottenere contenuto e risultato salvabile. |
 | `ExecutionControlTool` | Contratto del tool globale di attesa e annullamento. |
@@ -286,7 +328,10 @@ La consegna automatica produce gli eventi della nuova lettura nel loop.
 | `ToolCallSearch` | Ricerca filtrata e paginata degli output salvati e del runtime, senza confermare la consegna. |
 
 Il runtime usa operazioni pubbliche della history per inserire chiamate automatiche;
-non ricostruisce i messaggi né interpreta la struttura interna dei batch. Gli adapter
+la history identifica anche gli input esterni rimossi dalla compattazione. Il runtime
+non ricostruisce i messaggi né interpreta la struttura interna dei batch. `TurnControl`
+gestisce la sincronizzazione tramite i metodi pubblici del manager; un'attesa già
+rilasciata resta tale anche se il loop riattiva subito le attese successive. Gli adapter
 dei provider chiedono a `Tool` quali argomenti appartengono all'esecuzione e come
 normalizzarli. L'executor restituisce i metadati dell'esecuzione in un unico
 snapshot tipizzato, senza duplicare call ID e stato in campi indipendenti.

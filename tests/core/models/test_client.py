@@ -25,6 +25,48 @@ class StructuredAnswer(BaseModel):
     value: int
 
 
+@pytest.mark.parametrize("structured", [True, False])
+def test_call_validates_provider_request_before_changing_history(structured):
+    provider = MagicMock(spec=Provider)
+    client = Client(provider, SystemMessage("rules"))
+    client.tools = object()
+    before = client.get_history()
+    request = ClientRequest(UserMessage("input"))
+
+    with pytest.raises(TypeError, match="Tools must be a Tools instance"):
+        if structured:
+            client.call_structured(request, StructuredAnswer)
+        else:
+            client.call(request)
+
+    assert client.get_history() == before
+    provider.call.assert_not_called()
+    provider.call_structured.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        {"extra": []},
+        {"tool_choice": 42},
+        {"streaming": 1},
+        {"on_event": lambda event: None},
+    ],
+)
+def test_user_continuation_validates_options_before_changing_history(options):
+    provider = MagicMock(spec=Provider)
+    client = Client(provider, SystemMessage("rules"))
+    before = client.get_history()
+
+    with pytest.raises(TypeError):
+        client.continue_with_user_messages(
+            [UserMessage("first"), UserMessage("second")], **options
+        )
+
+    assert client.get_history() == before
+    provider.call.assert_not_called()
+
+
 def test_add_user_message_rejects_other_roles_without_changing_history() -> None:
     provider = MagicMock(spec=Provider)
     system = SystemMessage("rules")
@@ -33,6 +75,47 @@ def test_add_user_message_rejects_other_roles_without_changing_history() -> None
     with pytest.raises(TypeError, match="Expected a user message"):
         client.add_user_message(AssistantMessage("unexpected answer"))
 
+    assert client.get_history() == [system]
+    provider.call.assert_not_called()
+
+
+def test_continue_with_user_messages_preserves_order_and_request_options() -> None:
+    provider = MagicMock(spec=Provider)
+    response = ProviderResponse(AssistantMessage("updated"))
+    provider.call.return_value = response
+    client = Client(provider, SystemMessage("rules"))
+    client.add_user_message(UserMessage("initial"))
+    client.add_tool_response(ToolMessage("running", "origin", "work"))
+    handler = as_provider_handler(lambda event: None)
+    messages = [UserMessage("first correction"), UserMessage("second correction")]
+    result = client.continue_with_user_messages(
+        messages,
+        extra={"agentic": "scope"},
+        tool_choice="required",
+        streaming=True,
+        on_event=handler,
+    )
+    request = provider.call.call_args.args[0]
+    assert result is response
+    assert request.get_messages()[-2:] == messages
+    assert request.get_extra() == {"agentic": "scope"}
+    assert request.get_tool_choice() == "required"
+    assert request.get_streaming()
+    assert request.on_event is handler
+    assert client.get_history()[-1] is response
+
+
+@pytest.mark.parametrize(
+    "messages", [[], [AssistantMessage("invalid")], [UserMessage("valid"), None]]
+)
+def test_continue_with_user_messages_validates_before_mutating_history(
+    messages,
+) -> None:
+    provider = MagicMock(spec=Provider)
+    system = SystemMessage("rules")
+    client = Client(provider, system)
+    with pytest.raises(ValueError, match="non-empty sequence"):
+        client.continue_with_user_messages(messages)
     assert client.get_history() == [system]
     provider.call.assert_not_called()
 

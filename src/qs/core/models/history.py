@@ -3,9 +3,11 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
+from typing import cast
 
 from qs.core.models.assistant_message import AssistantMessage, ToolCall
 from qs.core.models.tool_message import ToolMessage
+from qs.core.models.user_message import ErrorUserMessage, UserMessage
 from qs.interfaces.message import Message
 
 logger = logging.getLogger(__name__)
@@ -46,12 +48,12 @@ class MessageHistory:
         current_role = current.get_role_name()
 
         if previous_role == "user":
-            return current_role == "assistant"
+            return current_role in {"assistant", "user"}
 
         if previous_role in {"tool", "function"}:
             # A single assistant turn may request multiple tools. Their responses
             # are consecutive messages before the next assistant continuation.
-            return current_role in {"assistant", "tool", "function"}
+            return current_role in {"assistant", "tool", "function", "user"}
 
         if previous_role == "assistant":
             return current_role in {"user", "tool", "function"}
@@ -165,6 +167,19 @@ class MessageHistory:
             previous_size,
             len(messages),
             len(self._history),
+        )
+
+    def compact_from(
+        self, start_index: int, messages: Sequence[HistoryMessage]
+    ) -> tuple[UserMessage, ...]:
+        """Replace a skill transcript and return external input for parent replay."""
+        previous = self._history
+        self.replace_from(start_index, messages)
+        return tuple(
+            cast(UserMessage, message.copy())
+            for message in previous[start_index:]
+            if isinstance(message, UserMessage)
+            and not isinstance(message, ErrorUserMessage)
         )
 
     def dump_history(self) -> list[dict[str, str]]:

@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from threading import Event, Lock, Thread
+from threading import Condition, Event, Lock, Thread
 from time import monotonic
 from typing import Any, Literal
 
@@ -160,7 +160,35 @@ class ToolExecutionManager:
 
     def __init__(self) -> None:
         self._lock = Lock()
+        self._state_changed = Condition(self._lock)
+        self._waits_released = False
+        self._wait_release_generation = 0
         self._executions: list[_Execution] = []
+
+    def release_waits(self) -> None:
+        """Release current and subsequent waits until steering is consumed."""
+        with self._state_changed:
+            self._waits_released = True
+            self._wait_release_generation += 1
+            self._state_changed.notify_all()
+
+    def resume_waits(self) -> None:
+        """Restore ordinary waits after pending steering has been consumed."""
+        with self._state_changed:
+            self._waits_released = False
+
+    def _wait_for_execution(self, execution: _Execution, wait_seconds: float) -> None:
+        with self._state_changed:
+            release_generation = self._wait_release_generation
+            # A resumed wait must still observe any release that woke it earlier.
+            self._state_changed.wait_for(
+                lambda: (
+                    execution.finished.is_set()
+                    or self._waits_released
+                    or release_generation != self._wait_release_generation
+                ),
+                timeout=wait_seconds,
+            )
 
     def start(
         self,
@@ -201,7 +229,7 @@ class ToolExecutionManager:
         except RuntimeError as error:
             self._fail_execution(execution, error)
         if options.mode == "wait":
-            execution.finished.wait(options.wait_seconds)
+            self._wait_for_execution(execution, options.wait_seconds)
         with self._lock:
             if execution.finished.is_set():
                 execution.delivered = True
@@ -214,12 +242,14 @@ class ToolExecutionManager:
             # SystemExit in a worker must also release waits and produce a terminal state.
             self._fail_execution(execution, error)
             return
-        with self._lock:
+        with self._state_changed:
             execution.complete(result)
+            self._state_changed.notify_all()
 
     def _fail_execution(self, execution: _Execution, error: BaseException) -> None:
-        with self._lock:
+        with self._state_changed:
             execution.fail(error)
+            self._state_changed.notify_all()
 
     def attach_output(
         self, call_id: str, output_id: str, record: ToolCallRecord | None
@@ -310,7 +340,7 @@ class ToolExecutionManager:
     def wait(self, call_id: str, wait_seconds: float) -> ExecutionSnapshot:
         wait_seconds = ExecutionOptions.validate_wait_seconds(wait_seconds)
         execution = self._by_call_id(call_id)
-        execution.finished.wait(wait_seconds)
+        self._wait_for_execution(execution, wait_seconds)
         with self._lock:
             return execution.snapshot()
 
@@ -328,9 +358,10 @@ class ToolExecutionManager:
                 raise TypeError("Cancellation callback must return a bool")
         except Exception as error:
             raise ValueError(f"Cancellation failed: {error}") from error
-        with self._lock:
+        with self._state_changed:
             if cancelled:
                 execution.cancel()
+                self._state_changed.notify_all()
             return True, cancelled, execution.snapshot()
 
     def _by_call_id(self, call_id: str) -> _Execution:

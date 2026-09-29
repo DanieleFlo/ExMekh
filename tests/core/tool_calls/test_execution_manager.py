@@ -1,5 +1,6 @@
+from concurrent.futures import Future
 from dataclasses import replace
-from threading import Event, Thread
+from threading import Condition, Event, Thread
 
 import pytest
 
@@ -7,6 +8,59 @@ from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.tool import ExecutionOptions, ToolExecutionOperation
 from qs.core.tool_calls import execution_manager
 from qs.core.tool_calls.execution_manager import ToolExecutionManager
+
+
+def test_resuming_waits_does_not_lose_an_already_released_wait(monkeypatch):
+    waiting = Event()
+    notified = Event()
+    inspect_notification = Event()
+    finish_work = Event()
+
+    class PausedCondition(Condition):
+        def wait(self, timeout=None):
+            waiting.set()
+            result = super().wait(timeout)
+            # Let the consuming run resume waits before this waiter checks its predicate.
+            self.release()
+            try:
+                notified.set()
+                assert inspect_notification.wait(3)
+            finally:
+                self.acquire()
+            return result
+
+    monkeypatch.setattr(execution_manager, "Condition", PausedCondition)
+    manager = ToolExecutionManager()
+    manager.start(
+        "call",
+        "work",
+        {},
+        ToolExecutionOperation(finish_work.wait),
+        ("root",),
+        ExecutionOptions(mode="background"),
+    )
+    result = Future()
+
+    def wait():
+        try:
+            result.set_result(manager.wait("call", 10))
+        except BaseException as error:
+            result.set_exception(error)
+
+    waiter = Thread(target=wait, daemon=True)
+    waiter.start()
+    try:
+        assert waiting.wait(3)
+        manager.release_waits()
+        assert notified.wait(3)
+        manager.resume_waits()
+        inspect_notification.set()
+        assert result.result(1).status == "running"
+    finally:
+        inspect_notification.set()
+        finish_work.set()
+        waiter.join(3)
+        assert not waiter.is_alive()
 
 
 def test_background_execution_can_be_waited_without_changing_its_call_id() -> None:

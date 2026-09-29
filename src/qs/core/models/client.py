@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
+from qs.config.runtime import RUNTIME
 from qs.core.models.assistant_message import ToolCall
 from qs.core.models.client_request import ClientRequest
 from qs.core.models.history import HistoryMessage, MessageHistory
@@ -17,6 +18,7 @@ from qs.core.models.structured_provider_response import StructuredProviderRespon
 from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.tools import Tools
+from qs.core.models.user_message import UserMessage
 from qs.interfaces.event_handler import ProviderEventHandler
 from qs.interfaces.provider import Provider
 from qs.interfaces.tokenizer import Tokenizer
@@ -75,6 +77,11 @@ class Client:
     ) -> None:
         self._history.replace_from(start_index, messages)
 
+    def compact_history_from(
+        self, start_index: int, messages: Sequence[HistoryMessage]
+    ) -> tuple[UserMessage, ...]:
+        return self._history.compact_from(start_index, messages)
+
     def add_tool_calls(self, calls: Sequence[ToolCall]) -> None:
         self._history.add_tool_calls(calls)
 
@@ -87,13 +94,15 @@ class Client:
         return self._history.record_tool_call(call, batch_call_id=batch_call_id)
 
     def call(self, request: ClientRequest) -> ProviderResponse:
-        provider_request = self._prepare_request(request)
+        return self._call_provider(self._prepare_request(request))
+
+    def _call_provider(self, request: ProviderRequest) -> ProviderResponse:
         logger.info(
             "Calling provider: messages=%d tool_choice=%s",
-            len(provider_request.get_messages()),
-            request.tool_choice,
+            len(request.get_messages()),
+            request.get_tool_choice(),
         )
-        response = self._provider.call(provider_request)
+        response = self._provider.call(request)
         self._history.add(response)
         logger.info(
             "Provider response recorded: tool_calls=%d history_size=%d",
@@ -119,19 +128,32 @@ class Client:
             stream=streaming,
             on_event=on_event,
         )
-        logger.info(
-            "Continuing after tools: messages=%d tool_choice=%s",
-            len(messages),
-            tool_choice,
+        return self._call_provider(provider_request)
+
+    def continue_with_user_messages(
+        self,
+        messages: Sequence[UserMessage],
+        *,
+        extra: Mapping[str, object] | None = None,
+        tool_choice: str | None = None,
+        streaming: bool = False,
+        on_event: ProviderEventHandler | None = None,
+    ) -> ProviderResponse:
+        """Append user input at a completed batch boundary and resume inference."""
+        if not messages or not all(
+            isinstance(message, UserMessage) for message in messages
+        ):
+            raise ValueError(RUNTIME.invalid_steering_messages)
+        provider_request = ProviderRequest(
+            messages=[*self._history.get_history(), *messages],
+            extra=extra,
+            tool_choice=tool_choice,
+            tools=self.tools,
+            stream=streaming,
+            on_event=on_event,
         )
-        response = self._provider.call(provider_request)
-        self._history.add(response)
-        logger.info(
-            "Continuation recorded: tool_calls=%d history_size=%d",
-            len(response.get_tool_calls() or ()),
-            len(self._history.get_history()),
-        )
-        return response
+        self._history.add(list(messages))
+        return self._call_provider(provider_request)
 
     def call_structured[ResponseModel: BaseModel](
         self,
@@ -200,17 +222,15 @@ class Client:
         if not isinstance(request, ClientRequest):
             raise TypeError("Expected a ClientRequest instance")
 
-        self._history.add(request.message)
-        messages = self._history.get_history()
-
         provider_request = ProviderRequest(
-            messages=messages,
+            messages=[*self._history.get_history(), request.message],
             extra=request.extra,
             tool_choice=request.tool_choice,
             tools=self.tools,
             stream=request.streaming,
             on_event=request.on_event,
         )
+        self._history.add(request.message)
         return provider_request
 
     def _prepare_structured_request[ResponseModel: BaseModel](
@@ -231,11 +251,8 @@ class Client:
                 f"got {response_model!r}"
             )
 
-        self._history.add(request.message)
-        messages = self._history.get_history()
-
         provider_request = StructuredProviderRequest(
-            messages,
+            [*self._history.get_history(), request.message],
             response_model,
             strict=strict,
             extra=request.extra,
@@ -244,6 +261,7 @@ class Client:
             stream=request.streaming,
             on_event=request.on_event,
         )
+        self._history.add(request.message)
         return provider_request
 
     def create_history_checkpoint(self) -> MessageHistory:

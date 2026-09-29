@@ -51,6 +51,10 @@ class DeepAgent:
     def run(self, user_message: NodeUserMessage) -> AgentResponse:
         return self._root_node.run(user_message)
 
+    def steer(self, user_message: NodeUserMessage) -> None:
+        """Queue guidance for the active root run without waiting for its response."""
+        self._root_node.steer(user_message)
+
     @classmethod
     def _initialize_node_tree(
         cls,
