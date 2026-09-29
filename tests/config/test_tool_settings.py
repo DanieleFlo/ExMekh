@@ -9,7 +9,7 @@ from qs.config.runtime import RUNTIME
 from qs.core.agents.tools.deep_tools import DeepTools
 from qs.core.reasoning_tools import formal_logic
 from qs.core.reasoning_tools import math as math_tools
-from qs.core.tool_calls import memory_tools
+from qs.core.tool_calls import execution_history
 from qs.core.web_navigation import crawler, search
 from qs.core.web_navigation.errors import WebNavigationError
 
@@ -105,9 +105,9 @@ def test_history_pagination_uses_configured_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        memory_tools, "RUNTIME", replace(RUNTIME, memory_max_page_limit=3)
+        execution_history, "RUNTIME", replace(RUNTIME, memory_max_page_limit=3)
     )
-    history = memory_tools.ExecutionHistory()
+    history = execution_history.ExecutionHistory()
     for index in range(5):
         history.record("tool", f"call-{index}")
 

@@ -6,7 +6,8 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
-from qs.capabilities.tools.bash.main import BashTool
+from qs.capabilities.tools.bash.tool import BashTool
+from qs.capabilities.tools.read_tool_output.output_reader import ToolOutputReader
 from qs.core.agents.capabilities.defaults import DefaultCapabilities
 from qs.core.agents.node.node import Node
 from qs.core.cache import SessionCache
@@ -14,7 +15,6 @@ from qs.core.models.assistant_message import AssistantMessage, FunctionCall, Too
 from qs.core.models.tool import ExecutionOptions, PreformattedToolResult, Tool
 from qs.core.models.tool_message import ToolMessage
 from qs.core.tool_calls.execution_manager import ToolExecutionManager
-from qs.core.tool_calls.output_reader import ToolOutputReader
 from qs.interfaces.tool_hook import (
     AfterTool,
     BeforeTool,

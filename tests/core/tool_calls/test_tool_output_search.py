@@ -12,8 +12,9 @@ from qs.core.models.tool import (
     Tool,
     ToolExecutionOperation,
 )
+from qs.core.tool_calls.execution_history import ExecutionHistory
 from qs.core.tool_calls.execution_manager import ToolExecutionManager
-from qs.core.tool_calls.memory_tools import ExecutionHistory, HarnessMemoryTools
+from qs.core.tool_calls.memory_tools import HarnessMemoryTools
 from qs.interfaces.tool_hook import AfterTool
 
 

@@ -7,8 +7,8 @@ from functools import partial
 from typing import Any, Final, Literal, cast
 from uuid import uuid4
 
-from qs.capabilities.tools.bash.main import BashTool
-from qs.capabilities.tools.control_tool_execution.main import ExecutionControlTool
+from qs.capabilities.tools.bash.tool import BashTool
+from qs.capabilities.tools.control_tool_execution.tool import ExecutionControlTool
 from qs.config.runtime import RUNTIME
 from qs.core.agents.deep_agent.agent_response import AgentResponse
 from qs.core.agents.deep_agent.stream_event import (
@@ -28,8 +28,9 @@ from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.provider_stream_event import ProviderStreamEvent
 from qs.core.models.tool import PreformattedToolResult
 from qs.core.models.user_message import ErrorUserMessage, UserMessage
+from qs.core.tool_calls.execution_history import ExecutionHistory
 from qs.core.tool_calls.execution_manager import ToolExecutionManager
-from qs.core.tool_calls.memory_tools import ExecutionHistory, HarnessMemoryTools
+from qs.core.tool_calls.memory_tools import HarnessMemoryTools
 from qs.interfaces.event_handler import ProviderEventHandler
 from qs.interfaces.message import Message
 from qs.utils.json import to_json_value

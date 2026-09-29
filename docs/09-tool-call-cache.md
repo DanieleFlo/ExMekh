@@ -32,8 +32,8 @@ blocco `with`.
 ```python
 from pathlib import Path
 
+from qs.capabilities.tools.search_tool_outputs.search import ToolCallSearch
 from qs.core.cache import SessionCache, ToolCallRecord
-from qs.core.tool_calls import ToolCallSearch
 
 with SessionCache(Path(".qs/examples")) as session:
     cache = session.node("analysis")

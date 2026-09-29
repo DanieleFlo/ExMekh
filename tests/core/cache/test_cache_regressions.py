@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
+from qs.capabilities.tools.search_tool_outputs.search import ToolCallSearch
 from qs.core.cache import SessionCache, SessionPool, ToolCallRecord
 from qs.core.cache.paths import cache_component
 from qs.core.cache.tool_call_store import ToolCallStore
@@ -12,7 +13,6 @@ from qs.core.tool_calls import (
     ToolCallData,
     ToolCallReader,
     ToolCallSaver,
-    ToolCallSearch,
 )
 from qs.utils.file import read_json_from_path, write_json_atomically
 

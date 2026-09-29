@@ -1,6 +1,6 @@
 import pytest
 
-from qs.capabilities.tools.control_tool_execution.main import ExecutionControlTool
+from qs.capabilities.tools.control_tool_execution.tool import ExecutionControlTool
 from qs.core.tool_calls.execution_manager import ToolExecutionManager
 
 

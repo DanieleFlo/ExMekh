@@ -8,7 +8,7 @@ from xml.etree import ElementTree as ET
 from qs.config.validation import VALIDATION_PATTERNS
 from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.tool_call_record import ToolCallRecord
-from qs.core.tool_calls.memory_tools import ExecutionHistory
+from qs.core.tool_calls.execution_history import ExecutionHistory
 from qs.core.tool_calls.output_view import ToolOutputView
 
 _PLACEHOLDER = re.compile(VALIDATION_PATTERNS.exit_item_placeholder)

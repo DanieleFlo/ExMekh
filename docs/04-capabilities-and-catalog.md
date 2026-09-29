@@ -21,7 +21,9 @@ capabilities/
 │   ├── shared-tool/
 │   │   └── main.py
 │   └── bash/
-│       └── main.py             # Runtime-bound harness tool
+│       ├── main.py             # Decorated entrypoint
+│       ├── tool.py             # Runtime tool wrapper
+│       └── process.py          # Bash process lifecycle
 └── exit-tool/
     └── finish/
         ├── main.py             # Entrypoint with @exit_tool function
@@ -33,10 +35,10 @@ The [`CapabilitiesLayout`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/agen
 Bundled runtime tools also live under `src/qs/capabilities/tools/<name>/main.py`:
 `bash`, `get_execution_history`, `search_tool_outputs`, `read_tool_output`,
 `control_tool_execution`, and `call_sub_agent`. They need node-local state, so
-`NodeRuntime` binds their decorated entrypoints to node-local methods after
-loading the ordinary `@deep_tool` resources. Search, history rendering, and
-output reading live with their tool implementations; core
-modules retain compatibility imports for existing callers. The ordinary tool
+the node runtime binds their decorated entrypoints to node-local operations
+after loading the ordinary `@deep_tool` resources. Search, history rendering,
+and output reading live with their tool implementations. Runtime wrappers and
+tool factories live in `tool.py` next to their decorated entrypoints. The ordinary tool
 loader excludes only these bundled runtime directories; application capability
 roots still load their own tools through `@deep_tool`.
 The bundled root is resolved relative to the `qs` package, like HDS, deep

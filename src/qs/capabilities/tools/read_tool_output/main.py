@@ -6,8 +6,8 @@ from collections.abc import Callable
 from pathlib import Path
 
 from qs.config.runtime import RUNTIME
-from qs.core.agents.tools.decorator import bind_deep_tool, deep_tool
-from qs.core.models.tool import PreformattedToolResult, Tool
+from qs.core.agents.tools.decorator import deep_tool
+from qs.core.models.tool import PreformattedToolResult
 
 
 @deep_tool(
@@ -28,10 +28,3 @@ def run(
 ) -> PreformattedToolResult:
     del work_root
     return read_output(output_id, cursor)
-
-
-def create_tool(
-    read_output: Callable[[str, int | None], PreformattedToolResult],
-    work_root: Path,
-) -> Tool:
-    return bind_deep_tool(run, work_root, read_output, cache_result=False)

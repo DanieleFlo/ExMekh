@@ -9,6 +9,7 @@ from xml.etree import ElementTree as ET
 import pytest
 from pydantic import BaseModel
 
+from qs.capabilities.tools.call_sub_agent.tool import SubAgentTool
 from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.deep_agent.deep_agent import DeepAgent
 from qs.core.agents.deep_agent.stream_event import (
@@ -25,7 +26,6 @@ from qs.core.agents.node.node_runtime import NodeRuntime
 from qs.core.agents.node.node_runtime_config import NodeRuntimeConfig
 from qs.core.agents.node.tool_call_executor import ToolCallExecutor
 from qs.core.agents.node.tool_call_resolver import ToolCallResolver
-from qs.core.agents.sub_agent import SubAgentTool
 from qs.core.cache.cache_manager import CacheManager
 from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.session_cache import SessionCache
@@ -49,8 +49,8 @@ from qs.core.models.tool_message import ToolMessage
 from qs.core.models.user_message import ErrorUserMessage, UserMessage
 from qs.core.models.xml_header import XmlHeader
 from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
+from qs.core.tool_calls.execution_history import ExecutionHistory
 from qs.core.tool_calls.execution_manager import ToolExecutionManager
-from qs.core.tool_calls.memory_tools import ExecutionHistory
 from qs.interfaces.provider import Provider
 from qs.interfaces.tokenizer import Tokenizer
 from tests.event_handler import as_agent_handler

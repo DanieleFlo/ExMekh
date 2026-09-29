@@ -4,6 +4,7 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
+from qs.capabilities.tools.read_tool_output.output_reader import ToolOutputReader
 from qs.core.cache import SessionCache
 from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.tool import (
@@ -12,7 +13,6 @@ from qs.core.models.tool import (
     ToolExecutionOperation,
 )
 from qs.core.tool_calls.execution_manager import ToolExecutionManager
-from qs.core.tool_calls.output_reader import ToolOutputReader
 from qs.utils.xml import stringify_tool_result
 
 

@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 import qs
+from qs.capabilities.tools.search_tool_outputs.search import ToolCallSearch
 from qs.core.agents.node import Node
 from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.tool_call_record import ToolCallRecord
@@ -19,7 +20,7 @@ from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.reasoning_effort import ReasoningEffortLMH
 from qs.core.models.tool_message import ToolMessage
 from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
-from qs.core.tool_calls import ToolCallReader, ToolCallSearch
+from qs.core.tool_calls import ToolCallReader
 from qs.providers.local import LocalProvider
 from qs.utils.file import read_json_from_path
 from tests.event_handler import as_agent_handler
