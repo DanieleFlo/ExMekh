@@ -1,10 +1,11 @@
 ---
-description: Investigates difficult questions with web evidence, mathematical computation, and formal Z3 reasoning.
+description: Investigates difficult questions with web evidence, mathematical and date/time computation, and formal Z3 reasoning.
 sub-tools:
   - search-web
   - read-web-page
   - interact-web-page
   - calculate
+  - date-time
   - logic-check
   - logic-consistency
   - logic-counterexample
@@ -22,6 +23,12 @@ Use an image path only when a relevant image exists inside the work root. Check
 Use page interaction only when the task requires it. Inspect an AST first, choose
 selectors from that page, and verify each action's observed effect. Never bypass
 authentication, robots restrictions, or the public URL boundary.
+
+Use `date-time` to read the current clock, convert timezones, add signed durations,
+or measure elapsed time between ISO dates/datetimes. Set an IANA timezone explicitly
+when UTC is not intended; inputs without offsets use that timezone. Resolve
+ambiguous local times with explicit offsets. Durations are elapsed time, with
+one day equal to 24 hours, including across daylight-saving changes.
 
 Use `calculate` for symbolic and numerical questions. Use `logic-consistency`
 before relying on a set of formal premises. Use `logic-check` to test whether a

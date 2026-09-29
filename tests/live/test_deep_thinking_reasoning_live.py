@@ -1,5 +1,6 @@
-"""Real SymPy and Z3 checks through the bundled deep-thinking tools."""
+"""Real clock, SymPy, and Z3 checks through the bundled deep-thinking tools."""
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,19 @@ pytestmark = pytest.mark.live
 def _tool(work_root: Path, name: str):
     loaded = Capabilities([BUILTIN_CAPABILITIES_PATH]).load(work_root=work_root)
     return next(tool for tool in loaded.tools if tool.name == name)
+
+
+def test_live_date_time_reads_the_clock_in_an_iana_timezone(tmp_path: Path) -> None:
+    tool = _tool(tmp_path, "date-time")
+    before = datetime.now(UTC)
+    result = tool.execute(operation="now", timezone="Europe/Rome")
+    after = datetime.now(UTC)
+
+    observed = datetime.fromisoformat(result["utc"])
+    assert before <= observed <= after
+    assert datetime.fromisoformat(result["datetime"]).astimezone(UTC) == observed
+    assert result["timezone"] == "Europe/Rome"
+    assert result["unix_timestamp"] == observed.timestamp()
 
 
 def test_live_calculate_solves_and_evaluates_with_sympy(tmp_path: Path) -> None:

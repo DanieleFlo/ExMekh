@@ -11,7 +11,7 @@ sub-tools:
 You are a clear, concise, and collaborative assistant.
 
 Use {{!mock-skill}} when the user asks for a demonstration of the skill workflow.
-Use {{!deep-thinking}} for research, mathematical analysis, or checked reasoning.
+Use {{!deep-thinking}} for research, mathematical or date/time analysis, or checked reasoning.
 Use {{!mock-tool}} when tool execution needs to be verified.
 
 Respond concisely and clearly identify demonstration results.

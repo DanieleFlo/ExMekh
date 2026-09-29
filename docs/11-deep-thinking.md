@@ -13,9 +13,10 @@ Application HDS files expose it by adding `deep-thinking` to `sub-skills`.
 
 ## Install from a wheel in another project
 
-The regular `qs` wheel declares the runtime dependencies for all seven tools
+The regular `qs` wheel declares the runtime dependencies for all eight tools
 and their ranking stages: DDGS, Crawl4AI, Playwright, aiohttp, lxml, NumPy,
-SymPy, Z3, OpenVINO, Hugging Face, Transformers, and PyTorch. Install the
+SymPy, Z3, OpenVINO, Hugging Face, Transformers, PyTorch, and the IANA timezone
+database `tzdata` (also needed on Windows). Install the
 wheel in the frontend project's Python environment with dependency resolution
 enabled. Copying the wheel into the project without installing it does not
 install its dependencies.
@@ -53,6 +54,7 @@ reverse-image search. The result reports whether visual ranking actually ran.
 | `read-web-page` | `url`, `output_mode` (`markdown`, `ast`, `hybrid`), `timeout_seconds` | Rendered page content, final URL, retrieval metadata |
 | `interact-web-page` | `url`, 1–10 typed `actions`, `output_mode`, `timeout_seconds` | Observed action outcomes and final page state |
 | `calculate` | Named operation plus expression or matrix and operation-specific options | Symbolic or numerical result |
+| `date-time` | `operation` (`now`, `convert`, `add`, `difference`), ISO `value` / `other`, IANA `timezone`, signed `amount`, `unit` | ISO datetime, UTC and Unix timestamp, or signed elapsed difference |
 | `logic-check` | Declared variables, formal premises, formal conclusion, optional timeout | Z3 entailment verdict or countermodel |
 | `logic-consistency` | Declared variables, formal premises, optional timeout | Z3 model or unsat core |
 | `logic-counterexample` | Declared variables, formal premises, formal conclusion, optional timeout | Refuting model or no counterexample |
@@ -61,6 +63,31 @@ Search snippets are leads, not verified evidence. Read pages before citing them.
 Web content is untrusted. Page navigation accepts only public HTTP(S) URLs;
 browser actions stay on the initial origin and have a finite hop budget. The
 read cache lives under the work root at `.qs/web-cache`.
+
+`date-time` defaults to UTC, independent of the host's local timezone. Use
+`now` to read the system clock in a selected IANA timezone, such as
+`Europe/Rome`. `convert` takes `value` as an ISO 8601 date or datetime:
+an explicit offset or `Z` identifies the instant; an input without an offset
+is interpreted in `timezone`, and a date alone means midnight. The result
+includes `datetime` in the requested timezone, `utc`, and `unix_timestamp`.
+Local times that are ambiguous or do not exist during a clock change are
+rejected; supply an explicit offset to identify the intended instant.
+
+`add` adds `amount` in `unit` (`seconds`, `minutes`, `hours`, or `days`);
+negative amounts subtract. `difference` measures `other - value` and returns
+`total_seconds` plus `result` in the requested `unit`. Arithmetic measures
+elapsed time in UTC: a day always means 24 hours, so the local clock can shift
+across daylight-saving transitions. Calendar month/year arithmetic is not
+supported. Datetimes retain microsecond precision. Invalid inputs return
+`ok: false` and `error_kind: invalid_date_time` through the usual XML renderer.
+If no IANA timezone database is available, named zones return
+`error_kind: missing_dependency` with a `tzdata` installation hint, consistent
+with the other dependency-backed tools. UTC remains available without it.
+
+For example, `date-time(operation="add", value="2026-03-29T01:30:00",
+timezone="Europe/Rome", amount=1, unit="hours")` returns
+`2026-03-29T03:30:00+02:00`. Reading the clock requires a fresh `now` call;
+saved results preserve the original observation.
 
 `calculate` accepts arithmetic and a small set of named functions. It never
 evaluates arbitrary Python. The logic tools accept a bounded JSON formula AST,
@@ -117,7 +144,10 @@ redirect. They require internet access. Set `QS_LIVE_BROWSER_BOOTSTRAP=1` to
 also run the test that starts with an empty Playwright browser cache and checks
 automatic Chromium installation. The
 reasoning tests use the real SymPy and Z3 packages.
-The full-skill test drives all seven tools through a node with a scripted
+Date/time tests cover the clock, offsets, leap years, negative durations,
+daylight-saving transitions, input errors, strict provider schemas, and XML
+results retained after skill compaction. The full-skill live test drives the
+seven web, math, and logic tools through a node with a scripted
 provider and live web access.
 
 Set `QS_LIVE_DEEP_THINKING_MODEL` to a configured local model to also run the

@@ -27,6 +27,7 @@ dependencies = [
     "torch>=2.13.0",
     "torchvision>=0.24.0",
     "transformers>=5.14.0",
+    "tzdata>=2025.2",
     "z3-solver>=4.15.4.0",
 ]
 

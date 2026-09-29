@@ -18,6 +18,7 @@ from qs.core.models.tool_message import ToolMessage
 from qs.core.models.xml_header import XmlHeader
 from qs.interfaces.provider import Provider
 from qs.interfaces.tokenizer import Tokenizer
+from tests.tool_result_support import parse_tool_result
 
 
 class _Tokenizer(Tokenizer):
@@ -122,6 +123,62 @@ def _tool_content(request: ProviderRequest, call_id: str) -> str:
 
 def _header(content: str) -> ET.Element:
     return ET.fromstring(content.split("</header>", 1)[0] + "</header>")
+
+
+def test_date_time_result_survives_skill_compaction_as_xml(tmp_path: Path) -> None:
+    responses = [
+        (AssistantMessage(None, tool_calls=[_call("deep-thinking", "open")]), None),
+        (
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _call(
+                        "date-time",
+                        "date-call",
+                        operation="difference",
+                        value="2026-03-29",
+                        other="2026-03-30",
+                        timezone="Europe/Rome",
+                        unit="hours",
+                    )
+                ],
+            ),
+            "Measure elapsed hours through the daylight-saving transition.",
+        ),
+        (
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _call(
+                        "exit_agent",
+                        "exit",
+                        text="Elapsed time checked.",
+                        items=["date-call"],
+                    )
+                ],
+            ),
+            None,
+        ),
+        (AssistantMessage("complete"), None),
+    ]
+    with SessionCache(tmp_path / "cache") as session:
+        provider = _Provider(session, responses)
+        node = Node([BUILTIN_CAPABILITIES_PATH], name_hds="main")
+        node.initialize(provider, work_root=tmp_path)
+
+        assert node.run("Measure elapsed time.").get_message() == "complete"
+
+        content = _tool_content(provider.requests[2], "date-call")
+        result = parse_tool_result(content)
+        assert isinstance(result, dict)
+        assert result["result"] == 23
+        assert result["total_seconds"] == 82_800
+        assert _header(content).findtext("type") == "Tool"
+        assert _header(content).findtext("name") == "date-time"
+        compacted = _tool_content(provider.requests[3], "open")
+        retained = ET.fromstring("<tool-output" + compacted.split("<tool-output", 1)[1])
+        assert retained.get("name") == "date-time"
+        assert parse_tool_result(retained.findtext("content", "")) == result
 
 
 def test_direct_tool_and_exit_receive_short_thinking(tmp_path: Path) -> None:

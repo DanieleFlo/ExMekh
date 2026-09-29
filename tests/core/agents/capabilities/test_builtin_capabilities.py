@@ -67,6 +67,7 @@ def test_loads_builtin_assistant_capabilities(tmp_path: Path) -> None:
     }
     assert {tool.name for tool in capabilities.tools} == {
         "calculate",
+        "date-time",
         "interact-web-page",
         "mock-sub-tool",
         "mock-tool",
@@ -117,9 +118,10 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
     assert descriptions == {
         "deep-thinking": (
             "Investigates difficult questions with web evidence, "
-            "mathematical computation, and formal Z3 reasoning."
+            "mathematical and date/time computation, and formal Z3 reasoning."
         ),
         "calculate": "Available in skill 'deep-thinking'.",
+        "date-time": "Available in skill 'deep-thinking'.",
         "interact-web-page": "Available in skill 'deep-thinking'.",
         "read-web-page": "Available in skill 'deep-thinking'.",
         "search-web": "Available in skill 'deep-thinking'.",

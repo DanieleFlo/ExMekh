@@ -33,6 +33,7 @@ from qs.interfaces.tokenizer import Tokenizer
 
 DEEP_THINKING_TOOLS = {
     "calculate",
+    "date-time",
     "interact-web-page",
     "read-web-page",
     "search-web",
@@ -356,7 +357,7 @@ def test_mock_preset_works_without_application_paths_and_deduplicates_builtin_pa
             "mock-skill",
             "nested-skill",
         }
-        assert len(loaded.tools) == 11
+        assert len(loaded.tools) == 12
 
 
 @pytest.mark.parametrize("paths", [None, []])
@@ -384,7 +385,7 @@ def test_direct_capabilities_loader_adds_bundled_path_once(tmp_path: Path) -> No
             work_root=tmp_path
         )
         assert {hds.name for hds in loaded.hds} == {"main", "mock-sub-agent"}
-        assert len(loaded.tools) == 11
+        assert len(loaded.tools) == 12
 
 
 def test_direct_capabilities_loader_uses_bundled_path_when_paths_are_none(
@@ -1033,7 +1034,7 @@ def test_missing_bundled_resource_is_reported(tmp_path: Path, monkeypatch) -> No
     node = Node(name_hds="main", default_capabilities=DefaultCapabilities())
     with pytest.raises(
         ValueError,
-        match="Selected default capabilities are missing: calculate, deep-thinking, exit_agent",
+        match="Selected default capabilities are missing: calculate, date-time, deep-thinking, exit_agent",
     ):
         node.load_capabilities(work_root=tmp_path)
 

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,5 +33,14 @@ class FormalLogicSettings:
     solver_resource_limit: int = 1_000_000
 
 
+@dataclass(frozen=True, slots=True)
+class DateTimeSettings:
+    """Explicit timezone and unit defaults for date/time operations."""
+
+    default_timezone: str = "UTC"
+    default_unit: Literal["seconds", "minutes", "hours", "days"] = "seconds"
+
+
 MATH = MathSettings()
 FORMAL_LOGIC = FormalLogicSettings()
+DATE_TIME = DateTimeSettings()
