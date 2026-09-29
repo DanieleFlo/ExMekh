@@ -10,7 +10,7 @@ from qs.core.tool_calls.execution_manager import ToolExecutionManager
 from qs.core.tool_calls.output_view import ToolOutputView
 from qs.utils.xml import append_text_element, render_xml
 
-from .search import ToolCallSearch
+from .tool_call_search import ToolCallSearch
 
 
 def render_search_results(

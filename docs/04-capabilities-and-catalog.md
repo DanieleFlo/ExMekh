@@ -22,8 +22,8 @@ capabilities/
 │   │   └── main.py
 │   └── bash/
 │       ├── main.py             # Decorated entrypoint
-│       ├── tool.py             # Runtime tool wrapper
-│       └── process.py          # Bash process lifecycle
+│       ├── bash_tool.py        # Runtime tool wrapper
+│       └── bash_process.py     # Bash process lifecycle
 └── exit-tool/
     └── finish/
         ├── main.py             # Entrypoint with @exit_tool function
@@ -37,8 +37,9 @@ Bundled runtime tools also live under `src/qs/capabilities/tools/<name>/main.py`
 `control_tool_execution`, and `call_sub_agent`. They need node-local state, so
 the node runtime binds their decorated entrypoints to node-local operations
 after loading the ordinary `@deep_tool` resources. Search, history rendering,
-and output reading live with their tool implementations. Runtime wrappers and
-tool factories live in `tool.py` next to their decorated entrypoints. The ordinary tool
+and output reading live with their tool implementations. Class-only modules
+use the class name in snake case (for example, `bash_tool.py`). Tool factories
+live in `tool.py` next to their decorated entrypoints. The ordinary tool
 loader excludes only these bundled runtime directories; application capability
 roots still load their own tools through `@deep_tool`.
 The bundled root is resolved relative to the `qs` package, like HDS, deep

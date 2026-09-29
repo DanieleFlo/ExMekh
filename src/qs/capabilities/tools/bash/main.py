@@ -8,7 +8,7 @@ from typing import Any
 from qs.config.runtime import RUNTIME
 from qs.core.agents.tools.decorator import deep_tool
 
-from .process import _BashProcess
+from .bash_process import _BashProcess
 
 
 @deep_tool(

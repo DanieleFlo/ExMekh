@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 import qs
-from qs.capabilities.tools.search_tool_outputs.search import ToolCallSearch
+from qs.capabilities.tools.search_tool_outputs.tool_call_search import ToolCallSearch
 from qs.core.agents.node import Node
 from qs.core.cache.node_cache import NodeCache
 from qs.core.cache.tool_call_record import ToolCallRecord

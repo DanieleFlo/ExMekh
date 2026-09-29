@@ -4,7 +4,7 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
-from qs.capabilities.tools.read_tool_output.output_reader import ToolOutputReader
+from qs.capabilities.tools.read_tool_output.tool_output_reader import ToolOutputReader
 from qs.core.cache import SessionCache
 from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.tool import (

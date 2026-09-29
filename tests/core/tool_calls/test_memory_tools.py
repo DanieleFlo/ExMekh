@@ -8,7 +8,7 @@ import pytest
 from qs.core.cache import SessionCache, ToolCallRecord
 from qs.core.models.tool import PreformattedToolResult
 from qs.core.tool_calls.execution_history import ExecutionHistory
-from qs.core.tool_calls.memory_tools import HarnessMemoryTools
+from qs.core.tool_calls.harness_memory_tools import HarnessMemoryTools
 
 
 def _content(result: PreformattedToolResult) -> str:

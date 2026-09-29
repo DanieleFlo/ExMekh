@@ -4,7 +4,7 @@ from xml.etree.ElementTree import fromstring
 
 import pytest
 
-from qs.capabilities.tools.call_sub_agent.tool import SubAgentTool
+from qs.capabilities.tools.call_sub_agent.sub_agent_tool import SubAgentTool
 from qs.core.agents.node import Node
 from qs.core.models.assistant_message import AssistantMessage
 from qs.core.models.provider_response import ProviderResponse

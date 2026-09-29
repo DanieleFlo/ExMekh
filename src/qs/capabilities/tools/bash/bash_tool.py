@@ -9,8 +9,8 @@ from qs.core.agents.tools.decorator import bind_deep_tool
 from qs.core.models.tool import Tool, ToolExecutionOperation
 from qs.interfaces.tool_hook import AfterTool, BeforeTool
 
+from .bash_process import _BashProcess
 from .main import run
-from .process import _BashProcess
 
 
 class BashTool(Tool):

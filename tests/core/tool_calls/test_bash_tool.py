@@ -6,8 +6,8 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
-from qs.capabilities.tools.bash.tool import BashTool
-from qs.capabilities.tools.read_tool_output.output_reader import ToolOutputReader
+from qs.capabilities.tools.bash.bash_tool import BashTool
+from qs.capabilities.tools.read_tool_output.tool_output_reader import ToolOutputReader
 from qs.core.agents.capabilities.defaults import DefaultCapabilities
 from qs.core.agents.node.node import Node
 from qs.core.cache import SessionCache

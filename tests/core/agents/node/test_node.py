@@ -9,7 +9,7 @@ from xml.etree import ElementTree as ET
 import pytest
 from pydantic import BaseModel
 
-from qs.capabilities.tools.call_sub_agent.tool import SubAgentTool
+from qs.capabilities.tools.call_sub_agent.sub_agent_tool import SubAgentTool
 from qs.core.agents.capabilities.data import CapabilitiesData
 from qs.core.agents.deep_agent.deep_agent import DeepAgent
 from qs.core.agents.deep_agent.stream_event import (

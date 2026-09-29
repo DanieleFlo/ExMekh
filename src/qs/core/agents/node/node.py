@@ -4,7 +4,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any, Final, Literal
 
-from qs.capabilities.tools.call_sub_agent.tool import SubAgentTool
+from qs.capabilities.tools.call_sub_agent.sub_agent_tool import SubAgentTool
 from qs.config.runtime import RUNTIME
 from qs.core.agents.capabilities.capabilities import Capabilities
 from qs.core.agents.capabilities.data import CapabilitiesData
