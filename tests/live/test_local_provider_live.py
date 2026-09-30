@@ -18,7 +18,7 @@ from qs.core.models.tool import Tool
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.tools import Tools
 from qs.core.models.user_message import UserMessage
-from qs.providers.local import LocalProvider
+from tests.live.model_support import LiveModelProvider
 
 pytestmark = pytest.mark.live
 
@@ -50,7 +50,9 @@ def build_live_client(system_prompt: str, tools: Tools | None = None) -> Client:
     load_dotenv()
     model = os.getenv("QS_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S")
     return Client(
-        provider=LocalProvider(model=model, reasoning_effort=ReasoningEffortLMH.LOW),
+        provider=LiveModelProvider(
+            model=model, reasoning_effort=ReasoningEffortLMH.LOW
+        ),
         system_message=SystemMessage(system_prompt),
         tools=tools,
     )
@@ -136,7 +138,7 @@ def test_live_two_tool_round_trips_keep_history_and_ids() -> None:
     tools = Tools([Tool(lookup_ticket)])
     client = build_live_client(
         "Use lookup_ticket whenever a ticket is requested. After a tool result, "
-        "report only values returned by that tool.",
+        "report only values returned by that tool. Keep replies to one short sentence.",
         tools=tools,
     )
 
@@ -151,6 +153,7 @@ def test_live_two_tool_round_trips_keep_history_and_ids() -> None:
         ToolMessage(
             lookup_ticket(call.function.arguments["ticket_id"]),
             tool_call_id=call.id,
+            name=call.get_name(),
         )
         for call in first_calls
     ]
@@ -177,6 +180,7 @@ def test_live_two_tool_round_trips_keep_history_and_ids() -> None:
         ToolMessage(
             lookup_ticket(call.function.arguments["ticket_id"]),
             tool_call_id=call.id,
+            name=call.get_name(),
         )
         for call in second_calls
     ]

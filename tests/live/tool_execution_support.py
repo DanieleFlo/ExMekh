@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 import os
 import subprocess
 import sys
@@ -15,8 +14,6 @@ from threading import Condition, Event, Lock, Timer
 from time import monotonic
 from uuid import uuid4
 from xml.etree import ElementTree as ET
-
-from openai import OpenAI
 
 from qs.config.cache import CACHE_FORMAT
 from qs.core.agents.capabilities.defaults import DefaultCapabilities
@@ -33,8 +30,8 @@ from qs.core.models.reasoning_effort import ReasoningEffortLMH
 from qs.core.models.tool import Tool, ToolExecutionOperation
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.xml_header import XmlHeader
-from qs.providers.local import LocalProvider
 from tests.event_handler import as_agent_handler
+from tests.live.model_support import LiveModelProvider
 from tests.live.test_tool_cache_live import CacheTestTokenizer
 from tests.tool_result_support import parse_tool_result
 
@@ -252,7 +249,7 @@ class UncancellableProcessTool(ProcessTool):
         return operation
 
 
-class RecordingExecutionProvider(LocalProvider):
+class RecordingExecutionProvider(LiveModelProvider):
     def __init__(self, directory: Path, *, streaming: bool = True):
         self.responses: list[ProviderResponse] = []
         self.requests: list[ProviderRequest] = []
@@ -263,22 +260,6 @@ class RecordingExecutionProvider(LocalProvider):
             api="responses",
             tokenizer=CacheTestTokenizer("live-tool-executions", directory),
         )
-
-    def _build_client(self) -> OpenAI:
-        configured_timeout = os.getenv("QS_LIVE_REQUEST_TIMEOUT_SECONDS")
-        if configured_timeout is None:
-            return super()._build_client().with_options(max_retries=0)
-        message = (
-            "QS_LIVE_REQUEST_TIMEOUT_SECONDS must be a finite number of seconds "
-            "greater than zero"
-        )
-        try:
-            timeout = float(configured_timeout)
-        except ValueError as error:
-            raise ValueError(message) from error
-        if not math.isfinite(timeout) or timeout <= 0:
-            raise ValueError(message)
-        return super()._build_client().with_options(timeout=timeout, max_retries=0)
 
     def call(self, request: ProviderRequest) -> ProviderResponse:
         assert len(self.responses) < 20, (
@@ -370,7 +351,8 @@ def write_capabilities(directory: Path, tool_names: list[str]) -> Path:
         "Follow the user's ordered test steps precisely. Use real returned IDs. "
         "Execution controls and output reads do not launch a new job. "
         "A running response is not completion. Never guess a receipt. "
-        "Inside a skill return with exit_agent(text=..., items=[])."
+        "Inside a skill return with exit_agent(text=..., items=[]). "
+        "Use only the required tool calls and a final sentence of at most ten words."
     )
     (hds / "main.md").write_text(
         "---\ndescription: Live execution test\nexit-tool: exit_agent\n"
@@ -473,11 +455,6 @@ class LiveExecutionRig:
             job.send("finish")
             status = self.node.control_tool_execution(job.call_id, wait_seconds=5)
             assert status["status"] != "running", "PROCESS: child did not complete"
-
-    def one_call(self, name: str) -> ToolCall:
-        calls = self.provider.calls(name)
-        assert len(calls) == 1, f"MODEL: expected one {name}, got {len(calls)}"
-        return calls[0]
 
     def saved_outputs(self) -> list[ToolCallRecord]:
         directory = (

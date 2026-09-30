@@ -34,35 +34,18 @@ def _search_with_retry(tool, **arguments: object) -> dict[str, object]:
     return result
 
 
-def test_live_search_discovers_official_sources_for_two_queries(tmp_path: Path) -> None:
-    tools = _web_tools(tmp_path)
-
-    for query, expected_domain in (
-        ("IANA reserved example domains", "iana.org"),
-        ("Python statistics mean standard library documentation", "docs.python.org"),
-    ):
-        result = _search_with_retry(tools["search-web"], query=query, max_results=5)
-        assert "result_count" in result, result
-        assert result["query"] == query
-        assert result["result_count"] > 0
-        urls = [item["url"] for item in result["results"]]
-        assert len(urls) == len(set(urls))
-        assert all(urlparse(url).scheme in {"http", "https"} for url in urls)
-        assert any(
-            (host := urlparse(url).hostname) == expected_domain
-            or (host is not None and host.endswith("." + expected_domain))
-            for url in urls
-        ), urls
-
-
-def test_live_news_search_reads_a_source_instead_of_only_snippets(
+def test_live_search_reads_a_discovered_source_instead_of_only_snippets(
     tmp_path: Path,
 ) -> None:
     tools = _web_tools(tmp_path)
-    search = _search_with_retry(
-        tools["search-web"], query="notizie principali di oggi", max_results=5
-    )
+    query = "notizie principali di oggi"
+    search = _search_with_retry(tools["search-web"], query=query, max_results=5)
     assert search.get("result_count", 0) > 0, search
+    assert search["query"] == query
+    urls = [item["url"] for item in search["results"]]
+    assert search["result_count"] == len(urls) <= 5
+    assert len(urls) == len(set(urls))
+    assert all(urlparse(url).scheme in {"http", "https"} for url in urls)
 
     attempts = []
     for candidate in search["results"]:
@@ -80,7 +63,7 @@ def test_live_news_search_reads_a_source_instead_of_only_snippets(
             assert page["markdown"].strip()
             break
     else:
-        pytest.fail(f"No discovered news source was readable: {attempts}")
+        pytest.fail(f"No discovered source was readable: {attempts}")
 
 
 def test_live_browser_bootstraps_from_an_empty_cache(

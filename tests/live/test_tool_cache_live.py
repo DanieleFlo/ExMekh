@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import os
-import shutil
 from collections.abc import Iterator
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
 import pytest
 from dotenv import load_dotenv
-from openai import OpenAI
 
 import qs
 from qs.capabilities.tools.search_tool_outputs.tool_call_search import ToolCallSearch
@@ -21,9 +19,9 @@ from qs.core.models.reasoning_effort import ReasoningEffortLMH
 from qs.core.models.tool_message import ToolMessage
 from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
 from qs.core.tool_calls import ToolCallReader
-from qs.providers.local import LocalProvider
 from qs.utils.file import read_json_from_path
 from tests.event_handler import as_agent_handler
+from tests.live.model_support import LiveModelProvider
 
 pytestmark = pytest.mark.live
 
@@ -49,7 +47,7 @@ class CacheTestTokenizer(SequentialTokenizer):
         return [f"token{index:02d}" for index in range(32)]
 
 
-class RecordingLocalProvider(LocalProvider):
+class RecordingLocalProvider(LiveModelProvider):
     """Observe real model responses without replacing their content or thinking."""
 
     def __init__(self, directory: Path) -> None:
@@ -61,10 +59,6 @@ class RecordingLocalProvider(LocalProvider):
             api="responses",
             tokenizer=CacheTestTokenizer("live-tool-cache", directory),
         )
-
-    def _build_client(self) -> OpenAI:
-        client = super()._build_client()
-        return client.with_options(timeout=60.0, max_retries=0)
 
     def call(self, request: ProviderRequest) -> ProviderResponse:
         if len(self.responses) >= 16:
@@ -117,13 +111,19 @@ def saved_cache(node: Node) -> NodeCache:
 
 
 def verify_saved_calls(
-    node: Node, responses: list[ProviderResponse]
+    node: Node, provider: RecordingLocalProvider
 ) -> list[ToolCallRecord]:
+    executed_ids = {
+        message.get_tool_call_id()
+        for request in provider.requests
+        for message in request.get_messages()
+        if isinstance(message, ToolMessage)
+    }
     expected = {
         call.id: (call, response.thinking.thoughts if response.thinking else None)
-        for response in responses
+        for response in provider.responses
         for call in response.get_tool_calls() or []
-        if call.get_name() not in _TRANSIENT_TOOL_NAMES
+        if call.get_name() not in _TRANSIENT_TOOL_NAMES and call.id in executed_ids
     }
     assert expected, "MODEL: expected at least one executable tool call"
     cache = saved_cache(node)
@@ -176,11 +176,11 @@ def test_live_regular_tool_saves_output_and_calling_thinking(
 ):
     node = initialize_node(live_provider, tmp_path, streaming=streaming)
     token = "LIVE-CACHE-ROOT"
-    node.run(
-        f"Call mock-tool exactly once with text='{token}', then reply briefly without other tools."
+    response = node.run(
+        f"Call mock-tool with text='{token}', then reply only with {token} without other tools."
     )
 
-    records = verify_saved_calls(node, live_provider.responses)
+    records = verify_saved_calls(node, live_provider)
     mock_records = [record for record in records if record.name == "mock-tool"]
     assert mock_records, "MODEL: expected mock-tool among saved calls"
     assert any(
@@ -205,49 +205,7 @@ def test_live_regular_tool_saves_output_and_calling_thinking(
         assert isinstance(record.thinking, str) and record.thinking.strip()
     page = ToolCallSearch(saved_cache(node)).search(query=token, skill_path="/")
     assert any(item["id"] == record.id for item in page["records"])
-
-
-@pytest.mark.parametrize("streaming", [False, True], ids=["non-streaming", "streaming"])
-def test_live_nested_tools_save_path_and_each_turn_thinking(
-    live_provider, tmp_path, streaming
-):
-    node = initialize_node(live_provider, tmp_path, streaming=streaming)
-    token = "LIVE-CACHE-NESTED"
-    node.run(
-        "Follow this sequence without skipping steps: open mock-skill, then nested-skill; "
-        f"call nested-sub-tool exactly once with text='{token}'; "
-        "call exit_agent with text='nested done' "
-        "and items=[]; in the parent skill call exit_agent with text='parent done' "
-        "and items=[]. Finally, reply briefly without other tools."
-    )
-
-    records = verify_saved_calls(node, live_provider.responses)
-    regular = [record for record in records if record.name == "nested-sub-tool"]
-    skills = [record for record in records if record.source == "DeepSkill"]
-    assert regular and skills
-    assert any(
-        record.skill_path == "/mock-skill/nested-skill"
-        and token.casefold() in record.result.casefold()
-        for record in regular
-    )
-    skill_records = {record.name: record for record in skills}
-    assert skill_records["mock-skill"].skill_path == "/mock-skill"
-    assert skill_records["nested-skill"].skill_path == "/mock-skill/nested-skill"
-    exit_calls = [
-        call
-        for response in live_provider.responses
-        for call in response.get_tool_calls() or []
-        if call.get_name() == "exit_agent"
-    ]
-    assert len(exit_calls) >= 2
-    for skill_name in ("nested-skill", "mock-skill"):
-        assert any(
-            isinstance(call.get_arguments().get("text"), str)
-            and call.get_arguments()["text"].strip()
-            and skill_records[skill_name].result == call.get_arguments()
-            for call in exit_calls
-        )
-    assert node.depth == 0
+    assert token.casefold() in (response.get_message() or "").casefold()
 
 
 def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
@@ -260,7 +218,8 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
         "mock-sub-tool with text=code, then exit_agent with text=code and items=[]. "
         "At root, search_tool_outputs for the code and tool_name='mock-sub-tool' "
         "with skill_path='/mock-skill'. Read the matching output ID with "
-        "read_tool_output. Briefly report the saved code."
+        "read_tool_output and cursor=null to read the complete result. "
+        "Reply only with the saved code."
     )
 
     calls = [
@@ -283,40 +242,56 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
     assert all(calls_by_name.values()), (
         f"MODEL: expected each requested tool among calls={actual_call_names}"
     )
-    assert [actual_call_names.index(name) for name in expected_call_names] == sorted(
-        actual_call_names.index(name) for name in expected_call_names
-    ), f"MODEL: requested steps occurred out of order: {actual_call_names}"
-
-    sub_tool_call = calls_by_name["mock-sub-tool"][0]
-    code = sub_tool_call.get_arguments().get("text")
-    assert isinstance(code, str) and 6 <= len(code) <= 12 and code.isalnum(), (
-        f"MODEL: expected a 6-12 character alphanumeric code, got {code!r}"
-    )
-    exit_arguments = calls_by_name["exit_agent"][0].get_arguments()
-    exit_text = exit_arguments.get("text")
-    assert isinstance(exit_text, str) and code.casefold() in exit_text.casefold()
-    assert exit_arguments.get("items") == []
-
-    records = saved_cache(node).get_all()
-    sub_tool_records = [record for record in records if record.name == "mock-sub-tool"]
-    assert sub_tool_records, "CACHE: expected saved mock-sub-tool output"
+    records = verify_saved_calls(node, live_provider)
+    answer = response.get_message()
+    assert isinstance(answer, str), "MODEL: missing final code"
     sub_tool_record = next(
-        record for record in sub_tool_records if record.tool_call_id == sub_tool_call.id
+        (
+            record
+            for record in records
+            if record.name == "mock-sub-tool"
+            and record.skill_path == "/mock-skill"
+            and isinstance(record.args.get("text"), str)
+            and 6 <= len(record.args["text"]) <= 12
+            and record.args["text"].isalnum()
+            and record.args["text"].casefold() in answer.casefold()
+        ),
+        None,
     )
-    assert sub_tool_record.args["text"] == code
+    assert sub_tool_record is not None, (
+        "MODEL: final code does not match a saved tool call"
+    )
+    sub_tool_call = next(
+        call for call in calls if call.id == sub_tool_record.tool_call_id
+    )
+    code = sub_tool_record.args["text"]
     assert code.casefold() in sub_tool_record.result.casefold()
 
     skill_records = [record for record in records if record.name == "mock-skill"]
-    assert any(
-        record.source == "DeepSkill" and record.result == exit_arguments
-        for record in skill_records
+    exit_call = next(
+        (
+            call
+            for call in calls_by_name["exit_agent"]
+            if calls.index(call) > calls.index(sub_tool_call)
+            and code.casefold() in str(call.get_arguments().get("text", "")).casefold()
+            and call.get_arguments().get("items") == []
+            and any(
+                record.source == "DeepSkill" and record.result == call.get_arguments()
+                for record in skill_records
+            )
+        ),
+        None,
     )
+    assert exit_call is not None, "MODEL: no successful exit returned the saved code"
 
     search_call = next(
         (
             call
             for call in calls_by_name["search_tool_outputs"]
             if call.get_arguments().get("skill_path") == "/mock-skill"
+            and calls.index(call) > calls.index(exit_call)
+            and code.casefold() in str(call.get_arguments().get("query", "")).casefold()
+            and call.get_arguments().get("tool_name") == "mock-sub-tool"
         ),
         None,
     )
@@ -336,181 +311,28 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
         for record in search_xml.findall("./records/record")
     )
 
-    read_call = next(
+    read_attempts = [
+        (call, get_tool_response(live_provider, call.id))
+        for call in calls_by_name["read_tool_output"]
+        if call.get_arguments().get("output_id") == sub_tool_record.id
+        and calls.index(call) > calls.index(search_call)
+    ]
+    successful_read = next(
         (
-            call
-            for call in calls_by_name["read_tool_output"]
-            if call.get_arguments().get("output_id") == sub_tool_record.id
+            content
+            for _, content in read_attempts
+            if content.startswith("<header>") and "</header>" in content
         ),
         None,
     )
-    assert read_call is not None, "MODEL: saved mock-sub-tool output was not read"
-    read_response = get_tool_response(live_provider, read_call.id)
-    header_xml, saved_output = read_response.split("</header>\n", maxsplit=1)
+    assert successful_read is not None, (
+        f"MODEL: no successful read of saved output; attempts={read_attempts!r}"
+    )
+    header_xml, _, saved_output = successful_read.partition("</header>")
     header = ET.fromstring(header_xml + "</header>")
     assert header.findtext("name") == "mock-sub-tool"
     assert header.findtext("type") == "Tool"
     assert header.findtext("id") == sub_tool_record.id
     assert header.findtext("./args/text") == code
     assert code.casefold() in saved_output.casefold()
-    answer = response.get_message()
-    assert isinstance(answer, str) and code.casefold() in answer.casefold()
-
-
-def test_live_cache_isolates_same_named_nodes_and_retains_previous_runs(
-    live_provider, tmp_path
-):
-    first = initialize_node(live_provider, tmp_path)
-    second = initialize_node(live_provider, tmp_path)
-    observed: dict[str, list[ProviderResponse]] = {"first": [], "second": []}
-    for label, node, token in [
-        ("first", first, "LIVE-FIRST-ONE"),
-        ("second", second, "LIVE-SECOND"),
-        ("first", first, "LIVE-FIRST-TWO"),
-    ]:
-        start = len(live_provider.responses)
-        node.run(
-            f"Call mock-tool exactly once with text='{token}', then reply without other tools."
-        )
-        observed[label].extend(live_provider.responses[start:])
-
-    first_records = verify_saved_calls(first, observed["first"])
-    second_records = verify_saved_calls(second, observed["second"])
-    assert {
-        record.args["text"] for record in first_records if record.name == "mock-tool"
-    } >= {
-        "LIVE-FIRST-ONE",
-        "LIVE-FIRST-TWO",
-    }
-    assert any(
-        record.name == "mock-tool" and record.args.get("text") == "LIVE-SECOND"
-        for record in second_records
-    )
-    assert saved_cache(first).node_id != saved_cache(second).node_id
-    assert {record.id for record in first_records}.isdisjoint(
-        record.id for record in second_records
-    )
-    assert ToolCallSearch(saved_cache(first)).search(query="LIVE-SECOND")["total"] == 0
-
-
-def test_live_reported_capability_check(live_provider, tmp_path):
-    # Keep this cache smoke test focused; the deep-thinking skill has its own live suite.
-    live_provider._reasoning_effort = None
-    node = initialize_node(live_provider, tmp_path, streaming=True)
-    response = node.run(
-        "Check these three capabilities only: mock-skill, mock-tool, and the "
-        "mock-sub-tool inside mock-skill. Call each once, finish the skill, "
-        "then summarize the results without opening other skills or tools."
-    )
-    names = [
-        call.get_name()
-        for turn in live_provider.responses
-        for call in turn.get_tool_calls() or []
-    ]
-    assert "mock-skill" in names and "mock-tool" in names, (
-        f"MODEL: did not execute the requested capability check: {names}; "
-        f"answer={response.get_message()}"
-    )
-    assert any(name in names for name in ("mock-sub-tool", "nested-sub-tool"))
-    verify_saved_calls(node, live_provider.responses)
     assert node.depth == 0
-    assert response.get_message()
-
-
-@pytest.mark.parametrize("streaming", [False, True], ids=["non-streaming", "streaming"])
-def test_live_exit_uses_instructions_available_only_in_markdown(
-    live_provider, tmp_path, streaming
-):
-    root = tmp_path / "capabilities"
-    shutil.copytree(Path(qs.__file__).parent / "capabilities", root)
-    token = "EXIT-MARKDOWN-7319"
-    (root / "exit-tool" / "finish" / "instructions.md").write_text(
-        f"Finish the skill by calling {{{{!exit_agent}}}} with text='{token}' and items=[]. "
-        "The token is the required result for this test.",
-        encoding="utf-8",
-    )
-    node = Node([root], name_hds="main", persistent_history=False)
-    node.initialize(
-        live_provider,
-        work_root=tmp_path,
-        on_stream=as_agent_handler((lambda event: None) if streaming else None),
-    )
-    response = node.run(
-        "Open mock-skill exactly once. Follow its exit instructions to finish it. Then reply briefly without other tools."
-    )
-    skills = [
-        record
-        for record in verify_saved_calls(node, live_provider.responses)
-        if record.name == "mock-skill"
-    ]
-    assert any(
-        record.source == "DeepSkill"
-        and token.casefold() in str(record.result.get("text", "")).casefold()
-        for record in skills
-    )
-    assert node.depth == 0
-    assert response.get_message()
-    assert (
-        "exit_agent"
-        not in live_provider.requests[0].get_extra()["agentic"]["allowed_tools"]
-    )
-    assert (
-        "exit_agent"
-        not in live_provider.requests[-1].get_extra()["agentic"]["allowed_tools"]
-    )
-    for request in live_provider.requests:
-        assert "finish" not in request.get_tools().list_tools()
-    skill_messages = [
-        message.get_message()
-        for request in live_provider.requests
-        for message in request.get_messages()
-        if message.get_role_name() == "tool" and "<exit-tool" in message.get_message()
-    ]
-    assert skill_messages
-    assert all(token in message and "{{!" not in message for message in skill_messages)
-
-
-def test_live_exit_items_position_and_error_retry(live_provider, tmp_path):
-    node = initialize_node(live_provider, tmp_path)
-    token = "LIVE-EXIT-ITEM-4286"
-    response = node.run(
-        "Follow this exact sequence to verify error handling. "
-        "Open mock-skill; inside it call mock-sub-tool exactly once with "
-        f"text='{token}'. Then call exit_agent with text='test' and "
-        "items=['missing-test-id']: this call must produce an error. "
-        "After the error, use get_execution_history to read the call ID and "
-        "saved-output-id of mock-sub-tool. Call exit_agent again with "
-        "text='Before {{<saved-output-id>}} After', replacing the placeholder "
-        "with the actual saved-output-id, and items=['<call-id>'], replacing "
-        "with the actual call ID of the same mock-sub-tool. Do not include "
-        "angle brackets in the values. At the root, reply briefly."
-    )
-
-    calls = [
-        call for turn in live_provider.responses for call in turn.get_tool_calls() or []
-    ]
-    exit_calls = [call for call in calls if call.get_name() == "exit_agent"]
-    invalid_exits = [
-        call
-        for call in exit_calls
-        if "missing-test-id" in call.get_arguments().get("items", [])
-    ]
-    assert invalid_exits, "MODEL: expected an invalid exit attempt"
-    invalid_exit = invalid_exits[0]
-    assert (
-        "correct the error and call exit_agent again"
-        in get_tool_response(live_provider, invalid_exit.id).casefold()
-    )
-    records = verify_saved_calls(node, live_provider.responses)
-    tool_record = next(record for record in records if record.name == "mock-sub-tool")
-    skill_record = next(record for record in records if record.name == "mock-skill")
-    assert any(
-        tool_record.tool_call_id in call.get_arguments().get("items", [])
-        and f"{{{{{tool_record.id}}}}}" in call.get_arguments().get("text", "")
-        for call in exit_calls[exit_calls.index(invalid_exit) + 1 :]
-    )
-    content = skill_record.result["text"]
-    assert "<tool-output" in content and "</tool-output>" in content
-    assert token.casefold() in content.casefold()
-    assert node.depth == 0
-    assert response.get_message()

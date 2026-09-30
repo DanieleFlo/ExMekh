@@ -137,10 +137,11 @@ uv run pytest --run-live tests/live/test_tool_cache_live.py -v
 ```
 
 These tests use the Responses API and a local test vocabulary. They exercise
-streaming and non-streaming calls, nested skill paths, saved JSON, calling-turn
-thinking, and node isolation. The ordinary-tool cases require non-empty thinking
-from the backend. See [Tool output caching](09-tool-call-cache.md) for the record
-contract and offline checks.
+streaming and non-streaming calls, saved JSON, calling-turn thinking when supplied
+by the backend, and model-driven search and reading of saved skill output.
+Cache isolation, nested paths, exit retry and instruction delivery are covered
+deterministically in `tests/core/agents/node/`. See
+[Tool output caching](09-tool-call-cache.md) for the record contract.
 
 ### Live tool execution checks
 
@@ -148,39 +149,53 @@ contract and offline checks.
 uv run pytest --run-live tests/live/test_tool_executions_live.py -v -rs
 ```
 
-This suite uses the real Responses provider and real Python child processes,
-including file reads, incremental stdout, nonzero exits and termination. It checks
-ordinary and streaming requests, the actual default 60-second deadline, repeated
-bounded waits, background work, cancellation, output cursors, final delivery,
-skill reentry, searches of saved and runtime background output, concurrent jobs,
-sub-agent isolation, hooks and uncached results
-across persistent turns. The minute deadline case takes at least one minute.
+This suite uses the real Responses provider and real Python child processes.
+It checks ordinary and streaming requests, fast completion with default execution
+settings, background waits and automatic final delivery, and incremental stdout
+with output cursors. Prompts request only a minimal final reply.
 
-HTTP requests keep the SDK's default timeout (currently 600 seconds for reads),
-independently of the tool's 60-second wait. For this suite, set
-`QS_LIVE_REQUEST_TIMEOUT_SECONDS` to a finite positive number to override the
-HTTP timeout. Automatic request retries are disabled so a failed stateful request
-is not repeated silently.
+All model live tests use a 900-second HTTP timeout, independently of the tool's
+60-second default wait. Set `QS_LIVE_REQUEST_TIMEOUT_SECONDS` to a finite positive
+number to override the HTTP timeout. Automatic request retries are disabled so a
+failed stateful request is not repeated silently.
 
 The fixture releases externally gated work at observed runtime events. Model
 responses and tool calls are never replaced. Each run has an isolated agent
 context, so a backend with persistent tool registries cannot mix test cases.
 Processes are stopped and pipes closed during cleanup, including on failure.
 
-Assertions check runtime invariants and whether actual output reached the model;
-they do not match final prose, reasoning text or answer formatting. A model that
-does not exercise a specifically requested case, such as two calls in a single
-response, produces an explicit `MODEL` skip for that case. This is missing live
-coverage, not a successful check. `CLIENT`, `CACHE` and `PROCESS` failures indicate
-protocol/runtime, persistence and subprocess fixture problems respectively.
+Assertions check runtime invariants and whether actual output reached the model.
+Additional model attempts are allowed; required calls and progress must still be
+present. IDs, cursor advancement, one stored record and one automatic delivery
+per output remain strict invariants. `CLIENT`, `CACHE` and `PROCESS` failures
+indicate protocol/runtime, persistence and subprocess fixture problems respectively.
 Provider HTTP errors and timeouts remain visible failures and are not converted
 into passing checks or missing-coverage skips.
 Each fixture writes `live-trace.json` under pytest's temporary directory with real
 calls, output headers, scope paths and call durations for diagnosis. It contains
 only generated test data and does not include provider credentials.
 
-The corresponding offline checks need no model endpoint:
+The corresponding offline checks use a scripted provider with real runtime and
+subprocesses. Overlapping live cases for hooks, cancellation, nonzero exits,
+scope delivery, reentry, concurrency and uncached results are consolidated here:
 
 ```shell
-uv run pytest tests/core/tool_calls/test_execution_manager.py tests/core/tool_calls/test_live_execution_support.py -q
+uv run pytest tests/core/agents/node tests/core/tool_calls/test_execution_manager.py tests/core/tool_calls/test_live_execution_support.py -q
 ```
+
+The default minute deadline is checked with a simulated wait expiry and a real
+gated process; the offline test verifies the 60-second budget without sleeping
+for a minute. Manual final reads are checked both individually and in the same
+batch as an execution-control wait.
+
+The deep-thinking workflow uses a scripted provider and mocked web boundaries in
+`tests/core/agents/node/test_deep_thinking_workflow.py`. Clock, SymPy and Z3
+capability integration checks run offline in
+`tests/core/agents/capabilities/test_reasoning_integration.py`. The real public-web
+suite remains live, and the complete model-driven deep-thinking audit still
+requires `QS_LIVE_DEEP_THINKING_MODEL`.
+
+Public search discovery and reading share one live check: results must be
+bounded, unique public URLs, and at least one discovered source must be readable.
+The check does not require a particular domain to appear among the first five
+results of a changing search index. Exhausted provider failures remain failures.

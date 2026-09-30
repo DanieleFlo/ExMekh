@@ -3,12 +3,8 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
-import pytest
-
 from qs.core.agents.capabilities.capabilities import Capabilities
 from qs.core.agents.capabilities.defaults import BUILTIN_CAPABILITIES_PATH
-
-pytestmark = pytest.mark.live
 
 
 def _tool(work_root: Path, name: str):
@@ -16,7 +12,7 @@ def _tool(work_root: Path, name: str):
     return next(tool for tool in loaded.tools if tool.name == name)
 
 
-def test_live_date_time_reads_the_clock_in_an_iana_timezone(tmp_path: Path) -> None:
+def test_date_time_reads_the_clock_in_an_iana_timezone(tmp_path: Path) -> None:
     tool = _tool(tmp_path, "date-time")
     before = datetime.now(UTC)
     result = tool.execute(operation="now", timezone="Europe/Rome")
@@ -29,7 +25,7 @@ def test_live_date_time_reads_the_clock_in_an_iana_timezone(tmp_path: Path) -> N
     assert result["unix_timestamp"] == observed.timestamp()
 
 
-def test_live_calculate_solves_and_evaluates_with_sympy(tmp_path: Path) -> None:
+def test_calculate_solves_and_evaluates_with_sympy(tmp_path: Path) -> None:
     calculate = _tool(tmp_path, "calculate")
 
     roots = calculate.execute(operation="solve", expression="x**2 - 5*x + 6 = 0")
@@ -49,7 +45,7 @@ def test_live_calculate_solves_and_evaluates_with_sympy(tmp_path: Path) -> None:
     assert str(numeric["result"]).startswith("1.4142135623730950488")
 
 
-def test_live_logic_check_proves_modus_ponens(tmp_path: Path) -> None:
+def test_logic_check_proves_modus_ponens(tmp_path: Path) -> None:
     p, q = {"var": "P"}, {"var": "Q"}
     result = _tool(tmp_path, "logic-check").execute(
         variables={"P": "Bool", "Q": "Bool"},
@@ -61,7 +57,7 @@ def test_live_logic_check_proves_modus_ponens(tmp_path: Path) -> None:
     assert result["entailed"] is True
 
 
-def test_live_logic_consistency_reports_an_unsat_core(tmp_path: Path) -> None:
+def test_logic_consistency_reports_an_unsat_core(tmp_path: Path) -> None:
     x = {"var": "x"}
     premises = [
         {"op": ">", "left": x, "right": {"const": 10}},
@@ -74,7 +70,7 @@ def test_live_logic_consistency_reports_an_unsat_core(tmp_path: Path) -> None:
     assert result["unsat_core"] == premises
 
 
-def test_live_logic_counterexample_refutes_affirming_the_consequent(
+def test_logic_counterexample_refutes_affirming_the_consequent(
     tmp_path: Path,
 ) -> None:
     p, q = {"var": "P"}, {"var": "Q"}

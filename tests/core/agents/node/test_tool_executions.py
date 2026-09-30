@@ -22,6 +22,7 @@ from tests.core.agents.node.test_node import (
     _function_call,
     _write_nested_capabilities,
 )
+from tests.live.tool_execution_support import ProcessFixture, ProcessTool
 from tests.tool_result_support import parse_tool_result
 
 
@@ -317,14 +318,32 @@ def test_result_waits_for_original_parent_skill_after_nested_return(
     assert response.skill_executions[0].children[0].skill.name == "nested-skill"
 
 
-def test_manual_final_read_suppresses_automatic_delivery(make_node) -> None:
+@pytest.mark.parametrize(
+    "read_after_wait", [False, True], ids=["single-read", "wait-read-batch"]
+)
+def test_manual_final_read_suppresses_automatic_delivery(
+    make_node, read_after_wait
+) -> None:
     release = Event()
+    manual_read = _function_call(
+        "read_tool_output", {"output_id": "output-1"}, call_id="manual-read"
+    )
+    calls = [manual_read]
+    if read_after_wait:
+        calls.insert(
+            0,
+            _function_call(
+                "control_tool_execution",
+                {"tool_call_id": "origin", "wait_seconds": 0.01},
+                call_id="wait",
+            ),
+        )
     provider = SequenceProvider(
         [
             tool_message(
                 "mock-tool", {"text": "work", "execution_mode": "background"}, "origin"
             ),
-            tool_message("read_tool_output", {"output_id": "output-1"}, "manual-read"),
+            AssistantMessage(None, tool_calls=calls),
             AssistantMessage("done"),
         ]
     )
@@ -643,6 +662,87 @@ def test_hooked_custom_execution_filters_final_output_once_and_hides_raw_progres
     assert final.endswith("filtered")
     assert "raw-final" not in final
     assert calls == [("before", {"text": "work"}), ("after", "raw-final")]
+
+
+def test_real_process_hooks_filter_progress_and_final_delivery_once(
+    make_node, tmp_path: Path
+) -> None:
+    fixture = ProcessFixture(tmp_path)
+    contexts = []
+    results = []
+
+    class NormalizeLabel(BeforeTool):
+        def handle(self, context: ToolContext):
+            contexts.append(context)
+            return ToolArguments({"label": context.arguments["label"].lower()})
+
+    class FilterResult(AfterTool):
+        def handle(self, context: ToolContext, result):
+            results.append(result)
+            return {key: value for key, value in result.items() if key != "raw"}
+
+    provider = SequenceProvider(
+        [
+            tool_message(
+                "mock-tool",
+                {"label": "HOOKS", "execution_mode": "background"},
+                "origin",
+            ),
+            tool_message("read_tool_output", {"output_id": "output-1"}, "progress"),
+            tool_message(
+                "control_tool_execution",
+                {"tool_call_id": "origin", "wait_seconds": 2},
+                "wait",
+            ),
+            AssistantMessage("done"),
+        ]
+    )
+    node = make_node(
+        provider,
+        ProcessTool(
+            fixture, name="mock-tool", before=NormalizeLabel(), after=FilterResult()
+        ),
+    )
+    original_call = provider.call
+
+    def call(request):
+        if len(provider.requests) == 1:
+            fixture.job("origin")
+        elif len(provider.requests) == 2:
+            fixture.job("origin").send("finish")
+        return original_call(request)
+
+    provider.call = call
+    try:
+        assert node.run("Process the file.").get_message() == "done"
+        assert len(contexts) == len(results) == 1
+        assert contexts[0].arguments == {"label": "HOOKS"}
+        assert results[0]["label"] == "hooks"
+        messages = [
+            message
+            for request in provider.requests
+            for message in request.get_messages()
+        ]
+        assert all(
+            fixture.raw not in (message.get_message() or "") for message in messages
+        )
+        progress = next(
+            message
+            for message in messages
+            if isinstance(message, ToolMessage)
+            and message.get_tool_call_id() == "progress"
+        )
+        assert "<response-type>running</response-type>" in progress.get_message()
+        reads = read_calls(provider.requests[-1].get_messages())
+        assert len(reads) == 2
+        assert reads[0].id == "progress" and reads[1].id != "progress"
+        record = node._runtime._tool_cache.get("output-1")
+        assert "raw" not in record.result
+        assert record.result["receipt"] == fixture.job("origin").receipt["receipt"]
+        assert record.result["sha256"] == fixture.sha256
+        assert fixture.job("origin").process.poll() == 0
+    finally:
+        fixture.close()
 
 
 def test_incremental_reads_keep_full_read_and_final_result_available(make_node) -> None:
