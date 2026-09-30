@@ -192,6 +192,8 @@ def test_called_tool_rejects_invalid_types() -> None:
         CalledTool(cast(Tool, object()), tool_call)
     with pytest.raises(TypeError, match="tool_call must be a ToolCall"):
         CalledTool.from_tool_call(tool, cast(ToolCall, object()))
+    with pytest.raises(TypeError, match="tool_call must be a ToolCall"):
+        CalledTool(tool, cast(ToolCall, object()))
 
 
 def test_called_tool_factory_returns_valid_wrapper() -> None:

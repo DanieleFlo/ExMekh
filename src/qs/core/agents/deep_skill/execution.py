@@ -7,6 +7,7 @@ from typing import Any
 
 from qs.core.agents.deep_skill.deep_skill import DeepSkill
 from qs.core.models.tool_message import ToolMessage
+from qs.core.models.tool_output_reference import ToolOutputReference
 from qs.interfaces.message import Message
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,31 @@ class DeepSkillExecution:
     history: list[Message[object]] = field(default_factory=list)
     children: list[DeepSkillExecution] = field(default_factory=list)
     preceding_tool_responses: tuple[ToolMessage, ...] = ()
+    _used_tools: list[ToolOutputReference] = field(
+        default_factory=list, init=False, repr=False
+    )
+
+    @property
+    def name(self) -> str:
+        return self.skill.name
+
+    @property
+    def scope_id(self) -> str:
+        return f"{self.opening_tool_call_id}:{self.opening_history_position}"
+
+    @property
+    def used_tools(self) -> tuple[ToolOutputReference, ...]:
+        return tuple(self._used_tools)
+
+    def record_tool_output(self, reference: ToolOutputReference) -> None:
+        if self.output is not None:
+            raise RuntimeError("Cannot record a tool output in a closed deep skill")
+        self._used_tools.append(reference)
+
+    def add_child(self, execution: DeepSkillExecution) -> None:
+        if self.output is not None:
+            raise RuntimeError("Cannot add a child to a closed deep skill")
+        self.children.append(execution)
 
     @classmethod
     def open(
@@ -69,7 +95,7 @@ class DeepSkillExecution:
         if self.output is None and current_history is not None:
             history = current_history[self.start_index :]
         return {
-            "skill": self.skill.name,
+            "skill": self.name,
             "output": self.output,
             "history": [message.message_dump() for message in history],
             "children": [
@@ -97,7 +123,7 @@ class DeepSkillExecutionTracker:
 
     def is_current_skill(self, name: str) -> bool:
         """Report the innermost active skill without exposing the stack."""
-        return bool(self._active and self._active[-1].skill.name == name)
+        return bool(self._active and self._active[-1].name == name)
 
     @property
     def active_path(self) -> str:
@@ -105,19 +131,22 @@ class DeepSkillExecutionTracker:
 
     @property
     def active_scope_ids(self) -> tuple[str, ...]:
-        return tuple(
-            f"{execution.opening_tool_call_id}:{execution.opening_history_position}"
-            for execution in self._active
-        )
+        return tuple(execution.scope_id for execution in self._active)
 
     def history_tree(
         self,
         current_history: list[Message[object]] | None = None,
-    ) -> list[dict[str, str]]:
+    ) -> list[dict[str, Any]]:
         return [execution.history_tree(current_history) for execution in self._roots]
 
     def get_current_start_index(self) -> int:
         return self.current.start_index
+
+    def record_tool_output(self, name: str, output_id: str) -> None:
+        """Keep output references after descendant histories are compacted."""
+        reference = ToolOutputReference(name, output_id)
+        for execution in self._active:
+            execution.record_tool_output(reference)
 
     @property
     def current(self) -> DeepSkillExecution:
@@ -145,8 +174,8 @@ class DeepSkillExecutionTracker:
             opening_history_position,
         )
         if self._active:
-            self._active[-1].children.append(execution)
-            parent_name = self._active[-1].skill.name
+            self._active[-1].add_child(execution)
+            parent_name = self._active[-1].name
         else:
             self._roots.append(execution)
             parent_name = None
@@ -170,11 +199,12 @@ class DeepSkillExecutionTracker:
         if not self._active:
             raise RuntimeError("Cannot close a deep skill when none is active")
 
-        execution = self._active.pop()
+        execution = self.current
         execution.close(end_index=end_index, output=output, history=history)
+        self._active.pop()
         logger.debug(
             "Tracked deep skill closure: name=%s remaining_active=%d messages=%d",
-            execution.skill.name,
+            execution.name,
             len(self._active),
             len(history),
         )

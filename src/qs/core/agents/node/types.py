@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from qs.core.models.tool_message import ToolMessage
+from qs.core.models.tool_output_reference import ToolOutputReference
 from qs.core.models.user_message import (
     FilesUserMessage,
     ImagesUserMessage,
@@ -34,6 +35,7 @@ class ToolExecutionResult:
     replace_history_from: int | None = None
     preserved_responses: tuple[ToolMessage, ...] = ()
     execution: ExecutionSnapshot | None = None
+    used_tools: tuple[ToolOutputReference, ...] | None = None
 
 
 @dataclass(frozen=True, slots=True)

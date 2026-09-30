@@ -275,3 +275,38 @@ def test_positive_depth_root_scope_accepts_nested_path(tmp_path: Path) -> None:
         )
 
         assert "nested output" in output
+
+
+@pytest.mark.parametrize("result", ["first\r\nsecond\rthird", "a\x00b", "a\ud800b"])
+def test_embedded_outputs_preserve_xml_unsafe_metadata_and_content(tmp_path, result):
+    name = "work\x00"
+    output_id = "out\x01"
+    with SessionCache(tmp_path) as session:
+        cache = session.node("main")
+        history = ExecutionHistory()
+        _save(
+            history,
+            cache,
+            name=name,
+            call_id="call",
+            output_id=output_id,
+            result=result,
+            skill_path="/parent",
+        )
+
+        output = ExitItemResolver(history, lambda: cache).compose(
+            "done", [output_id], "/parent", 0
+        )
+
+    root = ET.fromstring(output.split("\n\n", 1)[1])
+    for attribute, expected in (("name", name), ("id", output_id)):
+        assert root.get(f"{attribute}-encoding") == "base64"
+        assert (
+            base64.b64decode(root.get(attribute)).decode("utf-8", "surrogatepass")
+            == expected
+        )
+    content = root.find("content")
+    actual = content.text
+    if content.get("encoding") == "base64":
+        actual = base64.b64decode(actual).decode("utf-8", "surrogatepass")
+    assert actual == result

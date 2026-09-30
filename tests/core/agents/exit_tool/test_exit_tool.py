@@ -175,6 +175,16 @@ def test_called_exit_tool_validates_types_and_exposes_call_id(tmp_path: Path) ->
         CalledExitTool(tool, cast(ToolCall, object()))
 
 
+def test_called_exit_tool_rejects_a_call_for_another_tool(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="does not match exit tool name 'exit_agent'"):
+        CalledExitTool(
+            _exit_tool(tmp_path),
+            ToolCall(
+                "call", FunctionCall("another-tool", {"text": "done", "items": []})
+            ),
+        )
+
+
 @pytest.mark.parametrize(
     ("path", "instructions", "error", "message"),
     [

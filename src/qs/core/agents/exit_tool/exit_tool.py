@@ -77,10 +77,18 @@ class CalledExitTool:
 
         self._exit_tool = exit_tool
         self._tool_call = tool_call
+        self._validate_matching()
+
+    def _validate_matching(self) -> None:
+        call_name = self._tool_call.get_name()
+        if call_name != self.name:
+            raise ValueError(
+                f"Tool call name '{call_name}' does not match exit tool name '{self.name}'"
+            )
 
     @property
     def name(self) -> str:
-        return self._exit_tool.name
+        return self._exit_tool.get_name()
 
     @property
     def call_id(self) -> str:

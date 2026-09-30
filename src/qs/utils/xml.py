@@ -38,7 +38,19 @@ def append_text_element(
     attributes: dict[str, str] | None = None,
 ) -> ET.Element:
     """Append XML text, encoding characters that XML cannot represent."""
-    element = ET.SubElement(parent, name)
+    element = create_text_element(name, text, attributes=attributes)
+    parent.append(element)
+    return element
+
+
+def create_text_element(
+    name: str,
+    text: str,
+    *,
+    attributes: dict[str, str] | None = None,
+) -> ET.Element:
+    """Create XML text with the same encoding rules for root and child elements."""
+    element = ET.Element(name)
     _set_text(element, text)
     for key, value in (attributes or {}).items():
         if _INVALID_XML_CHARACTER.search(value):

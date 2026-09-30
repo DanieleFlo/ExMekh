@@ -6,7 +6,12 @@ from typing import Any
 from qs.config.runtime import RUNTIME
 from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.xml_header import XmlHeader
-from qs.utils.xml import stringify_tool_result
+from qs.utils.xml import (
+    append_text_element,
+    create_text_element,
+    render_xml,
+    stringify_tool_result,
+)
 
 
 class ToolOutputView:
@@ -34,6 +39,17 @@ class ToolOutputView:
             raise ValueError("preview limit must be a positive integer")
         preview = " ".join(self._preview_content().split())
         return preview if len(preview) <= limit else preview[: limit - 1] + "…"
+
+    def format_embedded(self) -> str:
+        """Render a selected output with the shared XML escaping rules."""
+        record = self._record
+        root = create_text_element(
+            "tool-output",
+            "",
+            attributes={"id": record.id, "name": record.name, "type": record.source},
+        )
+        append_text_element(root, "content", self.content())
+        return render_xml(root)
 
     def _preview_content(self) -> str:
         record = self._record
@@ -87,6 +103,10 @@ class ToolOutputView:
         header = XmlHeader(
             source=record.source, name=record.name, id=record.id, args=record.args
         )
+        if record.used_tools is not None:
+            header.add_field(
+                "used-tools", [reference.to_dict() for reference in record.used_tools]
+            )
         execution = self._saved_execution_info()
         if execution:
             header.add_fields(

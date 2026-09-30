@@ -817,7 +817,10 @@ def test_skill_increments_depth_prepends_xml_header_on_exit(tmp_path: Path) -> N
     assert node.depth == 0
     exit_message = cast(ToolMessage, provider.requests[2].get_messages()[-1])
     expected_header = XmlHeader(
-        source="DeepSkill", name="mock-skill", id="exit-id-456"
+        source="DeepSkill",
+        name="mock-skill",
+        id="exit-id-456",
+        fields={"used-tools": []},
     ).to_xml()
     assert exit_message.get_message() == f"{expected_header}\ndone"
     record = node._runtime._tool_cache.get("exit-id-456")

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Literal, Protocol, Self, runtime_checkable
 
 from qs.core.models.assistant_message import ToolCall
+from qs.core.models.tool_output_reference import ToolOutputReference
 from qs.utils.json import to_json_value
 
 
@@ -34,6 +35,7 @@ class ToolCallRecord:
     thinking: str | None = None
     source: Literal["Tool", "DeepSkill"] = "Tool"
     execution: dict[str, Any] | None = None
+    used_tools: tuple[ToolOutputReference, ...] | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.name, str):
@@ -76,6 +78,14 @@ class ToolCallRecord:
         if not self.skill_path.startswith("/"):
             raise ValueError("skill_path must be an absolute skill path")
 
+        if self.used_tools is not None and (
+            not isinstance(self.used_tools, tuple)
+            or not all(
+                isinstance(item, ToolOutputReference) for item in self.used_tools
+            )
+        ):
+            raise TypeError("used_tools must be a tuple of ToolOutputReference or None")
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to a JSON-serializable dictionary."""
         return {
@@ -88,6 +98,11 @@ class ToolCallRecord:
             "thinking": self.thinking,
             "type": self.source,
             **({"execution": self.execution} if self.execution is not None else {}),
+            **(
+                {"used_tools": [reference.to_dict() for reference in self.used_tools]}
+                if self.used_tools is not None
+                else {}
+            ),
         }
 
     @classmethod
@@ -101,6 +116,9 @@ class ToolCallRecord:
             raise ValueError(
                 f"Missing required keys in tool call record: {sorted(missing)}"
             )
+        used_tools = record_dict.get("used_tools")
+        if used_tools is not None and not isinstance(used_tools, list):
+            raise TypeError("Serialized used_tools must be a list or None")
         return cls(
             name=record_dict["name"],
             id=record_dict["id"],
@@ -111,6 +129,11 @@ class ToolCallRecord:
             thinking=record_dict.get("thinking"),
             source=record_dict.get("type", "Tool"),
             execution=record_dict.get("execution"),
+            used_tools=(
+                tuple(ToolOutputReference.from_dict(item) for item in used_tools)
+                if used_tools is not None
+                else None
+            ),
         )
 
     @classmethod

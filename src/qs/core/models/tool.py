@@ -325,6 +325,8 @@ class CalledTool:
     def __init__(self, tool: Tool, tool_call: ToolCall) -> None:
         if not isinstance(tool, Tool):
             raise TypeError("tool must be a Tool instance")
+        if not isinstance(tool_call, ToolCall):
+            raise TypeError("tool_call must be a ToolCall instance")
 
         self._tool = tool
         self._tool_call = tool_call
@@ -332,18 +334,15 @@ class CalledTool:
 
     @classmethod
     def from_tool_call(cls, tool: Tool, tool_call: ToolCall) -> CalledTool:
-        if not isinstance(tool_call, ToolCall):
-            raise TypeError("tool_call must be a ToolCall instance")
-
         return cls(tool, tool_call)
 
     @property
     def name(self) -> str:
-        return self._tool.name
+        return self._tool.get_name()
 
     @property
     def call_id(self) -> str:
-        return self._tool_call.id
+        return self._tool_call.get_id()
 
     @property
     def arguments(self) -> dict[str, Any]:
@@ -396,8 +395,7 @@ class CalledTool:
 
     def _validate_matching(self) -> None:
         call_name = self._tool_call.get_name()
-        if call_name != self._tool.name:
+        if call_name != self.name:
             raise ValueError(
-                f"Tool call name '{call_name}' does not match "
-                f"tool name '{self._tool.name}'"
+                f"Tool call name '{call_name}' does not match tool name '{self.name}'"
             )

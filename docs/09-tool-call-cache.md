@@ -106,6 +106,7 @@ come sessione attiva.
 | `skill_path` | Percorso logico della skill; `/` indica lo scope radice. |
 | `thinking` | Testo esposto dal provider nel turno della chiamata, oppure `null`. |
 | `execution` | Metadati opzionali del lavoro gestito: stato, tempi, call ID e ID dell'output. Assente nei record precedenti. |
+| `used_tools` | Riferimenti agli output della skill e delle discendenti, con solo `name` e `id`. Conservati nell'header XML anche alla rilettura; assenti nei record precedenti e nei tool ordinari. |
 
 Nel runtime `id` corrisponde all'ID dell'header XML, quando disponibile; altrimenti
 è un UUID. `tool_call_id` conserva l'ID del tool ordinario o della chiamata che

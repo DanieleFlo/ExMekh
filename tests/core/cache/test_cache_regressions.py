@@ -9,6 +9,7 @@ from qs.core.cache import SessionCache, SessionPool, ToolCallRecord
 from qs.core.cache.paths import cache_component
 from qs.core.cache.tool_call_store import ToolCallStore
 from qs.core.models.assistant_message import FunctionCall, ToolCall
+from qs.core.models.tool_output_reference import ToolOutputReference
 from qs.core.tool_calls import (
     ToolCallData,
     ToolCallReader,
@@ -20,6 +21,44 @@ from qs.utils.file import read_json_from_path, write_json_atomically
 def test_tool_call_record_rejects_non_dictionary_execution_metadata():
     with pytest.raises(TypeError, match="execution must be a dictionary or None"):
         ToolCallRecord("work", "output", {}, "result", execution=[])
+
+
+@pytest.mark.parametrize(
+    "references", [(), (ToolOutputReference("work", "tool-output"),)]
+)
+def test_skill_output_references_round_trip_without_changing_the_result(
+    tmp_path, references
+):
+    result = {"text": "done", "items": []}
+    record = ToolCallRecord(
+        "skill", "skill-output", {}, result, source="DeepSkill", used_tools=references
+    )
+    store = ToolCallStore(tmp_path)
+
+    payload = read_json_from_path(store.save(record))
+
+    assert payload["result"] == result
+    assert payload["used_tools"] == [reference.to_dict() for reference in references]
+    assert store.get(record.id) == record
+
+
+@pytest.mark.parametrize("references", [[], ({"name": "work", "id": "output"},)])
+def test_cache_records_reject_mutable_or_untyped_tool_references(references):
+    with pytest.raises(TypeError, match="tuple of ToolOutputReference"):
+        ToolCallRecord("skill", "output", {}, "done", used_tools=references)
+
+
+def test_cache_records_reject_malformed_serialized_tool_references():
+    data = {
+        "name": "skill",
+        "id": "output",
+        "args": {},
+        "result": "done",
+        "used_tools": {},
+    }
+
+    with pytest.raises(TypeError, match="Serialized used_tools must be a list"):
+        ToolCallRecord.from_dict(data)
 
 
 def test_sessions_are_scoped_to_resolved_directory(tmp_path):

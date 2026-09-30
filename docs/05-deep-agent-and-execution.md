@@ -219,6 +219,19 @@ Ordinary tools produce cache records. When an exit tool closes a deep skill, the
 record is attributed to the opening skill call and retains its name, arguments,
 call ID and opening-turn thinking. Deep skill instructions remain conversational
 messages, while the final output stays accessible after history compaction.
+
+Every promoted skill return includes a `<used-tools type="array">` in its XML
+header. Each item contains only `name` and `id`, where `id` is the tool output
+ID accepted by `read_tool_output`. The list retains outputs produced in that
+invocation and all its descendant skills, in execution order, including
+background work and outputs without cache. Repeated calls have separate output
+IDs; ancestor work and other invocations are excluded. A skill with no tool
+outputs has an empty list. Runtime reads and other preformatted responses that
+do not create a new output ID add no entry. References are immutable execution
+snapshots. The list is also stored as structured `used_tools` metadata in the
+skill's cache record, so `read_tool_output` preserves it in the saved XML header.
+The raw Python result remains separate from these presentation metadata.
+
 The final output's XML header also includes the exit call's thinking when present.
 Its excerpt is limited to the first 100 model tokens. The cached opening-turn
 thinking remains complete.

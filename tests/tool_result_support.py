@@ -16,6 +16,12 @@ def parse_tool_result(content: str) -> JsonValue:
     return _value(ET.fromstring(body))
 
 
+def parse_used_tools(content: str) -> JsonValue:
+    """Decode skill output references using the shared typed XML parser."""
+    header = content.split("</header>", 1)[0] + "</header>"
+    return _value(ET.fromstring(header).find("used-tools"))
+
+
 def _value(element: ET.Element | None) -> JsonValue:
     if element is None:
         raise ValueError("Missing XML value element")

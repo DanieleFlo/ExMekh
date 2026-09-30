@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from qs.core.models.client import Client
 from qs.core.models.tool import PreformattedToolResult
+from qs.core.models.tool_output_reference import ToolOutputReference
 from qs.core.models.xml_header import XmlHeader
 from qs.core.tool_calls.execution_manager import ExecutionSnapshot
 from qs.utils.xml import stringify_tool_result
@@ -104,8 +105,12 @@ class ToolOutputFormatter:
         thinking: str | None = None,
         annotation_provider: Callable[[], str | None] | None = None,
         background_tools: Sequence[ExecutionSnapshot] = (),
+        used_tools: Sequence[ToolOutputReference] = (),
     ) -> tuple[str, str]:
         header = self._new_header("DeepSkill", name)
+        header.add_field(
+            "used-tools", [reference.to_dict() for reference in used_tools]
+        )
         if background_tools:
             header.add_field(
                 "background-tools",

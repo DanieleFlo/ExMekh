@@ -59,6 +59,7 @@ class ToolResultRecorder:
                 skill_path=skill_path,
                 thinking=identity.thinking,
                 source=identity.source,
+                used_tools=result.used_tools,
                 execution=(
                     result.execution.status_info()
                     if result.execution is not None

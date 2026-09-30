@@ -18,6 +18,7 @@ from tests.core.agents.node.test_node import (
     SequenceProvider,
     _write_runnable_capabilities,
 )
+from tests.tool_result_support import parse_used_tools
 
 
 @pytest.fixture
@@ -66,9 +67,13 @@ def test_annotation_failure_preserves_the_tool_result(make_executor, managed):
 
 
 def test_skill_return_without_execution_manager_has_a_complete_header(tmp_path):
-    capabilities = Node(
-        [_write_runnable_capabilities(tmp_path)], name_hds="main"
-    ).load_capabilities(work_root=tmp_path)
+    capabilities_path = _write_runnable_capabilities(tmp_path)
+    (capabilities_path / "deep-skill" / "mock-skill.md").write_text(
+        "---\ndescription: Mock skill\ninherits-parent-tools: true\n---\nMock skill body"
+    )
+    capabilities = Node([capabilities_path], name_hds="main").load_capabilities(
+        work_root=tmp_path
+    )
     client = Client(SequenceProvider([]), SystemMessage("rules"))
     scope = AgenticScope(capabilities.get_hds("main"), "exit_agent")
     executor = ToolCallExecutor(
@@ -84,6 +89,10 @@ def test_skill_return_without_execution_manager_has_a_complete_header(tmp_path):
     opening = ToolCall("open", FunctionCall("mock-skill", {}))
     client.add_tool_calls([opening])
     client.add_tool_response(executor.execute(resolver.resolve(opening)).response)
+    work = ToolCall("work", FunctionCall("mock-tool", {"text": "hello"}))
+    client.add_tool_calls([work])
+    work_result = executor.execute(resolver.resolve(work))
+    client.add_tool_response(work_result.response)
     closing = ToolCall(
         "exit", FunctionCall("exit_agent", {"text": "done", "items": []})
     )
@@ -97,6 +106,9 @@ def test_skill_return_without_execution_manager_has_a_complete_header(tmp_path):
     assert root.findtext("name") == "mock-skill"
     assert root.findtext("id") == result.output_id
     assert root.find("background-tools") is None
+    assert parse_used_tools(result.response.get_message()) == [
+        {"name": "mock-tool", "id": work_result.output_id}
+    ]
     assert body == "done"
     assert result.raw_result == {"text": "done", "items": []}
     assert result.response.get_tool_call_id() == "open"

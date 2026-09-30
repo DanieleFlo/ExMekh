@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import base64
 import re
 from collections.abc import Callable
-from xml.etree import ElementTree as ET
 
 from qs.config.validation import VALIDATION_PATTERNS
 from qs.core.cache.node_cache import NodeCache
@@ -56,11 +54,13 @@ class ExitItemResolver:
                     f'Use items=["{identifier}"] or remove the placeholder.'
                 )
             placed.add(record.id)
-            return self._render(record)
+            return ToolOutputView(record).format_embedded()
 
         content = _PLACEHOLDER.sub(replace, text)
         trailing = [
-            self._render(record) for record in ordered if record.id not in placed
+            ToolOutputView(record).format_embedded()
+            for record in ordered
+            if record.id not in placed
         ]
         return "\n\n".join((content, *trailing))
 
@@ -164,28 +164,3 @@ class ExitItemResolver:
         if skill_path == "/":
             return record_path.startswith("/")
         return record_path == skill_path or record_path.startswith(skill_path + "/")
-
-    @staticmethod
-    def _render(record: ToolCallRecord) -> str:
-        root = ET.Element(
-            "tool-output",
-            {"id": record.id, "name": record.name, "type": record.source},
-        )
-        content = ET.SubElement(root, "content")
-        output = ToolOutputView(record).content()
-        if any(not _is_xml_character(character) for character in output):
-            content.set("encoding", "base64")
-            content.text = base64.b64encode(output.encode("utf-8")).decode("ascii")
-        else:
-            content.text = output
-        return ET.tostring(root, encoding="unicode", short_empty_elements=True)
-
-
-def _is_xml_character(character: str) -> bool:
-    code = ord(character)
-    return (
-        code in (9, 10, 13)
-        or 0x20 <= code <= 0xD7FF
-        or 0xE000 <= code <= 0xFFFD
-        or 0x10000 <= code <= 0x10FFFF
-    )

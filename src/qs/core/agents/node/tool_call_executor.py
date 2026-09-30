@@ -139,9 +139,12 @@ class ToolCallExecutor:
             return self._run_deep_skill(
                 tool_call, thinking=thinking, history_position=history_position
             )
-        return self._run_tool(
+        result = self._run_tool(
             tool_call, thinking_annotation_provider=thinking_annotation_provider
         )
+        if result.output_id is not None:
+            self._skill_executions.record_tool_output(tool_call.name, result.output_id)
+        return result
 
     def _run_deep_skill(
         self,
@@ -313,11 +316,12 @@ class ToolCallExecutor:
 
         if self._skill_executions.depth:
             content, output_id = self._output_formatter.format_skill_return(
-                self._skill_executions.current.skill.name,
+                self._skill_executions.current.name,
                 content,
                 thinking=thinking,
                 annotation_provider=thinking_annotation_provider,
                 background_tools=self._running_tool_outputs(),
+                used_tools=self._skill_executions.current.used_tools,
             )
             return self._close_deep_skill(content, result, output_id)
 
@@ -398,14 +402,14 @@ class ToolCallExecutor:
         response = ToolMessage(
             content=output,
             tool_call_id=execution.opening_tool_call_id,
-            name=execution.skill.name,
+            name=execution.name,
         )
         self._depth = max(0, self._depth - 1)
         self._agentic_scope.register_skill_return(execution.opening_tool_call_id)
         logger.info(
             "Closed deep skill: name=%s opening_call_id=%s start_index=%d "
             "end_index=%d transcript_messages=%d depth=%d",
-            execution.skill.name,
+            execution.name,
             execution.opening_tool_call_id,
             execution.start_index,
             execution.end_index,
@@ -419,8 +423,9 @@ class ToolCallExecutor:
             replace_history_from=execution.start_index + 1,
             preserved_responses=execution.preceding_tool_responses,
             output_id=output_id,
+            used_tools=execution.used_tools,
             cache_identity=CacheIdentity(
-                name=execution.skill.name,
+                name=execution.name,
                 source="DeepSkill",
                 tool_call_id=execution.opening_tool_call_id,
                 args=execution.opening_arguments,

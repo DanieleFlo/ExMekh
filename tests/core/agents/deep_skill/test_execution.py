@@ -6,6 +6,7 @@ from qs.core.agents.deep_skill.deep_skill import DeepSkill
 from qs.core.agents.deep_skill.execution import DeepSkillExecutionTracker
 from qs.core.agents.deep_skill.metadata import DeepSkillMetadata
 from qs.core.models.assistant_message import AssistantMessage
+from qs.core.models.tool_output_reference import ToolOutputReference
 
 
 def _skill(name: str) -> DeepSkill:
@@ -82,6 +83,18 @@ def test_rejects_closing_execution_twice() -> None:
         execution.close(end_index=2, output="other", history=[])
 
 
+def test_failed_closure_preserves_the_active_execution() -> None:
+    tracker = DeepSkillExecutionTracker()
+    execution = tracker.open(_skill("skill"), "call", 0)
+    execution.close(end_index=1, output="result", history=[])
+
+    with pytest.raises(RuntimeError, match="already closed"):
+        tracker.close(end_index=2, output="other", history=[])
+
+    assert tracker.current is execution
+    assert tracker.depth == 1
+
+
 def test_serializes_nested_history_tree() -> None:
     tracker = DeepSkillExecutionTracker()
     parent = tracker.open(_skill("parent"), "parent-call", 2)
@@ -107,3 +120,51 @@ def test_serializes_nested_history_tree() -> None:
         ],
     }
     assert tracker.history_tree() == [parent.history_tree()]
+
+
+def test_tracks_tool_outputs_in_active_skills_and_their_ancestors() -> None:
+    tracker = DeepSkillExecutionTracker()
+    tracker.record_tool_output("root-tool", "root-output")
+    parent = tracker.open(_skill("parent"), "parent-call", 0)
+    tracker.record_tool_output("work", "parent-output")
+    child = tracker.open(_skill("child"), "child-call", 2)
+    tracker.record_tool_output("work", "child-output")
+    leaf = tracker.open(_skill("leaf"), "leaf-call", 4)
+    tracker.record_tool_output("leaf-tool", "leaf-output")
+    tracker.close(end_index=5, output="leaf result", history=[])
+    tracker.close(end_index=6, output="child result", history=[])
+    sibling = tracker.open(_skill("child"), "child-call", 7)
+    tracker.record_tool_output("work", "sibling-output")
+
+    parent_output = ToolOutputReference("work", "parent-output")
+    child_output = ToolOutputReference("work", "child-output")
+    leaf_output = ToolOutputReference("leaf-tool", "leaf-output")
+    sibling_output = ToolOutputReference("work", "sibling-output")
+    assert parent.used_tools == (
+        parent_output,
+        child_output,
+        leaf_output,
+        sibling_output,
+    )
+    assert child.used_tools == (child_output, leaf_output)
+    assert leaf.used_tools == (leaf_output,)
+    assert sibling.used_tools == (sibling_output,)
+
+
+def test_used_tool_references_are_snapshots_and_closed_skills_reject_new_work():
+    tracker = DeepSkillExecutionTracker()
+    execution = tracker.open(_skill("skill"), "call", 0)
+    tracker.record_tool_output("work", "first")
+    snapshot = execution.used_tools
+    tracker.record_tool_output("work", "second")
+
+    assert snapshot == (ToolOutputReference("work", "first"),)
+    assert execution.used_tools == (
+        ToolOutputReference("work", "first"),
+        ToolOutputReference("work", "second"),
+    )
+    tracker.close(end_index=1, output="result", history=[])
+    with pytest.raises(RuntimeError, match="closed deep skill"):
+        execution.record_tool_output(ToolOutputReference("work", "late"))
+    with pytest.raises(RuntimeError, match="closed deep skill"):
+        execution.add_child(execution)

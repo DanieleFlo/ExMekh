@@ -16,7 +16,7 @@ from tests.core.agents.node.test_node import (
     SequenceProvider,
     _write_nested_capabilities,
 )
-from tests.tool_result_support import parse_tool_result
+from tests.tool_result_support import parse_tool_result, parse_used_tools
 
 
 def exit_call(call_id):
@@ -206,6 +206,9 @@ def test_exit_excludes_terminal_work_even_when_final_output_has_not_been_read(
         response = agent.run("start")
         execution = response.skill_executions[0]
         assert background_tools(execution.output) == []
+        assert {"name": "mock-sub-tool", "id": "output-0"} in parse_used_tools(
+            execution.output
+        )
         reads = [
             message
             for message in execution.history
@@ -388,6 +391,16 @@ def test_three_skill_levels_collect_all_tool_kinds_without_ancestor_work(
                 parent_work,
                 child_work,
                 leaf_work,
+            ]
+            leaf_output = {"name": "shared-tool", "id": "output-3"}
+            child_output = {"name": "nested-sub-tool", "id": "output-2"}
+            parent_output = {"name": "mock-sub-tool", "id": "output-1"}
+            assert parse_used_tools(leaf.output) == [leaf_output]
+            assert parse_used_tools(child.output) == [child_output, leaf_output]
+            assert parse_used_tools(parent.output) == [
+                parent_output,
+                child_output,
+                leaf_output,
             ]
             assert (
                 node._runtime._execution_manager.by_output_id("output-0").status
