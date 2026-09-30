@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator
 from contextlib import contextmanager
 from threading import Lock
 from typing import cast
@@ -21,7 +21,6 @@ class TurnControl:
         self._steering_lock = Lock()
         self._accepting_steering = False
         self._pending_messages: list[UserMessage] = []
-        self._replayed_messages: list[UserMessage] = []
 
     @contextmanager
     def run(self) -> Iterator[None]:
@@ -35,7 +34,6 @@ class TurnControl:
             with self._steering_lock:
                 self._accepting_steering = False
                 self._pending_messages.clear()
-                self._replayed_messages.clear()
                 self._execution_manager.resume_waits()
             self._run_lock.release()
 
@@ -47,15 +45,9 @@ class TurnControl:
             self._pending_messages.append(message)
             self._execution_manager.release_waits()
 
-    def preserve_user_messages(self, messages: Sequence[UserMessage]) -> None:
-        """Replay earlier guidance before newly queued input after compaction."""
-        with self._steering_lock:
-            self._replayed_messages.extend(messages)
-
     def take_user_messages(self) -> tuple[UserMessage, ...]:
         with self._steering_lock:
-            messages = (*self._replayed_messages, *self._pending_messages)
-            self._replayed_messages.clear()
+            messages = tuple(self._pending_messages)
             self._pending_messages.clear()
             self._execution_manager.resume_waits()
             return messages
@@ -63,7 +55,7 @@ class TurnControl:
     def try_close(self) -> bool:
         """Stop acceptance atomically only when all accepted input is consumed."""
         with self._steering_lock:
-            if self._pending_messages or self._replayed_messages:
+            if self._pending_messages:
                 return False
             self._accepting_steering = False
             return True

@@ -9,7 +9,7 @@ from xml.etree import ElementTree as ET
 from qs.config.runtime import RUNTIME
 from qs.config.validation import VALIDATION_PATTERNS
 from qs.utils.json import to_json_value
-from qs.utils.xml import append_text_element, render_xml
+from qs.utils.xml import append_text_element, append_value_element, render_xml
 
 
 @dataclass
@@ -96,7 +96,10 @@ class XmlHeader:
             if value is None:
                 continue
 
-            append_text_element(root, key, str(value))
+            if isinstance(value, (dict, list)):
+                append_value_element(root, key, value)
+            else:
+                append_text_element(root, key, str(value))
 
         return render_xml(root)
 

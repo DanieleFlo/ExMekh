@@ -376,7 +376,7 @@ def test_transient_background_result_is_readable_and_never_cached(make_node) -> 
     node.control_tool_execution("origin", wait_seconds=1)
 
     assert node.read_tool_output("output-1").content.endswith("private")
-    node._runtime._sync_completed_tool_outputs()
+    node._runtime._result_recorder.sync_completed()
     assert node._runtime._get_tool_cache().get_all() == []
 
 

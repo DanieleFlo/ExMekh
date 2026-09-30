@@ -45,17 +45,7 @@ class NodeRuntimeConfig:
     def resolved_agent_context_id(self) -> str:
         if self.agent_context_id is not None:
             return self.agent_context_id
-        get_context_id = getattr(self.hds, "get_agent_context_id", None)
-        if callable(get_context_id):
-            context_id = get_context_id()
-            if isinstance(context_id, str) and context_id.strip():
-                return context_id
-        get_name = getattr(self.hds, "get_name", None)
-        if callable(get_name):
-            hds_name = get_name()
-            if isinstance(hds_name, str) and hds_name.strip():
-                return hds_name
-        return RUNTIME.default_agent_context_id
+        return self.hds.get_agent_context_id()
 
     def is_persistent_history(self) -> bool:
         return self.persistent_history

@@ -94,6 +94,7 @@ def test_math_rejects_ambiguous_or_unbounded_requests(
         ("x**x", "exponents must be numeric"),
         ("_private", "unsupported syntax"),
         ("sqrt(x, scale=1)", "unsupported syntax"),
+        ("1//2", "unsupported syntax"),
         ("[1, 2]", "unsupported syntax"),
     ],
 )

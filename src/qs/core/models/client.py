@@ -77,11 +77,6 @@ class Client:
     ) -> None:
         self._history.replace_from(start_index, messages)
 
-    def compact_history_from(
-        self, start_index: int, messages: Sequence[HistoryMessage]
-    ) -> tuple[UserMessage, ...]:
-        return self._history.compact_from(start_index, messages)
-
     def add_tool_calls(self, calls: Sequence[ToolCall]) -> None:
         self._history.add_tool_calls(calls)
 
@@ -155,6 +150,16 @@ class Client:
         self._history.add(list(messages))
         return self._call_provider(provider_request)
 
+    def complete_tool_transition(self, *, extra: Mapping[str, object]) -> None:
+        """Complete a provider transition before executing an already queued batch.
+
+        The next batch supersedes this response, so it is neither streamed nor
+        retained in the conversation.
+        """
+        history_size = len(self._history.get_history())
+        self.continue_after_tools(extra=extra, tool_choice="none")
+        self._history.replace_from(history_size, [])
+
     def call_structured[ResponseModel: BaseModel](
         self,
         request: ClientRequest,
@@ -167,9 +172,7 @@ class Client:
             response_model,
             strict=strict,
         )
-        response = self._provider.call_structured(provider_request)
-        self._history.add(response)
-        return response
+        return self._call_structured_provider(provider_request)
 
     def continue_after_tools_structured[ResponseModel: BaseModel](
         self,
@@ -192,7 +195,12 @@ class Client:
             stream=streaming,
             on_event=on_event,
         )
-        response = self._provider.call_structured(provider_request)
+        return self._call_structured_provider(provider_request)
+
+    def _call_structured_provider[ResponseModel: BaseModel](
+        self, request: StructuredProviderRequest[ResponseModel]
+    ) -> StructuredProviderResponse[ResponseModel]:
+        response = self._provider.call_structured(request)
         self._history.add(response)
         return response
 

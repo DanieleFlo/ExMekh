@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Sequence
-from dataclasses import replace
+from dataclasses import dataclass
 from functools import partial
-from typing import Any, Final, Literal, cast
+from typing import Any, Final, Literal
 from uuid import uuid4
 
 from qs.capabilities.tools.bash.bash_tool import BashTool
@@ -23,7 +23,6 @@ from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill
 from qs.core.agents.exit_tool.exit_tool import CalledExitTool
 from qs.core.agents.exit_tool.items import ExitItemResolver
 from qs.core.cache.node_cache import NodeCache
-from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.assistant_message import FunctionCall, ToolCall
 from qs.core.models.client import Client
 from qs.core.models.client_request import ClientRequest
@@ -36,16 +35,23 @@ from qs.core.tool_calls.execution_manager import ToolExecutionManager
 from qs.core.tool_calls.harness_memory_tools import HarnessMemoryTools
 from qs.interfaces.event_handler import ProviderEventHandler
 from qs.interfaces.message import Message
-from qs.utils.json import to_json_value
 
 from .node_runtime_config import NodeRuntimeConfig
 from .thinking_annotation import ThinkingAnnotationResolver
 from .tool_call_executor import ToolCallExecutor
 from .tool_call_resolver import ResolvedToolCall, ToolCallResolver
+from .tool_result_recorder import ToolResultRecorder
 from .turn_control import TurnControl
 from .types import NodeUserMessage
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class _DeferredToolBatch:
+    depth: int
+    calls: list[ResolvedToolCall]
+    thinking: str | None
 
 
 class NodeRuntime(ProviderEventHandler):
@@ -60,6 +66,9 @@ class NodeRuntime(ProviderEventHandler):
         self._tool_cache: NodeCache | None = None
         self._execution_history = ExecutionHistory()
         self._execution_manager = ToolExecutionManager()
+        self._result_recorder = ToolResultRecorder(
+            self._execution_history, self._get_tool_cache, self._execution_manager
+        )
         self._turn_control = TurnControl(self._execution_manager)
         self._memory_tools = HarnessMemoryTools(
             self._execution_history,
@@ -144,6 +153,8 @@ class NodeRuntime(ProviderEventHandler):
         self._turn_control.steer(user_message)
 
     def _continue_with_steering(self) -> ProviderResponse | None:
+        if self._executor.pending_return_call_id is not None:
+            return None
         messages = self._turn_control.take_user_messages()
         if not messages:
             return None
@@ -166,6 +177,12 @@ class NodeRuntime(ProviderEventHandler):
             on_event=self,
         )
 
+    def _finish_return_before_deferred_calls(self) -> None:
+        self._client.complete_tool_transition(
+            extra=self._executor.build_agentic_extra()
+        )
+        self._executor.acknowledge_agentic_extra()
+
     def _run_turn(self, user_message: NodeUserMessage) -> AgentResponse:
         if not self._config.is_persistent_history():
             self._reset_session()
@@ -177,7 +194,7 @@ class NodeRuntime(ProviderEventHandler):
             self._config.get_hds_name(),
             self.depth,
         )
-        self._sync_completed_tool_outputs()
+        self._result_recorder.sync_completed()
         pending_result = self._execution_manager.next_delivery(
             self._executor.skill_scope_ids
         )
@@ -223,7 +240,7 @@ class NodeRuntime(ProviderEventHandler):
         self._client.replace_history_from(1, list(messages))
         if restore_execution_state is not None:
             restore_execution_state(
-                self._get_execution_history(),
+                self._execution_history,
                 self._get_tool_cache(),
             )
 
@@ -235,14 +252,9 @@ class NodeRuntime(ProviderEventHandler):
                 resolved_tool_calls = self._prepare_tool_batch(tool_calls)
                 thinking = response.thinking.thoughts if response.thinking else None
                 self._execute_batch(resolved_tool_calls, thinking)
-                while (
-                    self._pending_batches and self._pending_batches[-1][0] == self.depth
-                ):
-                    _, pending, pending_thinking = self._pending_batches.pop()
-                    self._client.add_tool_calls([call.tool_call for call in pending])
-                    self._execute_batch(pending, pending_thinking)
+                self._execute_deferred_batches()
 
-                self._sync_completed_tool_outputs()
+                self._result_recorder.sync_completed()
                 self._deliver_completed_tool_outputs()
 
                 response = self._continue_after_tools()
@@ -251,7 +263,7 @@ class NodeRuntime(ProviderEventHandler):
 
             content = response.get_message()
             if isinstance(content, str) and content.strip():
-                self._sync_completed_tool_outputs()
+                self._result_recorder.sync_completed()
                 if self._deliver_completed_tool_outputs():
                     response = self._continue_after_tools()
                     continue
@@ -263,7 +275,7 @@ class NodeRuntime(ProviderEventHandler):
                     return response
                 continue
 
-            self._sync_completed_tool_outputs()
+            self._result_recorder.sync_completed()
             self._deliver_completed_tool_outputs()
             steered_response = self._continue_with_steering()
             if steered_response is not None:
@@ -281,27 +293,15 @@ class NodeRuntime(ProviderEventHandler):
 
     def _prepare_tool_batch(self, tool_calls: list[ToolCall]) -> list[ResolvedToolCall]:
         """Validate against the generating scope before any execution changes it."""
-        extra = self._executor.build_agentic_extra()
-        scope = extra.get("agentic")
-        if scope:
-            context_id = scope.get("agent_context_id")
-            if not isinstance(context_id, str) or not context_id.strip():
-                raise ValueError(
-                    "Agentic scope configuration ('agent_context_id') must be a non-empty string"
-                )
-            allowed = set(cast(list[str], scope.get("allowed_tools"))) | set(
-                cast(list[str], scope["allowed_skills"])
-            )
-            for call in tool_calls:
-                if call.get_name() not in allowed:
-                    raise ValueError(
-                        f"Capability '{call.get_name()}' is not allowed at "
-                        f"{self._executor.skill_path}; allowed_tools={scope['allowed_tools']}, "
-                        f"allowed_skills={scope.get('allowed_skills')}"
-                    )
-            resolved = self._resolver.resolve_all(tool_calls)
-            return resolved
-        raise ValueError("Agentic scope configuration ('agentic') is missing")
+        self._executor.validate_tool_calls(tool_calls)
+        return self._resolver.resolve_all(tool_calls)
+
+    def _execute_deferred_batches(self) -> None:
+        while self._pending_batches and self._pending_batches[-1].depth == self.depth:
+            self._finish_return_before_deferred_calls()
+            batch = self._pending_batches.pop()
+            self._client.add_tool_calls([call.tool_call for call in batch.calls])
+            self._execute_batch(batch.calls, batch.thinking)
 
     def _execute_batch(
         self, calls: list[ResolvedToolCall], thinking: str | None
@@ -327,7 +327,9 @@ class NodeRuntime(ProviderEventHandler):
             self._client.replace_latest_tool_calls(
                 [call.tool_call for call in active_calls]
             )
-            self._pending_batches.append((self.depth, deferred_calls, thinking))
+            self._pending_batches.append(
+                _DeferredToolBatch(self.depth, deferred_calls, thinking)
+            )
 
         for index, call in enumerate(active_calls):
             self._execute_tool_call(
@@ -345,13 +347,9 @@ class NodeRuntime(ProviderEventHandler):
         close_scope: bool = True,
         thinking_annotation_provider: Callable[[], str | None] | None = None,
     ) -> None:
-        self._sync_completed_tool_outputs()
+        self._result_recorder.sync_completed()
         skill_path = self._executor.skill_path
-        arguments = to_json_value(tool_call.arguments)
-        history_entry = self._get_execution_history().record(
-            tool_call.name,
-            tool_call.call_id,
-        )
+        identity = self._result_recorder.record_call(tool_call, thinking)
         self._emit_tool_state(tool_call.name, tool_call.call_id, running=True)
         try:
             logger.info(
@@ -364,77 +362,19 @@ class NodeRuntime(ProviderEventHandler):
                 tool_call,
                 thinking=thinking,
                 close_scope=close_scope,
-                history_position=history_entry.position,
+                history_position=identity.history_position,
                 thinking_annotation_provider=thinking_annotation_provider,
             )
             if result.replace_history_from is None:
                 self._client.add_tool_response(result.response)
             else:
-                replayed_messages = self._client.compact_history_from(
+                self._client.replace_history_from(
                     result.replace_history_from,
                     messages=[*result.preserved_responses, result.response],
                 )
-                self._turn_control.preserve_user_messages(replayed_messages)
-            if result.save_result:
-                identity = result.cache_identity
-                record = ToolCallRecord(
-                    name=identity.name if identity is not None else tool_call.name,
-                    id=result.output_id or uuid4().hex,
-                    tool_call_id=(
-                        identity.tool_call_id
-                        if identity is not None
-                        else tool_call.call_id
-                    ),
-                    args=identity.args if identity is not None else arguments,
-                    result=result.raw_result,
-                    skill_path=skill_path,
-                    thinking=(identity.thinking if identity is not None else thinking),
-                    source=identity.source if identity is not None else "Tool",
-                    execution=(
-                        result.execution.status_info()
-                        if result.execution is not None
-                        else None
-                    ),
-                )
-                record_cache = self._save_tool_record(record)
-                if identity is None:
-                    history_entry.attach_output(record.id, record_cache.session_dir)
-                else:
-                    self._get_execution_history().attach_output_at_position(
-                        identity.history_position,
-                        record.id,
-                        record_cache.session_dir,
-                    )
-            else:
-                record = None
-            if result.execution is not None:
-                if result.output_id is None:
-                    raise RuntimeError(
-                        "Managed tool execution is missing its output ID"
-                    )
-                self._execution_manager.attach_output(
-                    result.execution.call_id,
-                    result.output_id,
-                    record,
-                )
+            self._result_recorder.persist_result(result, identity, skill_path)
         finally:
             self._emit_tool_state(tool_call.name, tool_call.call_id, running=False)
-
-    def _save_tool_record(self, record: ToolCallRecord) -> NodeCache:
-        cache = self._get_tool_cache()
-        cache.store(record)
-        return cache
-
-    def _sync_completed_tool_outputs(self) -> None:
-        for snapshot, record in self._execution_manager.completed_to_persist():
-            self._save_tool_record(
-                replace(
-                    record,
-                    result=snapshot.record_result(),
-                    execution=snapshot.status_info(),
-                )
-            )
-            self._execution_manager.mark_persisted(record.id)
 
     def _deliver_completed_tool_outputs(self) -> bool:
         if not self._has_read_tool():
@@ -470,16 +410,9 @@ class NodeRuntime(ProviderEventHandler):
             self._tool_cache = self._config.build_node_cache(self._node_id)
         return self._tool_cache
 
-    def _get_execution_history(self) -> ExecutionHistory:
-        history = getattr(self, "_execution_history", None)
-        if history is None:
-            history = ExecutionHistory()
-            self._execution_history = history
-        return history
-
     def _reset_session(self) -> None:
         self._scope_prefix = uuid4().hex
-        self._pending_batches: list[tuple[int, list[ResolvedToolCall], str | None]] = []
+        self._pending_batches: list[_DeferredToolBatch] = []
         tools = self._config.build_tools(self._runtime_tools)
         self._client = Client(
             provider=self._config.provider,

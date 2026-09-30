@@ -4,8 +4,7 @@ import logging
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from pathlib import Path
-from typing import Any, Literal, cast
-from uuid import uuid4
+from typing import Any
 
 from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill
 from qs.core.agents.deep_skill.execution import (
@@ -18,9 +17,8 @@ from qs.core.models.assistant_message import ToolCall
 from qs.core.models.client import Client
 from qs.core.models.tool import CalledTool, PreformattedToolResult
 from qs.core.models.tool_message import ToolMessage
-from qs.core.models.xml_header import XmlHeader
 from qs.core.tool_calls.execution_manager import ExecutionSnapshot, ToolExecutionManager
-from qs.utils.xml import stringify_tool_result
+from qs.core.tool_calls.output_formatter import ToolOutputFormatter
 
 from .agentic_scope import AgenticScope
 from .tool_call_resolver import ResolvedToolCall
@@ -46,6 +44,7 @@ class ToolCallExecutor:
         scope_prefix: str = "",
     ) -> None:
         self._client = client
+        self._output_formatter = ToolOutputFormatter(client)
         self._exit_tool = exit_tool
         self._depth = initial_depth
         self._agentic_scope = agentic_scope
@@ -58,6 +57,10 @@ class ToolCallExecutor:
     @property
     def depth(self) -> int:
         return self._depth
+
+    @property
+    def pending_return_call_id(self) -> str | None:
+        return self._agentic_scope.pending_return_call_id
 
     @property
     def skill_path(self) -> str:
@@ -98,6 +101,11 @@ class ToolCallExecutor:
 
     def acknowledge_agentic_extra(self) -> None:
         self._agentic_scope.acknowledge_extra()
+
+    def validate_tool_calls(self, calls: list[ToolCall]) -> None:
+        self._agentic_scope.validate_tool_calls(
+            calls, self._skill_executions.active_skills, self._depth
+        )
 
     def record_automatic_tool_call(
         self, call: ToolCall
@@ -187,7 +195,7 @@ class ToolCallExecutor:
     def _run_managed_tool(
         self, called_tool: CalledTool, manager: ToolExecutionManager
     ) -> tuple[Any, ExecutionSnapshot]:
-        output_id = self._generate_output_id()
+        output_id = self._output_formatter.generate_output_id()
         snapshot = manager.start(
             called_tool.call_id,
             called_tool.name,
@@ -223,31 +231,15 @@ class ToolCallExecutor:
         snapshot: ExecutionSnapshot | None,
         thinking_annotation_provider: Callable[[], str | None] | None,
     ) -> ToolExecutionResult:
-        output_id = snapshot.output_id if snapshot is not None else None
         raw_result = (
             result.content if isinstance(result, PreformattedToolResult) else result
         )
-        if isinstance(result, PreformattedToolResult) and snapshot is None:
-            content = result.content
-            if thinking_annotation_provider and XmlHeader.has_leading_header(content):
-                thinking_annotation = thinking_annotation_provider()
-            else:
-                thinking_annotation = None
-            if thinking_annotation:
-                content = XmlHeader.add_field_to_content(
-                    content, "thinking", thinking_annotation
-                )
-        else:
-            content, output_id = self._format_output(
-                called_tool.name,
-                result.content
-                if isinstance(result, PreformattedToolResult)
-                else self.stringify_result(result),
-                source="Tool",
-                thinking_annotation_provider=thinking_annotation_provider,
-                output_id=output_id,
-                response_type=snapshot.response_type if snapshot is not None else None,
-            )
+        content, output_id = self._output_formatter.format_tool_result(
+            called_tool.name,
+            result,
+            annotation_provider=thinking_annotation_provider,
+            execution=snapshot,
+        )
         tool_response = ToolMessage(
             content=content,
             tool_call_id=called_tool.call_id,
@@ -261,51 +253,10 @@ class ToolCallExecutor:
             execution=snapshot,
         )
 
-    def _generate_output_id(self) -> str:
-        try:
-            output_id = self._client.generate_id()
-            if not isinstance(output_id, str) or not output_id.strip():
-                raise ValueError("Provider generated an invalid output ID")
-            return output_id.strip()
-        except (AttributeError, RuntimeError, TypeError, ValueError):
-            return uuid4().hex
-
-    def _format_output(
-        self,
-        tool_name: str,
-        content: str,
-        *,
-        source: Literal["Tool", "DeepSkill"],
-        thinking: str | None = None,
-        thinking_annotation_provider: Callable[[], str | None] | None = None,
-        output_id: str | None = None,
-        response_type: str | None = None,
-    ) -> tuple[str, str | None]:
-        try:
-            header = XmlHeader(
-                source=source,
-                name=tool_name,
-                id=output_id or self._client.generate_id(),
-            )
-            if response_type is not None:
-                header.add_field("response-type", response_type)
-            excerpt = None
-            if thinking_annotation_provider is not None:
-                excerpt = thinking_annotation_provider()
-            elif source == "DeepSkill" and thinking and thinking.strip():
-                tokenizer = self._client.get_tokenizer()
-                excerpt = tokenizer.truncate_text(thinking, 100)
-            if excerpt and excerpt.strip():
-                header.add_field("thinking", excerpt)
-            return header.prepend_to(content), header.id
-        except (AttributeError, RuntimeError, TypeError, ValueError) as error:
-            logger.error(error)
-            if output_id is not None:
-                header = XmlHeader(source=source, name=tool_name, id=output_id)
-                if response_type is not None:
-                    header.add_field("response-type", response_type)
-                return header.prepend_to(content), output_id
-            return content, None
+    def _running_tool_outputs(self) -> tuple[ExecutionSnapshot, ...]:
+        if self._execution_manager is None:
+            return ()
+        return self._execution_manager.running_outputs(self.skill_scope_ids)
 
     def _run_exit_tool(
         self,
@@ -336,8 +287,8 @@ class ToolCallExecutor:
                 f'{tool_name}(text="… {{{{<id-output>}}}} …", '
                 'items=["<id-output>"].',
             )
-        content = self.get_exit_output(result)
-        items = cast(list[str], result["items"])
+        content = result["text"]
+        items = result["items"]
         opening_position = (
             self._skill_executions.current.opening_history_position
             if self._skill_executions.depth
@@ -361,12 +312,12 @@ class ToolCallExecutor:
             )
 
         if self._skill_executions.depth:
-            content, output_id = self._format_output(
+            content, output_id = self._output_formatter.format_skill_return(
                 self._skill_executions.current.skill.name,
                 content,
-                source="DeepSkill",
                 thinking=thinking,
-                thinking_annotation_provider=thinking_annotation_provider,
+                annotation_provider=thinking_annotation_provider,
+                background_tools=self._running_tool_outputs(),
             )
             return self._close_deep_skill(content, result, output_id)
 
@@ -477,13 +428,3 @@ class ToolCallExecutor:
                 history_position=execution.opening_history_position,
             ),
         )
-
-    @staticmethod
-    def get_exit_output(result: Any) -> str:
-        if not isinstance(result, dict) or not isinstance(result.get("text"), str):
-            raise TypeError("exit tool result must contain a text string")
-        return result["text"]
-
-    @staticmethod
-    def stringify_result(result: Any) -> str:
-        return stringify_tool_result(result)

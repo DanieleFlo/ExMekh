@@ -154,9 +154,15 @@ risultato finale. Hook, output e cache non vengono duplicati.
 Solo il loop modifica la history. Completa il batch, esegue le letture
 automatiche disponibili e inserisce i messaggi nell'ordine di accettazione al
 confine della successiva richiesta al provider. Un messaggio arrivato dopo quel
-confine attende la risposta dell'inferenza in corso. Durante la compattazione,
-gli input dell'utente vengono mantenuti nel livello chiamante; le diagnostiche
-`ErrorUserMessage` restano locali alla skill.
+confine attende la risposta dell'inferenza in corso. Gli input già consegnati
+durante una skill restano nel suo transcript archiviato e non vengono ripetuti
+nel livello chiamante dopo la compattazione. Anche le diagnostiche
+`ErrorUserMessage` restano locali alla skill. Uno steering ancora in coda viene
+consegnato dopo il completamento del `return`, che termina con il risultato
+della skill. Se il batch contiene altre skill o uscite differite, ogni ritorno
+viene completato prima di eseguire la successiva chiamata. La risposta
+intermedia viene richiesta senza tool e senza streaming, poi viene sostituita
+dal batch già in attesa.
 
 Un'inferenza attiva e i tool con `background_enabled=False` non vengono
 interrotti. `call_sub_agent` resta sincrono: lo steering su `DeepAgent` riguarda
@@ -190,9 +196,16 @@ il nuovo `<response-type>` indica:
 | `failed` | L'esecuzione o un hook ha sollevato un'eccezione. |
 | `cancelled` | Un callback ha confermato l'annullamento. |
 
-Per i lavori gestiti l'header include anche stato, call ID, timestamp di avvio,
-timestamp finale quando presente e secondi trascorsi. I record precedenti
+Per i lavori gestiti sia la risposta immediata sia le letture usano lo stesso
+header con argomenti, stato, call ID, timestamp di avvio, timestamp finale quando
+presente e secondi trascorsi. I record precedenti
 senza metadati di esecuzione vengono letti come risultati finali.
+
+Gli output ordinari e i ritorni delle skill conservano sempre un header e un ID
+leggibile: se il provider non può generare un ID valido, viene usato un UUID.
+Un errore nell'annotazione opzionale `thinking` omette solo quell'annotazione.
+Il contenuto di `PreformattedToolResult` viene preservato; un'esecuzione gestita
+lo include nel proprio envelope per aggiungere stato e ID canonico.
 
 Se il tool offre una lettura incrementale, iniziare con `cursor=0` e riutilizzare
 il `<next-cursor>` restituito. Il cursore è opaco al modello: il tool specializzato
@@ -280,6 +293,20 @@ Durante un ritorno nativo da una skill, le letture automatiche vengono aggiunte
 allo stesso gruppo della chiamata di apertura e la risposta di ritorno resta
 ultima. Il provider riceve così una transizione valida prima di riprendere
 l'inferenza nel livello proprietario, anche con più risultati pronti.
+
+L'header XML del ritorno include `<background-tools type="array">` quando
+restano tool in esecuzione nella skill o nelle sue discendenti, anche se queste
+sono già state chiuse. Ogni `<item type="object">` contiene `name`,
+`tool-call-id`, `output-id`, `skill-path` e `status` (`running`), così il livello
+superiore può leggere o controllare il lavoro usando gli ID originari.
+La lista viene ricalcolata dal manager a ogni uscita, in ordine di avvio;
+include anche lavori senza cache e attese scadute in modalità `wait`.
+Sono esclusi tutti i lavori terminati, falliti o annullati, anche se il loro
+output finale non è ancora stato letto. Letture parziali, controlli e ricerche
+non rimuovono un lavoro ancora attivo dalla lista. Le altre invocazioni e i
+lavori dei livelli antenati restano fuori dal riepilogo della skill restituita.
+Questi metadati descrivono lo stato al momento del ritorno e non modificano
+il risultato Python o il record salvato della skill.
 
 ## Durata, cache e riavvio
 

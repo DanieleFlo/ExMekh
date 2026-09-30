@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from qs.core.agents.deep_skill.deep_skill import DeepSkill
 from qs.core.agents.hds.hds import HDS
+from qs.core.models.assistant_message import ToolCall
 
 
 class AgenticScope:
@@ -53,13 +54,8 @@ class AgenticScope:
         depth: int,
     ) -> dict[str, dict[str, object]]:
         capability = active_skills[-1] if active_skills else self._hds
-        allowed_tools = self._get_allowed_tool_names(active_skills)
-        allowed_tools.extend(self._runtime_tool_names)
-        allowed_tools = list(dict.fromkeys(allowed_tools))
+        allowed_tools = self._get_allowed_tool_names(active_skills, depth)
         allowed_skills = list(capability.get_sub_skill_names())
-
-        if depth > 0:
-            allowed_tools.append(self._exit_tool_name)
 
         agentic: dict[str, object] = {
             "agent_context_id": self._agent_context_id,
@@ -72,6 +68,25 @@ class AgenticScope:
 
         return {"agentic": agentic}
 
+    def validate_tool_calls(
+        self,
+        calls: list[ToolCall],
+        active_skills: tuple[DeepSkill, ...],
+        depth: int,
+    ) -> None:
+        """Check calls against the same capabilities advertised to the provider."""
+        capability = active_skills[-1] if active_skills else self._hds
+        allowed_tools = self._get_allowed_tool_names(active_skills, depth)
+        allowed_skills = list(capability.get_sub_skill_names())
+        allowed = set(allowed_tools) | set(allowed_skills)
+        for call in calls:
+            if call.get_name() not in allowed:
+                skill_path = "/" + "/".join(skill.name for skill in active_skills)
+                raise ValueError(
+                    f"Capability '{call.get_name()}' is not allowed at {skill_path}; "
+                    f"allowed_tools={allowed_tools}, allowed_skills={allowed_skills}"
+                )
+
     def register_skill_return(self, skill_call_id: str) -> None:
         self._pending_return_skill_call_id = skill_call_id
 
@@ -81,6 +96,7 @@ class AgenticScope:
     def _get_allowed_tool_names(
         self,
         active_skills: tuple[DeepSkill, ...],
+        depth: int,
     ) -> list[str]:
         allowed_tools = list(self._hds.get_sub_tool_names())
         for skill in active_skills:
@@ -88,4 +104,7 @@ class AgenticScope:
             if skill.inherits_parent_tools():
                 local_tools.extend(allowed_tools)
             allowed_tools = list(dict.fromkeys(local_tools))
-        return allowed_tools
+        allowed_tools.extend(self._runtime_tool_names)
+        if depth > 0:
+            allowed_tools.append(self._exit_tool_name)
+        return list(dict.fromkeys(allowed_tools))

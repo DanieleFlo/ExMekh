@@ -276,6 +276,19 @@ class ToolExecutionManager:
                 if execution.output_id is not None
             )
 
+    def running_outputs(
+        self, owner_scope: tuple[str, ...]
+    ) -> tuple[ExecutionSnapshot, ...]:
+        """Inspect active outputs owned by this invocation or its descendants."""
+        with self._lock:
+            return tuple(
+                execution.snapshot()
+                for execution in self._executions
+                if execution.owner_scope[: len(owner_scope)] == owner_scope
+                and not execution.finished.is_set()
+                and execution.output_id is not None
+            )
+
     def output_records(
         self, stored_records: Mapping[str, ToolCallRecord]
     ) -> tuple[ToolCallRecord, ...]:

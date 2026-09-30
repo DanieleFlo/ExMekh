@@ -7,6 +7,7 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from qs.capabilities.tools.bash.bash_tool import BashTool
+from qs.capabilities.tools.bash.main import run as run_bash
 from qs.capabilities.tools.read_tool_output.tool_output_reader import ToolOutputReader
 from qs.core.agents.capabilities.defaults import DefaultCapabilities
 from qs.core.agents.node.node import Node
@@ -31,11 +32,8 @@ from tests.core.agents.node.test_node import (
 
 @pytest.fixture
 def bash_executable() -> str:
-    found = shutil.which("bash")
-    if found is None:
-        candidate = Path("C:/Program Files/Git/bin/bash.exe")
-        if candidate.is_file():
-            found = str(candidate)
+    candidate = Path("C:/Program Files/Git/bin/bash.exe")
+    found = str(candidate) if candidate.is_file() else shutil.which("bash")
     if found is None:
         pytest.skip("Bash is not installed")
     return found
@@ -166,6 +164,23 @@ def test_bash_missing_executable_is_execution_failure(monkeypatch, tmp_path: Pat
     assert snapshot.status == "failed"
     assert "Bash is unavailable" in snapshot.error
     assert "No other shell is used" in snapshot.error
+
+
+def test_bash_entrypoint_runs_command_in_work_root(
+    bash_executable: str, tmp_path: Path
+) -> None:
+    result = run_bash(tmp_path, bash_executable, "printf entrypoint")
+    assert result["exit_code"] == 0
+    assert result["stdout"] == "entrypoint"
+    assert result["cwd"] == str(tmp_path)
+
+
+def test_bash_execution_rejects_non_string_command(tmp_path: Path) -> None:
+    tool = BashTool(executable="bash")
+    with pytest.raises(TypeError, match="command must be a string"):
+        tool.create_execution(
+            {"command": 42}, call_id="invalid", work_root=tmp_path, history=()
+        )
 
 
 def test_bash_process_start_failure_is_not_a_command_result(tmp_path: Path) -> None:

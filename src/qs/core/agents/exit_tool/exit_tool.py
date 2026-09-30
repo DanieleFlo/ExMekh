@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from qs.core.agents.capability.references import parse_references
-from qs.core.agents.exit_tool.data import ExitToolData
+from qs.core.agents.exit_tool.data import ExitToolData, ExitToolResult
 from qs.core.agents.exit_tool.decorator import ExitToolFunction
 from qs.core.models.assistant_message import ToolCall
 from qs.core.models.tool import Tool
@@ -47,7 +47,7 @@ class ExitTool(Tool):
     def render_prompt_section(self) -> str:
         return f'<exit-tool name="{self.name}">{self.instructions}</exit-tool>'
 
-    def execute(self, *args: Any, **kwargs: Any) -> dict[str, str | list[str]]:
+    def execute(self, *args: Any, **kwargs: Any) -> ExitToolResult:
         result = self.tool(*args, **kwargs)
         if not isinstance(result, ExitToolData):
             raise TypeError("exit tool must return ExitToolData")
@@ -58,9 +58,7 @@ class ExitTool(Tool):
         super().validate_arguments(arguments)
         ExitToolData(**arguments)
 
-    def _finalize_result(
-        self, context: ToolContext, result: Any
-    ) -> dict[str, str | list[str]]:
+    def _finalize_result(self, context: ToolContext, result: Any) -> ExitToolResult:
         result = super()._finalize_result(context, result)
         if not isinstance(result, dict):
             raise TypeError("Exit tool result must be a dictionary")
@@ -104,7 +102,7 @@ class CalledExitTool:
         *,
         work_root: Path | None = None,
         history: tuple[dict[str, str], ...] = (),
-    ) -> dict[str, str | list[str]]:
+    ) -> ExitToolResult:
         return self._exit_tool.execute_with_hooks(
             self.arguments,
             work_root=work_root if work_root is not None else Path.cwd(),

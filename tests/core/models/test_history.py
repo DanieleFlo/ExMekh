@@ -19,7 +19,7 @@ class NotAMessage:
     content: str
 
 
-def test_compaction_returns_only_removed_external_input_in_order():
+def test_compaction_discards_delivered_skill_input():
     content = TextsUserMessage(["first"])
     history = MessageHistory(
         [
@@ -33,14 +33,8 @@ def test_compaction_returns_only_removed_external_input_in_order():
     )
     replacement = ToolMessage("skill result", "opening", "skill")
 
-    replay = history.compact_from(2, [replacement])
+    history.replace_from(2, [replacement])
     content.texts.append("later mutation")
-
-    assert [message.get_message() for message in replay] == [
-        TextsUserMessage(["first"]),
-        "second",
-    ]
-    assert replay[0].get_name() == "author"
     assert [message.get_message() for message in history.get_history()] == [
         "rules",
         "start",
@@ -54,7 +48,7 @@ def test_compaction_rejects_invalid_index_without_changing_history(start_index):
     before = history.get_history()
 
     with pytest.raises((TypeError, IndexError)):
-        history.compact_from(start_index, [])
+        history.replace_from(start_index, [])
 
     assert history.get_history() == before
 

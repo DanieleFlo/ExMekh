@@ -209,7 +209,9 @@ def test_inline_tool_keeps_running_until_safe_boundary(make_agent, gates, launch
 
 
 @pytest.mark.parametrize("nested", [False, True])
-def test_steering_survives_skill_compaction(make_agent, gates, launch_run, nested):
+def test_delivered_steering_is_not_replayed_after_skill_compaction(
+    make_agent, gates, launch_run, nested
+):
     work, started, _ = blocked_work(gates, launch_run)
     responses = [tool_reply(call("mock-skill", call_id="open"))]
     if nested:
@@ -236,14 +238,18 @@ def test_steering_survives_skill_compaction(make_agent, gates, launch_run, neste
     assert response.get_message() == "updated"
     assert [m["content"] for m in response.history if m["role"] == "user"] == [
         "start",
-        "Remember this correction",
     ]
-    assert all(
-        user_contents(r).count("Remember this correction") == 1
-        for r in provider.requests[3 if nested else 2 :]
+    assert any(
+        "Remember this correction" in user_contents(request)
+        for request in provider.requests
     )
+    assert "Remember this correction" not in user_contents(provider.requests[-1])
     assert "Remember this correction" in str(response.get_history_tree())
-    assert "<header>" in provider.requests[-1].get_messages()[-2].get_message()
+    assert any(
+        "<header>" in message.get_message()
+        for message in provider.requests[-1].get_messages()
+        if isinstance(message, ToolMessage)
+    )
 
 
 def test_steering_queued_during_exit_is_inserted_after_compaction(make_agent):
@@ -251,6 +257,7 @@ def test_steering_queued_during_exit_is_inserted_after_compaction(make_agent):
         [
             tool_reply(call("mock-skill", call_id="open")),
             tool_reply(call("exit_agent", {"text": "done", "items": []}, "exit")),
+            AssistantMessage("before steering"),
             AssistantMessage("updated"),
         ]
     )
@@ -262,6 +269,8 @@ def test_steering_queued_during_exit_is_inserted_after_compaction(make_agent):
 
     agent = make_agent(provider, on_stream=as_agent_handler(observe))
     assert agent.run("start").get_message() == "updated"
+    assert isinstance(provider.requests[2].get_messages()[-1], ToolMessage)
+    assert user_contents(provider.requests[2]) == ["start"]
     assert user_contents(provider.requests[-1]) == ["start", "change direction"]
 
 

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from qs.core.models.assistant_message import AssistantMessage
+from qs.core.models.assistant_message import AssistantMessage, FunctionCall, ToolCall
 from qs.core.models.client import Client
 from qs.core.models.client_request import ClientRequest
 from qs.core.models.provider_request import ProviderRequest
@@ -23,6 +23,31 @@ from tests.event_handler import as_provider_handler
 
 class StructuredAnswer(BaseModel):
     value: int
+
+
+@pytest.mark.parametrize("provider_fails", [False, True])
+def test_complete_tool_transition_retains_the_completed_batch(provider_fails):
+    provider = MagicMock(spec=Provider)
+    provider.call.return_value = ProviderResponse(AssistantMessage("superseded"))
+    client = Client(provider, SystemMessage("rules"))
+    client.add_user_message(UserMessage("start"))
+    client.add_tool_calls([ToolCall("skill", FunctionCall("work", {}))])
+    client.add_tool_response(ToolMessage("done", "skill", "work"))
+    before = client.dump_history()
+    extra = {"agentic": {"operation": "return", "skill_call_id": "skill"}}
+
+    if provider_fails:
+        provider.call.side_effect = RuntimeError("provider unavailable")
+        with pytest.raises(RuntimeError, match="provider unavailable"):
+            client.complete_tool_transition(extra=extra)
+    else:
+        client.complete_tool_transition(extra=extra)
+
+    assert client.dump_history() == before
+    request = provider.call.call_args.args[0]
+    assert request.get_extra() == extra
+    assert request.get_tool_choice() == "none"
+    assert request.get_streaming() is False
 
 
 @pytest.mark.parametrize("structured", [True, False])
@@ -85,6 +110,7 @@ def test_continue_with_user_messages_preserves_order_and_request_options() -> No
     provider.call.return_value = response
     client = Client(provider, SystemMessage("rules"))
     client.add_user_message(UserMessage("initial"))
+    client.add_tool_calls([ToolCall("origin", FunctionCall("work", {}))])
     client.add_tool_response(ToolMessage("running", "origin", "work"))
     handler = as_provider_handler(lambda event: None)
     messages = [UserMessage("first correction"), UserMessage("second correction")]
@@ -344,8 +370,10 @@ def test_continue_after_tools_sends_existing_history_without_new_message() -> No
     provider = MagicMock(spec=Provider)
     system_message = SystemMessage("rules")
     user_message = UserMessage("look up the weather")
-    tool_request = AssistantMessage("")
-    tool_response = ToolMessage('{"temperature":28}', "call-123")
+    tool_request = AssistantMessage(
+        "", tool_calls=[ToolCall("call-123", FunctionCall("weather", {}))]
+    )
+    tool_response = ToolMessage('{"temperature":28}', "call-123", "weather")
     final_response = AssistantMessage("It is 28 degrees")
     tool_provider_response = ProviderResponse(tool_request)
     final_provider_response = ProviderResponse(final_response)
@@ -404,8 +432,10 @@ def test_continue_after_tools_structured_builds_structured_request() -> None:
     provider = MagicMock(spec=Provider)
     system_message = SystemMessage("rules")
     user_message = UserMessage("look up a value")
-    tool_request = AssistantMessage("")
-    tool_response = ToolMessage('{"value":42}', "call-123")
+    tool_request = AssistantMessage(
+        "", tool_calls=[ToolCall("call-123", FunctionCall("lookup", {}))]
+    )
+    tool_response = ToolMessage('{"value":42}', "call-123", "lookup")
     structured_message = StructuredAssistantMessage(StructuredAnswer(value=42))
     provider.call.return_value = ProviderResponse(tool_request)
     provider.call_structured.return_value = StructuredProviderResponse(

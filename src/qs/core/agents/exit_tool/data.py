@@ -1,6 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TypedDict
+
+
+class ExitToolResult(TypedDict):
+    text: str
+    items: list[str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,5 +34,5 @@ class ExitToolData:
         object.__setattr__(self, "text", text)
         object.__setattr__(self, "items", items)
 
-    def dump(self) -> dict[str, str | list[str]]:
+    def dump(self) -> ExitToolResult:
         return {"text": self.text, "items": self.items}

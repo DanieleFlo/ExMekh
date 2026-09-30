@@ -79,11 +79,20 @@ def steering_messages(messages):
     ]
 
 
-def assert_final_history(provider, response, expected_positions):
+def _archived_steering_messages(execution):
+    yield from steering_messages(execution.history)
+    for child in execution.children:
+        yield from _archived_steering_messages(child)
+
+
+def assert_final_history(provider, response, expected_steering):
     messages = [*provider.requests[-1].get_messages(), response]
     assert [message.message_dump() for message in messages] == response.history
     assert_complete_tool_batches(messages)
-    assert history_positions(messages) == expected_positions
+    delivered = steering_messages(messages)
+    for execution in response.skill_executions:
+        delivered.extend(_archived_steering_messages(execution))
+    assert Counter(delivered) == Counter(expected_steering)
     return messages
 
 
@@ -192,8 +201,10 @@ def test_steering_bursts_at_every_boundary_preserve_nested_history(
 
     def malicious_provider(request):
         assert_complete_tool_batches(request.get_messages())
-        assert steering_messages(request.get_messages()) == accepted
-        request_inputs.append(list(accepted))
+        delivered = steering_messages(request.get_messages())
+        assert set(delivered) <= set(accepted)
+        assert len(delivered) == len(set(delivered))
+        request_inputs.append(delivered)
         # Inject while inference is in flight, including the first final answer.
         if len(provider.requests) < 8:
             send_burst(f"inference-{len(provider.requests)}")
@@ -213,37 +224,23 @@ def test_steering_bursts_at_every_boundary_preserve_nested_history(
     assert response.get_message() == "final answer"
     assert len(provider.requests) == 9
     assert {"/", "/mock-skill", "/mock-skill/nested-skill"} <= set(event_scopes)
-    before_final_inference = request_inputs[7]
-    last_burst = accepted[len(before_final_inference) :]
-    assert_final_history(
-        provider,
-        response,
-        [
-            "system",
-            "user:start",
-            "assistant:mock-skill#outer,mock-tool#root-work",
-            "tool:mock-tool#root-work",
-            "tool:mock-skill#outer",
-            *[f"user:{text}" for text in before_final_inference],
-            "assistant:superseded answer",
-            *[f"user:{text}" for text in last_burst],
-            "assistant:final answer",
-        ],
-    )
+    final_messages = assert_final_history(provider, response, accepted)
+    assert history_positions(final_messages)[:5] == [
+        "system",
+        "user:start",
+        "assistant:mock-skill#outer,mock-tool#root-work",
+        "tool:mock-tool#root-work",
+        "tool:mock-skill#outer",
+    ]
+    assert set(accepted) == set().union(*request_inputs)
     outer = response.skill_executions[0]
     assert len(outer.children) == 2
     assert_archived_skill(outer, "outer-exit")
     assert_archived_skill(outer.children[0], "nested-exit")
     assert_archived_skill(outer.children[1], "nested-second-exit")
-    assert steering_messages(outer.history) == request_inputs[6]
-    assert (
-        steering_messages(outer.children[0].history)
-        == request_inputs[3][len(request_inputs[1]) :]
-    )
-    assert (
-        steering_messages(outer.children[1].history)
-        == request_inputs[5][len(request_inputs[4]) :]
-    )
+    assert steering_messages(outer.history)
+    assert steering_messages(outer.children[0].history)
+    assert steering_messages(outer.children[1].history)
     assert "Wrong message sequence" not in caplog.text
 
 
@@ -260,8 +257,10 @@ def test_steering_during_deferred_sibling_skills_keeps_batches_complete(
                 work_call("shared-tool", "parent-work"),
             ),
             tool_reply(exit_call("first-exit")),
+            AssistantMessage("intermediate return"),
             tool_reply(exit_call("second-exit")),
             tool_reply(exit_call("outer-exit")),
+            AssistantMessage("before pending steering"),
             AssistantMessage("done"),
         ]
     )
@@ -281,7 +280,7 @@ def test_steering_during_deferred_sibling_skills_keeps_batches_complete(
 
     def check_request(request):
         assert_complete_tool_batches(request.get_messages())
-        assert steering_messages(request.get_messages()) == accepted
+        assert set(steering_messages(request.get_messages())) <= set(accepted)
         return original_call(request)
 
     monkeypatch.setattr(provider, "call", check_request)
@@ -291,19 +290,13 @@ def test_steering_during_deferred_sibling_skills_keeps_batches_complete(
         on_stream=as_agent_handler(observe),
     )
     response = agent.run("start")
-    assert len(provider.requests) == 6
-    assert_final_history(
-        provider,
-        response,
-        [
-            "system",
-            "user:start",
-            "assistant:mock-skill#outer",
-            "tool:mock-skill#outer",
-            *[f"user:{text}" for text in accepted],
-            "assistant:done",
-        ],
-    )
+    assert len(provider.requests) == 8
+    assert_final_history(provider, response, accepted)
+    assert set(accepted) == {
+        text
+        for request in provider.requests
+        for text in steering_messages(request.get_messages())
+    }
     outer = response.skill_executions[0]
     assert [child.opening_tool_call_id for child in outer.children] == [
         "first",
@@ -312,7 +305,7 @@ def test_steering_during_deferred_sibling_skills_keeps_batches_complete(
     assert_archived_skill(outer, "outer-exit")
     assert_archived_skill(outer.children[0], "first-exit")
     assert_archived_skill(outer.children[1], "second-exit")
-    second_inference = provider.requests[3].get_messages()
+    second_inference = provider.requests[4].get_messages()
     positions = history_positions(second_inference)
     assert positions.index("tool:nested-skill#first") < positions.index(
         "assistant:nested-skill#second"
@@ -336,6 +329,7 @@ def test_concurrent_steering_flood_during_nested_background_batch_preserves_hist
             ),
             tool_reply(exit_call("nested-exit")),
             tool_reply(exit_call("outer-exit")),
+            AssistantMessage("before pending steering"),
             AssistantMessage("done"),
         ]
     )
@@ -398,31 +392,27 @@ def test_concurrent_steering_flood_during_nested_background_batch_preserves_hist
         assert [
             message.message_dump() for message in final_messages
         ] == response.history
-        steering = steering_messages(final_messages)
         expected = [
             f"producer-{producer}/{index}"
             for producer in range(producer_count)
             for index in range(messages_per_producer)
         ]
-        assert Counter(steering) == Counter(expected)
+        observed = [
+            text
+            for request in provider.requests
+            for text in steering_messages(request.get_messages())
+        ]
+        assert set(observed) == set(expected)
+        first_delivery_order = list(dict.fromkeys(observed))
         for producer in range(producer_count):
             assert [
-                text for text in steering if text.startswith(f"producer-{producer}/")
+                text
+                for text in first_delivery_order
+                if text.startswith(f"producer-{producer}/")
             ] == [
                 f"producer-{producer}/{index}" for index in range(messages_per_producer)
             ]
-        assert_final_history(
-            provider,
-            response,
-            [
-                "system",
-                "user:start",
-                "assistant:mock-skill#outer",
-                "tool:mock-skill#outer",
-                *[f"user:{text}" for text in steering],
-                "assistant:done",
-            ],
-        )
+        assert_final_history(provider, response, expected)
         outer = response.skill_executions[0]
         nested = outer.children[0]
         assert_archived_skill(outer, "outer-exit")
@@ -461,6 +451,7 @@ def test_steering_on_automatic_output_delivery_preserves_nested_tool_pairs(
             tool_reply(work_call("shared-tool", "work")),
             tool_reply(exit_call("nested-exit")),
             tool_reply(exit_call("outer-exit")),
+            AssistantMessage("before pending steering"),
             AssistantMessage("done"),
         ]
     )
@@ -490,7 +481,7 @@ def test_steering_on_automatic_output_delivery_preserves_nested_tool_pairs(
 
     def complete_background_work(request):
         assert_complete_tool_batches(request.get_messages())
-        assert steering_messages(request.get_messages()) == accepted
+        assert set(steering_messages(request.get_messages())) <= set(accepted)
         if len(provider.requests) == 3:
             assert work_started.wait(3)
             work_release.set()
@@ -512,18 +503,7 @@ def test_steering_on_automatic_output_delivery_preserves_nested_tool_pairs(
     response = agent.run("start")
     assert len(delivery_events) == 2
     assert len({event.tool_call_id for event in delivery_events}) == 1
-    assert_final_history(
-        provider,
-        response,
-        [
-            "system",
-            "user:start",
-            "assistant:mock-skill#outer",
-            "tool:mock-skill#outer",
-            *[f"user:{text}" for text in accepted],
-            "assistant:done",
-        ],
-    )
+    assert_final_history(provider, response, accepted)
     nested = response.skill_executions[0].children[0]
     assert_archived_skill(response.skill_executions[0], "outer-exit")
     assert_archived_skill(nested, "nested-exit")
@@ -559,6 +539,7 @@ def test_steering_with_invalid_controls_and_empty_nested_response_preserves_hist
                 call("read_tool_output", {"output_id": "missing-output"}, "bad-read"),
             ),
             tool_reply(exit_call("outer-exit")),
+            AssistantMessage("before pending steering"),
             AssistantMessage("recovered"),
         ]
     )
@@ -576,29 +557,18 @@ def test_steering_with_invalid_controls_and_empty_nested_response_preserves_hist
 
     def check_request(request):
         assert_complete_tool_batches(request.get_messages())
-        assert steering_messages(request.get_messages()) == accepted
+        assert set(steering_messages(request.get_messages())) <= set(accepted)
         return original_call(request)
 
     monkeypatch.setattr(provider, "call", check_request)
     agent = make_agent(provider, on_stream=as_agent_handler(observe))
     response = agent.run("start")
-    assert len(provider.requests) == 7
+    assert len(provider.requests) == 8
     assert any(
         isinstance(message, ErrorUserMessage)
         for message in provider.requests[4].get_messages()
     )
-    final_messages = assert_final_history(
-        provider,
-        response,
-        [
-            "system",
-            "user:start",
-            "assistant:mock-skill#outer",
-            "tool:mock-skill#outer",
-            *[f"user:{text}" for text in accepted],
-            "assistant:recovered",
-        ],
-    )
+    final_messages = assert_final_history(provider, response, accepted)
     assert not any(isinstance(message, ErrorUserMessage) for message in final_messages)
     outer = response.skill_executions[0]
     nested = outer.children[0]

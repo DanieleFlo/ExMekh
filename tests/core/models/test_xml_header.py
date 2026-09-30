@@ -5,6 +5,8 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from qs.core.models.xml_header import XmlHeader
+from qs.utils.xml import render_xml
+from tests.tool_result_support import parse_tool_result
 
 
 def test_init_valid() -> None:
@@ -123,6 +125,28 @@ def test_to_xml_with_fields_and_none_filtering() -> None:
     )
     assert xml_output == expected
     assert "ignored" not in xml_output
+
+
+@pytest.mark.parametrize("as_list", [True, False])
+def test_structured_metadata_preserves_types_and_escapes_nested_text(as_list):
+    record = {
+        "name": "read <page> & text",
+        "tool-call-id": "call\x00\ud800",
+        "output-id": "output\r\nid",
+        "depth": 3,
+        "active": True,
+        "missing": None,
+        "bad key": [],
+    }
+    value = [record] if as_list else record
+    header = XmlHeader(source="DeepSkill", name="skill", id="result").add_field(
+        "background-tools", value
+    )
+    root = ET.fromstring(header.to_xml())
+    metadata = root.find("background-tools")
+
+    assert metadata is not None
+    assert parse_tool_result(render_xml(metadata)) == value
 
 
 def test_prepend_to() -> None:

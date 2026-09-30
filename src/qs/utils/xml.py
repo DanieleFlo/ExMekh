@@ -48,6 +48,13 @@ def append_text_element(
     return element
 
 
+def append_value_element(parent: ET.Element, name: str, value: object) -> ET.Element:
+    """Append a structured value with the same types and escaping as tool results."""
+    element = ET.SubElement(parent, name)
+    _append_value(element, to_json_value(value))
+    return element
+
+
 def _base64_text(text: str) -> str:
     return base64.b64encode(text.encode("utf-8", "surrogatepass")).decode("ascii")
 

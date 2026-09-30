@@ -4,12 +4,20 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from qs.core.agents.exit_tool.exit_tool import ExitTool
+from qs.core.agents.node import Node
 from qs.core.agents.node.agentic_scope import AgenticScope
 from qs.core.agents.node.tool_call_executor import ToolCallExecutor
+from qs.core.agents.node.tool_call_resolver import ToolCallResolver
 from qs.core.models.assistant_message import FunctionCall, ToolCall
 from qs.core.models.client import Client
+from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool import CalledTool, Tool
+from qs.core.models.user_message import UserMessage
 from qs.core.tool_calls.execution_manager import ToolExecutionManager
+from tests.core.agents.node.test_node import (
+    SequenceProvider,
+    _write_runnable_capabilities,
+)
 
 
 @pytest.fixture
@@ -49,33 +57,48 @@ def test_annotation_failure_preserves_the_tool_result(make_executor, managed):
 
     assert result.raw_result == "done"
     assert result.response.get_tool_call_id() == "call"
-    if managed:
-        header, body = result.response.get_message().split("</header>\n", 1)
-        root = ET.fromstring(header + "</header>")
-        assert root.findtext("id") == result.output_id == "output"
-        assert root.findtext("response-type") == "final"
-        assert root.find("thinking") is None
-        assert body == "done"
-    else:
-        assert result.response.get_message() == "done"
-        assert result.output_id is None
-
-
-def test_header_fallback_preserves_explicit_id_without_optional_response_type(
-    make_executor,
-):
-    executor = make_executor()
-
-    content, output_id = executor._format_output(
-        "work",
-        "# tool-authored output",
-        source="Tool",
-        output_id="canonical",
-        thinking_annotation_provider=unavailable_annotation,
-    )
-
-    header, body = content.split("</header>\n", 1)
+    header, body = result.response.get_message().split("</header>\n", 1)
     root = ET.fromstring(header + "</header>")
-    assert root.findtext("id") == output_id == "canonical"
-    assert root.find("response-type") is None
-    assert body == "# tool-authored output"
+    assert root.findtext("id") == result.output_id == "output"
+    assert root.findtext("response-type") == ("final" if managed else None)
+    assert root.find("thinking") is None
+    assert body == "done"
+
+
+def test_skill_return_without_execution_manager_has_a_complete_header(tmp_path):
+    capabilities = Node(
+        [_write_runnable_capabilities(tmp_path)], name_hds="main"
+    ).load_capabilities(work_root=tmp_path)
+    client = Client(SequenceProvider([]), SystemMessage("rules"))
+    scope = AgenticScope(capabilities.get_hds("main"), "exit_agent")
+    executor = ToolCallExecutor(
+        client=client,
+        exit_tool=capabilities.get_exit_tool("exit_agent"),
+        initial_depth=0,
+        agentic_scope=scope,
+        exit_content_resolver=lambda content, items, path, position: content,
+        work_root=tmp_path,
+    )
+    resolver = ToolCallResolver(capabilities)
+    client.add_user_message(UserMessage("start"))
+    opening = ToolCall("open", FunctionCall("mock-skill", {}))
+    client.add_tool_calls([opening])
+    client.add_tool_response(executor.execute(resolver.resolve(opening)).response)
+    closing = ToolCall(
+        "exit", FunctionCall("exit_agent", {"text": "done", "items": []})
+    )
+    client.add_tool_calls([closing])
+
+    result = executor.execute(resolver.resolve(closing))
+
+    header, body = result.response.get_message().split("</header>\n", 1)
+    root = ET.fromstring(header + "</header>")
+    assert root.findtext("type") == "DeepSkill"
+    assert root.findtext("name") == "mock-skill"
+    assert root.findtext("id") == result.output_id
+    assert root.find("background-tools") is None
+    assert body == "done"
+    assert result.raw_result == {"text": "done", "items": []}
+    assert result.response.get_tool_call_id() == "open"
+    assert executor.pending_return_call_id == "open"
+    assert executor.depth == 0

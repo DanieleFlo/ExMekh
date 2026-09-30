@@ -50,7 +50,6 @@ from qs.core.models.user_message import ErrorUserMessage, UserMessage
 from qs.core.models.xml_header import XmlHeader
 from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
 from qs.core.tool_calls.execution_history import ExecutionHistory
-from qs.core.tool_calls.execution_manager import ToolExecutionManager
 from qs.interfaces.provider import Provider
 from qs.interfaces.tokenizer import Tokenizer
 from tests.event_handler import as_agent_handler
@@ -403,64 +402,22 @@ def test_runtime_config_ignores_stream_events_without_a_handler() -> None:
     assert config.emit_stream(event) is None
 
 
-def test_runtime_config_resolves_agent_context_id() -> None:
-    config_explicit = NodeRuntimeConfig(
+@pytest.mark.parametrize(
+    "override, expected", [(None, "hds-ctx"), ("custom-ctx", "custom-ctx")]
+)
+def test_runtime_config_resolves_agent_context_id(override, expected) -> None:
+    hds = MagicMock(spec=HDS)
+    hds.get_agent_context_id.return_value = "hds-ctx"
+    config = NodeRuntimeConfig(
         provider=cast(Provider, object()),
         capabilities=cast(CapabilitiesData, object()),
-        hds=cast(HDS, object()),
+        hds=hds,
         exit_tool=cast(ExitTool, object()),
         persistent_history=True,
         initial_depth=0,
-        agent_context_id="custom-ctx",
+        agent_context_id=override,
     )
-    assert config_explicit.resolved_agent_context_id == "custom-ctx"
-
-    hds_with_context = MagicMock()
-    hds_with_context.get_agent_context_id.return_value = "hds-ctx"
-    config_hds = NodeRuntimeConfig(
-        provider=cast(Provider, object()),
-        capabilities=cast(CapabilitiesData, object()),
-        hds=cast(HDS, hds_with_context),
-        exit_tool=cast(ExitTool, object()),
-        persistent_history=True,
-        initial_depth=0,
-    )
-    assert config_hds.resolved_agent_context_id == "hds-ctx"
-
-    hds_with_name = MagicMock(spec=["get_name"])
-    hds_with_name.get_name.return_value = "hds-name"
-    config_name = NodeRuntimeConfig(
-        provider=cast(Provider, object()),
-        capabilities=cast(CapabilitiesData, object()),
-        hds=cast(HDS, hds_with_name),
-        exit_tool=cast(ExitTool, object()),
-        persistent_history=True,
-        initial_depth=0,
-    )
-    assert config_name.resolved_agent_context_id == "hds-name"
-
-    hds_with_empty_values = MagicMock()
-    hds_with_empty_values.get_agent_context_id.return_value = ""
-    hds_with_empty_values.get_name.return_value = "   "
-    config_empty = NodeRuntimeConfig(
-        provider=cast(Provider, object()),
-        capabilities=cast(CapabilitiesData, object()),
-        hds=cast(HDS, hds_with_empty_values),
-        exit_tool=cast(ExitTool, object()),
-        persistent_history=True,
-        initial_depth=0,
-    )
-    assert config_empty.resolved_agent_context_id == "default"
-
-    config_default = NodeRuntimeConfig(
-        provider=cast(Provider, object()),
-        capabilities=cast(CapabilitiesData, object()),
-        hds=cast(HDS, object()),
-        exit_tool=cast(ExitTool, object()),
-        persistent_history=True,
-        initial_depth=0,
-    )
-    assert config_default.resolved_agent_context_id == "default"
+    assert config.resolved_agent_context_id == expected
 
 
 def test_runtime_rejects_duplicate_runtime_tool_names(tmp_path: Path) -> None:
@@ -665,6 +622,10 @@ def test_executor_rejects_unsupported_mapped_capability() -> None:
         executor.execute(cast(CalledDeepSkill, object()))
 
 
+def _output_body(content: str) -> str:
+    return content.split("</header>\n", 1)[-1]
+
+
 def test_run_tool_delegates_execution_to_called_tool() -> None:
     client = MagicMock(spec=Client)
     called_tool = MagicMock(spec=CalledTool)
@@ -685,7 +646,9 @@ def test_run_tool_delegates_execution_to_called_tool() -> None:
     client.add_tool_response.assert_not_called()
     client.get_session.assert_not_called()
     response = result.response
-    assert ET.fromstring(response.get_message()).findtext("echo") == "hello"
+    assert (
+        ET.fromstring(_output_body(response.get_message())).findtext("echo") == "hello"
+    )
     assert response.get_tool_call_id() == "call-123"
     assert response.get_name() == "echo"
 
@@ -719,34 +682,44 @@ def test_run_tool_prepends_xml_header_when_client_generates_id() -> None:
     assert response.get_name() == "echo"
 
 
-def test_tool_failure_still_emits_the_end_state() -> None:
-    called_tool = MagicMock(spec=CalledTool)
-    called_tool.execute.side_effect = RuntimeError("tool failed")
-    called_tool.call_id = "call-123"
-    called_tool.name = "echo"
-    client = MagicMock(spec=Client)
-    executor = ToolCallExecutor(
-        client=client,
-        exit_tool=cast(ExitTool, object()),
-        initial_depth=0,
-        agentic_scope=MagicMock(spec=AgenticScope),
-        exit_content_resolver=MagicMock(),
+def test_tool_failure_still_emits_the_end_state(tmp_path: Path) -> None:
+    def fail(text: str) -> str:
+        raise RuntimeError("tool failed")
+
+    provider = SequenceProvider(
+        [
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call("mock-tool", {"text": "work"}, call_id="call-123")
+                ],
+            )
+        ]
     )
-    runtime = object.__new__(NodeRuntime)
-    runtime._execution_manager = ToolExecutionManager()
-    runtime._client = client
-    runtime._executor = executor
-    runtime._emit_tool_state = MagicMock()
+    events = []
+    node = Node(
+        [_write_runnable_capabilities(tmp_path)],
+        name_hds="main",
+        default_capabilities=DefaultCapabilities(
+            harness=False,
+            overrides={
+                "mock-tool": Tool(fail, name="mock-tool", background_enabled=False)
+            },
+        ),
+    )
+    node.initialize(
+        provider, work_root=tmp_path, on_stream=as_agent_handler(events.append)
+    )
 
     with pytest.raises(RuntimeError, match="tool failed"):
-        runtime._execute_tool_call(called_tool)
+        node.run("start")
 
-    assert runtime._emit_tool_state.call_args_list == [
-        (("echo", "call-123"), {"running": True}),
-        (("echo", "call-123"), {"running": False}),
+    tool_events = [
+        event for event in events if isinstance(event, DeepAgentExecutionEvent)
     ]
-    client.add_tool_response.assert_not_called()
-    client.get_session.assert_not_called()
+    assert [event.is_tool_running for event in tool_events] == [True, False]
+    assert all(event.tool_call_id == "call-123" for event in tool_events)
+    assert len(provider.requests) == 1
 
 
 def test_skill_increments_depth_adds_exit_body_and_requires_a_tool(
@@ -799,7 +772,7 @@ def test_skill_increments_depth_adds_exit_body_and_requires_a_tool(
         '<exit-tool name="exit_agent">Finish the agent</exit-tool>'
     )
     exit_message = cast(ToolMessage, provider.requests[2].get_messages()[-1])
-    assert exit_message.get_message() == "done"
+    assert _output_body(exit_message.get_message()) == "done"
 
 
 def test_skill_increments_depth_prepends_xml_header_on_exit(tmp_path: Path) -> None:
@@ -1215,7 +1188,7 @@ def test_streams_context_across_nested_skills_and_tools(
     parent_exit_end = tool_events[-1]
     assert parent_exit_end.depth == 0
     assert parent_exit_end.skill_path == "/"
-    assert parent_exit_end.history_tree[0]["output"] == "parent done"
+    assert _output_body(parent_exit_end.history_tree[0]["output"]) == "parent done"
 
 
 def test_exit_tool_is_rejected_at_root(tmp_path: Path) -> None:
@@ -1259,16 +1232,6 @@ def test_removed_exit_skill_cannot_be_called(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="'finish' is not allowed"):
         node.run("start")
     assert node.depth == 1
-
-
-@pytest.mark.parametrize("result", [None, {}, {"text": 1}, []])
-def test_rejects_invalid_exit_tool_result(result: object) -> None:
-    with pytest.raises(TypeError, match="must contain a text string"):
-        ToolCallExecutor.get_exit_output(result)
-
-
-def test_stringify_result_preserves_strings() -> None:
-    assert ToolCallExecutor.stringify_result("plain result") == "plain result"
 
 
 def test_nested_skills_require_tools_until_every_level_has_exited(
@@ -1820,7 +1783,7 @@ def test_runtime_saves_only_tools_with_their_original_skill_path(
         ]
         assert len(tool_messages) == 2
         assert tool_messages[1].get_tool_call_id() == "open"
-        assert tool_messages[1].get_message() == "done"
+        assert _output_body(tool_messages[1].get_message()) == "done"
         transcript = response.skill_executions[0].history
         assert any(
             isinstance(message, ToolMessage) and message.get_tool_call_id() == "work"
@@ -1876,7 +1839,7 @@ def test_skill_compaction_preserves_preceding_parallel_tool_responses(
     ]
     body = tool_messages[0].get_message().split("</header>\n", 1)[1]
     assert ET.fromstring(body).findtext("echo") == "before"
-    assert tool_messages[1].get_message() == "skill done"
+    assert _output_body(tool_messages[1].get_message()) == "skill done"
     records = node._runtime._tool_cache.get_all()
     assert {record.tool_call_id: record.skill_path for record in records} == {
         "work": "/",
@@ -1929,6 +1892,7 @@ def test_sibling_skills_are_not_silently_opened_as_nested_skills(tmp_path):
                     )
                 ],
             ),
+            AssistantMessage("intermediate return"),
             AssistantMessage(
                 None,
                 tool_calls=[
@@ -1954,10 +1918,11 @@ def test_sibling_skills_are_not_silently_opened_as_nested_skills(tmp_path):
         "second",
     ]
     scopes = [request.get_extra()["agentic"] for request in provider.requests]
-    assert scopes[2]["skill_call_id"] == "first"
-    assert scopes[2]["allowed_skills"] == ["nested-skill"]
-    assert scopes[3]["skill_call_id"] == "second"
-    assert scopes[3]["allowed_skills"] == ["mock-skill"]
+    returns = [scope for scope in scopes if scope.get("operation") == "return"]
+    assert [scope["skill_call_id"] for scope in returns] == ["first", "second"]
+    assert all(scope["allowed_skills"] == ["mock-skill"] for scope in returns)
+    assert provider.requests[2].get_tool_choice() == "none"
+    assert provider.requests[2].get_streaming() is False
     final_outputs = [
         m.get_tool_call_id()
         for m in provider.requests[-1].get_messages()
@@ -2092,37 +2057,36 @@ def test_runtime_isolates_nodes_with_same_hds_and_call_id(tmp_path: Path) -> Non
 
 
 def test_runtime_saves_none_result(tmp_path: Path) -> None:
-    session = SessionCache(tmp_path / "cache")
-    client = MagicMock(spec=Client)
-    client.get_session.return_value = session
-    runtime = object.__new__(NodeRuntime)
-    runtime._client = client
-    runtime._node_id = "test-node"
-    runtime._execution_manager = ToolExecutionManager()
-    runtime._tool_cache = session.node("test-node")
-    runtime._emit_tool_state = MagicMock()
-    runtime._executor = ToolCallExecutor(
-        client=client,
-        exit_tool=cast(ExitTool, object()),
-        initial_depth=0,
-        agentic_scope=MagicMock(spec=AgenticScope),
-        exit_content_resolver=MagicMock(),
+    provider = SequenceProvider(
+        [
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    _function_call("mock-tool", {"text": "work"}, call_id="empty-call")
+                ],
+            ),
+            AssistantMessage("done"),
+        ]
     )
-    try:
-        runtime._execute_tool_call(
-            CalledTool(
-                Tool(lambda: None, name="empty"),
-                _function_call("empty", {}, call_id="empty-call"),
-            )
-        )
-        (record,) = session.node("test-node").get_all()
+    node = Node(
+        [_write_runnable_capabilities(tmp_path)],
+        name_hds="main",
+        default_capabilities=DefaultCapabilities(
+            harness=False,
+            overrides={"mock-tool": Tool(lambda text: None, name="mock-tool")},
+        ),
+    )
+    with SessionCache(tmp_path / "cache") as session:
+        provider.get_session = lambda: session
+        node.initialize(provider, work_root=tmp_path)
+        node.run("start")
+        (record,) = node._runtime._tool_cache.get_all()
         assert record.tool_call_id == "empty-call"
-        assert record is not None
         assert record.result is None
         assert record.skill_path == "/"
-        client.add_tool_response.assert_called_once()
-    finally:
-        session.close()
+        assert (
+            provider.requests[-1].get_messages()[-1].get_tool_call_id() == "empty-call"
+        )
 
 
 def test_runtime_does_not_overwrite_reused_call_ids(tmp_path: Path) -> None:
@@ -2244,28 +2208,30 @@ def test_runtime_captures_arguments_before_tool_mutates_them(tmp_path: Path) -> 
         return "done"
 
     with SessionCache(tmp_path) as session:
-        client = MagicMock(spec=Client)
-        runtime = object.__new__(NodeRuntime)
-        runtime._execution_manager = ToolExecutionManager()
-        runtime._client = client
-        runtime._tool_cache = session.node("node")
-        runtime._emit_tool_state = MagicMock()
-        runtime._executor = ToolCallExecutor(
-            client=client,
-            exit_tool=cast(ExitTool, object()),
-            initial_depth=0,
-            agentic_scope=MagicMock(spec=AgenticScope),
-            exit_content_resolver=MagicMock(),
-        )
         items = [1]
-        runtime._execute_tool_call(
-            CalledTool(
-                Tool(mutate),
-                _function_call("mutate", {"items": items}, call_id="call"),
-            )
+        provider = SequenceProvider(
+            [
+                AssistantMessage(
+                    None,
+                    tool_calls=[
+                        _function_call("mock-tool", {"items": items}, call_id="call")
+                    ],
+                ),
+                AssistantMessage("done"),
+            ]
         )
+        provider.get_session = lambda: session
+        node = Node(
+            [_write_runnable_capabilities(tmp_path)],
+            name_hds="main",
+            default_capabilities=DefaultCapabilities(
+                harness=False, overrides={"mock-tool": Tool(mutate, name="mock-tool")}
+            ),
+        )
+        node.initialize(provider, work_root=tmp_path)
+        node.run("start")
         assert items == [1, 2]
-        (record,) = runtime._tool_cache.get_all()
+        (record,) = node._runtime._tool_cache.get_all()
         assert record.args == {"items": [1]}
 
 
@@ -2508,17 +2474,25 @@ def test_sibling_batches_have_complete_history_and_preserve_request_order(
         [
             AssistantMessage("Open siblings", tool_calls=calls),
             *[
-                AssistantMessage(
-                    None,
-                    tool_calls=[
-                        _function_call(
-                            "exit_agent",
-                            {"text": f"result-{index}", "items": []},
-                            call_id=f"exit-{index}",
-                        )
-                    ],
-                )
+                response
                 for index in range(skill_count)
+                for response in (
+                    AssistantMessage(
+                        None,
+                        tool_calls=[
+                            _function_call(
+                                "exit_agent",
+                                {"text": f"result-{index}", "items": []},
+                                call_id=f"exit-{index}",
+                            )
+                        ],
+                    ),
+                    *(
+                        (AssistantMessage("intermediate return"),)
+                        if index < skill_count - 1
+                        else ()
+                    ),
+                )
             ],
             AssistantMessage("done"),
         ]
@@ -2526,9 +2500,9 @@ def test_sibling_batches_have_complete_history_and_preserve_request_order(
     node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
     node.initialize(provider, work_root=tmp_path)
     response = node.run("start")
-    assert [execution.output for execution in response.skill_executions] == [
-        f"result-{index}" for index in range(skill_count)
-    ]
+    assert [
+        _output_body(execution.output) for execution in response.skill_executions
+    ] == [f"result-{index}" for index in range(skill_count)]
     assert all(not execution.children for execution in response.skill_executions)
     for request in provider.requests:
         messages = request.get_messages()
@@ -2575,19 +2549,23 @@ def test_exit_waits_for_other_tools_in_the_same_batch(tmp_path, exit_first):
         "work": "/mock-skill",
         "open": "/mock-skill",
     }
-    assert response.skill_executions[0].output == "done"
+    assert _output_body(response.skill_executions[0].output) == "done"
 
 
-def test_missing_agentic_scope_fails_before_executing_calls(tmp_path):
+def test_forbidden_tool_batch_fails_before_resolving_any_call(tmp_path, monkeypatch):
     node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
     node.initialize(SequenceProvider([]), work_root=tmp_path)
     runtime = node._runtime
-    assert runtime._executor._agentic_scope.node_id == "main"
-    runtime._executor.build_agentic_extra = dict
-    with pytest.raises(ValueError, match="scope configuration"):
+    resolve = MagicMock()
+    monkeypatch.setattr(runtime._resolver, "resolve_all", resolve)
+    with pytest.raises(ValueError, match="'forbidden' is not allowed at /"):
         runtime._prepare_tool_batch(
-            [_function_call("mock-tool", {"text": "x"}, call_id="work")]
+            [
+                _function_call("mock-tool", {"text": "x"}, call_id="work"),
+                _function_call("forbidden", {}, call_id="blocked"),
+            ]
         )
+    resolve.assert_not_called()
     assert runtime._tool_cache is None
 
 
@@ -2625,6 +2603,7 @@ def test_parent_exit_waits_for_child_and_keeps_original_thinking(tmp_path):
                     )
                 ],
             ),
+            AssistantMessage("intermediate return"),
             AssistantMessage("final"),
         ]
     )
@@ -2633,8 +2612,8 @@ def test_parent_exit_waits_for_child_and_keeps_original_thinking(tmp_path):
     response = node.run("start")
     assert node.depth == 0
     parent = response.skill_executions[0]
-    assert parent.output == "parent done"
-    assert parent.children[0].output == "child done"
+    assert _output_body(parent.output) == "parent done"
+    assert _output_body(parent.children[0].output) == "child done"
     records = node._runtime._tool_cache.get_all()
     assert {
         record.tool_call_id: (record.skill_path, record.thinking) for record in records
@@ -3063,26 +3042,3 @@ def test_agentic_scope_validates_agent_context_id(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="agent_context_id cannot be empty"):
         AgenticScope(hds=hds, exit_tool_name="exit_agent", agent_context_id="")
-
-
-def test_prepare_tool_batch_rejects_missing_agent_context_id(tmp_path: Path) -> None:
-    node = Node([_write_runnable_capabilities(tmp_path)], name_hds="main")
-    node.initialize(SequenceProvider([]), work_root=tmp_path)
-    runtime = node._runtime
-
-    runtime._executor.build_agentic_extra = lambda: {
-        "agentic": {
-            "allowed_tools": ["mock-tool"],
-            "allowed_skills": [],
-        }
-    }
-    with pytest.raises(
-        ValueError,
-        match=(
-            r"Agentic scope configuration \(\'agent_context_id\'\) "
-            r"must be a non-empty string"
-        ),
-    ):
-        runtime._prepare_tool_batch(
-            [_function_call("mock-tool", {"text": "x"}, call_id="work")]
-        )

@@ -3,13 +3,44 @@ from unittest.mock import MagicMock
 
 import pytest
 from openai import OpenAI
+from pydantic import BaseModel
 
+from qs.core.models.client import Client
 from qs.core.models.history import MessageHistory
+from qs.core.models.provider_request import ProviderRequest
+from qs.core.models.provider_response import ProviderResponse
+from qs.core.models.structured_provider_request import StructuredProviderRequest
+from qs.core.models.structured_provider_response import StructuredProviderResponse
 from qs.core.models.system_message import SystemMessage
 from qs.core.models.user_message import UserMessage
+from tests.history_validation import validate_request_history
 
 _LIVE_TEST_ENV_VAR = "QS_RUN_LIVE_TESTS"
 _TRUTHY_VALUES = {"1", "true", "yes", "on"}
+
+
+@pytest.fixture(autouse=True)
+def validate_client_request_histories(monkeypatch: pytest.MonkeyPatch) -> None:
+    original_call = Client._call_provider
+    original_structured_call = Client._call_structured_provider
+
+    def call_with_valid_history(
+        client: Client, request: ProviderRequest
+    ) -> ProviderResponse:
+        validate_request_history(request)
+        return original_call(client, request)
+
+    monkeypatch.setattr(Client, "_call_provider", call_with_valid_history)
+
+    def call_structured_with_valid_history[ResponseModel: BaseModel](
+        client: Client, request: StructuredProviderRequest[ResponseModel]
+    ) -> StructuredProviderResponse[ResponseModel]:
+        validate_request_history(request)
+        return original_structured_call(client, request)
+
+    monkeypatch.setattr(
+        Client, "_call_structured_provider", call_structured_with_valid_history
+    )
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:

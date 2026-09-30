@@ -280,6 +280,88 @@ def test_multiple_results_are_delivered_serially_in_launch_order() -> None:
 
 
 @pytest.mark.parametrize(
+    ("scope", "expected"),
+    [
+        (("session", "outer:1"), ["parent", "child", "deep-child"]),
+        (("session", "outer:1", "child:2"), ["child", "deep-child"]),
+        (("session", "outer:1", "child:3"), []),
+        (("other-session", "outer:1"), ["other-session"]),
+    ],
+)
+def test_running_outputs_follow_invocation_scopes_at_every_depth(scope, expected):
+    release = Event()
+    manager = ToolExecutionManager()
+    owners = {
+        "root": ("session",),
+        "parent": ("session", "outer:1"),
+        "child": ("session", "outer:1", "child:2"),
+        "deep-child": ("session", "outer:1", "child:2", "deeper:3", "leaf:4"),
+        "sibling": ("session", "outer:10"),
+        "other-session": ("other-session", "outer:1"),
+        "unpublished": ("session", "outer:1"),
+    }
+    for call_id, owner in owners.items():
+        manager.start(
+            call_id,
+            "work",
+            {},
+            ToolExecutionOperation(release.wait),
+            owner,
+            ExecutionOptions(mode="background"),
+            output_id=None if call_id == "unpublished" else call_id,
+        )
+    try:
+        assert [item.call_id for item in manager.running_outputs(scope)] == expected
+        assert [item.call_id for item in manager.running_outputs(scope)] == expected
+    finally:
+        release.set()
+        for call_id in owners:
+            assert manager.wait(call_id, 1).is_finished
+    assert manager.running_outputs(scope) == ()
+    assert manager.next_delivery(owners["child"]).call_id == "child"
+
+
+@pytest.mark.parametrize("status", ["completed", "failed", "cancelled"])
+@pytest.mark.parametrize("delivered", [True, False])
+def test_running_outputs_exclude_terminal_work_regardless_of_delivery(
+    status, delivered
+):
+    release = Event()
+    manager = ToolExecutionManager()
+
+    def work():
+        release.wait()
+        if status == "failed":
+            raise RuntimeError("work failed")
+        return "done"
+
+    manager.start(
+        "work",
+        "work",
+        {},
+        ToolExecutionOperation(work, cancel=lambda: True),
+        ("session", "skill"),
+        ExecutionOptions(mode="background"),
+        output_id="output",
+    )
+    try:
+        assert [item.output_id for item in manager.running_outputs(("session",))] == [
+            "output"
+        ]
+        if status == "cancelled":
+            assert manager.cancel("work")[1]
+        release.set()
+        assert manager.wait("work", 1).status == status
+        if delivered:
+            manager.mark_delivered("output")
+        assert manager.running_outputs(("session",)) == ()
+        assert (manager.next_delivery(("session", "skill")) is None) == delivered
+    finally:
+        release.set()
+        manager.wait("work", 1)
+
+
+@pytest.mark.parametrize(
     "seconds", [0, -1, 301, True, "60", float("nan"), float("inf")]
 )
 def test_invalid_wait_limits_are_rejected(seconds) -> None:
