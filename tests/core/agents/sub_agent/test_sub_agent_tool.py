@@ -1,3 +1,4 @@
+import base64
 from pathlib import Path
 from unittest.mock import Mock
 from xml.etree.ElementTree import fromstring
@@ -157,3 +158,18 @@ def test_can_be_registered_as_a_standard_tool(tmp_path: Path) -> None:
     tool = SubAgentTool([_child(tmp_path, "writer")])
 
     assert Tools([tool]).list_tools() == ["call_sub_agent"]
+
+
+@pytest.mark.parametrize(
+    "description", ["line\rreturn", "control\x00character", "surrogate\ud800"]
+)
+def test_child_descriptions_follow_shared_xml_encoding(tmp_path, description):
+    tool = SubAgentTool([_child(tmp_path, "writer")])
+    tool.set_child_descriptions({"writer": description})
+    root = fromstring(tool.get_description().split("\n", 1)[1])
+    element = root.find("sub_agent/description")
+    assert element is not None
+    actual = element.text
+    if element.get("encoding") == "base64":
+        actual = base64.b64decode(actual).decode("utf-8", "surrogatepass")
+    assert actual == description

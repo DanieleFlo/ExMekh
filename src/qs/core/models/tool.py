@@ -90,7 +90,9 @@ class Tool:
         self._tool_type: Literal["function"] = "function"
         self._check_callable_tool()
         self.name = self._resolve_tool_name(tool, name)
-        self.description = description or inspect.getdoc(tool) or ""
+        self.description = (
+            (inspect.getdoc(tool) or "") if description is None else description
+        )
         if not isinstance(cache_result, bool):
             raise TypeError("cache_result must be a bool")
         self.cache_result = cache_result
@@ -159,14 +161,11 @@ class Tool:
         *,
         work_root: Path,
         history: tuple[dict[str, str], ...],
+        call_id: str = "",
     ) -> Any:
-        context, decision = self._prepare_context(arguments, work_root, history)
-        if isinstance(decision, ToolResponse):
-            result = decision.result
-        else:
-            self.validate_arguments(context.arguments)
-            result = self.execute(**context.arguments)
-        return self._finalize_result(context, result)
+        return self.create_execution_with_hooks(
+            arguments, call_id=call_id, work_root=work_root, history=history
+        ).run()
 
     def _finalize_result(self, context: ToolContext, result: Any) -> Any:
         return self.after.handle(context, result) if self.after is not None else result
@@ -376,6 +375,7 @@ class CalledTool:
     ) -> Any:
         return self._tool.execute_with_hooks(
             self.work_arguments,
+            call_id=self.call_id,
             work_root=work_root if work_root is not None else Path.cwd(),
             history=history,
         )

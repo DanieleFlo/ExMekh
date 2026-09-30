@@ -9,7 +9,7 @@ from qs.core.agents.exit_tool.exit_tool import ExitTool
 from qs.core.agents.tools.decorator import deep_tool, get_tool_definition
 from qs.core.agents.tools.deep_tool import DeepTool
 from qs.core.models.assistant_message import FunctionCall, ToolCall
-from qs.core.models.tool import CalledTool, Tool
+from qs.core.models.tool import CalledTool, Tool, ToolExecutionOperation
 from qs.interfaces.tool_hook import (
     AfterTool,
     BeforeTool,
@@ -208,3 +208,56 @@ def test_exit_hooks_can_fix_arguments_and_change_output(tmp_path: Path) -> None:
     assert tool.execute_with_hooks(
         {"text": "", "items": []}, work_root=tmp_path, history=()
     ) == {"text": "changed", "items": []}
+
+
+@pytest.mark.parametrize("managed", [False, True])
+def test_custom_execution_uses_the_same_hooks_and_context_in_both_modes(
+    tmp_path, managed
+):
+    steps = []
+
+    class ChangeInput(BeforeTool):
+        def handle(self, context: ToolContext) -> ToolArguments:
+            steps.append("before")
+            return ToolArguments({"value": "changed"})
+
+    class ChangeOutput(AfterTool):
+        def handle(self, context: ToolContext, result: Any) -> str:
+            steps.append("after")
+            assert context.arguments == {"value": "changed"}
+            return result + "!"
+
+    class CustomTool(Tool):
+        def create_execution(self, arguments, *, call_id, work_root, history):
+            assert call_id == "call"
+            assert work_root == tmp_path
+            assert history == ({"role": "user", "content": "start"},)
+            steps.append("create")
+
+            def run():
+                steps.append("run")
+                return arguments["value"]
+
+            return ToolExecutionOperation(run)
+
+    def unreachable(value):
+        pytest.fail("The custom execution operation must run")
+
+    called = CalledTool(
+        CustomTool(
+            unreachable, name="custom", before=ChangeInput(), after=ChangeOutput()
+        ),
+        ToolCall("call", FunctionCall("custom", {"value": "original"})),
+    )
+    context = {
+        "work_root": tmp_path,
+        "history": ({"role": "user", "content": "start"},),
+    }
+    result = (
+        called.create_execution(**context).run()
+        if managed
+        else called.execute(**context)
+    )
+
+    assert result == "changed!"
+    assert steps == ["before", "create", "run", "after"]

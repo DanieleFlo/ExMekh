@@ -5,11 +5,13 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
+from qs.core.cache.tool_call_record import ToolCallRecord
 from qs.core.models.client import Client
 from qs.core.models.tool import PreformattedToolResult
 from qs.core.models.xml_header import XmlHeader
 from qs.core.tool_calls.execution_manager import ExecutionSnapshot
 from qs.core.tool_calls.output_formatter import ToolOutputFormatter
+from qs.core.tool_calls.output_view import ToolOutputView
 
 
 @pytest.mark.parametrize("invalid_id", [None, 42, "", "   ", OSError("unavailable")])
@@ -50,7 +52,9 @@ def test_failed_optional_annotation_preserves_content_and_existing_id(preformatt
             body,
             annotation_provider=annotation,
         )
-        assert content == original
+        expected_header = XmlHeader(source="Tool", name="work", id="canonical")
+        expected_header.add_field("response-type", "final")
+        assert content == expected_header.prepend_to(body)
         assert output_id == "canonical"
     assert client.generate_id.call_count == (0 if preformatted else 1)
 
@@ -114,3 +118,25 @@ def test_managed_reply_and_read_have_identical_execution_metadata(status):
 
     assert immediate.split("</header>", 1)[0] == read.split("</header>", 1)[0]
     assert output_id == "output"
+
+
+@pytest.mark.parametrize("source", ["Tool", "DeepSkill"])
+def test_inline_result_and_saved_read_both_report_final_response_type(source):
+    client = MagicMock(spec=Client)
+    client.generate_id.return_value = "output"
+    formatter = ToolOutputFormatter(client)
+    if source == "DeepSkill":
+        immediate, output_id = formatter.format_skill_return("work", "done")
+        result = {"text": "done", "items": []}
+    else:
+        immediate, output_id = formatter.format_tool_result("work", "done")
+        result = "done"
+    record = ToolCallRecord(
+        name="work", id=output_id, args={}, result=result, source=source
+    )
+    saved = ToolOutputView(record).format_saved(None)
+
+    for content in (immediate, saved):
+        header, body = content.split("</header>\n", 1)
+        assert ET.fromstring(header + "</header>").findtext("response-type") == "final"
+        assert body == "done"

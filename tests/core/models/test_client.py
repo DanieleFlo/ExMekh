@@ -9,6 +9,10 @@ from qs.core.models.client import Client
 from qs.core.models.client_request import ClientRequest
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
+from qs.core.models.provider_stream_event import (
+    ProviderStreamEvent,
+    ProviderStreamEventType,
+)
 from qs.core.models.structured_assistant_message import StructuredAssistantMessage
 from qs.core.models.structured_provider_request import StructuredProviderRequest
 from qs.core.models.structured_provider_response import StructuredProviderResponse
@@ -16,7 +20,7 @@ from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool import Tool
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.tools import Tools
-from qs.core.models.user_message import UserMessage
+from qs.core.models.user_message import TextsUserMessage, UserMessage
 from qs.interfaces.provider import Provider
 from tests.event_handler import as_provider_handler
 
@@ -144,6 +148,104 @@ def test_continue_with_user_messages_validates_before_mutating_history(
         client.continue_with_user_messages(messages)
     assert client.get_history() == [system]
     provider.call.assert_not_called()
+
+
+@pytest.mark.parametrize("streaming", [True, False])
+@pytest.mark.parametrize("provider_fails", [True, False])
+def test_steering_events_use_on_event_after_insertion_before_inference(
+    streaming, provider_fails
+):
+    provider = MagicMock(spec=Provider)
+    client = Client(provider, SystemMessage("rules"))
+    events = []
+    messages = [UserMessage("first"), UserMessage("second")]
+
+    def observe(event):
+        if event.type is ProviderStreamEventType.STEERING_ADDED:
+            assert client.get_history()[-2:] == messages
+            provider.call.assert_not_called()
+        events.append(event)
+
+    handler = as_provider_handler(observe)
+
+    def respond(request):
+        assert request.on_event is handler
+        assert len(events) == 2
+        assert [message.get_message() for message in request.get_messages()[-2:]] == [
+            "first",
+            "second",
+        ]
+        if provider_fails:
+            raise OSError("provider failed")
+        if streaming:
+            request.execute_on_stream_event(
+                ProviderStreamEvent(ProviderStreamEventType.START)
+            )
+        return ProviderResponse(AssistantMessage("done"))
+
+    provider.call.side_effect = respond
+    if provider_fails:
+        with pytest.raises(OSError, match="provider failed"):
+            client.continue_with_user_messages(
+                messages, streaming=streaming, on_event=handler
+            )
+    else:
+        client.continue_with_user_messages(
+            messages, streaming=streaming, on_event=handler
+        )
+    assert [event.type for event in events[:2]] == [
+        ProviderStreamEventType.STEERING_ADDED
+    ] * 2
+    assert len(events) == (3 if streaming and not provider_fails else 2)
+
+
+@pytest.mark.parametrize("steering", [[], [UserMessage("correction")]])
+def test_initial_turn_message_does_not_emit_a_steering_event(steering):
+    provider = MagicMock(spec=Provider)
+    provider.call.return_value = ProviderResponse(AssistantMessage("done"))
+    client = Client(provider, SystemMessage("rules"))
+    events = []
+    initial = UserMessage("initial")
+    client.continue_with_user_messages(
+        steering, initial_message=initial, on_event=as_provider_handler(events.append)
+    )
+    assert [event.message.get_message() for event in events] == [
+        message.get_message() for message in steering
+    ]
+    assert provider.call.call_args.args[0].get_messages()[1:] == [initial, *steering]
+
+
+def test_user_continuation_rejects_invalid_initial_message_before_insertion():
+    provider = MagicMock(spec=Provider)
+    client = Client(provider, SystemMessage("rules"))
+    with pytest.raises(TypeError, match="Initial message"):
+        client.continue_with_user_messages(
+            [], initial_message=AssistantMessage("invalid")
+        )
+    assert len(client.get_history()) == 1
+    provider.call.assert_not_called()
+
+
+def test_steering_notifications_survive_handler_mutation_of_the_source_batch():
+    provider = MagicMock(spec=Provider)
+    provider.call.return_value = ProviderResponse(AssistantMessage("done"))
+    client = Client(provider, SystemMessage("rules"))
+    second = TextsUserMessage(["second"])
+    messages = [UserMessage("first"), UserMessage(second)]
+    events = []
+
+    def observe(event):
+        events.append(event)
+        if len(events) == 1:
+            messages.clear()
+            second.texts.append("handler mutation")
+
+    client.continue_with_user_messages(messages, on_event=as_provider_handler(observe))
+
+    assert [event.message.get_message() for event in events] == [
+        "first",
+        TextsUserMessage(["second"]),
+    ]
 
 
 def test_init_accepts_provider_returned_by_mapper() -> None:

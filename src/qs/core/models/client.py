@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from qs.config.runtime import RUNTIME
 from qs.core.models.assistant_message import ToolCall
 from qs.core.models.client_request import ClientRequest
-from qs.core.models.history import HistoryMessage, MessageHistory
+from qs.core.models.history import HistoryMessage, MessageHistory, ToolBatchHistory
 from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.structured_provider_request import StructuredProviderRequest
@@ -70,6 +70,9 @@ class Client:
     def copy_history(self) -> list[HistoryMessage]:
         return self._history.get_copy_of_history()
 
+    def get_latest_tool_batch(self) -> ToolBatchHistory:
+        return self._history.get_latest_tool_batch()
+
     def replace_history_from(
         self,
         start_index: int,
@@ -114,7 +117,7 @@ class Client:
         streaming: bool = False,
         on_event: ProviderEventHandler | None = None,
     ) -> ProviderResponse:
-        messages = self._get_tool_continuation_messages()
+        messages = self._history.get_tool_continuation_messages()
         provider_request = ProviderRequest(
             messages=messages,
             extra=extra,
@@ -133,21 +136,32 @@ class Client:
         tool_choice: str | None = None,
         streaming: bool = False,
         on_event: ProviderEventHandler | None = None,
+        initial_message: UserMessage | None = None,
     ) -> ProviderResponse:
-        """Append user input at a completed batch boundary and resume inference."""
-        if not messages or not all(
+        """Append steering at a completed batch boundary and resume inference.
+
+        An optional initial turn message precedes steering without emitting an event.
+        """
+        messages = tuple(messages)
+        if initial_message is not None and not isinstance(initial_message, UserMessage):
+            raise TypeError("Initial message must be a UserMessage")
+        if (not messages and initial_message is None) or not all(
             isinstance(message, UserMessage) for message in messages
         ):
             raise ValueError(RUNTIME.invalid_steering_messages)
+        added_messages: list[HistoryMessage] = [*messages]
+        if initial_message is not None:
+            added_messages.insert(0, initial_message)
         provider_request = ProviderRequest(
-            messages=[*self._history.get_history(), *messages],
+            messages=[*self._history.get_history(), *added_messages],
             extra=extra,
             tool_choice=tool_choice,
             tools=self.tools,
             stream=streaming,
             on_event=on_event,
         )
-        self._history.add(list(messages))
+        self._history.add(added_messages)
+        provider_request.notify_steering_added(messages)
         return self._call_provider(provider_request)
 
     def complete_tool_transition(self, *, extra: Mapping[str, object]) -> None:
@@ -184,7 +198,7 @@ class Client:
         streaming: bool = False,
         on_event: ProviderEventHandler | None = None,
     ) -> StructuredProviderResponse[ResponseModel]:
-        messages = self._get_tool_continuation_messages()
+        messages = self._history.get_tool_continuation_messages()
         provider_request = StructuredProviderRequest(
             messages,
             response_model,
@@ -219,12 +233,6 @@ class Client:
         if message.get_role_name() != "user":
             raise TypeError("Expected a user message")
         self._history.add(message)
-
-    def _get_tool_continuation_messages(self) -> list[HistoryMessage]:
-        messages = self._history.get_history()
-        if not isinstance(messages[-1], ToolMessage):
-            raise TypeError("The last message must be a tool response")
-        return messages
 
     def _prepare_request(self, request: ClientRequest) -> ProviderRequest:
         if not isinstance(request, ClientRequest):

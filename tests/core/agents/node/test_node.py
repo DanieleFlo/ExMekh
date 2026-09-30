@@ -674,7 +674,9 @@ def test_run_tool_prepends_xml_header_when_client_generates_id() -> None:
     client.add_tool_response.assert_not_called()
     client.get_session.assert_not_called()
     response = result.response
-    expected_header = XmlHeader(source="Tool", name="echo", id="id-tool").to_xml()
+    expected_header = XmlHeader(
+        source="Tool", name="echo", id="id-tool", fields={"response-type": "final"}
+    ).to_xml()
     assert response.get_message().startswith(expected_header + "\n")
     body = response.get_message().split("</header>\n", 1)[1]
     assert ET.fromstring(body).findtext("echo") == "hello"
@@ -820,7 +822,7 @@ def test_skill_increments_depth_prepends_xml_header_on_exit(tmp_path: Path) -> N
         source="DeepSkill",
         name="mock-skill",
         id="exit-id-456",
-        fields={"used-tools": []},
+        fields={"response-type": "final", "used-tools": []},
     ).to_xml()
     assert exit_message.get_message() == f"{expected_header}\ndone"
     record = node._runtime._tool_cache.get("exit-id-456")
@@ -2926,11 +2928,10 @@ def test_each_non_leaf_node_gets_its_own_sub_agent_tool(tmp_path: Path) -> None:
     assert isinstance(child_tool, SubAgentTool)
     assert root_tool.child_names == ("child",)
     assert child_tool.child_names == ("grandchild",)
-    assert "<name>child</name><description>child</description>" in root_tool.description
-    assert (
-        "<name>grandchild</name><description>grandchild</description>"
-        in child_tool.description
-    )
+    for tool, name in ((root_tool, "child"), (child_tool, "grandchild")):
+        description = ET.fromstring(tool.get_description().split("\n", 1)[1])
+        assert description.findtext("sub_agent/name") == name
+        assert description.findtext("sub_agent/description") == name
     assert "call_sub_agent" not in grandchild._runtime._client.tools.list_tools()
 
     assert root.run("list tools").get_message() == "done"

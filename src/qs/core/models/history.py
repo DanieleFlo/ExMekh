@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
+from dataclasses import dataclass
 
 from qs.core.models.assistant_message import AssistantMessage, ToolCall
 from qs.core.models.tool_message import ToolMessage
@@ -11,6 +12,12 @@ from qs.interfaces.message import Message
 logger = logging.getLogger(__name__)
 
 type HistoryMessage = Message[object]
+
+
+@dataclass(frozen=True, slots=True)
+class ToolBatchHistory:
+    opening_index: int
+    preceding_responses: tuple[ToolMessage, ...]
 
 
 class MessageHistory:
@@ -92,6 +99,26 @@ class MessageHistory:
 
     def get_copy_of_history(self) -> list[HistoryMessage]:
         return [message.copy() for message in self._history]
+
+    def get_tool_continuation_messages(self) -> list[HistoryMessage]:
+        """Return history only after a tool reply has completed the transition."""
+        if not self._history or not isinstance(self._history[-1], ToolMessage):
+            raise TypeError("The last message must be a tool response")
+        return self.get_history()
+
+    def get_latest_tool_batch(self) -> ToolBatchHistory:
+        """Locate the current batch and its already recorded sibling replies."""
+        opening_index, opening = self._latest_assistant_message()
+        if not opening.get_tool_calls():
+            raise ValueError("The latest assistant message has no tool calls")
+        return ToolBatchHistory(
+            opening_index=opening_index,
+            preceding_responses=tuple(
+                message
+                for message in self._history[opening_index + 1 :]
+                if isinstance(message, ToolMessage)
+            ),
+        )
 
     def add_tool_calls(self, tool_calls: Sequence[ToolCall]) -> None:
         self.add(AssistantMessage(None, tool_calls=list(tool_calls)))

@@ -113,6 +113,7 @@ class CalledExitTool:
     ) -> ExitToolResult:
         return self._exit_tool.execute_with_hooks(
             self.arguments,
+            call_id=self.call_id,
             work_root=work_root if work_root is not None else Path.cwd(),
             history=history,
         )

@@ -3,10 +3,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any
-from xml.etree.ElementTree import Element, SubElement, tostring
+from xml.etree.ElementTree import Element, SubElement
 
 from qs.config.runtime import RUNTIME
 from qs.core.agents.tools.deep_tool import DeepTool
+from qs.utils.xml import append_text_element, render_xml
 
 from .main import run
 
@@ -48,9 +49,9 @@ class SubAgentTool(DeepTool):
         agents = Element("sub_agents")
         for name in self._child_names:
             agent = SubElement(agents, "sub_agent")
-            SubElement(agent, "name").text = name
-            SubElement(agent, "description").text = descriptions.get(name, "")
-        xml = tostring(agents, encoding="unicode", short_empty_elements=False)
+            append_text_element(agent, "name", name)
+            append_text_element(agent, "description", descriptions.get(name, ""))
+        xml = render_xml(agents)
         return (
             "Send a user message to one direct sub-agent and return its final "
             f"response. Available sub-agents: {', '.join(self._child_names)}.\n"

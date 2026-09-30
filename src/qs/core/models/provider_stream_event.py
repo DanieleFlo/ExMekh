@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from qs.core.models.model_usage import ModelUsage
+from qs.core.models.user_message import UserMessage
 
 
 class ProviderStreamEventType(StrEnum):
@@ -12,6 +13,7 @@ class ProviderStreamEventType(StrEnum):
     RESPONSE = "response"
     TOTALS = "totals"
     END = "end"
+    STEERING_ADDED = "steering_added"
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,6 +21,7 @@ class ProviderStreamEvent:
     type: ProviderStreamEventType
     content: str | None = None
     usage: ModelUsage | None = None
+    message: UserMessage | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.type, ProviderStreamEventType):
@@ -40,3 +43,9 @@ class ProviderStreamEvent:
             raise ValueError("Totals events require usage")
         if self.type is not ProviderStreamEventType.TOTALS and self.usage is not None:
             raise ValueError("Only totals events can contain usage")
+        if self.type is ProviderStreamEventType.STEERING_ADDED:
+            if not isinstance(self.message, UserMessage):
+                raise TypeError("Steering events require a UserMessage")
+            object.__setattr__(self, "message", self.message.copy())
+        elif self.message is not None:
+            raise ValueError("Only steering events can contain a message")

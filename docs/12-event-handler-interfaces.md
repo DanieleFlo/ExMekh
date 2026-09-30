@@ -31,3 +31,19 @@ or event annotations fail when the handler is supplied.
 
 Raw functions are rejected at these registration points. Instantiate the
 appropriate event handler class before passing it to the runtime.
+
+`ProviderStreamEventType.STEERING_ADDED` (`"steering_added"`) is delivered to
+the same `ProviderEventHandler` supplied through `on_event`. The client emits
+one event per steering message after the batch is added to conversation history
+and before calling the provider, including when streaming is disabled. The
+`message` field contains an independent copy of the `UserMessage`, preserving
+text, images, and documents. Other event types do not carry this field.
+All messages in the committed batch are copied before invoking its first event
+handler, so a callback cannot alter or drop later notifications by mutating the
+source batch.
+
+Queuing a message with `steer()` does not emit this event; pending input discarded
+after a failure does not emit it either. Ordinary input passed to `run()` does
+not emit it. For agents, the existing `DeepAgentStreamEvent` wraps this provider
+event with the active `depth` and `skill_path`. Steering delivered inside a skill
+is not emitted again when its transcript is compacted.

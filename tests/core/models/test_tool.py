@@ -82,6 +82,17 @@ def test_tool_rejects_non_string_description() -> None:
         Tool(documented_tool, description=cast(str, object()))
 
 
+def test_explicit_empty_description_matches_description_copies() -> None:
+    tool = Tool(documented_tool, description="")
+    assert tool.get_description() == tool.with_description("").get_description() == ""
+
+
+@pytest.mark.parametrize("description", [False, 0, []])
+def test_tool_rejects_falsey_non_string_descriptions(description) -> None:
+    with pytest.raises(TypeError, match="description must be a string"):
+        Tool(documented_tool, description=description)
+
+
 def test_tool_preserves_disabled_cache_policy_in_description_copies() -> None:
     tool = Tool(documented_tool, cache_result=False)
 

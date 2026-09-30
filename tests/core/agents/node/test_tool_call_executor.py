@@ -61,7 +61,7 @@ def test_annotation_failure_preserves_the_tool_result(make_executor, managed):
     header, body = result.response.get_message().split("</header>\n", 1)
     root = ET.fromstring(header + "</header>")
     assert root.findtext("id") == result.output_id == "output"
-    assert root.findtext("response-type") == ("final" if managed else None)
+    assert root.findtext("response-type") == "final"
     assert root.find("thinking") is None
     assert body == "done"
 

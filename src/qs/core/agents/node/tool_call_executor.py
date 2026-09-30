@@ -362,22 +362,12 @@ class ToolCallExecutor:
         thinking: str | None,
         history_position: int,
     ) -> None:
-        history = self._client.get_history()
-        start_index = max(
-            index
-            for index, message in enumerate(history)
-            if message.get_role_name() == "assistant"
-        )
-        preceding_tool_responses = tuple(
-            message
-            for message in history[start_index + 1 :]
-            if isinstance(message, ToolMessage)
-        )
+        batch = self._client.get_latest_tool_batch()
         called_deep_skill.open_execution(
             self._skill_executions,
-            start_index,
+            batch.opening_index,
             thinking,
-            preceding_tool_responses,
+            batch.preceding_responses,
             history_position,
         )
         self._depth += 1
@@ -385,7 +375,7 @@ class ToolCallExecutor:
             "Opened deep skill: name=%s call_id=%s start_index=%d depth=%d",
             called_deep_skill.name,
             called_deep_skill.call_id,
-            start_index,
+            batch.opening_index,
             self._depth,
         )
 

@@ -3,11 +3,13 @@ from threading import Event, get_ident
 import pytest
 
 from qs.core.agents.capabilities.defaults import DefaultCapabilities
+from qs.core.agents.deep_agent import DeepAgentStreamEvent
 from qs.core.agents.node import Node
 from qs.core.agents.node.node_runtime_config import NodeRuntimeConfig
 from qs.core.agents.node.turn_control import TurnControl
 from qs.core.cache.node_cache import NodeCache
 from qs.core.models.assistant_message import AssistantMessage
+from qs.core.models.provider_stream_event import ProviderStreamEventType
 from qs.core.models.tool import Tool
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.user_message import TextsUserMessage
@@ -25,6 +27,13 @@ from tests.core.agents.node.test_node import (
 )
 from tests.event_handler import as_agent_handler
 from tests.tool_result_support import parse_tool_result
+
+
+def _is_steering_event(event):
+    return (
+        isinstance(event, DeepAgentStreamEvent)
+        and event.provider_event.type is ProviderStreamEventType.STEERING_ADDED
+    )
 
 
 @pytest.mark.parametrize("persistent", [True, False])
@@ -107,6 +116,14 @@ def test_messages_during_inference_are_ordered_and_copied(
     )
     original_call = provider.call
     inference_threads = []
+    steering_events = []
+    event_threads = []
+
+    def observe(event):
+        if _is_steering_event(event):
+            assert len(provider.requests) == 1
+            steering_events.append(event)
+            event_threads.append(get_ident())
 
     def paused_call(request):
         inference_threads.append(get_ident())
@@ -117,13 +134,14 @@ def test_messages_during_inference_are_ordered_and_copied(
         return response
 
     monkeypatch.setattr(provider, "call", paused_call)
-    agent = make_agent(provider)
+    agent = make_agent(provider, on_stream=as_agent_handler(observe))
     result = launch_run(agent)
     assert entered.wait(3)
     message = TextsUserMessage(["first"])
     agent.steer(message)
     message.texts.append("later mutation")
     agent.steer("second")
+    assert steering_events == []
     assert not result.done()
     release.set()
     assert result.result(3).get_message() == "updated"
@@ -132,6 +150,19 @@ def test_messages_during_inference_are_ordered_and_copied(
     assert messages[2] == "second"
     assert len(set(inference_threads)) == 1
     assert inference_threads[0] != get_ident()
+    assert event_threads == [inference_threads[0]] * 2
+    assert [
+        event.provider_event.message.message_dump() for event in steering_events
+    ] == [
+        {"role": "user", "content": "first"},
+        {"role": "user", "content": "second"},
+    ]
+    assert all(
+        event.provider_event.type == "steering_added" for event in steering_events
+    )
+    assert all(
+        event.depth == 0 and event.skill_path == "/" for event in steering_events
+    )
 
 
 def test_steering_releases_all_managed_waits_in_the_batch(
@@ -228,8 +259,11 @@ def test_delivered_steering_is_not_replayed_after_skill_compaction(
         )
     responses.append(AssistantMessage("updated"))
     provider = SequenceProvider(responses)
+    events = []
     agent = make_agent(
-        provider, Tool(work, name="nested-sub-tool" if nested else "mock-sub-tool")
+        provider,
+        Tool(work, name="nested-sub-tool" if nested else "mock-sub-tool"),
+        on_stream=as_agent_handler(events.append),
     )
     result = launch_run(agent)
     assert started.wait(3)
@@ -245,6 +279,12 @@ def test_delivered_steering_is_not_replayed_after_skill_compaction(
     )
     assert "Remember this correction" not in user_contents(provider.requests[-1])
     assert "Remember this correction" in str(response.get_history_tree())
+    steering_events = [event for event in events if _is_steering_event(event)]
+    assert len(steering_events) == 1
+    event = steering_events[0]
+    assert event.depth == (2 if nested else 1)
+    assert event.skill_path == ("/mock-skill/nested-skill" if nested else "/mock-skill")
+    assert event.provider_event.message.get_message() == "Remember this correction"
     assert any(
         "<header>" in message.get_message()
         for message in provider.requests[-1].get_messages()
@@ -296,7 +336,8 @@ def test_provider_failure_discards_pending_input_and_releases_run_guard(
     make_agent, monkeypatch
 ):
     provider = SequenceProvider([AssistantMessage("next turn")])
-    agent = make_agent(provider)
+    events = []
+    agent = make_agent(provider, on_stream=as_agent_handler(events.append))
     original_call = provider.call
 
     def fail(request):
@@ -311,6 +352,7 @@ def test_provider_failure_discards_pending_input_and_releases_run_guard(
     monkeypatch.setattr(provider, "call", original_call)
     assert agent.run("second").get_message() == "next turn"
     assert "do not transfer this" not in user_contents(provider.requests[-1])
+    assert not any(_is_steering_event(event) for event in events)
 
 
 def test_nodes_do_not_share_steering(make_agent, gates, launch_run):
@@ -540,7 +582,14 @@ def test_steering_during_session_setup_precedes_first_inference(
     make_agent, monkeypatch
 ):
     provider = SequenceProvider([AssistantMessage("updated")])
-    agent = make_agent(provider, persistent=False)
+    events = []
+
+    def observe(event):
+        if _is_steering_event(event):
+            assert provider.requests == []
+            events.append(event)
+
+    agent = make_agent(provider, persistent=False, on_stream=as_agent_handler(observe))
     original_build = NodeRuntimeConfig.build_system_message
 
     def build(config):
@@ -551,6 +600,11 @@ def test_steering_during_session_setup_precedes_first_inference(
     monkeypatch.setattr(NodeRuntimeConfig, "build_system_message", build)
     assert agent.run("start").get_message() == "updated"
     assert user_contents(provider.requests[0]) == ["start", "early correction"]
+    assert len(events) == 1
+    assert events[0].provider_event.message.message_dump() == {
+        "role": "user",
+        "content": "early correction",
+    }
 
 
 def test_turn_closure_rejects_late_input_before_return(make_agent, monkeypatch):
@@ -570,3 +624,61 @@ def test_turn_closure_rejects_late_input_before_return(make_agent, monkeypatch):
     monkeypatch.setattr(TurnControl, "try_close", close)
     assert agent.run("start").get_message() == "done"
     assert len(provider.requests) == 1
+
+
+def test_steering_event_handler_can_queue_more_input(make_agent):
+    provider = SequenceProvider(
+        [
+            AssistantMessage("first"),
+            AssistantMessage("second"),
+            AssistantMessage("done"),
+        ]
+    )
+    events = []
+
+    def observe(event):
+        if _is_steering_event(event):
+            events.append(event)
+            if event.provider_event.message.get_message() == "first correction":
+                agent.steer("second correction")
+        elif not events and getattr(event, "provider_event", None) is not None:
+            if not queued.is_set():
+                queued.set()
+                agent.steer("first correction")
+
+    queued = Event()
+    agent = make_agent(provider, on_stream=as_agent_handler(observe))
+    assert agent.run("start").get_message() == "done"
+    assert [event.provider_event.message.get_message() for event in events] == [
+        "first correction",
+        "second correction",
+    ]
+    assert user_contents(provider.requests[1]) == ["start", "first correction"]
+    assert user_contents(provider.requests[2]) == [
+        "start",
+        "first correction",
+        "second correction",
+    ]
+
+
+def test_steering_event_is_emitted_even_if_next_inference_fails(
+    make_agent, monkeypatch
+):
+    provider = SequenceProvider([AssistantMessage("first")])
+    events = []
+    agent = make_agent(provider, on_stream=as_agent_handler(events.append))
+    original_call = provider.call
+
+    def fail_after_insertion(request):
+        if not provider.requests:
+            response = original_call(request)
+            agent.steer("inserted correction")
+            return response
+        assert len([event for event in events if _is_steering_event(event)]) == 1
+        raise OSError("provider failed after insertion")
+
+    monkeypatch.setattr(provider, "call", fail_after_insertion)
+    with pytest.raises(OSError, match="provider failed after insertion"):
+        agent.run("start")
+    event = next(event for event in events if _is_steering_event(event))
+    assert event.provider_event.message.get_message() == "inserted correction"

@@ -204,10 +204,8 @@ class NodeRuntime(ProviderEventHandler):
             response = self._continue_after_tools()
         else:
             response = self._client.continue_with_user_messages(
-                (
-                    UserMessage(content=user_message),
-                    *self._turn_control.take_user_messages(),
-                ),
+                self._turn_control.take_user_messages(),
+                initial_message=UserMessage(content=user_message),
                 extra=self._executor.build_agentic_extra(),
                 tool_choice=self._current_tool_choice(),
                 streaming=self._config.is_streaming(),

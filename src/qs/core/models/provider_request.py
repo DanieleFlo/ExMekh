@@ -1,9 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
-from qs.core.models.provider_stream_event import ProviderStreamEvent
+from qs.core.models.provider_stream_event import (
+    ProviderStreamEvent,
+    ProviderStreamEventType,
+)
 from qs.core.models.tools import Tools
+from qs.core.models.user_message import UserMessage
 from qs.interfaces.event_handler import ProviderEventHandler
 from qs.interfaces.message import Message
 
@@ -73,3 +77,14 @@ class ProviderRequest:
     def execute_on_stream_event(self, event: ProviderStreamEvent) -> None:
         if self.on_event is not None:
             self.on_event.handle(event)
+
+    def notify_steering_added(self, messages: Sequence[UserMessage]) -> None:
+        """Snapshot the committed batch before invoking any event handler."""
+        if self.on_event is None:
+            return
+        events = tuple(
+            ProviderStreamEvent(ProviderStreamEventType.STEERING_ADDED, message=message)
+            for message in messages
+        )
+        for event in events:
+            self.execute_on_stream_event(event)

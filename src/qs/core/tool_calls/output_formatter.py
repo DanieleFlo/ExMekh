@@ -60,8 +60,9 @@ class ToolOutputFormatter:
                 execution.output_id or self.generate_output_id(), execution
             )
         )
-        if execution is not None:
-            header.add_field("response-type", execution.response_type)
+        header.add_field(
+            "response-type", "final" if execution is None else execution.response_type
+        )
         return self._format_output(header, content, None, annotation_provider)
 
     @classmethod
@@ -108,6 +109,7 @@ class ToolOutputFormatter:
         used_tools: Sequence[ToolOutputReference] = (),
     ) -> tuple[str, str]:
         header = self._new_header("DeepSkill", name)
+        header.add_field("response-type", "final")
         header.add_field(
             "used-tools", [reference.to_dict() for reference in used_tools]
         )

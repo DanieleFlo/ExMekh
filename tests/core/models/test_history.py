@@ -96,6 +96,55 @@ def test_init_preserves_supplied_message_list() -> None:
     assert history.get_history() is not messages
 
 
+def test_latest_tool_batch_preserves_only_its_recorded_sibling_replies() -> None:
+    previous = ToolCall("previous", FunctionCall("work", {}))
+    first = ToolCall("first", FunctionCall("work", {}))
+    second = ToolCall("second", FunctionCall("skill", {}))
+    previous_reply = ToolMessage("old", "previous", "work")
+    sibling_reply = ToolMessage("done", "first", "work")
+    history = MessageHistory(
+        [
+            SystemMessage("rules"),
+            UserMessage("start"),
+            ProviderResponse(AssistantMessage(None, tool_calls=[previous])),
+            previous_reply,
+            UserMessage("correction"),
+            ProviderResponse(AssistantMessage(None, tool_calls=[first, second])),
+            sibling_reply,
+        ]
+    )
+
+    batch = history.get_latest_tool_batch()
+    assert batch.opening_index == 5
+    assert batch.preceding_responses == (sibling_reply,)
+    assert history.get_tool_continuation_messages() == history.get_history()
+    returned = history.get_tool_continuation_messages()
+    returned.clear()
+    assert history.get_latest_tool_batch() == batch
+
+
+@pytest.mark.parametrize(
+    "messages",
+    [[], [SystemMessage("rules")], [SystemMessage("rules"), AssistantMessage("done")]],
+)
+def test_tool_continuation_rejects_histories_without_a_final_tool_reply(messages):
+    history = MessageHistory(messages)
+    with pytest.raises(TypeError, match="last message must be a tool response"):
+        history.get_tool_continuation_messages()
+
+
+@pytest.mark.parametrize(
+    "assistant",
+    [None, AssistantMessage("done"), AssistantMessage("done", tool_calls=[])],
+)
+def test_latest_tool_batch_rejects_histories_without_a_generating_call(assistant):
+    history = MessageHistory([SystemMessage("rules"), UserMessage("start")])
+    if assistant is not None:
+        history.add(assistant)
+    with pytest.raises(ValueError, match="no assistant message|no tool calls"):
+        history.get_latest_tool_batch()
+
+
 def test_init_and_getter_isolate_history_from_external_mutation() -> None:
     messages = [SystemMessage("non-default-rules")]
     history = MessageHistory(messages)

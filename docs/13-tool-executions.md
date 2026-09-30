@@ -203,9 +203,17 @@ senza metadati di esecuzione vengono letti come risultati finali.
 
 Gli output ordinari e i ritorni delle skill conservano sempre un header e un ID
 leggibile: se il provider non può generare un ID valido, viene usato un UUID.
+I risultati diretti conclusi e i ritorni delle skill dichiarano
+`response-type=final`, come le letture dei rispettivi output salvati.
 Un errore nell'annotazione opzionale `thinking` omette solo quell'annotazione.
 Il contenuto di `PreformattedToolResult` viene preservato; un'esecuzione gestita
 lo include nel proprio envelope per aggiungere stato e ID canonico.
+
+L'esecuzione diretta e quella gestita usano entrambe l'operazione esposta da
+`Tool.create_execution()`. Gli hook applicano le modifiche agli argomenti prima
+di creare l'operazione e filtrano il risultato una sola volta. Per i tool
+specializzati, la call ID e il contesto di esecuzione vengono conservati anche
+quando la gestione in background è disabilitata.
 
 Se il tool offre una lettura incrementale, iniziare con `cursor=0` e riutilizzare
 il `<next-cursor>` restituito. Il cursore è opaco al modello: il tool specializzato
