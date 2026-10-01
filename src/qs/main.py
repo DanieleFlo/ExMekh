@@ -104,6 +104,9 @@ def main() -> None:
         work_root=Path.cwd(),
         on_stream=StreamPrinter(cli_settings.presentation),
     )
+    print("# Tools text")
+    print(deep_agent.get_tools_text())
+    print("----------")
     while True:
         user_message = input(cli_settings.presentation.user_prompt)
         if user_message.lower() in cli_settings.presentation.exit_commands:

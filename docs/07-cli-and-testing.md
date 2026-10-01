@@ -64,6 +64,21 @@ for the shared settings.
 uv run pytest
 ```
 
+Pytest uses `pytest-xdist` to run tests in parallel on the available CPU cores.
+Tests marked `live` or `serial` share one worker and run sequentially with each
+other; the remaining tests can run concurrently. Live tests still require opt-in.
+
+Use `@pytest.mark.serial` on a test, or `pytestmark = pytest.mark.serial` on a
+module, when its shared resources make it incompatible with parallel execution.
+Keep `--dist=loadgroup` when changing the worker count so this grouping is preserved:
+
+```shell
+uv run pytest -n 4
+uv run pytest -n 0
+```
+
+The first command uses four workers; the second runs the entire suite serially.
+
 To exclude live tests even when the environment enables them:
 
 ```shell

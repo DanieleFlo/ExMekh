@@ -18,6 +18,8 @@ from tests.history_validation import validate_request_history
 _LIVE_TEST_ENV_VAR = "QS_RUN_LIVE_TESTS"
 _TRUTHY_VALUES = {"1", "true", "yes", "on"}
 
+pytest_plugins = ("pytester",)
+
 
 @pytest.fixture(autouse=True)
 def validate_client_request_histories(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -53,18 +55,21 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
 
 
+@pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(
     config: pytest.Config, items: list[pytest.Item]
 ) -> None:
     env_value = os.getenv(_LIVE_TEST_ENV_VAR, "").strip().lower()
-    if config.getoption("--run-live") or env_value in _TRUTHY_VALUES:
-        return
-
+    run_live = config.getoption("--run-live") or env_value in _TRUTHY_VALUES
     skip_live = pytest.mark.skip(
         reason=(f"live test disabled; pass --run-live or set {_LIVE_TEST_ENV_VAR}=1")
     )
     for item in items:
-        if "live" in item.keywords:
+        is_live = item.get_closest_marker("live") is not None
+        # xdist must see this group before it builds worker collection IDs.
+        if is_live or item.get_closest_marker("serial") is not None:
+            item.add_marker(pytest.mark.xdist_group("serial"))
+        if is_live and not run_live:
             item.add_marker(skip_live)
 
 

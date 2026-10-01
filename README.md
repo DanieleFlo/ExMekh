@@ -222,6 +222,9 @@ statement and branch coverage:
 uv run pytest
 ```
 
+Tests run in parallel by default. Tests marked `live` or `serial` run one at a
+time in the same worker. Use `uv run pytest -n 0` to run the entire suite serially.
+
 Run static checks and build both the source archive and wheel:
 
 ```shell
