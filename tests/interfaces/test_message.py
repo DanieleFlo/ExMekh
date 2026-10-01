@@ -36,3 +36,22 @@ def test_copy_preserves_concrete_message_without_sharing_state() -> None:
     assert isinstance(copied_message, SystemMessage)
     assert copied_message is not message
     assert copied_message.message_dump() == message.message_dump()
+
+
+def test_metadata_is_local_and_does_not_share_mutable_values() -> None:
+    message = SystemMessage("rules")
+    assert message.get_metadata() == {}
+    snapshot = {"queued": [{"text": "original"}]}
+    message.set_metadata("frontend", snapshot)
+    message.set_metadata("other", None)
+    snapshot["queued"][0]["text"] = "changed by caller"
+    metadata = message.get_metadata()
+    metadata["frontend"]["queued"][0]["text"] = "changed by reader"
+    assert message.get_metadata() == {
+        "frontend": {"queued": [{"text": "original"}]},
+        "other": None,
+    }
+    assert message.message_dump() == {"role": "system", "content": "rules"}
+    copied = message.copy()
+    copied.set_metadata("frontend", {"queued": []})
+    assert message.get_metadata()["frontend"]["queued"] == [{"text": "original"}]

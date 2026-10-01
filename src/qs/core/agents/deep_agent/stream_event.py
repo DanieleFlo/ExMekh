@@ -34,11 +34,16 @@ class DeepAgentExecutionEvent:
     history_tree: list[dict[str, Any]]
     tool_name: str
     tool_call_id: str
+    failed: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.type, DeepAgentExecutionEventType):
             raise TypeError("Event type must be a DeepAgentExecutionEventType")
         _validate_position(self.depth, self.skill_path)
+        if not isinstance(self.failed, bool):
+            raise TypeError("Execution failure must be a boolean")
+        if self.failed and self.is_tool_running:
+            raise ValueError("A running tool cannot have a terminal failure")
         if not isinstance(self.history, list):
             raise TypeError("History must be a list")
         if not isinstance(self.history_tree, list):

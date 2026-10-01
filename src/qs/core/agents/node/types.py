@@ -36,6 +36,15 @@ class ToolExecutionResult:
     preserved_responses: tuple[ToolMessage, ...] = ()
     execution: ExecutionSnapshot | None = None
     used_tools: tuple[ToolOutputReference, ...] | None = None
+    failed: bool = False
+
+    @property
+    def is_error(self) -> bool:
+        """Classify execution failures without interpreting business result values."""
+        return self.failed or (
+            self.execution is not None
+            and self.execution.status in ("failed", "cancelled")
+        )
 
 
 @dataclass(frozen=True, slots=True)

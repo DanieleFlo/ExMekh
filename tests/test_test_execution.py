@@ -23,12 +23,14 @@ def execution_suite(pytester: pytest.Pytester, request: pytest.FixtureRequest) -
     pytester.makepyfile(
         """
         from pathlib import Path
+        from time import monotonic, sleep
 
         import pytest
 
         def record_worker(request):
             worker = request.config.workerinput['workerid']
             Path(f'{request.node.name}.txt').write_text(worker)
+            return worker
 
         @pytest.mark.live
         def test_live(request):
@@ -41,7 +43,12 @@ def execution_suite(pytester: pytest.Pytester, request: pytest.FixtureRequest) -
 
         @pytest.mark.parametrize('case', range(6))
         def test_parallel(request, case):
-            record_worker(request)
+            worker = record_worker(request)
+            Path(f'{worker}.parallel').touch()
+            deadline = monotonic() + 10
+            while len(list(Path('.').glob('*.parallel'))) < 2:
+                assert monotonic() < deadline, 'Both parallel workers must start'
+                sleep(0.01)
         """
     )
     return pytester.path

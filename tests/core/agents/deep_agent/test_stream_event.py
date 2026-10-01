@@ -78,6 +78,8 @@ def test_execution_events_expose_the_running_state() -> None:
     ("overrides", "error", "message"),
     [
         ({"type": "tool_start"}, TypeError, "Event type"),
+        ({"failed": "true"}, TypeError, "failure must be a boolean"),
+        ({"failed": True}, ValueError, "running tool cannot have a terminal failure"),
         ({"depth": "0"}, TypeError, "Depth must be an integer"),
         ({"depth": True}, TypeError, "Depth must be an integer"),
         ({"depth": -1}, ValueError, "Depth cannot be negative"),
@@ -103,3 +105,9 @@ def test_rejects_invalid_event_shapes(
 def test_type_checker_escape_does_not_bypass_history_validation() -> None:
     with pytest.raises(TypeError, match="History must be a list"):
         _execution_event(history=cast(list[dict[str, object]], object()))
+
+
+def test_terminal_execution_event_exposes_a_failure() -> None:
+    event = _execution_event(type=DeepAgentExecutionEventType.TOOL_END, failed=True)
+    assert event.failed
+    assert not event.is_tool_running

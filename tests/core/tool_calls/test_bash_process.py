@@ -48,13 +48,21 @@ def test_cancellation_returns_false_when_process_has_exited(tmp_path):
     assert process.cancel() is False
 
 
-def test_windows_cancellation_reports_lost_process(tmp_path, monkeypatch):
+@pytest.mark.parametrize("killed", [False, True])
+def test_windows_cancellation_waits_only_after_confirmed_kill(
+    tmp_path, monkeypatch, killed
+):
     monkeypatch.setattr(bash_process, "os", SimpleNamespace(name="nt"))
+    wait = MagicMock()
     process = _BashProcess("printf test", tmp_path, "bash")
-    process._process = SimpleNamespace(poll=lambda: None)
-    monkeypatch.setattr(process, "_kill_windows_tree", lambda child: False)
+    process._process = SimpleNamespace(poll=lambda: None, wait=wait)
+    monkeypatch.setattr(process, "_kill_windows_tree", lambda child: killed)
 
-    assert process.cancel() is False
+    assert process.cancel() is killed
+    if killed:
+        wait.assert_called_once_with()
+    else:
+        wait.assert_not_called()
 
 
 @pytest.mark.parametrize("alive_after_lookup", [False, True])
@@ -126,3 +134,17 @@ def test_unix_cancellation_waits_for_killed_process(tmp_path, monkeypatch):
     assert process.cancel() is True
     kill.assert_called_once_with(123, 9)
     child.wait.assert_called_once_with()
+
+
+def test_posix_cancellation_kills_group_and_waits_for_process(tmp_path, monkeypatch):
+    kill_group = MagicMock()
+    wait = MagicMock()
+    child = SimpleNamespace(pid=123, poll=lambda: None, wait=wait)
+    monkeypatch.setattr(
+        bash_process, "os", SimpleNamespace(name="posix", killpg=kill_group)
+    )
+    process = _BashProcess("printf test", tmp_path, "bash")
+    process._process = child
+    assert process.cancel() is True
+    kill_group.assert_called_once_with(child.pid, bash_process.signal.SIGKILL)
+    wait.assert_called_once_with()

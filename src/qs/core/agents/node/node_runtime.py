@@ -351,7 +351,10 @@ class NodeRuntime(ProviderEventHandler):
         self._result_recorder.sync_completed()
         skill_path = self._executor.skill_path
         identity = self._result_recorder.record_call(tool_call, thinking)
-        self._emit_tool_state(tool_call.name, tool_call.call_id, running=True)
+        self._emit_tool_state(
+            tool_call.name, tool_call.call_id, DeepAgentExecutionEventType.TOOL_START
+        )
+        failed = True
         try:
             logger.info(
                 "Starting tool execution: name=%s call_id=%s path=%s",
@@ -374,8 +377,14 @@ class NodeRuntime(ProviderEventHandler):
                     messages=[*result.preserved_responses, result.response],
                 )
             self._result_recorder.persist_result(result, identity, skill_path)
+            failed = result.is_error
         finally:
-            self._emit_tool_state(tool_call.name, tool_call.call_id, running=False)
+            self._emit_tool_state(
+                tool_call.name,
+                tool_call.call_id,
+                DeepAgentExecutionEventType.TOOL_END,
+                failed=failed,
+            )
 
     def _deliver_completed_tool_outputs(self) -> bool:
         if not self._has_read_tool():
@@ -404,7 +413,9 @@ class NodeRuntime(ProviderEventHandler):
             self._execute_tool_call(self._resolver.resolve(call))
 
     def _has_read_tool(self) -> bool:
-        return any(tool.name == RUNTIME.read_tool_name for tool in self._runtime_tools)
+        return any(
+            tool.get_name() == RUNTIME.read_tool_name for tool in self._runtime_tools
+        )
 
     def _get_tool_cache(self) -> NodeCache:
         if self._tool_cache is None or not self._tool_cache.is_active:
@@ -423,7 +434,7 @@ class NodeRuntime(ProviderEventHandler):
 
         self._executor = self._config.build_executor(
             self._client,
-            tuple(tool.name for tool in self._runtime_tools),
+            tuple(tool.get_name() for tool in self._runtime_tools),
             exit_content_resolver=self._compose_exit_content,
             execution_manager=self._execution_manager,
             scope_prefix=self._scope_prefix,
@@ -457,18 +468,22 @@ class NodeRuntime(ProviderEventHandler):
             )
         )
 
-    def _emit_tool_state(self, name: str, call_id: str, running: bool) -> None:
+    def _emit_tool_state(
+        self,
+        name: str,
+        call_id: str,
+        event_type: DeepAgentExecutionEventType,
+        *,
+        failed: bool = False,
+    ) -> None:
         if not self._config.is_streaming():
             return
 
         snapshot = self._executor.snapshot()
         self._config.emit_stream(
             DeepAgentExecutionEvent(
-                type=(
-                    DeepAgentExecutionEventType.TOOL_START
-                    if running
-                    else DeepAgentExecutionEventType.TOOL_END
-                ),
+                type=event_type,
+                failed=failed,
                 depth=snapshot.depth,
                 skill_path=snapshot.skill_path,
                 history=snapshot.history,

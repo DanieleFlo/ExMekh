@@ -352,7 +352,8 @@ class ToolCallExecutor:
                 ),
                 tool_call_id=called_tool.call_id,
                 name=called_tool.name,
-            )
+            ),
+            failed=True,
         )
 
     def _open_deep_skill(

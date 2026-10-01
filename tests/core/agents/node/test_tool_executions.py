@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from pathlib import Path
 from threading import Event
 from xml.etree import ElementTree as ET
@@ -5,6 +6,7 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from qs.core.agents.capabilities.defaults import DefaultCapabilities
+from qs.core.agents.deep_agent.stream_event import DeepAgentExecutionEvent
 from qs.core.agents.node.node import Node
 from qs.core.agents.node.types import ToolExecutionResult
 from qs.core.cache import SessionCache
@@ -16,12 +18,14 @@ from qs.core.models.tool import (
     ToolExecutionOperation,
 )
 from qs.core.models.tool_message import ToolMessage
+from qs.core.tool_calls.execution_manager import ExecutionSnapshot
 from qs.interfaces.tool_hook import AfterTool, BeforeTool, ToolArguments, ToolContext
 from tests.core.agents.node.test_node import (
     SequenceProvider,
     _function_call,
     _write_nested_capabilities,
 )
+from tests.event_handler import as_agent_handler
 from tests.live.tool_execution_support import ProcessFixture, ProcessTool
 from tests.tool_result_support import parse_tool_result
 
@@ -37,7 +41,7 @@ def make_node(tmp_path: Path):
     capabilities = _write_nested_capabilities(tmp_path)
     with SessionCache(tmp_path / "cache") as session:
 
-        def build(provider, tool, *, persistent=True):
+        def build(provider, tool, *, persistent=True, on_stream=None):
             provider.get_session = lambda: session
             counter = iter(range(1, 100))
             provider.generate_id = lambda: f"output-{next(counter)}"
@@ -56,7 +60,7 @@ def make_node(tmp_path: Path):
                     overrides={tool.name: tool},
                 ),
             )
-            node.initialize(provider, work_root=tmp_path)
+            node.initialize(provider, work_root=tmp_path, on_stream=on_stream)
             return node
 
         yield build
@@ -869,8 +873,21 @@ def test_tool_exception_is_distinct_from_negative_result(make_node, fails) -> No
             AssistantMessage("done"),
         ]
     )
-    node = make_node(provider, Tool(work, name="mock-tool"))
+    events = []
+    node = make_node(
+        provider,
+        Tool(work, name="mock-tool"),
+        on_stream=as_agent_handler(events.append),
+    )
     node.run("start")
+    terminal = next(
+        event
+        for event in events
+        if isinstance(event, DeepAgentExecutionEvent)
+        and event.tool_call_id == "origin"
+        and not event.is_tool_running
+    )
+    assert terminal.failed is fails
     output = node.read_tool_output("output-1").content
     expected = "failed" if fails else "final"
     assert f"<response-type>{expected}</response-type>" in output
@@ -898,3 +915,57 @@ def test_background_output_is_isolated_from_another_node(make_node) -> None:
             second.control_tool_execution("origin", "wait", 0.01)
     finally:
         release.set()
+
+
+@pytest.mark.parametrize("failure", ["arguments", "runtime"])
+def test_inline_tool_errors_emit_failure_without_reporting_completion(
+    make_node, failure
+) -> None:
+    def work(text):
+        raise RuntimeError("work failed")
+
+    provider = SequenceProvider(
+        [
+            tool_message(
+                "mock-tool",
+                {} if failure == "arguments" else {"text": "work"},
+                "origin",
+            ),
+            AssistantMessage("recovered"),
+        ]
+    )
+    events = []
+    node = make_node(
+        provider,
+        Tool(work, name="mock-tool", background_enabled=False),
+        on_stream=as_agent_handler(events.append),
+    )
+    if failure == "runtime":
+        with pytest.raises(RuntimeError, match="work failed"):
+            node.run("start")
+    else:
+        assert node.run("start").get_message() == "recovered"
+    execution = [
+        event for event in events if isinstance(event, DeepAgentExecutionEvent)
+    ]
+    assert len(execution) == 2
+    assert execution[0].is_tool_running and not execution[0].failed
+    assert not execution[1].is_tool_running and execution[1].failed
+
+
+@pytest.mark.parametrize("status", ["running", "completed", "failed", "cancelled"])
+def test_result_owns_the_classification_of_managed_execution_errors(status) -> None:
+    snapshot = ExecutionSnapshot(
+        call_id="origin",
+        name="work",
+        arguments={},
+        status=status,
+        started_at=datetime.now(timezone.utc),
+        finished_at=None,
+        output_id="output",
+        elapsed_seconds=0,
+    )
+    result = ToolExecutionResult(
+        ToolMessage("result", "origin", "work"), execution=snapshot
+    )
+    assert result.is_error is (status in ("failed", "cancelled"))

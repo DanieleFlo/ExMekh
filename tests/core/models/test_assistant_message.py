@@ -87,3 +87,12 @@ def test_tool_call_exposes_function_data() -> None:
     assert tool_call.get_fun_name() == "search"
     assert tool_call.get_type() == "function"
     assert tool_call.get_arguments() is arguments
+
+
+def test_metadata_updates_do_not_mutate_a_message_copied_with_new_calls() -> None:
+    message = AssistantMessage("answer")
+    message.set_metadata("frontend", {"turn": "original"})
+    copied = message.with_tool_calls([])
+    copied.set_metadata("frontend", {"turn": "copy"})
+    assert copied.get_metadata()["frontend"] == {"turn": "copy"}
+    assert message.get_metadata()["frontend"] == {"turn": "original"}
