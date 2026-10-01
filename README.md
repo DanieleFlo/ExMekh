@@ -222,8 +222,11 @@ statement and branch coverage:
 uv run pytest
 ```
 
-Tests run in parallel by default. Tests marked `live` or `serial` run one at a
-time in the same worker. Use `uv run pytest -n 0` to run the entire suite serially.
+Tests run in parallel by default using all logical CPUs available to pytest.
+Tests marked `live` or `serial` run one at a time in the same worker. Use
+`uv run pytest -n 16` to select sixteen workers, or `uv run pytest -n 0` to run
+the entire suite serially. `PYTEST_XDIST_AUTO_NUM_WORKERS=16 uv run pytest`
+overrides the automatic count. On WSL, detection follows its configured CPU limit.
 
 Run static checks and build both the source archive and wheel:
 

@@ -55,6 +55,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
 
 
+def pytest_xdist_auto_num_workers(config: pytest.Config) -> int:
+    """Use the logical CPUs available to pytest, unless explicitly overridden."""
+    requested = os.getenv("PYTEST_XDIST_AUTO_NUM_WORKERS")
+    return int(requested) if requested else (os.process_cpu_count() or 1)
+
+
 @pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(
     config: pytest.Config, items: list[pytest.Item]

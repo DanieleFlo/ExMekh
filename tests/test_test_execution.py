@@ -2,6 +2,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import pytest_xdist_auto_num_workers
+
 
 @pytest.fixture
 def execution_suite(pytester: pytest.Pytester, request: pytest.FixtureRequest) -> Path:
@@ -74,3 +76,16 @@ def test_live_and_serial_tests_share_one_worker(
         path.read_text() for path in execution_suite.glob("test_parallel*.txt")
     }
     assert parallel_workers == {"gw0", "gw1"}
+
+
+@pytest.mark.parametrize("cpu_count", [None, 1, 8, 32])
+def test_auto_workers_use_available_logical_cpus(monkeypatch, cpu_count):
+    monkeypatch.delenv("PYTEST_XDIST_AUTO_NUM_WORKERS", raising=False)
+    monkeypatch.setattr("os.process_cpu_count", lambda: cpu_count)
+    assert pytest_xdist_auto_num_workers(None) == (cpu_count or 1)
+
+
+def test_auto_worker_override_takes_precedence(monkeypatch):
+    monkeypatch.setenv("PYTEST_XDIST_AUTO_NUM_WORKERS", "16")
+    monkeypatch.setattr("os.process_cpu_count", lambda: 8)
+    assert pytest_xdist_auto_num_workers(None) == 16

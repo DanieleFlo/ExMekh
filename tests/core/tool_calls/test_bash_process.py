@@ -49,6 +49,7 @@ def test_cancellation_returns_false_when_process_has_exited(tmp_path):
 
 
 def test_windows_cancellation_reports_lost_process(tmp_path, monkeypatch):
+    monkeypatch.setattr(bash_process, "os", SimpleNamespace(name="nt"))
     process = _BashProcess("printf test", tmp_path, "bash")
     process._process = SimpleNamespace(poll=lambda: None)
     monkeypatch.setattr(process, "_kill_windows_tree", lambda child: False)

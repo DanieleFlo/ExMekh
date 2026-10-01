@@ -64,7 +64,9 @@ for the shared settings.
 uv run pytest
 ```
 
-Pytest uses `pytest-xdist` to run tests in parallel on the available CPU cores.
+Pytest uses `pytest-xdist` to run tests in parallel on all logical CPUs available
+to its process. `PYTEST_XDIST_AUTO_NUM_WORKERS` overrides this automatic count.
+WSL CPU limits and process affinity apply to automatic detection.
 Tests marked `live` or `serial` share one worker and run sequentially with each
 other; the remaining tests can run concurrently. Live tests still require opt-in.
 
@@ -73,11 +75,14 @@ module, when its shared resources make it incompatible with parallel execution.
 Keep `--dist=loadgroup` when changing the worker count so this grouping is preserved:
 
 ```shell
-uv run pytest -n 4
+uv run pytest -n 16
 uv run pytest -n 0
+PYTEST_XDIST_AUTO_NUM_WORKERS=16 uv run pytest
 ```
 
-The first command uses four workers; the second runs the entire suite serially.
+The first command uses sixteen workers; the second runs the entire suite
+serially. The environment variable sets the count used by `-n auto`. Choosing
+more workers than the available CPUs does not increase CPU capacity.
 
 To exclude live tests even when the environment enables them:
 
