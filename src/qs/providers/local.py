@@ -14,6 +14,7 @@ from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.reasoning_effort import ReasoningEffort
 from qs.core.models.structured_provider_request import StructuredProviderRequest
 from qs.core.models.structured_provider_response import StructuredProviderResponse
+from qs.core.models.tools import Tools
 from qs.core.providers.chat_completion_openai import ChatCompletionOpenAI
 from qs.core.providers.response_openai import ResponseOpenAI
 from qs.interfaces.provider import Provider
@@ -147,6 +148,9 @@ class LocalProvider(Provider):
             return api_adapter.call(request)
         except openai.APIError as error:
             raise RuntimeError("Local provider request failed") from error
+
+    def get_tools_text(self, tools: Tools | None) -> str:
+        return self._create_api_adapter().get_tools_text(tools)
 
     def _create_api_adapter(self) -> ChatCompletionOpenAI | ResponseOpenAI:
         if self._api == "chat_completions":

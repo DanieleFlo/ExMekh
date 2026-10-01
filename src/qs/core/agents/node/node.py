@@ -170,6 +170,12 @@ class Node:
             raise RuntimeError("Node must be initialized before run")
         return self._runtime.run(user_message)
 
+    def get_tools_text(self) -> str:
+        """Return this node's serialized tools request field without inference."""
+        if self._runtime is None:
+            raise RuntimeError("Node must be initialized before accessing tools")
+        return self._runtime.get_tools_text()
+
     def steer(self, user_message: NodeUserMessage) -> None:
         """Queue guidance and release managed tool waits in this node's active run."""
         if self._runtime is None:

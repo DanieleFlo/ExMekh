@@ -9,6 +9,7 @@ from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.structured_provider_request import StructuredProviderRequest
 from qs.core.models.structured_provider_response import StructuredProviderResponse
+from qs.core.models.tools import Tools
 from qs.interfaces.tokenizer import Tokenizer
 
 if TYPE_CHECKING:
@@ -30,6 +31,12 @@ class Provider(ABC):
     def get_session(self) -> SessionCache:
         """Access the runtime session cache of the underlying tokenizer."""
         return self._tokenizer.get_session()
+
+    def get_tools_text(self, tools: Tools | None) -> str:
+        """Return the serialized tools request field, or empty text if omitted."""
+        raise NotImplementedError(
+            "This provider does not implement tools request serialization"
+        )
 
     @abstractmethod
     def call(self, request: ProviderRequest) -> ProviderResponse:

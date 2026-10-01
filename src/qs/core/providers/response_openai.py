@@ -23,14 +23,17 @@ from qs.core.models.reasoning_effort import ReasoningEffort
 from qs.core.models.structured_assistant_message import StructuredAssistantMessage
 from qs.core.models.structured_provider_request import StructuredProviderRequest
 from qs.core.models.structured_provider_response import StructuredProviderResponse
+from qs.core.models.tools import Tools
 from qs.core.providers.from_openai_response_mapper import FromOpenAIResponseMapper
 from qs.core.providers.from_openai_response_stream_mapper import (
     FromOpenAIResponseStreamMapper,
 )
 from qs.core.providers.openai_response_format_mapper import OpenAIResponseFormatMapper
+from qs.core.providers.openai_response_tool_mapper import OpenAIResponseToolMapper
 from qs.core.providers.to_openai_response_request_mapper import (
     ToOpenAIResponseRequestMapper,
 )
+from qs.utils.json import serialize_json
 
 
 class ResponseOpenAI:
@@ -59,6 +62,12 @@ class ResponseOpenAI:
     def call(self, request: ProviderRequest) -> ProviderResponse:
         response = self._execute_request(request)
         return self._parse_response(response, request)
+
+    def get_tools_text(self, tools: Tools | None) -> str:
+        mapped_tools = (
+            OpenAIResponseToolMapper.map_tools(tools) if tools is not None else []
+        )
+        return serialize_json(mapped_tools) if mapped_tools else ""
 
     def call_structured[ResponseModel: BaseModel](
         self,

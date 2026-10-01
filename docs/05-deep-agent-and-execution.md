@@ -39,6 +39,31 @@ response = agent.run("Analyze the codebase and run tests.")
 print("Response:", response.get_message())
 ```
 
+### Inspecting the tools sent to inference
+
+`agent.get_tools_text() -> str` returns the root node's `tools` field as compact
+JSON, using the configured provider's API format and transport serialization.
+It is available immediately after initialization and does not call inference or
+change conversation history. For a child node, use `child.get_tools_text()`.
+
+```python
+tools_text = agent.get_tools_text()
+print(tools_text)
+print("Tools JSON tokens:", provider.get_tokenizer().count_tokens(tools_text))
+```
+
+The output preserves tool order, parameter schemas, contextual descriptions of
+tools and skills, exit tools, and the selected runtime tools, including
+`call_sub_agent` with its initialized child descriptions. Skill bodies and
+catalogs belong to conversation messages and are not part of the `tools` field.
+`LocalProvider` supports both Chat Completions and Responses. A custom provider
+must implement `Provider.get_tools_text(tools)`; otherwise inspection raises
+`NotImplementedError`. An omitted `tools` field is represented by empty text.
+
+The JSON token count measures this request field. The inference server may
+render tools through its own chat template, so the count of tokens in that final
+prompt can differ. This method does not expose the server's rendered prompt.
+
 ### Steering an active run
 
 `agent.steer(user_message) -> None` sends additional user guidance to the active

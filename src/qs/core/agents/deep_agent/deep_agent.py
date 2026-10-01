@@ -51,6 +51,15 @@ class DeepAgent:
     def run(self, user_message: NodeUserMessage) -> AgentResponse:
         return self._root_node.run(user_message)
 
+    def get_tools_text(self) -> str:
+        """Return the root's tools JSON exactly as serialized for its provider.
+
+        Includes contextual skill descriptions and runtime tools. Does not call
+        inference or change history. The server's rendered prompt is separate.
+        Providers must implement tools request serialization.
+        """
+        return self._root_node.get_tools_text()
+
     def steer(self, user_message: NodeUserMessage) -> None:
         """Queue guidance for the active root run without waiting for its response."""
         self._root_node.steer(user_message)

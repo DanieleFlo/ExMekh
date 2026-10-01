@@ -19,6 +19,7 @@ from qs.core.models.reasoning_effort import ReasoningEffort
 from qs.core.models.structured_assistant_message import StructuredAssistantMessage
 from qs.core.models.structured_provider_request import StructuredProviderRequest
 from qs.core.models.structured_provider_response import StructuredProviderResponse
+from qs.core.models.tools import Tools
 from qs.core.providers.from_openai_chat_completion_mapper import (
     FromOpenAIChatCompletionMapper,
 )
@@ -28,9 +29,13 @@ from qs.core.providers.from_openai_chat_completion_stream_mapper import (
 from qs.core.providers.openai_chat_completion_response_format_mapper import (
     OpenAIChatCompletionResponseFormatMapper,
 )
+from qs.core.providers.openai_chat_completion_tool_mapper import (
+    OpenAIChatCompletionToolMapper,
+)
 from qs.core.providers.to_openai_chat_completion_request_mapper import (
     ToOpenAIChatCompletionRequestMapper,
 )
+from qs.utils.json import serialize_json
 
 
 class ChatCompletionOpenAI:
@@ -60,6 +65,12 @@ class ChatCompletionOpenAI:
     def call(self, request: ProviderRequest) -> ProviderResponse:
         response = self._execute_request(request)
         return self._parse_response(response, request)
+
+    def get_tools_text(self, tools: Tools | None) -> str:
+        mapped_tools = (
+            OpenAIChatCompletionToolMapper.map_tools(tools) if tools is not None else []
+        )
+        return serialize_json(mapped_tools) if mapped_tools else ""
 
     def call_structured[ResponseModel: BaseModel](
         self,

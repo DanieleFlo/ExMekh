@@ -112,6 +112,9 @@ class NodeRuntime(ProviderEventHandler):
     def agent_context_id(self) -> str:
         return self._config.resolved_agent_context_id
 
+    def get_tools_text(self) -> str:
+        return self._config.provider.get_tools_text(self._client.tools)
+
     def control_tool_execution(
         self,
         tool_call_id: str,

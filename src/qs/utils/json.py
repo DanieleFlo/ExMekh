@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import json
 import math
 from typing import Any, overload
 
 type JsonValue = (
     bool | int | float | str | list[JsonValue] | dict[str, JsonValue] | None
 )
+
+
+def serialize_json(value: object) -> str:
+    """Serialize compact JSON, preserving Unicode and rejecting nonfinite numbers."""
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
 
 
 @overload
