@@ -6,19 +6,19 @@ This document covers running the interactive command-line interface, executing s
 
 ## 1. Command-Line Interface (CLI)
 
-The `qs` package exposes an interactive CLI script defined in [`qs.main:main`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/main.py).
+The `exmekh_lib` package exposes an interactive CLI script defined in [`exmekh_lib.main:main`](../src/exmekh_lib/main.py).
 
 ### Launching the CLI
 Run the application using `uv`:
 
 ```shell
-uv run qs
+uv run exmekh-lib
 ```
 
 Alternatively, run the main module directly:
 
 ```shell
-python -m qs.main
+python -m exmekh_lib.main
 ```
 
 ### CLI Features & REPL Loop
@@ -35,6 +35,22 @@ python -m qs.main
 ## 2. Running Offline Unit Tests
 
 Unit tests verify client models, capabilities loading, schema coercion, node execution, and provider mappers without contacting external LLM servers.
+
+### After moving or renaming the checkout
+
+Virtual environment activation scripts and Python entry points contain absolute
+paths. After moving the checkout from `qs` to `exmekh_lib`, regenerate the
+activation scripts and reinstall the locked packages so commands no longer
+reference the old directory:
+
+```shell
+uv venv --allow-existing .venv
+uv sync --locked --reinstall
+```
+
+The first command preserves installed packages. The second regenerates their
+entry points without changing `uv.lock`. While repairing the environment,
+`uv run --locked python -m pytest` can run tests without the stale `pytest` script.
 
 ### Static checks
 
@@ -97,7 +113,7 @@ uv run pytest tests/core/cache tests/core/tool_calls tests/core/agents/node test
 ```
 
 If pytest cannot access the default temporary directory on Windows, select a
-fresh workspace directory with `--basetemp=.qs/pytest-doc-check`. Pytest clears
+fresh workspace directory with `--basetemp=.exmekh_lib/pytest-doc-check`. Pytest clears
 the selected directory when starting: use a dedicated disposable path.
 
 ### Coverage Requirements
@@ -112,7 +128,7 @@ show_missing = true
 Run pytest with coverage reporting:
 
 ```shell
-uv run pytest --cov=qs
+uv run pytest --cov=exmekh_lib
 ```
 
 ---
@@ -237,7 +253,7 @@ fixture path.
 Native file tests compare the original single-file input with file/text and
 text/image/file/text lists. They require reading a reference present only in the
 attachment bytes; accepting a request while ignoring the attachment fails the
-test. These opt-in checks expose endpoint limitations without changing QS's
+test. These opt-in checks expose endpoint limitations without changing exmekh_lib's
 native file transport.
 
 Local verification on 2026-10-02 used Qwen3.8-27B-UD-Q4_K_S with its matching
@@ -252,7 +268,7 @@ than a regression caused by mixed content. The native-file checks remain
 strict and opt-in, so the complete live command currently reports these six
 failures on this engine.
 
-The local JUnit report is `.qs/mixed-input-live-20261002/nonthinking-results.xml`;
+The local JUnit report is `.exmekh_lib/mixed-input-live-20261002/nonthinking-results.xml`;
 the accompanying `server.log` retains the inference log. These generated
 artifacts are ignored by Git. The dedicated test server was stopped after
 verification.
@@ -263,3 +279,24 @@ indices. Live checks could not be repeated at final review: DS4 was already
 running on port 8080 without a vision encoder, and rejected a second server.
 That existing process was left running; the live results above describe the
 earlier verification.
+
+### Verification after the package rename (2026-10-02)
+
+The full live run verified agent scopes, strict tool arguments, mixed text/image
+history, sub-agent memory, saved tool outputs, and ordinary and streaming child
+process execution. The browser form fixture now uses `https://httpbin.org/forms/post`
+and checks that the submitted fields appear in the captured destination page;
+the previous Heroku fixture timed out even with standalone Chromium.
+All seven public-web checks passed, including browser provisioning from an empty
+cache. Both rejection-recovery checks passed on the configured provider, including
+mixed image/file rejection and a subsequent successful image request.
+
+Across these runs, 29 live cases passed. The six native TXT-file cases still fail
+with HTTP 400: the configured DS4 endpoint explicitly supports only text and
+images. Native transport and strict file-reading assertions are preserved. The
+full model-driven deep-thinking audit and two real-photo cases were not run
+because their optional model and photo-fixture settings were absent.
+
+The offline suite passed all 2,024 cases with 100% branch coverage. Pyright,
+Ruff, formatting, and wheel/source builds passed. Local reports are stored under
+`.exmekh_lib/live-verification-20261002/` and are ignored by Git.

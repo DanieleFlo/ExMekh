@@ -2,7 +2,7 @@ from typing import cast
 
 import pytest
 
-from qs.core.models.function_message import FunctionMessage
+from exmekh_lib.core.models.function_message import FunctionMessage
 
 
 def test_init_uses_function_defaults() -> None:

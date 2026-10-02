@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from qs.core.agents.exit_tool.exit_tools import ExitTools
+from exmekh_lib.core.agents.exit_tool.exit_tools import ExitTools
 
 
 def _dynamic_tool_modules() -> set[str]:
@@ -19,8 +19,8 @@ def _write_tool(path: Path, body: str) -> Path:
 
 def _valid_source(*, description: str = "'Exit agent'") -> str:
     return (
-        "from qs.core.agents.exit_tool.data import ExitToolData\n"
-        "from qs.core.agents.exit_tool.decorator import exit_tool\n\n"
+        "from exmekh_lib.core.agents.exit_tool.data import ExitToolData\n"
+        "from exmekh_lib.core.agents.exit_tool.decorator import exit_tool\n\n"
         f"@exit_tool(instructions_path='instructions.md', name='exit_agent', description={description})\n"
         "def finish(text: str, items: list[str]) -> ExitToolData:\n"
         "    return ExitToolData(text=text, items=items)\n"
@@ -55,7 +55,7 @@ def test_loads_exit_tool_and_rejects_second_load(tmp_path: Path) -> None:
         ),
         (
             (
-                "from qs.core.agents.exit_tool.decorator import exit_tool\n"
+                "from exmekh_lib.core.agents.exit_tool.decorator import exit_tool\n"
                 "@exit_tool(instructions_path='instructions.md', description='Exit')\n"
                 "def finish() -> str:\n    return 'wrong'\n"
             ),
@@ -64,7 +64,7 @@ def test_loads_exit_tool_and_rejects_second_load(tmp_path: Path) -> None:
         (
             (
                 "from __future__ import annotations\n"
-                "from qs.core.agents.exit_tool.decorator import exit_tool\n"
+                "from exmekh_lib.core.agents.exit_tool.decorator import exit_tool\n"
                 "@exit_tool(instructions_path='instructions.md', description='Exit')\n"
                 "def finish() -> MissingType:\n    return None\n"
             ),

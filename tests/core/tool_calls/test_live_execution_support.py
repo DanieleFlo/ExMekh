@@ -5,10 +5,10 @@ from threading import Condition
 
 import pytest
 
-from qs.core.models.tool import ExecutionOptions, ToolExecutionOperation
-from qs.core.tool_calls import execution_manager
-from qs.core.tool_calls.execution_manager import ToolExecutionManager
-from qs.providers.local import LocalProvider
+from exmekh_lib.core.models.tool import ExecutionOptions, ToolExecutionOperation
+from exmekh_lib.core.tool_calls import execution_manager
+from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
+from exmekh_lib.providers.local import LocalProvider
 from tests.live.model_support import DEFAULT_LIVE_REQUEST_TIMEOUT_SECONDS
 from tests.live.test_tool_cache_live import RecordingLocalProvider
 from tests.live.tool_execution_support import (

@@ -2,8 +2,8 @@ from typing import cast
 
 import pytest
 
-from qs.core.agents.deep_skill.markdown import SkillMarkdown
-from qs.core.agents.deep_skill.parser import SkillMarkdownParser
+from exmekh_lib.core.agents.deep_skill.markdown import SkillMarkdown
+from exmekh_lib.core.agents.deep_skill.parser import SkillMarkdownParser
 
 
 def test_parse_returns_markdown_with_references() -> None:

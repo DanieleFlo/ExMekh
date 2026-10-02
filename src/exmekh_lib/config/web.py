@@ -1,0 +1,88 @@
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True, slots=True)
+class WebNavigationSettings:
+    """Shared defaults and resource budgets for web tools."""
+
+    default_timeout_seconds: int = 30
+    max_timeout_seconds: int = 120
+    default_search_results: int = 5
+    max_search_results: int = 10
+    search_candidate_limit: int = 50
+    search_backends: str = "duckduckgo,brave,mojeek,startpage,wikipedia,yahoo"
+    max_main_frame_navigations: int = 5
+    max_markdown_chars: int = 24_000
+    cache_ttl_seconds: int = 900
+    chromium_install_timeout_seconds: int = 300
+    pruning_threshold: float = 0.48
+    pruning_min_words: int = 20
+    minimum_fit_chars: int = 120
+    maximum_fit_chars: int = 500
+    fit_length_divisor: int = 8
+    max_ast_nodes: int = 400
+    max_ast_text_chars: int = 32_000
+    max_stat_label_chars: int = 80
+    max_stat_value_chars: int = 120
+    max_actions: int = 10
+    default_scroll_pixels: int = 800
+    max_scroll_pixels: int = 5_000
+    max_action_wait_ms: int = 5_000
+    action_effect_timeout_ms: int = 5_000
+    action_poll_interval_ms: int = 100
+    max_local_image_bytes: int = 10 * 1024 * 1024
+    max_remote_image_bytes: int = 10 * 1024 * 1024
+    max_html_bytes: int = 2 * 1024 * 1024
+    max_image_pixels: int = 20_000_000
+    max_redirects: int = 3
+    image_discovery_concurrency: int = 4
+    image_candidate_limit: int = 15
+    max_robots_bytes: int = 256 * 1024
+    image_fetch_timeout_seconds: int = 10
+    download_chunk_bytes: int = 64 * 1024
+
+
+@dataclass(frozen=True, slots=True)
+class WebRankingSettings:
+    """Model defaults, embedding cache capacity, and ranking weights."""
+
+    granite_model_name: str = "ibm-granite/granite-embedding-311m-multilingual-r2"
+    siglip_model_name: str = "google/siglip2-base-patch16-224"
+    openvino_device: str = "CPU"
+    siglip_text_max_length: int = 64
+    embedding_cache_size: int = 2_048
+    rrf_k: int = 60
+    bm25_rrf_weight: float = 1.0
+    semantic_rrf_weight: float = 1.0
+    provider_rrf_weight: float = 0.25
+    image_rrf_weight: float = 1.0
+    bm25_k1: float = 1.2
+    bm25_b: float = 0.75
+    max_query_term_frequency: int = 2
+    phrase_bonus: float = 3.0
+    score_scale: int = 100
+    title_weight: int = 4
+    url_weight: int = 2
+
+
+@dataclass(frozen=True, slots=True)
+class WebFormat:
+    """Fixed web cache layout and supported image formats."""
+
+    cache_directory: str = ".exmekh_lib/web-cache"
+    page_cache_folder: str = "page-cache"
+    cache_format_version: int = 2
+    crawler_directory_env_var: str = "CRAWL4_AI_BASE_DIRECTORY"
+    openvino_model_xml: str = "openvino/openvino_model_qint8_quantized.xml"
+    openvino_model_bin: str = "openvino/openvino_model_qint8_quantized.bin"
+    allowed_image_formats: frozenset[str] = frozenset({"JPEG", "PNG", "WEBP"})
+    allowed_image_mime_types: frozenset[str] = frozenset(
+        {"image/jpeg", "image/png", "image/webp"}
+    )
+    html_mime_types: frozenset[str] = frozenset({"text/html", "application/xhtml+xml"})
+    user_agent: str = "exmekh_lib/0.1"
+
+
+WEB_NAVIGATION = WebNavigationSettings()
+WEB_RANKING = WebRankingSettings()
+WEB_FORMAT = WebFormat()

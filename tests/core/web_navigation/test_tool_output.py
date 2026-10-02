@@ -1,7 +1,10 @@
 """Stable error objects returned to the model by web tools."""
 
-from qs.core.web_navigation.errors import WebNavigationError
-from qs.core.web_navigation.tool_output import missing_dependency, navigation_error
+from exmekh_lib.core.web_navigation.errors import WebNavigationError
+from exmekh_lib.core.web_navigation.tool_output import (
+    missing_dependency,
+    navigation_error,
+)
 
 
 def test_web_errors_preserve_kind_and_install_hint() -> None:
@@ -13,4 +16,4 @@ def test_web_errors_preserve_kind_and_install_hint() -> None:
     )
     assert dependency["error_kind"] == "missing_dependency"
     assert "crawl4ai" in dependency["error"]
-    assert "qs wheel" in dependency["hint"]
+    assert "ExMekh-Lib wheel" in dependency["hint"]

@@ -11,8 +11,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from qs.core.web_navigation import crawler
-from qs.core.web_navigation.errors import WebNavigationError
+from exmekh_lib.core.web_navigation import crawler
+from exmekh_lib.core.web_navigation.errors import WebNavigationError
 
 URL = "https://example.org/page"
 
@@ -315,7 +315,7 @@ def test_crawler_input_validation_and_cache_lifecycle(
     assert "CRAWL4_AI_BASE_DIRECTORY" not in os.environ
 
     path = crawler._cache_path(
-        cache_root=tmp_path / ".qs" / "web-cache", url=URL, mode="markdown"
+        cache_root=tmp_path / ".exmekh_lib" / "web-cache", url=URL, mode="markdown"
     )
     os.utime(path, (time.time() - 2000, time.time() - 2000))
     crawler.crawl_page(

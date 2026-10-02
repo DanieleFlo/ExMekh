@@ -3,8 +3,8 @@ from typing import cast
 
 import pytest
 
-from qs.core.agents.capability.markdown_capability import MarkdownCapability
-from qs.core.agents.capability.metadata import CapabilityMetadata
+from exmekh_lib.core.agents.capability.markdown_capability import MarkdownCapability
+from exmekh_lib.core.agents.capability.metadata import CapabilityMetadata
 
 
 class ConcreteMarkdownCapability(MarkdownCapability[CapabilityMetadata]):

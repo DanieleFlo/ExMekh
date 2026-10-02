@@ -4,10 +4,10 @@ from threading import Event
 
 import pytest
 
-from qs.core.agents.capabilities.defaults import DefaultCapabilities
-from qs.core.agents.deep_agent.deep_agent import DeepAgent
-from qs.core.agents.node import Node
-from qs.core.cache import SessionCache
+from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
+from exmekh_lib.core.agents.deep_agent.deep_agent import DeepAgent
+from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.cache import SessionCache
 from tests.core.agents.node.steering_support import AgentRuns
 from tests.core.agents.node.test_node import _write_nested_capabilities
 

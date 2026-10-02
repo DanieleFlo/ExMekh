@@ -5,18 +5,20 @@ from pathlib import Path
 
 import pytest
 
-from qs.core.cache import (
+from exmekh_lib.core.cache import (
     CacheManager,
     NodeCache,
     SessionCache,
     SessionPool,
     ToolCallRecord,
 )
-from qs.core.models.assistant_message import FunctionCall, ToolCall
-from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
-from qs.core.tokenizers.tokenizer_session import TokenizerSession
-from qs.core.tokenizers.tokenizer_session_registry import TokenizerSessionRegistry
-from qs.utils.file import read_json_from_path
+from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
+from exmekh_lib.core.tokenizers.sequential_tokenizer import SequentialTokenizer
+from exmekh_lib.core.tokenizers.tokenizer_session import TokenizerSession
+from exmekh_lib.core.tokenizers.tokenizer_session_registry import (
+    TokenizerSessionRegistry,
+)
+from exmekh_lib.utils.file import read_json_from_path
 
 
 @pytest.fixture(autouse=True)

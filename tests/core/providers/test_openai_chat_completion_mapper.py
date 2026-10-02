@@ -17,28 +17,30 @@ from openai.types.chat.chat_completion_message_function_tool_call import (
 from PIL import Image
 from pydantic import BaseModel
 
-from qs.core.models.assistant_message import (
+from exmekh_lib.core.models.assistant_message import (
     AssistantMessage,
     FunctionCall,
     ToolCall,
 )
-from qs.core.models.function_message import FunctionMessage
-from qs.core.models.structured_assistant_message import StructuredAssistantMessage
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.tool import Tool
-from qs.core.models.tool_message import ToolMessage
-from qs.core.models.tools import Tools
-from qs.core.models.user_message import (
+from exmekh_lib.core.models.function_message import FunctionMessage
+from exmekh_lib.core.models.structured_assistant_message import (
+    StructuredAssistantMessage,
+)
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.tool import Tool
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.tools import Tools
+from exmekh_lib.core.models.user_message import (
     DocumentUserMessage,
     FilesUserMessage,
     ImagesUserMessage,
     TextsUserMessage,
     UserMessage,
 )
-from qs.core.providers.from_openai_chat_completion_mapper import (
+from exmekh_lib.core.providers.from_openai_chat_completion_mapper import (
     FromOpenAIChatCompletionMapper,
 )
-from qs.core.providers.to_openai_chat_completion_mapper import (
+from exmekh_lib.core.providers.to_openai_chat_completion_mapper import (
     ToOpenAIChatCompletionMapper,
 )
 
@@ -373,7 +375,7 @@ def test_map_user_message_maps_each_image_to_data_url() -> None:
     message = UserMessage(ImagesUserMessage(images))
 
     with patch(
-        "qs.core.providers.to_openai_chat_completion_mapper.pil_image_to_data_url",
+        "exmekh_lib.core.providers.to_openai_chat_completion_mapper.pil_image_to_data_url",
         side_effect=["data:image/png;base64,first", "data:image/png;base64,second"],
     ):
         result = ToOpenAIChatCompletionMapper.map_user_message(message)["content"]

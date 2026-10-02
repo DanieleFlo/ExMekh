@@ -2,12 +2,12 @@ from typing import cast
 
 import pytest
 
-from qs.core.models.model_usage import ModelUsage
-from qs.core.models.provider_stream_event import (
+from exmekh_lib.core.models.model_usage import ModelUsage
+from exmekh_lib.core.models.provider_stream_event import (
     ProviderStreamEvent,
     ProviderStreamEventType,
 )
-from qs.core.models.user_message import TextsUserMessage, UserMessage
+from exmekh_lib.core.models.user_message import TextsUserMessage, UserMessage
 
 
 @pytest.mark.parametrize(

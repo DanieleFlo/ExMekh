@@ -5,14 +5,16 @@ import pytest
 from openai import OpenAI
 from pydantic import BaseModel
 
-from qs.core.models.client import Client
-from qs.core.models.history import MessageHistory
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.structured_provider_request import StructuredProviderRequest
-from qs.core.models.structured_provider_response import StructuredProviderResponse
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.user_message import UserMessage
+from exmekh_lib.core.models.client import Client
+from exmekh_lib.core.models.history import MessageHistory
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
+from exmekh_lib.core.models.structured_provider_response import (
+    StructuredProviderResponse,
+)
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.user_message import UserMessage
 from tests.history_validation import validate_request_history
 
 _LIVE_TEST_ENV_VAR = "QS_RUN_LIVE_TESTS"

@@ -2,7 +2,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from qs.core.models.tool_output_reference import ToolOutputReference
+from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
 
 
 def test_references_preserve_opaque_identifiers_and_are_immutable():

@@ -8,11 +8,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from qs.core.agents.capabilities.capabilities import Capabilities
-from qs.core.agents.capabilities.defaults import BUILTIN_CAPABILITIES_PATH
-from qs.core.web_navigation import search, security
-from qs.core.web_navigation.actions import validate_actions
-from qs.core.web_navigation.errors import WebNavigationError
+from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
+from exmekh_lib.core.agents.capabilities.defaults import BUILTIN_CAPABILITIES_PATH
+from exmekh_lib.core.web_navigation import search, security
+from exmekh_lib.core.web_navigation.actions import validate_actions
+from exmekh_lib.core.web_navigation.errors import WebNavigationError
 
 
 def test_search_canonicalization_keeps_ipv6_valid_and_removes_tracking() -> None:
@@ -34,7 +34,7 @@ def test_search_with_stubbed_candidates_and_ranking(
     )
     monkeypatch.setitem(
         sys.modules,
-        "qs.core.web_navigation.ranking",
+        "exmekh_lib.core.web_navigation.ranking",
         SimpleNamespace(
             rank_results=lambda *_args, **kwargs: (
                 [(0, 0.9), (1, 0.8)]
@@ -49,7 +49,7 @@ def test_search_with_stubbed_candidates_and_ranking(
     )
     monkeypatch.setitem(
         sys.modules,
-        "qs.core.web_navigation.image_discovery",
+        "exmekh_lib.core.web_navigation.image_discovery",
         SimpleNamespace(
             IMAGE_CANDIDATE_LIMIT=15,
             discover_result_images=lambda *_args, **_kwargs: [],
@@ -196,7 +196,7 @@ def test_web_tool_entrypoints_forward_and_report_missing_dependencies(
     }
     monkeypatch.setitem(
         sys.modules,
-        "qs.core.web_navigation.crawler",
+        "exmekh_lib.core.web_navigation.crawler",
         SimpleNamespace(
             crawl_page=lambda **kwargs: kwargs,
         ),
@@ -219,7 +219,7 @@ def test_web_tool_entrypoints_forward_and_report_missing_dependencies(
     )
     assert interaction["actions"] == [{"kind": "wait", "milliseconds": 1}]
 
-    monkeypatch.setitem(sys.modules, "qs.core.web_navigation.crawler", None)
+    monkeypatch.setitem(sys.modules, "exmekh_lib.core.web_navigation.crawler", None)
     unavailable = tools["read-web-page"].execute(url="https://example.org")
     assert unavailable["error_kind"] == "missing_dependency"
 
@@ -228,7 +228,7 @@ def test_crawl_sets_and_restores_its_work_root_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     pytest.importorskip("lxml")
-    from qs.core.web_navigation import crawler  # noqa: PLC0415
+    from exmekh_lib.core.web_navigation import crawler  # noqa: PLC0415
 
     monkeypatch.setattr(crawler, "validate_public_url", lambda url: url)
     observed: list[str | None] = []
@@ -247,14 +247,14 @@ def test_crawl_sets_and_restores_its_work_root_directory(
         actions=[{"kind": "wait", "milliseconds": 1}],
     )
     assert result == {"ok": True}
-    assert observed == [str(tmp_path / ".qs" / "web-cache")]
+    assert observed == [str(tmp_path / ".exmekh_lib" / "web-cache")]
     assert os.environ["CRAWL4_AI_BASE_DIRECTORY"] == "original"
 
 
 def test_crawl_provisions_missing_browser_and_retries_once(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from qs.core.web_navigation import crawler  # noqa: PLC0415
+    from exmekh_lib.core.web_navigation import crawler  # noqa: PLC0415
 
     monkeypatch.setattr(crawler, "validate_public_url", lambda url: url)
     attempts = 0
@@ -288,7 +288,7 @@ def test_crawl_provisions_missing_browser_and_retries_once(
 def test_crawl_does_not_install_browser_for_other_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from qs.core.web_navigation import crawler  # noqa: PLC0415
+    from exmekh_lib.core.web_navigation import crawler  # noqa: PLC0415
 
     monkeypatch.setattr(crawler, "validate_public_url", lambda url: url)
 
@@ -313,7 +313,7 @@ def test_crawl_does_not_install_browser_for_other_errors(
 def test_browser_install_failure_reports_actionable_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from qs.core.web_navigation import crawler  # noqa: PLC0415
+    from exmekh_lib.core.web_navigation import crawler  # noqa: PLC0415
 
     def failed_install(
         *_args: object, **_kwargs: object
@@ -330,7 +330,7 @@ def test_browser_install_failure_reports_actionable_error(
 def test_page_cache_discards_a_previous_cross_origin_redirect(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from qs.core.web_navigation import crawler  # noqa: PLC0415
+    from exmekh_lib.core.web_navigation import crawler  # noqa: PLC0415
 
     monkeypatch.setattr(crawler, "validate_public_url", lambda url: url)
     original_url = "https://source.example/start"
@@ -351,7 +351,7 @@ def test_local_image_must_stay_inside_work_root(tmp_path: Path) -> None:
     pytest.importorskip("lxml")
     from PIL import Image  # noqa: PLC0415
 
-    from qs.core.web_navigation.image_discovery import (  # noqa: PLC0415
+    from exmekh_lib.core.web_navigation.image_discovery import (  # noqa: PLC0415
         load_local_query_image,
     )
 

@@ -9,8 +9,8 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from qs.core.web_navigation import ranking
-from qs.core.web_navigation.image_discovery import DiscoveredImage
+from exmekh_lib.core.web_navigation import ranking
+from exmekh_lib.core.web_navigation.image_discovery import DiscoveredImage
 
 RESULTS = [
     {

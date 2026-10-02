@@ -19,7 +19,7 @@ from uuid import UUID
 
 import pytest
 
-from qs.core.providers.openai_chat_completion_value_coercer import (
+from exmekh_lib.core.providers.openai_chat_completion_value_coercer import (
     OpenAIChatCompletionValueCoercer,
 )
 

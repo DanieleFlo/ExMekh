@@ -1,6 +1,6 @@
-# `qs` — Hierarchical LLM Agent Framework
+# `ExMekh-Lib` — Hierarchical LLM Agent Framework
 
-`qs` is a modular, strongly-typed Python framework for building structured, reliable, and hierarchical Large Language Model (LLM) agents. It combines dynamic function tool calling, Pydantic structured outputs, filesystem-driven capabilities (HDS system prompts, skills, and tools), and multi-depth agent execution with real-time streaming and history tree snapshotting.
+`ExMekh-Lib` is a modular, strongly-typed Python framework for building structured, reliable, and hierarchical Large Language Model (LLM) agents. It combines dynamic function tool calling, Pydantic structured outputs, filesystem-driven capabilities (HDS system prompts, skills, and tools), and multi-depth agent execution with real-time streaming and history tree snapshotting.
 
 ---
 
@@ -32,7 +32,7 @@ Explore the detailed documentation in the [`docs/`](docs) directory:
 4. **[Capabilities System & Catalog](docs/04-capabilities-and-catalog.md)**: Directory layout, HDS prompts, Markdown skills, exit tools, and dynamic catalog attachment.
 5. **[DeepAgent & Hierarchical Execution](docs/05-deep-agent-and-execution.md)**: Multi-depth execution, skill path tracking (`/`, `/skill-a`), linear vs. tree history, and workspace root isolation.
 6. **[Providers & Configuration](docs/06-providers-and-configuration.md)**: `LocalProvider` configuration, Chat Completions vs. Responses APIs, and `.env` setup.
-7. **[CLI, Testing & Live Verification](docs/07-cli-and-testing.md)**: Interactive REPL CLI (`qs`), running offline `pytest` suites, and running live model tests.
+7. **[CLI, Testing & Live Verification](docs/07-cli-and-testing.md)**: Interactive REPL CLI (`exmekh-lib`), running offline `pytest` suites, and running live model tests.
 
 8. **[Tokenizer-based IDs](docs/08-tokenizer-ids.md)**: Vocabulary caching, shared session counters, custom tokenizers, and ID lifetime.
 9. **[Tool Output Caching & Search](docs/09-tool-call-cache.md)**: Node isolation, saved invocation metadata, paginated search, standalone archives, and lifecycle examples.
@@ -50,15 +50,18 @@ Explore the detailed documentation in the [`docs/`](docs) directory:
 - [`uv`](https://github.com/astral-sh/uv) (recommended package manager)
 
 ### Installation
+
+The distribution is named `ExMekh-Lib`; Python imports use `exmekh_lib` and the CLI command is `exmekh-lib`.
+
 Clone the repository and sync project dependencies using `uv`:
 
 ```shell
 git clone <repository-url>
-cd qs
+cd <repository-directory>
 uv sync
 ```
 
-When installing a built `qs` wheel inside another Python project, the wheel's
+When installing a built `ExMekh-Lib` wheel inside another Python project, the wheel's
 regular dependencies include the Deep Thinking tools. Install the wheel as a
 dependency in that project's environment. Browser-backed tools install the
 headless Chromium binary on first use if needed. For offline deployments,
@@ -75,13 +78,13 @@ weights download on first use or can be preloaded during deployment. See
 
 ```python
 from typing import Literal
-from qs.core.models.client import Client
-from qs.core.models.client_request import ClientRequest
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.tool import Tool
-from qs.core.models.tools import Tools
-from qs.core.models.user_message import UserMessage
-from qs.providers.local import LocalProvider
+from exmekh_lib.core.models.client import Client
+from exmekh_lib.core.models.client_request import ClientRequest
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.tool import Tool
+from exmekh_lib.core.models.tools import Tools
+from exmekh_lib.core.models.user_message import UserMessage
+from exmekh_lib.providers.local import LocalProvider
 
 
 # Define a typed python tool
@@ -109,16 +112,16 @@ print("Assistant:", response.get_message())
 
 ```python
 from pathlib import Path
-from qs.core.agents.deep_agent import (
+from exmekh_lib.core.agents.deep_agent import (
     DeepAgent,
     DeepAgentEvent,
     DeepAgentEventHandler,
     DeepAgentExecutionEvent,
     DeepAgentStreamEvent,
 )
-from qs.core.agents.node import Node
-from qs.core.models.provider_stream_event import ProviderStreamEventType
-from qs.providers.local import LocalProvider
+from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.models.provider_stream_event import ProviderStreamEventType
+from exmekh_lib.providers.local import LocalProvider
 
 
 class PrintStreamEvents(DeepAgentEventHandler):
@@ -133,7 +136,7 @@ class PrintStreamEvents(DeepAgentEventHandler):
 
 
 provider = LocalProvider(model="Qwen3.8-27B-UD-Q4_K_S")
-capabilities_path = Path.cwd() / "src" / "qs" / "capabilities"
+capabilities_path = Path.cwd() / "src" / "exmekh_lib" / "capabilities"
 
 root_node = Node(
     capabilities_paths=[capabilities_path],
@@ -160,7 +163,7 @@ response = agent.run("Perform workspace maintenance and check capabilities.")
 To configure bundled capabilities on one node, pass `DefaultCapabilities`:
 
 ```python
-from qs.core.agents.node import DefaultCapabilities, Node
+from exmekh_lib.core.agents.node import DefaultCapabilities, Node
 
 node = Node(
     capabilities_paths=[Path("my-app/capabilities")],
@@ -187,10 +190,10 @@ defaults are configured or no application path is supplied.
 
 ```python
 from pydantic import BaseModel
-from qs.core.models.client import Client
-from qs.core.models.client_request import ClientRequest
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.user_message import UserMessage
+from exmekh_lib.core.models.client import Client
+from exmekh_lib.core.models.client_request import ClientRequest
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.user_message import UserMessage
 
 
 class TaskSummary(BaseModel):

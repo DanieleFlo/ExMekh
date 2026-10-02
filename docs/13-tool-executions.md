@@ -86,8 +86,8 @@ non espone `execution_mode`.
 Per disattivare esplicitamente la gestione in un tool applicativo:
 
 ```python
-from qs.core.agents.tools import deep_tool
-from qs.core.models.tool import Tool
+from exmekh_lib.core.agents.tools import deep_tool
+from exmekh_lib.core.models.tool import Tool
 
 @deep_tool(description="Perform an operation inline", background_enabled=False)
 def operation(work_root, value: str) -> str:
@@ -282,7 +282,7 @@ parziali né callback di annullamento.
 
 ## Tool Bash
 
-La definizione del tool si trova in `src/qs/capabilities/tools/bash/main.py`,
+La definizione del tool si trova in `src/exmekh_lib/capabilities/tools/bash/main.py`,
 accanto agli altri tool dell'harness in `capabilities/tools`. Il runtime
 fornisce workroot e gestore dei lavori al momento della costruzione del nodo.
 

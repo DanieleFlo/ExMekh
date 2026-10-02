@@ -3,8 +3,8 @@ from types import MappingProxyType
 
 import pytest
 
-from qs.core.models.client_request import ClientRequest
-from qs.core.models.user_message import UserMessage
+from exmekh_lib.core.models.client_request import ClientRequest
+from exmekh_lib.core.models.user_message import UserMessage
 from tests.event_handler import as_provider_handler
 
 

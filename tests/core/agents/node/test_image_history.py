@@ -1,9 +1,9 @@
 from PIL import Image
 
-from qs.core.agents.deep_agent.deep_agent import DeepAgent
-from qs.core.agents.node import DefaultCapabilities, Node
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.user_message import ImagesUserMessage, UserMessage
+from exmekh_lib.core.agents.deep_agent.deep_agent import DeepAgent
+from exmekh_lib.core.agents.node import DefaultCapabilities, Node
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.user_message import ImagesUserMessage, UserMessage
 from tests.core.agents.node.steering_support import call, tool_reply
 from tests.core.agents.node.test_node import SequenceProvider
 from tests.core.agents.node.test_steering_history import assert_complete_tool_batches

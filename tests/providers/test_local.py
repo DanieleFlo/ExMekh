@@ -7,21 +7,25 @@ import openai
 import pytest
 from pydantic import BaseModel
 
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.reasoning_effort import (
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.reasoning_effort import (
     ReasoningEffort,
     ReasoningEffortLMH,
     ReasoningEffortLMHXM,
     ReasoningEffortLMX,
 )
-from qs.core.models.structured_assistant_message import StructuredAssistantMessage
-from qs.core.models.structured_provider_request import StructuredProviderRequest
-from qs.core.models.structured_provider_response import StructuredProviderResponse
-from qs.core.providers.response_openai import ResponseOpenAI
-from qs.interfaces.provider import ProviderRequestRejectedError
-from qs.providers.local import LocalProvider
+from exmekh_lib.core.models.structured_assistant_message import (
+    StructuredAssistantMessage,
+)
+from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
+from exmekh_lib.core.models.structured_provider_response import (
+    StructuredProviderResponse,
+)
+from exmekh_lib.core.providers.response_openai import ResponseOpenAI
+from exmekh_lib.interfaces.provider import ProviderRequestRejectedError
+from exmekh_lib.providers.local import LocalProvider
 
 
 class StructuredAnswer(BaseModel):
@@ -129,7 +133,9 @@ def test_build_client_uses_resolved_credentials() -> None:
         patch.object(
             provider, "_resolve_base_url", return_value="http://localhost:8000"
         ) as base_url,
-        patch("qs.providers.local.OpenAI", return_value=client) as openai_client,
+        patch(
+            "exmekh_lib.providers.local.OpenAI", return_value=client
+        ) as openai_client,
     ):
         result = provider._build_client()
 
@@ -301,7 +307,7 @@ def test_call_delegates_to_chat_completion() -> None:
     completion.call.return_value = expected
 
     with patch(
-        "qs.providers.local.ChatCompletionOpenAI", return_value=completion
+        "exmekh_lib.providers.local.ChatCompletionOpenAI", return_value=completion
     ) as completion_class:
         result = provider.call(request)
 
@@ -325,7 +331,7 @@ def test_call_delegates_to_responses_api() -> None:
     completion.call.return_value = expected
 
     with patch(
-        "qs.providers.local.ResponseOpenAI",
+        "exmekh_lib.providers.local.ResponseOpenAI",
         return_value=completion,
     ) as completion_class:
         result = provider.call(request)
@@ -356,7 +362,9 @@ def test_call_translates_openai_api_error_to_runtime_error() -> None:
     )
 
     with (
-        patch("qs.providers.local.ChatCompletionOpenAI", return_value=completion),
+        patch(
+            "exmekh_lib.providers.local.ChatCompletionOpenAI", return_value=completion
+        ),
         pytest.raises(RuntimeError, match="Local provider request failed") as error,
     ):
         provider.call(request)
@@ -374,7 +382,7 @@ def test_call_structured_delegates_to_chat_completion() -> None:
     completion.call_structured.return_value = expected
 
     with patch(
-        "qs.providers.local.ChatCompletionOpenAI", return_value=completion
+        "exmekh_lib.providers.local.ChatCompletionOpenAI", return_value=completion
     ) as completion_class:
         result = provider.call_structured(request)
 
@@ -400,7 +408,7 @@ def test_call_structured_delegates_to_responses_api() -> None:
     completion.call_structured.return_value = expected
 
     with patch(
-        "qs.providers.local.ResponseOpenAI",
+        "exmekh_lib.providers.local.ResponseOpenAI",
         return_value=completion,
     ) as completion_class:
         result = provider.call_structured(request)
@@ -423,7 +431,9 @@ def test_call_structured_translates_openai_api_error_to_runtime_error() -> None:
     )
 
     with (
-        patch("qs.providers.local.ChatCompletionOpenAI", return_value=completion),
+        patch(
+            "exmekh_lib.providers.local.ChatCompletionOpenAI", return_value=completion
+        ),
         pytest.raises(RuntimeError, match="Local provider request failed") as error,
     ):
         provider.call_structured(request)
@@ -447,7 +457,7 @@ def test_bad_request_preserves_server_message_and_marks_request_as_rejected(
     method.side_effect = failure
     name = "ChatCompletionOpenAI" if api == "chat_completions" else "ResponseOpenAI"
     with (
-        patch(f"qs.providers.local.{name}", return_value=adapter),
+        patch(f"exmekh_lib.providers.local.{name}", return_value=adapter),
         pytest.raises(
             ProviderRequestRejectedError, match="Only text and images"
         ) as error,
@@ -478,7 +488,7 @@ def test_rejected_request_uses_readable_server_message_or_sdk_fallback(body, exp
     adapter = MagicMock()
     adapter.call.side_effect = failure
     with (
-        patch("qs.providers.local.ChatCompletionOpenAI", return_value=adapter),
+        patch("exmekh_lib.providers.local.ChatCompletionOpenAI", return_value=adapter),
         pytest.raises(ProviderRequestRejectedError) as error,
     ):
         provider.call(MagicMock(spec=ProviderRequest))

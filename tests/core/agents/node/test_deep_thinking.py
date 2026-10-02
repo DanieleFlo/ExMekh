@@ -4,20 +4,26 @@ from xml.etree import ElementTree as ET
 import pytest
 from pydantic import BaseModel
 
-from qs.core.agents.capabilities.defaults import BUILTIN_CAPABILITIES_PATH
-from qs.core.agents.node import Node
-from qs.core.agents.node.thinking_annotation import ThinkingAnnotationResolver
-from qs.core.cache.session_cache import SessionCache
-from qs.core.models.assistant_message import AssistantMessage, FunctionCall, ToolCall
-from qs.core.models.model_thinking import ModelThinking
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.structured_provider_request import StructuredProviderRequest
-from qs.core.models.structured_provider_response import StructuredProviderResponse
-from qs.core.models.tool_message import ToolMessage
-from qs.core.models.xml_header import XmlHeader
-from qs.interfaces.provider import Provider
-from qs.interfaces.tokenizer import Tokenizer
+from exmekh_lib.core.agents.capabilities.defaults import BUILTIN_CAPABILITIES_PATH
+from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.agents.node.thinking_annotation import ThinkingAnnotationResolver
+from exmekh_lib.core.cache.session_cache import SessionCache
+from exmekh_lib.core.models.assistant_message import (
+    AssistantMessage,
+    FunctionCall,
+    ToolCall,
+)
+from exmekh_lib.core.models.model_thinking import ModelThinking
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
+from exmekh_lib.core.models.structured_provider_response import (
+    StructuredProviderResponse,
+)
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.xml_header import XmlHeader
+from exmekh_lib.interfaces.provider import Provider
+from exmekh_lib.interfaces.tokenizer import Tokenizer
 from tests.tool_result_support import parse_tool_result
 
 
@@ -471,14 +477,14 @@ def test_nested_skill_calls_keep_their_existing_header_behavior(tmp_path: Path) 
     )
     (root / "tools" / "echo" / "main.py").write_text(
         "from pathlib import Path\n"
-        "from qs.core.agents.tools.decorator import deep_tool\n"
+        "from exmekh_lib.core.agents.tools.decorator import deep_tool\n"
         "@deep_tool(name='echo', description='Echo text')\n"
         "def run(work_root: Path, text: str) -> str:\n"
         "    return text\n"
     )
     (root / "exit-tool" / "finish" / "instructions.md").write_text("Finish")
     (root / "exit-tool" / "finish" / "main.py").write_text(
-        "from qs.core.agents.exit_tool import ExitToolData, exit_tool\n"
+        "from exmekh_lib.core.agents.exit_tool import ExitToolData, exit_tool\n"
         "@exit_tool(name='exit_agent', description='Finish', instructions_path='instructions.md')\n"
         "def finish(text: str, items: list[str]) -> ExitToolData:\n"
         "    return ExitToolData(text=text, items=items)\n"

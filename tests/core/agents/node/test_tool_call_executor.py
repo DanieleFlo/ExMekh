@@ -3,17 +3,17 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
-from qs.core.agents.exit_tool.exit_tool import ExitTool
-from qs.core.agents.node import Node
-from qs.core.agents.node.agentic_scope import AgenticScope
-from qs.core.agents.node.tool_call_executor import ToolCallExecutor
-from qs.core.agents.node.tool_call_resolver import ToolCallResolver
-from qs.core.models.assistant_message import FunctionCall, ToolCall
-from qs.core.models.client import Client
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.tool import CalledTool, Tool
-from qs.core.models.user_message import UserMessage
-from qs.core.tool_calls.execution_manager import ToolExecutionManager
+from exmekh_lib.core.agents.exit_tool.exit_tool import ExitTool
+from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.agents.node.agentic_scope import AgenticScope
+from exmekh_lib.core.agents.node.tool_call_executor import ToolCallExecutor
+from exmekh_lib.core.agents.node.tool_call_resolver import ToolCallResolver
+from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
+from exmekh_lib.core.models.client import Client
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.tool import CalledTool, Tool
+from exmekh_lib.core.models.user_message import UserMessage
+from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
 from tests.core.agents.node.test_node import (
     SequenceProvider,
     _write_runnable_capabilities,

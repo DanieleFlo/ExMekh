@@ -7,8 +7,8 @@ from openai.types.responses import (
     ResponseUsage,
 )
 
-from qs.core.models.provider_stream_event import ProviderStreamEventType
-from qs.core.providers.from_openai_response_stream_mapper import (
+from exmekh_lib.core.models.provider_stream_event import ProviderStreamEventType
+from exmekh_lib.core.providers.from_openai_response_stream_mapper import (
     FromOpenAIResponseStreamMapper,
 )
 

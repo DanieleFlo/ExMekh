@@ -5,20 +5,27 @@ from unittest.mock import MagicMock
 import pytest
 from PIL import Image
 
-from qs.core.agents.node.tool_result_recorder import ToolResultRecorder
-from qs.core.agents.node.types import CacheIdentity, ToolExecutionResult
-from qs.core.cache.node_cache import NodeCache
-from qs.core.cache.session_cache import SessionCache
-from qs.core.models.tool import (
+from exmekh_lib.core.agents.node.tool_result_recorder import ToolResultRecorder
+from exmekh_lib.core.agents.node.types import CacheIdentity, ToolExecutionResult
+from exmekh_lib.core.cache.node_cache import NodeCache
+from exmekh_lib.core.cache.session_cache import SessionCache
+from exmekh_lib.core.models.tool import (
     ExecutionOptions,
     PreformattedToolResult,
     ToolExecutionOperation,
 )
-from qs.core.models.tool_message import ToolMessage
-from qs.core.models.user_message import ImagesUserMessage, TextsUserMessage, UserMessage
-from qs.core.tool_calls.execution_history import ExecutionHistory
-from qs.core.tool_calls.execution_manager import ExecutionSnapshot, ToolExecutionManager
-from qs.core.tool_calls.harness_memory_tools import HarnessMemoryTools
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.user_message import (
+    ImagesUserMessage,
+    TextsUserMessage,
+    UserMessage,
+)
+from exmekh_lib.core.tool_calls.execution_history import ExecutionHistory
+from exmekh_lib.core.tool_calls.execution_manager import (
+    ExecutionSnapshot,
+    ToolExecutionManager,
+)
+from exmekh_lib.core.tool_calls.harness_memory_tools import HarnessMemoryTools
 
 
 def test_managed_result_without_output_id_fails_before_persistence():

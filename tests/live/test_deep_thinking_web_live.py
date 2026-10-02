@@ -8,15 +8,15 @@ from urllib.parse import quote, urlparse
 
 import pytest
 
-from qs.core.agents.capabilities.capabilities import Capabilities
-from qs.core.agents.capabilities.defaults import BUILTIN_CAPABILITIES_PATH
-from qs.core.web_navigation import search as web_search
+from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
+from exmekh_lib.core.agents.capabilities.defaults import BUILTIN_CAPABILITIES_PATH
+from exmekh_lib.core.web_navigation import search as web_search
 
 pytestmark = pytest.mark.live
 
 STATISTICS_URL = "https://docs.python.org/3/library/statistics.html"
 MATH_URL = "https://docs.python.org/3/library/math.html"
-LOGIN_URL = "https://the-internet.herokuapp.com/login"
+FORM_URL = "https://httpbin.org/forms/post"
 
 
 def _web_tools(work_root: Path):
@@ -98,26 +98,36 @@ def test_live_read_complex_documentation_and_reuse_cache(tmp_path: Path) -> None
 def test_live_browser_form_submission_captures_destination_page(tmp_path: Path) -> None:
     tools = _web_tools(tmp_path)
 
-    inspected = tools["read-web-page"].execute(url=LOGIN_URL, output_mode="ast")
-    assert "#username" in str(inspected["ast"])
-    assert "#password" in str(inspected["ast"])
+    inspected = tools["read-web-page"].execute(url=FORM_URL, output_mode="ast")
+    assert inspected.get("status_code") == 200, inspected
+    assert 'input[name="custname"]' in str(inspected["ast"])
+    assert 'input[name="custemail"]' in str(inspected["ast"])
 
     result = tools["interact-web-page"].execute(
-        url=LOGIN_URL,
+        url=FORM_URL,
         actions=[
-            {"kind": "fill", "selector": "#username", "value": "tomsmith"},
-            {"kind": "fill", "selector": "#password", "value": "SuperSecretPassword!"},
-            {"kind": "click", "selector": "button[type=submit]"},
+            {
+                "kind": "fill",
+                "selector": 'input[name="custname"]',
+                "value": "ExMekh Live",
+            },
+            {
+                "kind": "fill",
+                "selector": 'input[name="custemail"]',
+                "value": "live@example.test",
+            },
+            {"kind": "click", "selector": "button"},
         ],
         output_mode="hybrid",
     )
-    assert result["actions_completed"] is True
+    assert result.get("actions_completed") is True, result
     assert all(
         item["success"] and item["effect_observed"] for item in result["actions"]
     )
-    assert result["final_url"] == "https://the-internet.herokuapp.com/secure"
-    assert "You logged into a secure area!" in result["markdown"]
-    assert "Secure Area" in str(result["ast"])
+    assert result["final_url"] == "https://httpbin.org/post"
+    assert "ExMekh Live" in result["markdown"]
+    assert "live@example.test" in result["markdown"]
+    assert "ExMekh Live" in str(result["ast"])
 
 
 def test_live_same_origin_navigation_reaches_a_second_document(tmp_path: Path) -> None:

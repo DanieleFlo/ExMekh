@@ -3,7 +3,7 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
-from qs.utils.xml import render_xml, stringify_tool_result
+from exmekh_lib.utils.xml import render_xml, stringify_tool_result
 from tests.tool_result_support import parse_tool_result
 
 

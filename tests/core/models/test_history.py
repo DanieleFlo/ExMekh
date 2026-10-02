@@ -3,15 +3,23 @@ from unittest.mock import patch
 
 import pytest
 
-from qs.core.models.assistant_message import AssistantMessage, FunctionCall, ToolCall
-from qs.core.models.function_message import FunctionMessage
-from qs.core.models.history import MessageHistory
-from qs.core.models.model_thinking import ModelThinking
-from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.tool_message import ToolMessage
-from qs.core.models.user_message import ErrorUserMessage, TextsUserMessage, UserMessage
-from qs.interfaces.message import Message
+from exmekh_lib.core.models.assistant_message import (
+    AssistantMessage,
+    FunctionCall,
+    ToolCall,
+)
+from exmekh_lib.core.models.function_message import FunctionMessage
+from exmekh_lib.core.models.history import MessageHistory
+from exmekh_lib.core.models.model_thinking import ModelThinking
+from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.user_message import (
+    ErrorUserMessage,
+    TextsUserMessage,
+    UserMessage,
+)
+from exmekh_lib.interfaces.message import Message
 
 
 @dataclass

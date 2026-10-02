@@ -3,7 +3,7 @@ from typing import cast
 
 import pytest
 
-from qs.core.agents.deep_skill.deep_skills import DeepSkills
+from exmekh_lib.core.agents.deep_skill.deep_skills import DeepSkills
 
 
 def _exit_instructions() -> str:

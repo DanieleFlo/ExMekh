@@ -1,7 +1,7 @@
 import pytest
 
-from qs.core.cache.tool_call_record import ToolCallRecord
-from qs.core.tool_calls.output_view import ToolOutputView
+from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
+from exmekh_lib.core.tool_calls.output_view import ToolOutputView
 
 
 @pytest.mark.parametrize("limit", [0, -1, True, 1.5, "10"])

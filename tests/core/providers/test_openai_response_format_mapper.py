@@ -1,6 +1,8 @@
 from pydantic import BaseModel
 
-from qs.core.providers.openai_response_format_mapper import OpenAIResponseFormatMapper
+from exmekh_lib.core.providers.openai_response_format_mapper import (
+    OpenAIResponseFormatMapper,
+)
 
 
 class StructuredAnswer(BaseModel):

@@ -3,10 +3,10 @@ from typing import cast
 
 import pytest
 
-from qs.core.agents.exit_tool.data import ExitToolData
-from qs.core.agents.exit_tool.exit_tool import CalledExitTool, ExitTool
-from qs.core.models.assistant_message import FunctionCall, ToolCall
-from qs.interfaces.tool_hook import AfterTool, ToolContext
+from exmekh_lib.core.agents.exit_tool.data import ExitToolData
+from exmekh_lib.core.agents.exit_tool.exit_tool import CalledExitTool, ExitTool
+from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
+from exmekh_lib.interfaces.tool_hook import AfterTool, ToolContext
 
 
 def _function(text: str, items: list[str]) -> ExitToolData:

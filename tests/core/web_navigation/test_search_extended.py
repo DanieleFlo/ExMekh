@@ -5,8 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from qs.core.web_navigation import search
-from qs.core.web_navigation.errors import WebNavigationError
+from exmekh_lib.core.web_navigation import search
+from exmekh_lib.core.web_navigation.errors import WebNavigationError
 
 
 @pytest.mark.parametrize(
@@ -152,7 +152,7 @@ def test_multimodal_search_falls_back_when_visual_model_fails(
 
     monkeypatch.setitem(
         sys.modules,
-        "qs.core.web_navigation.ranking",
+        "exmekh_lib.core.web_navigation.ranking",
         SimpleNamespace(
             rank_results=lambda *args, **kwargs: [(0, 0.5)],
             compute_siglip_ranking=failed_visual,
@@ -160,7 +160,7 @@ def test_multimodal_search_falls_back_when_visual_model_fails(
     )
     monkeypatch.setitem(
         sys.modules,
-        "qs.core.web_navigation.image_discovery",
+        "exmekh_lib.core.web_navigation.image_discovery",
         SimpleNamespace(
             IMAGE_CANDIDATE_LIMIT=15,
             discover_result_images=lambda *args, **kwargs: [],

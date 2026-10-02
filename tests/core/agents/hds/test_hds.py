@@ -3,8 +3,8 @@ from typing import cast
 
 import pytest
 
-from qs.core.agents.hds.hds import HDS
-from qs.core.agents.hds.metadata import HDSMetadata
+from exmekh_lib.core.agents.hds.hds import HDS
+from exmekh_lib.core.agents.hds.metadata import HDSMetadata
 
 
 def _metadata() -> HDSMetadata:

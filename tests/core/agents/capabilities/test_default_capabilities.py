@@ -4,32 +4,38 @@ from typing import cast
 import pytest
 from pydantic import BaseModel
 
-from qs.core.agents.capabilities.capabilities import Capabilities
-from qs.core.agents.capabilities.defaults import (
+from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
+from exmekh_lib.core.agents.capabilities.defaults import (
     BUILTIN_CAPABILITIES_PATH,
     HARNESS_NAMES,
     MOCK_NAMES,
     RUNTIME_NAMES,
     DefaultCapabilities,
 )
-from qs.core.agents.capabilities.layout import CapabilitiesLayout
-from qs.core.agents.deep_skill.deep_skill import DeepSkill
-from qs.core.agents.deep_skill.metadata import DeepSkillMetadata
-from qs.core.agents.exit_tool.data import ExitToolData
-from qs.core.agents.exit_tool.exit_tool import ExitTool
-from qs.core.agents.hds.hds import HDS
-from qs.core.agents.hds.metadata import HDSMetadata
-from qs.core.agents.node import DeepSkillOverride, Node, ToolOverride
-from qs.core.cache.cache_manager import CacheManager
-from qs.core.cache.session_cache import SessionCache
-from qs.core.models.assistant_message import AssistantMessage, FunctionCall, ToolCall
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.structured_provider_request import StructuredProviderRequest
-from qs.core.models.structured_provider_response import StructuredProviderResponse
-from qs.core.models.tool import Tool
-from qs.interfaces.provider import Provider
-from qs.interfaces.tokenizer import Tokenizer
+from exmekh_lib.core.agents.capabilities.layout import CapabilitiesLayout
+from exmekh_lib.core.agents.deep_skill.deep_skill import DeepSkill
+from exmekh_lib.core.agents.deep_skill.metadata import DeepSkillMetadata
+from exmekh_lib.core.agents.exit_tool.data import ExitToolData
+from exmekh_lib.core.agents.exit_tool.exit_tool import ExitTool
+from exmekh_lib.core.agents.hds.hds import HDS
+from exmekh_lib.core.agents.hds.metadata import HDSMetadata
+from exmekh_lib.core.agents.node import DeepSkillOverride, Node, ToolOverride
+from exmekh_lib.core.cache.cache_manager import CacheManager
+from exmekh_lib.core.cache.session_cache import SessionCache
+from exmekh_lib.core.models.assistant_message import (
+    AssistantMessage,
+    FunctionCall,
+    ToolCall,
+)
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
+from exmekh_lib.core.models.structured_provider_response import (
+    StructuredProviderResponse,
+)
+from exmekh_lib.core.models.tool import Tool
+from exmekh_lib.interfaces.provider import Provider
+from exmekh_lib.interfaces.tokenizer import Tokenizer
 
 DEEP_THINKING_TOOLS = {
     "calculate",
@@ -128,7 +134,7 @@ def write_tool(path: Path, name: str) -> None:
     tool_path = path / "tools" / f"{name}-directory"
     tool_path.mkdir(parents=True)
     (tool_path / "main.py").write_text(
-        "from qs.core.agents.tools.decorator import deep_tool\n"
+        "from exmekh_lib.core.agents.tools.decorator import deep_tool\n"
         f"@deep_tool(name='{name}', description='{name} application tool')\n"
         "def run(work_root, text: str) -> str:\n"
         f"    return '{name}: ' + text\n"
@@ -684,7 +690,7 @@ def test_tool_override_replaces_same_named_application_and_bundled_tools(
     tool_path = path / "tools" / "mock-tool"
     tool_path.mkdir(parents=True)
     (tool_path / "main.py").write_text(
-        "from qs.core.agents.tools.decorator import deep_tool\n"
+        "from exmekh_lib.core.agents.tools.decorator import deep_tool\n"
         "@deep_tool(name='mock-tool', description='Application tool')\n"
         "def run(work_root, text: str) -> str:\n"
         "    return 'application: ' + text\n"
@@ -803,8 +809,8 @@ def test_named_tool_override_preserves_source_hooks(tmp_path: Path) -> None:
     write_tool(path, "source-tool")
     source_entrypoint = path / "tools" / "source-tool-directory" / "main.py"
     source_entrypoint.write_text(
-        "from qs.core.agents.tools.decorator import deep_tool\n"
-        "from qs.interfaces.tool_hook import AfterTool\n"
+        "from exmekh_lib.core.agents.tools.decorator import deep_tool\n"
+        "from exmekh_lib.interfaces.tool_hook import AfterTool\n"
         "class Suffix(AfterTool):\n"
         "    def handle(self, context, result):\n"
         "        return result + '!'\n"

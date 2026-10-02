@@ -3,21 +3,25 @@ import base64
 import pytest
 from PIL import Image
 
-from qs.core.models.assistant_message import AssistantMessage, FunctionCall, ToolCall
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.tool import PreformattedToolResult
-from qs.core.models.tool_message import ToolMessage
-from qs.core.models.user_message import (
+from exmekh_lib.core.models.assistant_message import (
+    AssistantMessage,
+    FunctionCall,
+    ToolCall,
+)
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.tool import PreformattedToolResult
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.user_message import (
     DocumentUserMessage,
     FilesUserMessage,
     ImagesUserMessage,
     UserMessage,
 )
-from qs.core.providers.to_openai_chat_completion_request_mapper import (
+from exmekh_lib.core.providers.to_openai_chat_completion_request_mapper import (
     ToOpenAIChatCompletionRequestMapper,
 )
-from qs.core.providers.to_openai_response_request_mapper import (
+from exmekh_lib.core.providers.to_openai_response_request_mapper import (
     ToOpenAIResponseRequestMapper,
 )
 

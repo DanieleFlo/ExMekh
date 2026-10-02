@@ -1,9 +1,9 @@
 import pytest
 
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.model_thinking import ModelThinking
-from qs.core.models.model_usage import ModelUsage
-from qs.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.model_thinking import ModelThinking
+from exmekh_lib.core.models.model_usage import ModelUsage
+from exmekh_lib.core.models.provider_response import ProviderResponse
 
 
 def test_init_uses_optional_metadata_defaults() -> None:

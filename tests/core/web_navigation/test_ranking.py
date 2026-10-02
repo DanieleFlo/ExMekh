@@ -3,7 +3,7 @@ import pytest
 
 def test_bm25_prefers_relevant_title() -> None:
     pytest.importorskip("numpy")
-    from qs.core.web_navigation.ranking import bm25_scores  # noqa: PLC0415
+    from exmekh_lib.core.web_navigation.ranking import bm25_scores  # noqa: PLC0415
 
     results = [
         {
@@ -25,7 +25,9 @@ def test_visual_ranking_uses_injected_embeddings() -> None:
     numpy = pytest.importorskip("numpy")
     from PIL import Image  # noqa: PLC0415
 
-    from qs.core.web_navigation.ranking import compute_siglip_ranking  # noqa: PLC0415
+    from exmekh_lib.core.web_navigation.ranking import (  # noqa: PLC0415
+        compute_siglip_ranking,
+    )
 
     class FakeBackend:
         def encode_images(self, images: object) -> object:
@@ -53,7 +55,9 @@ def test_injected_embedding_backends_do_not_share_cached_vectors() -> None:
     numpy = pytest.importorskip("numpy")
     from PIL import Image  # noqa: PLC0415
 
-    from qs.core.web_navigation.ranking import compute_siglip_ranking  # noqa: PLC0415
+    from exmekh_lib.core.web_navigation.ranking import (  # noqa: PLC0415
+        compute_siglip_ranking,
+    )
 
     class Backend:
         def __init__(self, text_vectors: list[list[float]]) -> None:
@@ -90,7 +94,7 @@ def test_injected_embedding_backends_do_not_share_cached_vectors() -> None:
 
 def test_injected_semantic_backends_do_not_share_cached_vectors() -> None:
     numpy = pytest.importorskip("numpy")
-    from qs.core.web_navigation.ranking import (  # noqa: PLC0415
+    from exmekh_lib.core.web_navigation.ranking import (  # noqa: PLC0415
         compute_semantic_similarity,
     )
 

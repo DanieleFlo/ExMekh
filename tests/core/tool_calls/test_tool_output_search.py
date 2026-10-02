@@ -4,18 +4,18 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
-from qs.core.cache import SessionCache
-from qs.core.cache.tool_call_record import ToolCallRecord
-from qs.core.models.tool import (
+from exmekh_lib.core.cache import SessionCache
+from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
+from exmekh_lib.core.models.tool import (
     ExecutionOptions,
     PreformattedToolResult,
     Tool,
     ToolExecutionOperation,
 )
-from qs.core.tool_calls.execution_history import ExecutionHistory
-from qs.core.tool_calls.execution_manager import ToolExecutionManager
-from qs.core.tool_calls.harness_memory_tools import HarnessMemoryTools
-from qs.interfaces.tool_hook import AfterTool
+from exmekh_lib.core.tool_calls.execution_history import ExecutionHistory
+from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
+from exmekh_lib.core.tool_calls.harness_memory_tools import HarnessMemoryTools
+from exmekh_lib.interfaces.tool_hook import AfterTool
 
 
 @pytest.fixture

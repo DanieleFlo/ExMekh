@@ -3,12 +3,12 @@ from xml.etree import ElementTree
 
 import pytest
 
-from qs.core.agents.deep_skill.catalog import (
+from exmekh_lib.core.agents.deep_skill.catalog import (
     SkillCatalog,
     SkillCatalogEntry,
 )
-from qs.core.agents.deep_skill.deep_skill import DeepSkill
-from qs.core.agents.deep_skill.metadata import DeepSkillMetadata
+from exmekh_lib.core.agents.deep_skill.deep_skill import DeepSkill
+from exmekh_lib.core.agents.deep_skill.metadata import DeepSkillMetadata
 
 
 def _exit_instructions() -> str:

@@ -1,6 +1,6 @@
 import pytest
 
-from qs.core.reasoning_tools.math import MathInputError, calculate
+from exmekh_lib.core.reasoning_tools.math import MathInputError, calculate
 
 
 def test_symbolic_and_numerical_operations() -> None:

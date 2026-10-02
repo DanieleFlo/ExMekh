@@ -2,19 +2,19 @@ from threading import Event, get_ident
 
 import pytest
 
-from qs.core.agents.capabilities.defaults import DefaultCapabilities
-from qs.core.agents.deep_agent import DeepAgentStreamEvent
-from qs.core.agents.node import Node
-from qs.core.agents.node.node_runtime_config import NodeRuntimeConfig
-from qs.core.agents.node.turn_control import TurnControl
-from qs.core.cache.node_cache import NodeCache
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.provider_stream_event import ProviderStreamEventType
-from qs.core.models.tool import Tool
-from qs.core.models.tool_message import ToolMessage
-from qs.core.models.user_message import TextsUserMessage
-from qs.core.tool_calls.execution_manager import ToolExecutionManager
-from qs.interfaces.tool_hook import AfterTool, BeforeTool, ToolContext
+from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
+from exmekh_lib.core.agents.deep_agent import DeepAgentStreamEvent
+from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.agents.node.node_runtime_config import NodeRuntimeConfig
+from exmekh_lib.core.agents.node.turn_control import TurnControl
+from exmekh_lib.core.cache.node_cache import NodeCache
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.provider_stream_event import ProviderStreamEventType
+from exmekh_lib.core.models.tool import Tool
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.user_message import TextsUserMessage
+from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
+from exmekh_lib.interfaces.tool_hook import AfterTool, BeforeTool, ToolContext
 from tests.core.agents.node.steering_support import (
     blocked_work,
     call,

@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from qs.core.agents.capability.loader import MarkdownLoader
+from exmekh_lib.core.agents.capability.loader import MarkdownLoader
 
 
 def test_loads_markdown_file(tmp_path: Path) -> None:
@@ -53,7 +53,7 @@ def test_propagates_file_read_error(tmp_path: Path) -> None:
 
     with (
         patch(
-            "qs.core.agents.capability.loader.read_file_from_path",
+            "exmekh_lib.core.agents.capability.loader.read_file_from_path",
             side_effect=OSError("unreadable"),
         ),
         pytest.raises(OSError, match="unreadable"),

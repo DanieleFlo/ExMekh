@@ -5,17 +5,23 @@ from typing import Annotated, cast
 import pytest
 from openai.types.responses import ResponseFunctionToolCall
 
-from qs.core.models.assistant_message import AssistantMessage, FunctionCall, ToolCall
-from qs.core.models.function_message import FunctionMessage
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.reasoning_effort import ReasoningEffort, ReasoningEffortLMH
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.tool import Tool
-from qs.core.models.tool_message import ToolMessage
-from qs.core.models.tools import Tools
-from qs.core.models.user_message import UserMessage
-from qs.core.providers.openai_response_tool_mapper import OpenAIResponseToolMapper
-from qs.core.providers.to_openai_response_request_mapper import (
+from exmekh_lib.core.models.assistant_message import (
+    AssistantMessage,
+    FunctionCall,
+    ToolCall,
+)
+from exmekh_lib.core.models.function_message import FunctionMessage
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.reasoning_effort import ReasoningEffort, ReasoningEffortLMH
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.tool import Tool
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.tools import Tools
+from exmekh_lib.core.models.user_message import UserMessage
+from exmekh_lib.core.providers.openai_response_tool_mapper import (
+    OpenAIResponseToolMapper,
+)
+from exmekh_lib.core.providers.to_openai_response_request_mapper import (
     ToOpenAIResponseRequestMapper,
 )
 

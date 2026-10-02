@@ -5,13 +5,13 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
-from qs.core.cache.tool_call_record import ToolCallRecord
-from qs.core.models.client import Client
-from qs.core.models.tool import PreformattedToolResult
-from qs.core.models.xml_header import XmlHeader
-from qs.core.tool_calls.execution_manager import ExecutionSnapshot
-from qs.core.tool_calls.output_formatter import ToolOutputFormatter
-from qs.core.tool_calls.output_view import ToolOutputView
+from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
+from exmekh_lib.core.models.client import Client
+from exmekh_lib.core.models.tool import PreformattedToolResult
+from exmekh_lib.core.models.xml_header import XmlHeader
+from exmekh_lib.core.tool_calls.execution_manager import ExecutionSnapshot
+from exmekh_lib.core.tool_calls.output_formatter import ToolOutputFormatter
+from exmekh_lib.core.tool_calls.output_view import ToolOutputView
 
 
 @pytest.mark.parametrize("invalid_id", [None, 42, "", "   ", OSError("unavailable")])

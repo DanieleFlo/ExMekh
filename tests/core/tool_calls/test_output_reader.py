@@ -4,16 +4,18 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
-from qs.capabilities.tools.read_tool_output.tool_output_reader import ToolOutputReader
-from qs.core.cache import SessionCache
-from qs.core.cache.tool_call_record import ToolCallRecord
-from qs.core.models.tool import (
+from exmekh_lib.capabilities.tools.read_tool_output.tool_output_reader import (
+    ToolOutputReader,
+)
+from exmekh_lib.core.cache import SessionCache
+from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
+from exmekh_lib.core.models.tool import (
     ExecutionOptions,
     PreformattedToolResult,
     ToolExecutionOperation,
 )
-from qs.core.tool_calls.execution_manager import ToolExecutionManager
-from qs.utils.xml import stringify_tool_result
+from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
+from exmekh_lib.utils.xml import stringify_tool_result
 
 
 def unavailable_cache():

@@ -6,17 +6,19 @@ from typing import cast
 import pytest
 from pydantic import BaseModel
 
-from qs.core.agents.deep_agent.deep_agent import DeepAgent
-from qs.core.agents.node import Node
-from qs.core.cache.cache_manager import CacheManager
-from qs.core.cache.session_cache import SessionCache
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.structured_provider_request import StructuredProviderRequest
-from qs.core.models.structured_provider_response import StructuredProviderResponse
-from qs.interfaces.provider import Provider
-from qs.interfaces.tokenizer import Tokenizer
+from exmekh_lib.core.agents.deep_agent.deep_agent import DeepAgent
+from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.cache.cache_manager import CacheManager
+from exmekh_lib.core.cache.session_cache import SessionCache
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
+from exmekh_lib.core.models.structured_provider_response import (
+    StructuredProviderResponse,
+)
+from exmekh_lib.interfaces.provider import Provider
+from exmekh_lib.interfaces.tokenizer import Tokenizer
 
 
 class _StubTokenizer(Tokenizer):
@@ -34,7 +36,7 @@ class _StubTokenizer(Tokenizer):
 
     def get_session(self) -> SessionCache:
         return CacheManager.get_session(
-            "stub-deep-agent", "default", Path(".qs/tokenizers")
+            "stub-deep-agent", "default", Path(".exmekh_lib/tokenizers")
         )
 
 
@@ -67,8 +69,8 @@ def _write_capabilities(parent: Path, hds_name: str) -> Path:
     )
     (exit_tool_path / "instructions.md").write_text("Finish the agent")
     (exit_tool_path / "main.py").write_text(
-        "from qs.core.agents.exit_tool.data import ExitToolData\n"
-        "from qs.core.agents.exit_tool.decorator import exit_tool\n\n"
+        "from exmekh_lib.core.agents.exit_tool.data import ExitToolData\n"
+        "from exmekh_lib.core.agents.exit_tool.decorator import exit_tool\n\n"
         "@exit_tool(instructions_path='instructions.md', name='exit_agent', description='Exit agent')\n"
         "def exit_agent(text: str, items: list[str]) -> ExitToolData:\n"
         "    return ExitToolData(text=text, items=items)\n"

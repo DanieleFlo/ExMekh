@@ -3,7 +3,7 @@ from typing import cast
 
 import pytest
 
-from qs.core.agents.exit_tool.decorator import (
+from exmekh_lib.core.agents.exit_tool.decorator import (
     ExitToolDefinition,
     exit_tool,
     get_exit_tool_definition,

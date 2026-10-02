@@ -1,12 +1,12 @@
 from unittest.mock import Mock
 
-from qs import main
-from qs.core.agents.deep_agent import (
+from exmekh_lib import main
+from exmekh_lib.core.agents.deep_agent import (
     DeepAgentExecutionEvent,
     DeepAgentExecutionEventType,
     DeepAgentStreamEvent,
 )
-from qs.core.models.provider_stream_event import (
+from exmekh_lib.core.models.provider_stream_event import (
     ProviderStreamEvent,
     ProviderStreamEventType,
 )

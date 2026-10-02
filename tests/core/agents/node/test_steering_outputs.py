@@ -3,12 +3,12 @@ from xml.etree import ElementTree as ET
 import pytest
 from PIL import Image
 
-from qs.core.cache.node_cache import NodeCache
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.tool import PreformattedToolResult, Tool
-from qs.core.models.tool_message import ToolMessage
-from qs.core.models.user_message import ImagesUserMessage, UserMessage
+from exmekh_lib.core.cache.node_cache import NodeCache
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.tool import PreformattedToolResult, Tool
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.user_message import ImagesUserMessage, UserMessage
 from tests.core.agents.node.steering_support import call, tool_reply
 from tests.core.agents.node.test_node import SequenceProvider
 from tests.core.agents.node.test_steering_history import assert_complete_tool_batches

@@ -3,13 +3,22 @@ from typing import Any
 
 import pytest
 
-from qs.capabilities.tools.bash.bash_tool import BashTool
-from qs.capabilities.tools.call_sub_agent.sub_agent_tool import SubAgentTool
-from qs.core.agents.node import DefaultCapabilities, Node, ToolHooks, ToolOverride
-from qs.core.models.assistant_message import AssistantMessage, FunctionCall, ToolCall
-from qs.core.models.tool import Tool
-from qs.core.models.tool_message import ToolMessage
-from qs.interfaces.tool_hook import (
+from exmekh_lib.capabilities.tools.bash.bash_tool import BashTool
+from exmekh_lib.capabilities.tools.call_sub_agent.sub_agent_tool import SubAgentTool
+from exmekh_lib.core.agents.node import (
+    DefaultCapabilities,
+    Node,
+    ToolHooks,
+    ToolOverride,
+)
+from exmekh_lib.core.models.assistant_message import (
+    AssistantMessage,
+    FunctionCall,
+    ToolCall,
+)
+from exmekh_lib.core.models.tool import Tool
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.interfaces.tool_hook import (
     AfterTool,
     BeforeTool,
     ToolArguments,
@@ -161,8 +170,8 @@ def test_hooks_apply_after_named_overrides_without_changing_the_source(
     write_tool(path, "replacement-tool")
     entrypoint = path / "tools" / "replacement-tool-directory" / "main.py"
     entrypoint.write_text(
-        "from qs.core.agents.tools.decorator import deep_tool\n"
-        "from qs.interfaces.tool_hook import AfterTool\n"
+        "from exmekh_lib.core.agents.tools.decorator import deep_tool\n"
+        "from exmekh_lib.interfaces.tool_hook import AfterTool\n"
         "class OriginalAfter(AfterTool):\n"
         "    def handle(self, context, result):\n"
         "        return result + ' source'\n"

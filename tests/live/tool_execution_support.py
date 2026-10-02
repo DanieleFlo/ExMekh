@@ -15,21 +15,21 @@ from time import monotonic
 from uuid import uuid4
 from xml.etree import ElementTree as ET
 
-from qs.config.cache import CACHE_FORMAT
-from qs.core.agents.capabilities.defaults import DefaultCapabilities
-from qs.core.agents.deep_agent.stream_event import (
+from exmekh_lib.config.cache import CACHE_FORMAT
+from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
+from exmekh_lib.core.agents.deep_agent.stream_event import (
     DeepAgentEvent,
     DeepAgentExecutionEvent,
 )
-from qs.core.agents.node import Node
-from qs.core.cache.tool_call_record import ToolCallRecord
-from qs.core.models.assistant_message import AssistantMessage, ToolCall
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.reasoning_effort import ReasoningEffortLMH
-from qs.core.models.tool import Tool, ToolExecutionOperation
-from qs.core.models.tool_message import ToolMessage
-from qs.core.models.xml_header import XmlHeader
+from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
+from exmekh_lib.core.models.assistant_message import AssistantMessage, ToolCall
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.reasoning_effort import ReasoningEffortLMH
+from exmekh_lib.core.models.tool import Tool, ToolExecutionOperation
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.xml_header import XmlHeader
 from tests.event_handler import as_agent_handler
 from tests.live.model_support import CacheTestTokenizer, LiveModelProvider
 from tests.tool_result_support import parse_tool_result
@@ -338,7 +338,7 @@ def write_capabilities(directory: Path, tool_names: list[str]) -> Path:
         tool_path = root / "tools" / name
         tool_path.mkdir(parents=True)
         (tool_path / "main.py").write_text(
-            "from qs.core.agents.tools.decorator import deep_tool\n\n"
+            "from exmekh_lib.core.agents.tools.decorator import deep_tool\n\n"
             f"@deep_tool(name={name!r}, description='Live fixture overridden during initialization')\n"
             "def run(work_root, label: str):\n"
             "    raise AssertionError('Live fixture override was not installed')\n",

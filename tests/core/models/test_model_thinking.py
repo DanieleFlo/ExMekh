@@ -2,7 +2,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from qs.core.models.model_thinking import ModelThinking
+from exmekh_lib.core.models.model_thinking import ModelThinking
 
 
 def test_init_uses_none_by_default() -> None:

@@ -2,7 +2,7 @@ from typing import cast
 
 import pytest
 
-from qs.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.tool_message import ToolMessage
 
 
 def test_init_uses_tool_defaults() -> None:

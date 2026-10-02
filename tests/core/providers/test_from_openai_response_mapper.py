@@ -13,9 +13,11 @@ from openai.types.responses import (
 )
 from openai.types.responses.response_reasoning_item import Content, Summary
 
-from qs.core.models.tool import Tool
-from qs.core.models.tools import Tools
-from qs.core.providers.from_openai_response_mapper import FromOpenAIResponseMapper
+from exmekh_lib.core.models.tool import Tool
+from exmekh_lib.core.models.tools import Tools
+from exmekh_lib.core.providers.from_openai_response_mapper import (
+    FromOpenAIResponseMapper,
+)
 
 
 def make_response(*output, usage=None) -> Response:

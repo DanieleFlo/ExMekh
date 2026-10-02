@@ -4,12 +4,12 @@ from threading import Barrier, Event, Thread
 
 import pytest
 
-from qs.core.agents.deep_agent.stream_event import DeepAgentExecutionEvent
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.tool import Tool
-from qs.core.models.tool_message import ToolMessage
-from qs.core.models.user_message import ErrorUserMessage, UserMessage
+from exmekh_lib.core.agents.deep_agent.stream_event import DeepAgentExecutionEvent
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.tool import Tool
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.user_message import ErrorUserMessage, UserMessage
 from tests.core.agents.node.steering_support import call, tool_reply
 from tests.core.agents.node.test_node import SequenceProvider
 from tests.event_handler import as_agent_handler

@@ -5,10 +5,10 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
-from qs.core.cache import SessionCache, ToolCallRecord
-from qs.core.models.tool import PreformattedToolResult
-from qs.core.tool_calls.execution_history import ExecutionHistory
-from qs.core.tool_calls.harness_memory_tools import HarnessMemoryTools
+from exmekh_lib.core.cache import SessionCache, ToolCallRecord
+from exmekh_lib.core.models.tool import PreformattedToolResult
+from exmekh_lib.core.tool_calls.execution_history import ExecutionHistory
+from exmekh_lib.core.tool_calls.harness_memory_tools import HarnessMemoryTools
 
 
 def _content(result: PreformattedToolResult) -> str:

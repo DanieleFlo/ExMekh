@@ -2,7 +2,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from qs.core.models.model_usage import ModelUsage
+from exmekh_lib.core.models.model_usage import ModelUsage
 
 
 def test_init_uses_none_for_all_token_counts() -> None:

@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from qs.core.agents.tools.decorator import deep_tool
-from qs.core.agents.tools.deep_tool import DeepTool
+from exmekh_lib.core.agents.tools.decorator import deep_tool
+from exmekh_lib.core.agents.tools.deep_tool import DeepTool
 
 
 def test_binds_runtime_dependencies_without_exposing_them_to_the_model(

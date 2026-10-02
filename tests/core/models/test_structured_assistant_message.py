@@ -4,8 +4,10 @@ from typing import cast
 import pytest
 from pydantic import BaseModel
 
-from qs.core.models.assistant_message import FunctionCall, ToolCall
-from qs.core.models.structured_assistant_message import StructuredAssistantMessage
+from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
+from exmekh_lib.core.models.structured_assistant_message import (
+    StructuredAssistantMessage,
+)
 
 
 class Answer(BaseModel):

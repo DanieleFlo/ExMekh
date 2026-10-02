@@ -5,16 +5,16 @@ from typing import cast
 
 import pytest
 
-from qs.core.agents.capabilities.capabilities import Capabilities
-from qs.core.agents.capabilities.data import CapabilitiesData
-from qs.core.agents.capabilities.index import CapabilitiesIndex
-from qs.core.agents.deep_skill.deep_skill import DeepSkill
-from qs.core.agents.deep_skill.metadata import DeepSkillMetadata
-from qs.core.agents.exit_tool.data import ExitToolData
-from qs.core.agents.exit_tool.exit_tool import ExitTool
-from qs.core.agents.hds.hds import HDS
-from qs.core.agents.hds.metadata import HDSMetadata
-from qs.core.models.tool import Tool
+from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
+from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
+from exmekh_lib.core.agents.capabilities.index import CapabilitiesIndex
+from exmekh_lib.core.agents.deep_skill.deep_skill import DeepSkill
+from exmekh_lib.core.agents.deep_skill.metadata import DeepSkillMetadata
+from exmekh_lib.core.agents.exit_tool.data import ExitToolData
+from exmekh_lib.core.agents.exit_tool.exit_tool import ExitTool
+from exmekh_lib.core.agents.hds.hds import HDS
+from exmekh_lib.core.agents.hds.metadata import HDSMetadata
+from exmekh_lib.core.models.tool import Tool
 
 
 def _hds() -> HDS:
@@ -289,7 +289,9 @@ def test_debug_disabled_does_not_render_tools(caplog):
 
     tool = UnrenderableTool(lambda: None, name="work")
     data = CapabilitiesData((), (tool,))
-    with caplog.at_level(logging.INFO, logger="qs.core.agents.capabilities.data"):
+    with caplog.at_level(
+        logging.INFO, logger="exmekh_lib.core.agents.capabilities.data"
+    ):
         assert data.get_all_tools() == (tool,)
         assert data.get_contextual_tools(_hds())[0].name == "work"
 
@@ -302,7 +304,9 @@ def test_contextual_debug_includes_every_tool_and_original_type(caplog):
         hds=(hds,),
         exit_tools=(exit_tool,),
     )
-    with caplog.at_level(logging.DEBUG, logger="qs.core.agents.capabilities.data"):
+    with caplog.at_level(
+        logging.DEBUG, logger="exmekh_lib.core.agents.capabilities.data"
+    ):
         tools = data.get_contextual_tools(hds)
     messages = [
         record.getMessage()

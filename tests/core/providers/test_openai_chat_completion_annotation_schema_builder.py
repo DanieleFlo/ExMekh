@@ -17,7 +17,7 @@ from uuid import UUID
 
 import pytest
 
-from qs.core.providers.openai_chat_completion_annotation_schema_builder import (
+from exmekh_lib.core.providers.openai_chat_completion_annotation_schema_builder import (
     OpenAIChatCompletionAnnotationSchemaBuilder,
 )
 

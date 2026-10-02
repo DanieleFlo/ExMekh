@@ -7,11 +7,11 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
-import qs
-from qs.core.agents.deep_agent.agent_response import AgentResponse
-from qs.core.agents.deep_agent.deep_agent import DeepAgent
-from qs.core.agents.node import Node
-from qs.core.models.reasoning_effort import ReasoningEffortLMH
+import exmekh_lib
+from exmekh_lib.core.agents.deep_agent.agent_response import AgentResponse
+from exmekh_lib.core.agents.deep_agent.deep_agent import DeepAgent
+from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.models.reasoning_effort import ReasoningEffortLMH
 from tests.live.model_support import LiveModelProvider
 
 pytestmark = pytest.mark.live
@@ -30,7 +30,7 @@ def build_live_sub_agent_system(
         reasoning_effort=ReasoningEffortLMH.LOW,
         api="responses",
     )
-    capabilities_path = Path(qs.__file__).parent / "capabilities"
+    capabilities_path = Path(exmekh_lib.__file__).parent / "capabilities"
     child = Node(
         capabilities_paths=[capabilities_path],
         name_hds="mock-sub-agent",

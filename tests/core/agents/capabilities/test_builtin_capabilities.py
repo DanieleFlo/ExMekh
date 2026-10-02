@@ -2,19 +2,23 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from qs.core.agents.capabilities.capabilities import Capabilities
-from qs.core.agents.node import Node
-from qs.core.cache.cache_manager import CacheManager
-from qs.core.cache.session_cache import SessionCache
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.structured_provider_request import StructuredProviderRequest
-from qs.core.models.structured_provider_response import StructuredProviderResponse
-from qs.interfaces.provider import Provider
-from qs.interfaces.tokenizer import Tokenizer
+from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
+from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.cache.cache_manager import CacheManager
+from exmekh_lib.core.cache.session_cache import SessionCache
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
+from exmekh_lib.core.models.structured_provider_response import (
+    StructuredProviderResponse,
+)
+from exmekh_lib.interfaces.provider import Provider
+from exmekh_lib.interfaces.tokenizer import Tokenizer
 
-CAPABILITIES_PATH = Path(__file__).resolve().parents[4] / "src" / "qs" / "capabilities"
+CAPABILITIES_PATH = (
+    Path(__file__).resolve().parents[4] / "src" / "exmekh_lib" / "capabilities"
+)
 
 
 class _StubTokenizer(Tokenizer):
@@ -32,7 +36,7 @@ class _StubTokenizer(Tokenizer):
 
     def get_session(self) -> SessionCache:
         return CacheManager.get_session(
-            "stub-capabilities", "default", Path(".qs/tokenizers")
+            "stub-capabilities", "default", Path(".exmekh_lib/tokenizers")
         )
 
 

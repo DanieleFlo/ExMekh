@@ -1,14 +1,14 @@
 # Tokenizer-based IDs
 
 `LocalProvider` accepts an optional `tokenizer` implementing
-`qs.interfaces.tokenizer.Tokenizer`. It validates the instance and defaults to
+`exmekh_lib.interfaces.tokenizer.Tokenizer`. It validates the instance and defaults to
 `QwenTokenizer`, using the vocabulary from `Qwen/Qwen3.8-27B` on Hugging Face.
 Only `tokenizer.json` is downloaded, without model weights. The `tokenizers`
 package loads the complete tokenizer for text operations.
 
 ```python
-from qs.providers.local import LocalProvider
-from qs.tokenizers.qwen import QwenTokenizer
+from exmekh_lib.providers.local import LocalProvider
+from exmekh_lib.tokenizers.qwen import QwenTokenizer
 
 tokenizer = QwenTokenizer()
 tokenizer.initialize()  # Optional: prepare the cache at application startup.
@@ -41,12 +41,12 @@ may repeat within an ID. Exhaustion raises `RuntimeError` rather than wrapping.
 
 ## Cache and session isolation
 
-The default root is `.qs/tokenizers` relative to the working directory when the
+The default root is `.exmekh_lib/tokenizers` relative to the working directory when the
 tokenizer is constructed. Pass `cache_directory=Path(...)` to choose another root.
 Each tokenizer identity has its own SHA-256 namespace:
 
 ```text
-.qs/tokenizers/<identity-hash>/
+.exmekh_lib/tokenizers/<identity-hash>/
     vocabulary.json
     tokenizer.json
     temp/session-<unique-suffix>/counter.json
@@ -84,7 +84,7 @@ and implement `_load_vocabulary_tokens()` to return raw, non-special vocabulary 
 from collections.abc import Iterable
 from pathlib import Path
 
-from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
+from exmekh_lib.core.tokenizers.sequential_tokenizer import SequentialTokenizer
 
 
 class OtherTokenizer(SequentialTokenizer):
@@ -136,5 +136,5 @@ search, and standalone archives.
 - `TokenizerSession` is a compatibility alias for `SessionCache`.
   `SessionCache.reserve_next_index()` owns counter synchronization and
   temporary storage. Callers do not access its counter, lock or filesystem layout.
-- `qs.utils.file.write_json_atomically()` provides generic JSON persistence used
+- `exmekh_lib.utils.file.write_json_atomically()` provides generic JSON persistence used
   independently by the vocabulary cache and the session counter.

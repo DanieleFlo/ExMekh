@@ -7,10 +7,10 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
-from qs.core.agents.capabilities.defaults import BUILTIN_CAPABILITIES_PATH
-from qs.core.agents.deep_agent.deep_agent import DeepAgent
-from qs.core.agents.node import Node
-from qs.core.models.reasoning_effort import ReasoningEffortLMH
+from exmekh_lib.core.agents.capabilities.defaults import BUILTIN_CAPABILITIES_PATH
+from exmekh_lib.core.agents.deep_agent.deep_agent import DeepAgent
+from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.models.reasoning_effort import ReasoningEffortLMH
 from tests.live.model_support import LiveModelProvider
 
 pytestmark = pytest.mark.live

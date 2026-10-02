@@ -8,19 +8,25 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import BaseModel
 
-from qs.core.agents.capabilities.defaults import BUILTIN_CAPABILITIES_PATH
-from qs.core.agents.node import Node
-from qs.core.cache.session_cache import SessionCache
-from qs.core.models.assistant_message import AssistantMessage, FunctionCall, ToolCall
-from qs.core.models.model_thinking import ModelThinking
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.structured_provider_request import StructuredProviderRequest
-from qs.core.models.structured_provider_response import StructuredProviderResponse
-from qs.core.models.tool_message import ToolMessage
-from qs.core.web_navigation import crawler, search
-from qs.interfaces.provider import Provider
-from qs.interfaces.tokenizer import Tokenizer
+from exmekh_lib.core.agents.capabilities.defaults import BUILTIN_CAPABILITIES_PATH
+from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.cache.session_cache import SessionCache
+from exmekh_lib.core.models.assistant_message import (
+    AssistantMessage,
+    FunctionCall,
+    ToolCall,
+)
+from exmekh_lib.core.models.model_thinking import ModelThinking
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
+from exmekh_lib.core.models.structured_provider_response import (
+    StructuredProviderResponse,
+)
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.web_navigation import crawler, search
+from exmekh_lib.interfaces.provider import Provider
+from exmekh_lib.interfaces.tokenizer import Tokenizer
 from tests.tool_result_support import parse_tool_result
 
 STATISTICS_URL = "https://docs.python.org/3/library/statistics.html"

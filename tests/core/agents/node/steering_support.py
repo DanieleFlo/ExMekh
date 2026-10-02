@@ -1,10 +1,14 @@
 from concurrent.futures import Future
 from threading import Event, Thread
 
-from qs.core.agents.deep_agent.agent_response import AgentResponse
-from qs.core.agents.deep_agent.deep_agent import DeepAgent
-from qs.core.models.assistant_message import AssistantMessage, FunctionCall, ToolCall
-from qs.core.models.user_message import UserMessage
+from exmekh_lib.core.agents.deep_agent.agent_response import AgentResponse
+from exmekh_lib.core.agents.deep_agent.deep_agent import DeepAgent
+from exmekh_lib.core.models.assistant_message import (
+    AssistantMessage,
+    FunctionCall,
+    ToolCall,
+)
+from exmekh_lib.core.models.user_message import UserMessage
 
 
 class AgentRuns:

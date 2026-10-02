@@ -4,8 +4,8 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
-from qs.core.models.xml_header import XmlHeader
-from qs.utils.xml import render_xml
+from exmekh_lib.core.models.xml_header import XmlHeader
+from exmekh_lib.utils.xml import render_xml
 from tests.tool_result_support import parse_tool_result
 
 

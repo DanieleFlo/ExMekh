@@ -4,7 +4,7 @@ from typing import cast
 import pytest
 from PIL import Image
 
-from qs.core.models.user_message import (
+from exmekh_lib.core.models.user_message import (
     DocumentUserMessage,
     FilesUserMessage,
     ImagesUserMessage,

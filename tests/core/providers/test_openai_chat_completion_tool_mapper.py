@@ -10,9 +10,9 @@ from openai.types.chat.chat_completion_message_function_tool_call import (
     Function as OpenAIFunction,
 )
 
-from qs.core.models.tool import Tool
-from qs.core.models.tools import Tools
-from qs.core.providers.openai_chat_completion_tool_mapper import (
+from exmekh_lib.core.models.tool import Tool
+from exmekh_lib.core.models.tools import Tools
+from exmekh_lib.core.providers.openai_chat_completion_tool_mapper import (
     OpenAIChatCompletionToolMapper,
 )
 

@@ -9,12 +9,14 @@ import pytest
 from tokenizers import Tokenizer as TextTokenizer
 from tokenizers import decoders, models, pre_tokenizers, trainers
 
-from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
-from qs.core.tokenizers.tokenizer_session_registry import TokenizerSessionRegistry
-from qs.interfaces.tokenizer import Tokenizer
-from qs.providers.local import LocalProvider
-from qs.tokenizers.qwen import QwenTokenizer
-from qs.utils.file import read_json_from_path
+from exmekh_lib.core.tokenizers.sequential_tokenizer import SequentialTokenizer
+from exmekh_lib.core.tokenizers.tokenizer_session_registry import (
+    TokenizerSessionRegistry,
+)
+from exmekh_lib.interfaces.tokenizer import Tokenizer
+from exmekh_lib.providers.local import LocalProvider
+from exmekh_lib.tokenizers.qwen import QwenTokenizer
+from exmekh_lib.utils.file import read_json_from_path
 
 
 class SampleTokenizer(SequentialTokenizer):
@@ -98,7 +100,7 @@ def test_tokenizer_identities_have_separate_paths_and_counters(tmp_path):
 def test_new_process_session_reuses_cache_but_restarts_sequence(tmp_path):
     tokenizer = SampleTokenizer(tmp_path)
     assert tokenizer.generate_id() == "2_2_2"
-    with patch("qs.core.cache.session_pool.os.getpid", return_value=-1):
+    with patch("exmekh_lib.core.cache.session_pool.os.getpid", return_value=-1):
         assert tokenizer.generate_id() == "2_2_2"
     assert tokenizer.loads == 1
     assert len(list(tmp_path.glob("*/temp/session-*"))) == 2
@@ -109,7 +111,7 @@ def test_failed_counter_write_does_not_reissue_reserved_id(tmp_path):
     tokenizer.initialize()
     with (
         patch(
-            "qs.core.cache.session_cache.write_json_atomically",
+            "exmekh_lib.core.cache.session_cache.write_json_atomically",
             side_effect=OSError,
         ),
         pytest.raises(OSError),
@@ -179,7 +181,7 @@ def test_qwen_loads_official_vocabulary_and_excludes_special_tokens(tmp_path):
     }
     tokenizer = QwenTokenizer(tmp_path)
     with patch(
-        "qs.tokenizers.qwen.urlopen",
+        "exmekh_lib.tokenizers.qwen.urlopen",
         return_value=io.BytesIO(
             json.dumps(payload).encode(),
         ),
@@ -189,7 +191,7 @@ def test_qwen_loads_official_vocabulary_and_excludes_special_tokens(tmp_path):
         "https://huggingface.co/Qwen/Qwen3.8-27B/resolve/main/tokenizer.json",
         timeout=60,
     )
-    with patch("qs.tokenizers.qwen.urlopen", side_effect=AssertionError):
+    with patch("exmekh_lib.tokenizers.qwen.urlopen", side_effect=AssertionError):
         QwenTokenizer(tmp_path).initialize()
 
 
@@ -287,14 +289,14 @@ def test_qwen_rejects_non_string_text_for_counting(tmp_path):
 def test_qwen_reuses_cached_full_tokenizer_for_text(tmp_path):
     payload = json.loads(_sample_text_tokenizer().to_str())
     with patch(
-        "qs.tokenizers.qwen.urlopen",
+        "exmekh_lib.tokenizers.qwen.urlopen",
         return_value=io.BytesIO(json.dumps(payload).encode()),
     ) as download:
         first = QwenTokenizer(tmp_path)
         assert first.count_tokens("alpha café") > 0
     download.assert_called_once()
 
-    with patch("qs.tokenizers.qwen.urlopen", side_effect=AssertionError):
+    with patch("exmekh_lib.tokenizers.qwen.urlopen", side_effect=AssertionError):
         second = QwenTokenizer(tmp_path)
         assert second.count_tokens("alpha café") == first.count_tokens("alpha café")
 
@@ -303,14 +305,14 @@ def test_qwen_downloads_full_tokenizer_for_an_existing_vocabulary_cache(tmp_path
     payload = json.loads(_sample_text_tokenizer().to_str())
     tokenizer = QwenTokenizer(tmp_path)
     with patch(
-        "qs.tokenizers.qwen.urlopen",
+        "exmekh_lib.tokenizers.qwen.urlopen",
         return_value=io.BytesIO(json.dumps(payload).encode()),
     ):
         tokenizer.generate_id()
     (tokenizer._directory / "tokenizer.json").unlink()
 
     with patch(
-        "qs.tokenizers.qwen.urlopen",
+        "exmekh_lib.tokenizers.qwen.urlopen",
         return_value=io.BytesIO(json.dumps(payload).encode()),
     ) as download:
         assert QwenTokenizer(tmp_path).count_tokens("alpha café") > 0
@@ -320,7 +322,7 @@ def test_qwen_downloads_full_tokenizer_for_an_existing_vocabulary_cache(tmp_path
 def test_download_failure_leaves_no_cache_and_can_retry(tmp_path):
     tokenizer = QwenTokenizer(tmp_path)
     with (
-        patch("qs.tokenizers.qwen.urlopen", side_effect=OSError),
+        patch("exmekh_lib.tokenizers.qwen.urlopen", side_effect=OSError),
         pytest.raises(OSError),
     ):
         tokenizer.initialize()

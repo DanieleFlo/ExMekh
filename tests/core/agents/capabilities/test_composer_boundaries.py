@@ -1,12 +1,12 @@
 import pytest
 
-from qs.core.agents.capabilities.data import CapabilitiesData
-from qs.core.agents.capabilities.default_composer import (
+from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
+from exmekh_lib.core.agents.capabilities.default_composer import (
     _DefaultCapabilitiesComposer,
 )
-from qs.core.agents.capabilities.defaults import DefaultCapabilities
-from qs.core.agents.capabilities.tool_composer import _DefaultToolComposer
-from qs.core.models.tool import Tool
+from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
+from exmekh_lib.core.agents.capabilities.tool_composer import _DefaultToolComposer
+from exmekh_lib.core.models.tool import Tool
 
 
 def test_tool_composer_without_defaults_preserves_tool() -> None:

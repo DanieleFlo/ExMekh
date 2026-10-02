@@ -3,12 +3,12 @@ from typing import cast
 
 import pytest
 
-from qs.core.agents.deep_agent.stream_event import (
+from exmekh_lib.core.agents.deep_agent.stream_event import (
     DeepAgentExecutionEvent,
     DeepAgentExecutionEventType,
     DeepAgentStreamEvent,
 )
-from qs.core.models.provider_stream_event import (
+from exmekh_lib.core.models.provider_stream_event import (
     ProviderStreamEvent,
     ProviderStreamEventType,
 )

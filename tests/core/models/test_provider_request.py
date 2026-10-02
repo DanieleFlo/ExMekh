@@ -2,16 +2,16 @@ from types import MappingProxyType
 
 import pytest
 
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.provider_stream_event import (
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.provider_stream_event import (
     ProviderStreamEvent,
     ProviderStreamEventType,
 )
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.tool import Tool
-from qs.core.models.tools import Tools
-from qs.core.models.user_message import UserMessage
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.tool import Tool
+from exmekh_lib.core.models.tools import Tools
+from exmekh_lib.core.models.user_message import UserMessage
 from tests.event_handler import as_provider_handler
 
 

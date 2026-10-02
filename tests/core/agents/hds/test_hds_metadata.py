@@ -1,6 +1,6 @@
 import pytest
 
-from qs.core.agents.hds.metadata import HDSMetadata, HDSMetadataParser
+from exmekh_lib.core.agents.hds.metadata import HDSMetadata, HDSMetadataParser
 
 
 def test_parses_hds_metadata_with_exit_tool() -> None:

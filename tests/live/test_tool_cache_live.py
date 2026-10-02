@@ -8,17 +8,19 @@ from xml.etree import ElementTree as ET
 import pytest
 from dotenv import load_dotenv
 
-import qs
-from qs.capabilities.tools.search_tool_outputs.tool_call_search import ToolCallSearch
-from qs.core.agents.node import Node
-from qs.core.cache.node_cache import NodeCache
-from qs.core.cache.tool_call_record import ToolCallRecord
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.reasoning_effort import ReasoningEffortLMH
-from qs.core.models.tool_message import ToolMessage
-from qs.core.tool_calls import ToolCallReader
-from qs.utils.file import read_json_from_path
+import exmekh_lib
+from exmekh_lib.capabilities.tools.search_tool_outputs.tool_call_search import (
+    ToolCallSearch,
+)
+from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.cache.node_cache import NodeCache
+from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.reasoning_effort import ReasoningEffortLMH
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.tool_calls import ToolCallReader
+from exmekh_lib.utils.file import read_json_from_path
 from tests.event_handler import as_agent_handler
 from tests.live.model_support import CacheTestTokenizer, LiveModelProvider
 
@@ -77,7 +79,7 @@ def initialize_node(
     provider: RecordingLocalProvider, work_root: Path, *, streaming: bool = False
 ) -> Node:
     node = Node(
-        capabilities_paths=[Path(qs.__file__).parent / "capabilities"],
+        capabilities_paths=[Path(exmekh_lib.__file__).parent / "capabilities"],
         name_hds="main",
         persistent_history=False,
     )

@@ -9,49 +9,51 @@ from xml.etree import ElementTree as ET
 import pytest
 from pydantic import BaseModel
 
-from qs.capabilities.tools.call_sub_agent.sub_agent_tool import SubAgentTool
-from qs.core.agents.capabilities.data import CapabilitiesData
-from qs.core.agents.deep_agent.deep_agent import DeepAgent
-from qs.core.agents.deep_agent.stream_event import (
+from exmekh_lib.capabilities.tools.call_sub_agent.sub_agent_tool import SubAgentTool
+from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
+from exmekh_lib.core.agents.deep_agent.deep_agent import DeepAgent
+from exmekh_lib.core.agents.deep_agent.stream_event import (
     DeepAgentEvent,
     DeepAgentExecutionEvent,
     DeepAgentStreamEvent,
 )
-from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill
-from qs.core.agents.exit_tool.exit_tool import ExitTool
-from qs.core.agents.hds.hds import HDS
-from qs.core.agents.node import DefaultCapabilities, Node
-from qs.core.agents.node.agentic_scope import AgenticScope
-from qs.core.agents.node.node_runtime import NodeRuntime
-from qs.core.agents.node.node_runtime_config import NodeRuntimeConfig
-from qs.core.agents.node.tool_call_executor import ToolCallExecutor
-from qs.core.agents.node.tool_call_resolver import ToolCallResolver
-from qs.core.cache.cache_manager import CacheManager
-from qs.core.cache.node_cache import NodeCache
-from qs.core.cache.session_cache import SessionCache
-from qs.core.models.assistant_message import (
+from exmekh_lib.core.agents.deep_skill.deep_skill import CalledDeepSkill
+from exmekh_lib.core.agents.exit_tool.exit_tool import ExitTool
+from exmekh_lib.core.agents.hds.hds import HDS
+from exmekh_lib.core.agents.node import DefaultCapabilities, Node
+from exmekh_lib.core.agents.node.agentic_scope import AgenticScope
+from exmekh_lib.core.agents.node.node_runtime import NodeRuntime
+from exmekh_lib.core.agents.node.node_runtime_config import NodeRuntimeConfig
+from exmekh_lib.core.agents.node.tool_call_executor import ToolCallExecutor
+from exmekh_lib.core.agents.node.tool_call_resolver import ToolCallResolver
+from exmekh_lib.core.cache.cache_manager import CacheManager
+from exmekh_lib.core.cache.node_cache import NodeCache
+from exmekh_lib.core.cache.session_cache import SessionCache
+from exmekh_lib.core.models.assistant_message import (
     AssistantMessage,
     FunctionCall,
     ToolCall,
 )
-from qs.core.models.client import Client
-from qs.core.models.model_thinking import ModelThinking
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.provider_stream_event import (
+from exmekh_lib.core.models.client import Client
+from exmekh_lib.core.models.model_thinking import ModelThinking
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.provider_stream_event import (
     ProviderStreamEvent,
     ProviderStreamEventType,
 )
-from qs.core.models.structured_provider_request import StructuredProviderRequest
-from qs.core.models.structured_provider_response import StructuredProviderResponse
-from qs.core.models.tool import CalledTool, PreformattedToolResult, Tool
-from qs.core.models.tool_message import ToolMessage
-from qs.core.models.user_message import ErrorUserMessage, UserMessage
-from qs.core.models.xml_header import XmlHeader
-from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
-from qs.core.tool_calls.execution_history import ExecutionHistory
-from qs.interfaces.provider import Provider
-from qs.interfaces.tokenizer import Tokenizer
+from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
+from exmekh_lib.core.models.structured_provider_response import (
+    StructuredProviderResponse,
+)
+from exmekh_lib.core.models.tool import CalledTool, PreformattedToolResult, Tool
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.user_message import ErrorUserMessage, UserMessage
+from exmekh_lib.core.models.xml_header import XmlHeader
+from exmekh_lib.core.tokenizers.sequential_tokenizer import SequentialTokenizer
+from exmekh_lib.core.tool_calls.execution_history import ExecutionHistory
+from exmekh_lib.interfaces.provider import Provider
+from exmekh_lib.interfaces.tokenizer import Tokenizer
 from tests.event_handler import as_agent_handler
 
 _RUNTIME_TOOL_NAMES = [
@@ -77,7 +79,9 @@ class _StubTokenizer(Tokenizer):
         raise RuntimeError("No tokenizer session for stub")
 
     def get_session(self) -> SessionCache:
-        return CacheManager.get_session("stub-node", "default", Path(".qs/tokenizers"))
+        return CacheManager.get_session(
+            "stub-node", "default", Path(".exmekh_lib/tokenizers")
+        )
 
 
 class SequenceProvider(Provider):
@@ -132,8 +136,8 @@ def _write_capabilities(
 
     (exit_tool_path / "instructions.md").write_text("Finish the agent")
     (exit_tool_path / "main.py").write_text(
-        "from qs.core.agents.exit_tool.data import ExitToolData\n"
-        "from qs.core.agents.exit_tool.decorator import exit_tool\n\n"
+        "from exmekh_lib.core.agents.exit_tool.data import ExitToolData\n"
+        "from exmekh_lib.core.agents.exit_tool.decorator import exit_tool\n\n"
         "@exit_tool(instructions_path='instructions.md', name='exit_agent', description='Exit agent')\n"
         "def exit_agent(text: str, items: list[str]) -> ExitToolData:\n"
         "    return ExitToolData(text=text, items=items)\n"
@@ -165,7 +169,7 @@ def _write_runnable_capabilities(parent: Path) -> Path:
     tool_path = capabilities_path / "tools" / "mock-tool"
     tool_path.mkdir(parents=True)
     (tool_path / "main.py").write_text(
-        "from qs.core.agents.tools.decorator import deep_tool\n\n"
+        "from exmekh_lib.core.agents.tools.decorator import deep_tool\n\n"
         "@deep_tool(name='mock-tool', description='Mock tool')\n"
         "def run(work_root, text: str) -> dict[str, str]:\n"
         "    del work_root\n"
@@ -208,7 +212,7 @@ def _write_nested_capabilities(parent: Path) -> Path:
         tool_path = capabilities_path / "tools" / name
         tool_path.mkdir()
         (tool_path / "main.py").write_text(
-            "from qs.core.agents.tools.decorator import deep_tool\n\n"
+            "from exmekh_lib.core.agents.tools.decorator import deep_tool\n\n"
             f"@deep_tool(name='{name}', description='{description}')\n"
             "def run(work_root, text: str) -> dict[str, str]:\n"
             "    del work_root\n"
@@ -1676,7 +1680,7 @@ def test_runtime_rejects_capabilities_using_reserved_memory_tool_names(
     tool_path = capabilities / "tools" / "get_execution_history"
     tool_path.mkdir()
     (tool_path / "main.py").write_text(
-        "from qs.core.agents.tools.decorator import deep_tool\n\n"
+        "from exmekh_lib.core.agents.tools.decorator import deep_tool\n\n"
         "@deep_tool(name='get_execution_history', description='Reserved')\n"
         "def run(work_root) -> str:\n"
         "    return str(work_root)\n"
@@ -2968,7 +2972,7 @@ def test_rejects_capability_using_reserved_sub_agent_tool_name(
     tool_path = capabilities / "tools" / "call_sub_agent"
     tool_path.mkdir(parents=True)
     (tool_path / "main.py").write_text(
-        "from qs.core.agents.tools.decorator import deep_tool\n\n"
+        "from exmekh_lib.core.agents.tools.decorator import deep_tool\n\n"
         "@deep_tool(name='call_sub_agent', description='Reserved')\n"
         "def run(work_root, text: str) -> str:\n"
         "    return text\n"

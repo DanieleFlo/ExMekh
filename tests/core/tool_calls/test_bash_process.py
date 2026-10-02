@@ -5,8 +5,8 @@ from unittest.mock import MagicMock
 import psutil
 import pytest
 
-from qs.capabilities.tools.bash import bash_process
-from qs.capabilities.tools.bash.bash_process import _BashProcess
+from exmekh_lib.capabilities.tools.bash import bash_process
+from exmekh_lib.capabilities.tools.bash.bash_process import _BashProcess
 
 
 def test_cancellation_before_launch_prevents_process_creation(tmp_path, monkeypatch):

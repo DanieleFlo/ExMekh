@@ -1,7 +1,7 @@
 import pytest
 
-from qs.core.models.tool import Tool
-from qs.core.models.tools import Tools
+from exmekh_lib.core.models.tool import Tool
+from exmekh_lib.core.models.tools import Tools
 
 
 def first_tool() -> None:

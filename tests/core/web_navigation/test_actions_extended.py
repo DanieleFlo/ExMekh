@@ -6,8 +6,8 @@ from typing import Any
 
 import pytest
 
-from qs.core.web_navigation import actions, security
-from qs.core.web_navigation.errors import WebNavigationError
+from exmekh_lib.core.web_navigation import actions, security
+from exmekh_lib.core.web_navigation.errors import WebNavigationError
 
 
 class _Locator:

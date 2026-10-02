@@ -1,21 +1,21 @@
 # DeepAgent & Hierarchical Execution
 
-The [`DeepAgent`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/agents/deep_agent/deep_agent.py) engine orchestrates multi-depth skill execution, tool calling loops, real-time streaming, and hierarchical history tree management.
+The [`DeepAgent`](../src/exmekh_lib/core/agents/deep_agent/deep_agent.py) engine orchestrates multi-depth skill execution, tool calling loops, real-time streaming, and hierarchical history tree management.
 
 ---
 
 ## 1. Initializing & Executing a DeepAgent
 
-To run a `DeepAgent`, instantiate a root [`Node`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/agents/node/node.py) pointing to a capabilities directory, bind a workspace path (`work_root`), and supply an LLM provider:
+To run a `DeepAgent`, instantiate a root [`Node`](../src/exmekh_lib/core/agents/node/node.py) pointing to a capabilities directory, bind a workspace path (`work_root`), and supply an LLM provider:
 
 ```python
 from pathlib import Path
-from qs.core.agents.deep_agent import DeepAgent
-from qs.core.agents.node import Node
-from qs.providers.local import LocalProvider
+from exmekh_lib.core.agents.deep_agent import DeepAgent
+from exmekh_lib.core.agents.node import Node
+from exmekh_lib.providers.local import LocalProvider
 
 provider = LocalProvider(model="Qwen3.8-27B-UD-Q4_K_S")
-capabilities_path = Path.cwd() / "src" / "qs" / "capabilities"
+capabilities_path = Path.cwd() / "src" / "exmekh_lib" / "capabilities"
 
 root_node = Node(
     capabilities_paths=[capabilities_path],
@@ -175,7 +175,7 @@ All distinct nodes within a `DeepAgent` hierarchy must have unique `agent_contex
 
 ## 4. History vs. History Tree
 
-The [`AgentResponse`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/agents/deep_agent/agent_response.py) returned by `agent.run(...)` maintains two complementary representations of conversation history:
+The [`AgentResponse`](../src/exmekh_lib/core/agents/deep_agent/agent_response.py) returned by `agent.run(...)` maintains two complementary representations of conversation history:
 
 1. **`response.history`**: A linear list of standard message dictionaries representing the top-level chat sequence.
 2. **`response.get_history_tree()`**: A nested snapshot tree reflecting skill activations, sub-agent scopes, and tool execution states.
@@ -197,13 +197,13 @@ tree_history = response.get_history_tree()
 Pass a `DeepAgentEventHandler` instance to `DeepAgent` to receive real-time updates for both LLM output generation and tool execution states:
 
 ```python
-from qs.core.agents.deep_agent import (
+from exmekh_lib.core.agents.deep_agent import (
     DeepAgentEvent,
     DeepAgentEventHandler,
     DeepAgentStreamEvent,
     DeepAgentExecutionEvent,
 )
-from qs.core.models.provider_stream_event import ProviderStreamEventType
+from exmekh_lib.core.models.provider_stream_event import ProviderStreamEventType
 
 
 class PrintAgentEvents(DeepAgentEventHandler):
@@ -228,8 +228,8 @@ agent = DeepAgent(
 ```
 
 ### Event Classification:
-- **[`DeepAgentStreamEvent`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/agents/deep_agent/stream_event.py)**: Low-level provider token streaming (`START`, `REASONING`, `RESPONSE`, `END`), tagged with `depth` and `skill_path`.
-- **[`DeepAgentExecutionEvent`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/agents/deep_agent/stream_event.py)**: Emitted when tools start (`TOOL_START`) or complete (`TOOL_END`). Includes snapshots of linear `history` and hierarchical `history_tree`.
+- **[`DeepAgentStreamEvent`](../src/exmekh_lib/core/agents/deep_agent/stream_event.py)**: Low-level provider token streaming (`START`, `REASONING`, `RESPONSE`, `END`), tagged with `depth` and `skill_path`.
+- **[`DeepAgentExecutionEvent`](../src/exmekh_lib/core/agents/deep_agent/stream_event.py)**: Emitted when tools start (`TOOL_START`) or complete (`TOOL_END`). Includes snapshots of linear `history` and hierarchical `history_tree`.
 
 ---
 

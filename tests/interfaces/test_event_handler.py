@@ -2,16 +2,19 @@ from collections.abc import AsyncIterator
 
 import pytest
 
-from qs.core.agents.deep_agent.stream_event import DeepAgentEvent
-from qs.core.models.client_request import ClientRequest
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.provider_stream_event import (
+from exmekh_lib.core.agents.deep_agent.stream_event import DeepAgentEvent
+from exmekh_lib.core.models.client_request import ClientRequest
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.provider_stream_event import (
     ProviderStreamEvent,
     ProviderStreamEventType,
 )
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.user_message import UserMessage
-from qs.interfaces.event_handler import DeepAgentEventHandler, ProviderEventHandler
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.user_message import UserMessage
+from exmekh_lib.interfaces.event_handler import (
+    DeepAgentEventHandler,
+    ProviderEventHandler,
+)
 
 
 class CollectProviderEvents(ProviderEventHandler):

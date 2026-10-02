@@ -3,7 +3,7 @@ from typing import cast
 
 import pytest
 
-from qs.core.models.assistant_message import (
+from exmekh_lib.core.models.assistant_message import (
     AssistantMessage,
     FunctionCall,
     ToolCall,

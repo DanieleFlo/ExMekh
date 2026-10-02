@@ -4,31 +4,33 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pydantic import BaseModel
 
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.function_message import FunctionMessage
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.reasoning_effort import (
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.function_message import FunctionMessage
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.reasoning_effort import (
     ReasoningEffort,
     ReasoningEffortLMH,
     ReasoningEffortLMHXM,
     ReasoningEffortLMX,
 )
-from qs.core.models.structured_assistant_message import StructuredAssistantMessage
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.tool import Tool
-from qs.core.models.tool_message import ToolMessage
-from qs.core.models.tools import Tools
-from qs.core.models.user_message import UserMessage
-from qs.core.providers.openai_chat_completion_tool_mapper import (
+from exmekh_lib.core.models.structured_assistant_message import (
+    StructuredAssistantMessage,
+)
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.tool import Tool
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.tools import Tools
+from exmekh_lib.core.models.user_message import UserMessage
+from exmekh_lib.core.providers.openai_chat_completion_tool_mapper import (
     OpenAIChatCompletionToolMapper,
 )
-from qs.core.providers.to_openai_chat_completion_mapper import (
+from exmekh_lib.core.providers.to_openai_chat_completion_mapper import (
     ToOpenAIChatCompletionMapper,
 )
-from qs.core.providers.to_openai_chat_completion_request_mapper import (
+from exmekh_lib.core.providers.to_openai_chat_completion_request_mapper import (
     ToOpenAIChatCompletionRequestMapper,
 )
-from qs.interfaces.message import Message
+from exmekh_lib.interfaces.message import Message
 
 
 class StructuredAnswer(BaseModel):

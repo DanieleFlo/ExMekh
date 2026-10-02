@@ -4,20 +4,22 @@ import pytest
 from PIL import Image
 from pydantic import BaseModel
 
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.function_message import FunctionMessage
-from qs.core.models.structured_assistant_message import StructuredAssistantMessage
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.tool_message import ToolMessage
-from qs.core.models.user_message import (
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.function_message import FunctionMessage
+from exmekh_lib.core.models.structured_assistant_message import (
+    StructuredAssistantMessage,
+)
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.user_message import (
     DocumentUserMessage,
     FilesUserMessage,
     ImagesUserMessage,
     TextsUserMessage,
     UserMessage,
 )
-from qs.core.providers.to_openai_response_mapper import ToOpenAIResponseMapper
-from qs.interfaces.message import Message
+from exmekh_lib.core.providers.to_openai_response_mapper import ToOpenAIResponseMapper
+from exmekh_lib.interfaces.message import Message
 
 
 class StructuredAnswer(BaseModel):

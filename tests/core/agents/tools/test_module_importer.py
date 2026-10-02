@@ -4,8 +4,8 @@ from typing import cast
 
 import pytest
 
-from qs.core.agents.tools import module_importer
-from qs.core.agents.tools.module_importer import ToolModuleImporter
+from exmekh_lib.core.agents.tools import module_importer
+from exmekh_lib.core.agents.tools.module_importer import ToolModuleImporter
 
 _DYNAMIC_PACKAGE_PREFIX = "_qs_deep_tool_"
 

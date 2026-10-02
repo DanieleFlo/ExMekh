@@ -5,18 +5,20 @@ from xml.etree.ElementTree import fromstring
 
 import pytest
 
-from qs.capabilities.tools.call_sub_agent.sub_agent_tool import SubAgentTool
-from qs.core.agents.node import Node
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.tools import Tools
-from qs.core.providers.openai_chat_completion_annotation_schema_builder import (
+from exmekh_lib.capabilities.tools.call_sub_agent.sub_agent_tool import SubAgentTool
+from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.tools import Tools
+from exmekh_lib.core.providers.openai_chat_completion_annotation_schema_builder import (
     OpenAIChatCompletionAnnotationSchemaBuilder,
 )
-from qs.core.providers.openai_function_tool_definition_mapper import (
+from exmekh_lib.core.providers.openai_function_tool_definition_mapper import (
     OpenAIFunctionToolDefinitionMapper,
 )
-from qs.core.providers.openai_response_tool_mapper import OpenAIResponseToolMapper
+from exmekh_lib.core.providers.openai_response_tool_mapper import (
+    OpenAIResponseToolMapper,
+)
 
 
 def _child(tmp_path: Path, name: str, response: str = "done") -> Node:

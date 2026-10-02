@@ -3,7 +3,7 @@ from typing import Annotated, cast
 import pytest
 from pydantic import BaseModel, Field
 
-from qs.core.providers.openai_chat_completion_response_format_mapper import (
+from exmekh_lib.core.providers.openai_chat_completion_response_format_mapper import (
     OpenAIChatCompletionResponseFormatMapper,
 )
 

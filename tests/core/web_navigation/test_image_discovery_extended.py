@@ -10,8 +10,8 @@ from typing import Any
 import pytest
 from PIL import Image
 
-from qs.core.web_navigation import image_discovery as images
-from qs.core.web_navigation.errors import WebNavigationError
+from exmekh_lib.core.web_navigation import image_discovery as images
+from exmekh_lib.core.web_navigation.errors import WebNavigationError
 
 
 def _image_bytes(format: str = "PNG") -> bytes:

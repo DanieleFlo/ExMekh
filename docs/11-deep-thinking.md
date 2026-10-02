@@ -13,7 +13,7 @@ Application HDS files expose it by adding `deep-thinking` to `sub-skills`.
 
 ## Install from a wheel in another project
 
-The regular `qs` wheel declares the runtime dependencies for all eight tools
+The regular `ExMekh-Lib` wheel declares the runtime dependencies for all eight tools
 and their ranking stages: DDGS, Crawl4AI, Playwright, aiohttp, lxml, NumPy,
 SymPy, Z3, OpenVINO, Hugging Face, Transformers, PyTorch, and the IANA timezone
 database `tzdata` (also needed on Windows). Install the
@@ -22,7 +22,7 @@ enabled. Copying the wheel into the project without installing it does not
 install its dependencies.
 
 Playwright's Chromium binary is a separate platform-specific download. On the
-first browser-backed call, `qs` installs the headless Chromium binary if it is
+first browser-backed call, `exmekh_lib` installs the headless Chromium binary if it is
 missing, then retries that call. The frontend runtime needs network access for
 this one-time download. For offline deployments or predictable startup, install
 it in the same frontend environment during the build:
@@ -35,11 +35,11 @@ Preserve the Playwright browser cache in the deployed environment. If the
 download fails, the tool returns `browser_unavailable` with the install error.
 
 The `deep-thinking` extra remains as an empty compatibility alias for existing
-frontend dependency declarations. A plain `qs` installation includes Granite
+frontend dependency declarations. A plain `exmekh_lib` installation includes Granite
 semantic ranking and SigLIP2 visual ranking dependencies. The model weights
 still download on first use. For an offline frontend deployment, initialize
 `get_embedding_backend()` and `get_image_embedding_backend()` from
-`qs.core.web_navigation.ranking` during image creation and preserve the model
+`exmekh_lib.core.web_navigation.ranking` during image creation and preserve the model
 cache in the runtime environment. Text search falls back to BM25 if
 Granite cannot initialize; image-assisted search reports whether SigLIP2 ran.
 
@@ -62,7 +62,7 @@ reverse-image search. The result reports whether visual ranking actually ran.
 Search snippets are leads, not verified evidence. Read pages before citing them.
 Web content is untrusted. Page navigation accepts only public HTTP(S) URLs;
 browser actions stay on the initial origin and have a finite hop budget. The
-read cache lives under the work root at `.qs/web-cache`.
+read cache lives under the work root at `.exmekh_lib/web-cache`.
 
 `date-time` defaults to UTC, independent of the host's local timezone. Use
 `now` to read the system clock in a selected IANA timezone, such as

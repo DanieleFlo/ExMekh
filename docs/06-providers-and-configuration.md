@@ -1,18 +1,18 @@
 # Providers & Configuration
 
-The provider layer decouples `qs` from underlying LLM servers. It handles authentication, base URL resolution, API protocol translation, model availability validation, and request/response mapping.
+The provider layer decouples `exmekh_lib` from underlying LLM servers. It handles authentication, base URL resolution, API protocol translation, model availability validation, and request/response mapping.
 
 ---
 
 ## 1. `LocalProvider`
 
-[`LocalProvider`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/providers/local.py) is the primary provider for interacting with OpenAI-compatible LLM backends (such as llama.cpp, Ollama, vLLM, LM Studio, or OpenAI services).
+[`LocalProvider`](../src/exmekh_lib/providers/local.py) is the primary provider for interacting with OpenAI-compatible LLM backends (such as llama.cpp, Ollama, vLLM, LM Studio, or OpenAI services).
 
 ### Initialization Parameters
 
 ```python
-from qs.providers.local import LocalProvider
-from qs.core.models.reasoning_effort import ReasoningEffort
+from exmekh_lib.providers.local import LocalProvider
+from exmekh_lib.core.models.reasoning_effort import ReasoningEffort
 
 provider = LocalProvider(
     model="Qwen3.8-27B-UD-Q4_K_S",
@@ -40,20 +40,20 @@ When `LocalProvider` initializes, it queries the backend's `/v1/models` endpoint
 
 ### Chat Completions API (`api="chat_completions"`)
 Targets standard `/v1/chat/completions` endpoints.
-- Handled internally by [`ChatCompletionOpenAI`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/providers/chat_completion_openai.py).
+- Handled internally by [`ChatCompletionOpenAI`](../src/exmekh_lib/core/providers/chat_completion_openai.py).
 - Uses standard JSON payload formatting for tool calls (`tools`, `tool_choice`).
 - Converts streamed chunks to `ProviderStreamEvent`.
 
 ### Responses API (`api="responses"`)
 Targets the OpenAI `/v1/responses` endpoint syntax.
-- Handled internally by [`ResponseOpenAI`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/providers/response_openai.py).
+- Handled internally by [`ResponseOpenAI`](../src/exmekh_lib/core/providers/response_openai.py).
 - Supports specialized output modalities and response structures.
 
 ---
 
 ## 3. Configuration modules
 
-Configuration lives in `src/qs/config/` and is separated by responsibility:
+Configuration lives in `src/exmekh_lib/config/` and is separated by responsibility:
 
 | Module | Class | Purpose |
 |---|---|---|
@@ -97,7 +97,7 @@ test suite reads `QS_LIVE_MODEL` and `QS_RUN_LIVE_TESTS`.
 | `QS_API` | `responses` | CLI API protocol: `responses` or `chat_completions` |
 | `BASE_URL` | None | Provider URL; required unless passed to `LocalProvider` |
 | `API_KEY` | `local-api-key` | API key used by `LocalProvider` if no key is supplied |
-| `QS_TOKENIZER_CACHE_DIR` | `.qs/tokenizers` | Cache root for tokenizer and sessions |
+| `QS_TOKENIZER_CACHE_DIR` | `.exmekh_lib/tokenizers` | Cache root for tokenizer and sessions |
 | `QS_TOKENIZER_DOWNLOAD_TIMEOUT` | `60` | Positive integer timeout in seconds for tokenizer download |
 | `QS_ROOT_HDS` | `main` | Root HDS used by the example CLI |
 | `QS_CHILD_HDS` | `mock-sub-agent` | Child HDS used by the example CLI |
@@ -115,6 +115,6 @@ BASE_URL=http://localhost:8080/v1
 API_KEY=sk-local-secret-key
 QS_MODEL=Qwen3.8-27B-UD-Q4_K_S
 QS_API=responses
-QS_TOKENIZER_CACHE_DIR=.qs/tokenizers
+QS_TOKENIZER_CACHE_DIR=.exmekh_lib/tokenizers
 QS_LIVE_MODEL=Qwen3.8-27B-UD-Q4_K_S
 ```

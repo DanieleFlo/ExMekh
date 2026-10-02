@@ -1,10 +1,14 @@
 import pytest
 from pydantic import BaseModel
 
-from qs.core.models.model_thinking import ModelThinking
-from qs.core.models.model_usage import ModelUsage
-from qs.core.models.structured_assistant_message import StructuredAssistantMessage
-from qs.core.models.structured_provider_response import StructuredProviderResponse
+from exmekh_lib.core.models.model_thinking import ModelThinking
+from exmekh_lib.core.models.model_usage import ModelUsage
+from exmekh_lib.core.models.structured_assistant_message import (
+    StructuredAssistantMessage,
+)
+from exmekh_lib.core.models.structured_provider_response import (
+    StructuredProviderResponse,
+)
 
 
 class Answer(BaseModel):

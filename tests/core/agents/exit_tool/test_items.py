@@ -6,11 +6,11 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
-from qs.core.agents.exit_tool.items import ExitItemError, ExitItemResolver
-from qs.core.cache.node_cache import NodeCache
-from qs.core.cache.session_cache import SessionCache
-from qs.core.cache.tool_call_record import ToolCallRecord
-from qs.core.tool_calls.execution_history import ExecutionHistory
+from exmekh_lib.core.agents.exit_tool.items import ExitItemError, ExitItemResolver
+from exmekh_lib.core.cache.node_cache import NodeCache
+from exmekh_lib.core.cache.session_cache import SessionCache
+from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
+from exmekh_lib.core.tool_calls.execution_history import ExecutionHistory
 
 
 def _save(

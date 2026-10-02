@@ -7,11 +7,11 @@ import pytest
 from dotenv import load_dotenv
 from PIL import Image
 
-from qs.core.models.client import Client
-from qs.core.models.client_request import ClientRequest
-from qs.core.models.reasoning_effort import ReasoningEffortLMH
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.user_message import (
+from exmekh_lib.core.models.client import Client
+from exmekh_lib.core.models.client_request import ClientRequest
+from exmekh_lib.core.models.reasoning_effort import ReasoningEffortLMH
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.user_message import (
     DocumentUserMessage,
     FilesUserMessage,
     ImagesUserMessage,

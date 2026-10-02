@@ -5,12 +5,12 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
-from qs.core.agents.capabilities.defaults import DefaultCapabilities
-from qs.core.agents.node.node import Node
-from qs.core.cache import SessionCache
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.tool import Tool, ToolExecutionOperation
-from qs.core.models.tool_message import ToolMessage
+from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
+from exmekh_lib.core.agents.node.node import Node
+from exmekh_lib.core.cache import SessionCache
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.tool import Tool, ToolExecutionOperation
+from exmekh_lib.core.models.tool_message import ToolMessage
 from tests.core.agents.node.steering_support import call, tool_reply
 from tests.core.agents.node.test_node import (
     SequenceProvider,

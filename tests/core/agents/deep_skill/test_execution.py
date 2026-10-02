@@ -2,11 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from qs.core.agents.deep_skill.deep_skill import DeepSkill
-from qs.core.agents.deep_skill.execution import DeepSkillExecutionTracker
-from qs.core.agents.deep_skill.metadata import DeepSkillMetadata
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.tool_output_reference import ToolOutputReference
+from exmekh_lib.core.agents.deep_skill.deep_skill import DeepSkill
+from exmekh_lib.core.agents.deep_skill.execution import DeepSkillExecutionTracker
+from exmekh_lib.core.agents.deep_skill.metadata import DeepSkillMetadata
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
 
 
 def _skill(name: str) -> DeepSkill:

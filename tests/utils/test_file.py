@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from qs.utils.file import (
+from exmekh_lib.utils.file import (
     convert_bytes_to_base64,
     read_file_from_path,
     read_json_from_path,

@@ -7,18 +7,18 @@ import pytest
 from PIL import Image
 from pydantic import BaseModel
 
-from qs.core.models.client import Client
-from qs.core.models.client_request import ClientRequest
-from qs.core.models.reasoning_effort import ReasoningEffortLMH
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.user_message import (
+from exmekh_lib.core.models.client import Client
+from exmekh_lib.core.models.client_request import ClientRequest
+from exmekh_lib.core.models.reasoning_effort import ReasoningEffortLMH
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.user_message import (
     DocumentUserMessage,
     FilesUserMessage,
     ImagesUserMessage,
     UserMessage,
 )
-from qs.interfaces.provider import ProviderRequestRejectedError
-from qs.providers.local import LocalProvider
+from exmekh_lib.interfaces.provider import ProviderRequestRejectedError
+from exmekh_lib.providers.local import LocalProvider
 
 pytestmark = pytest.mark.live
 

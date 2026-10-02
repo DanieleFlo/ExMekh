@@ -3,7 +3,7 @@
 import pytest
 from lxml import html as lxml_html
 
-from qs.core.web_navigation import ast, content
+from exmekh_lib.core.web_navigation import ast, content
 
 
 def _nodes(document: dict[str, object]) -> list[dict[str, object]]:

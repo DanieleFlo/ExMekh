@@ -3,17 +3,21 @@ from pathlib import Path
 import pytest
 from pydantic import BaseModel
 
-from qs.core.cache.cache_manager import CacheManager
-from qs.core.cache.session_cache import SessionCache
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.structured_assistant_message import StructuredAssistantMessage
-from qs.core.models.structured_provider_request import StructuredProviderRequest
-from qs.core.models.structured_provider_response import StructuredProviderResponse
-from qs.core.models.system_message import SystemMessage
-from qs.interfaces.provider import Provider
-from qs.interfaces.tokenizer import Tokenizer
+from exmekh_lib.core.cache.cache_manager import CacheManager
+from exmekh_lib.core.cache.session_cache import SessionCache
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.structured_assistant_message import (
+    StructuredAssistantMessage,
+)
+from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
+from exmekh_lib.core.models.structured_provider_response import (
+    StructuredProviderResponse,
+)
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.interfaces.provider import Provider
+from exmekh_lib.interfaces.tokenizer import Tokenizer
 
 
 class StubTokenizer(Tokenizer):
@@ -31,7 +35,7 @@ class StubTokenizer(Tokenizer):
 
     def get_session(self) -> SessionCache:
         return CacheManager.get_session(
-            "stub-provider", "default", Path(".qs/tokenizers")
+            "stub-provider", "default", Path(".exmekh_lib/tokenizers")
         )
 
 

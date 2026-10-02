@@ -4,13 +4,13 @@ from threading import Condition, Event, Thread
 
 import pytest
 
-from qs.core.cache.tool_call_record import ToolCallRecord
-from qs.core.cache.user_message_codec import serialize_user_message
-from qs.core.models.tool import ExecutionOptions, ToolExecutionOperation
-from qs.core.models.tool_output_reference import ToolOutputReference
-from qs.core.models.user_message import UserMessage
-from qs.core.tool_calls import execution_manager
-from qs.core.tool_calls.execution_manager import ToolExecutionManager
+from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
+from exmekh_lib.core.cache.user_message_codec import serialize_user_message
+from exmekh_lib.core.models.tool import ExecutionOptions, ToolExecutionOperation
+from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
+from exmekh_lib.core.models.user_message import UserMessage
+from exmekh_lib.core.tool_calls import execution_manager
+from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
 
 
 def test_resuming_waits_does_not_lose_an_already_released_wait(monkeypatch):

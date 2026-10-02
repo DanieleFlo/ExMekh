@@ -3,8 +3,8 @@ from typing import cast
 import pytest
 from pydantic import BaseModel
 
-from qs.core.models.structured_provider_request import StructuredProviderRequest
-from qs.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
+from exmekh_lib.core.models.system_message import SystemMessage
 from tests.event_handler import as_provider_handler
 
 

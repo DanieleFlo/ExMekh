@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from qs.core.reasoning_tools import formal_logic
-from qs.core.reasoning_tools.formal_logic import (
+from exmekh_lib.core.reasoning_tools import formal_logic
+from exmekh_lib.core.reasoning_tools.formal_logic import (
     FormalLogicError,
     check_logic,
     logic_tool_result,

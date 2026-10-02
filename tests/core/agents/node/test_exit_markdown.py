@@ -2,10 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from qs.core.agents.node import Node
-from qs.core.cache import SessionCache
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.tool_message import ToolMessage
+from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.cache import SessionCache
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.tool_message import ToolMessage
 from tests.core.agents.node.test_node import (
     SequenceProvider,
     _write_nested_capabilities,

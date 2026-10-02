@@ -6,27 +6,32 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
-from qs.core.agents.capabilities.defaults import DefaultCapabilities
-from qs.core.agents.deep_agent.stream_event import DeepAgentExecutionEvent
-from qs.core.agents.node.node import Node
-from qs.core.agents.node.types import ToolExecutionResult
-from qs.core.cache import SessionCache
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.tool import (
+from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
+from exmekh_lib.core.agents.deep_agent.stream_event import DeepAgentExecutionEvent
+from exmekh_lib.core.agents.node.node import Node
+from exmekh_lib.core.agents.node.types import ToolExecutionResult
+from exmekh_lib.core.cache import SessionCache
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.tool import (
     ExecutionOptions,
     PreformattedToolResult,
     Tool,
     ToolExecutionOperation,
 )
-from qs.core.models.tool_message import ToolMessage
-from qs.core.models.user_message import (
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.user_message import (
     DocumentUserMessage,
     FilesUserMessage,
     UserMessage,
 )
-from qs.core.tool_calls.execution_manager import ExecutionSnapshot
-from qs.interfaces.provider import ProviderRequestRejectedError
-from qs.interfaces.tool_hook import AfterTool, BeforeTool, ToolArguments, ToolContext
+from exmekh_lib.core.tool_calls.execution_manager import ExecutionSnapshot
+from exmekh_lib.interfaces.provider import ProviderRequestRejectedError
+from exmekh_lib.interfaces.tool_hook import (
+    AfterTool,
+    BeforeTool,
+    ToolArguments,
+    ToolContext,
+)
 from tests.core.agents.node.test_node import (
     SequenceProvider,
     _function_call,

@@ -6,7 +6,7 @@ from typing import cast
 
 import pytest
 
-from qs.core.agents.tools.deep_tools import DeepTools
+from exmekh_lib.core.agents.tools.deep_tools import DeepTools
 
 _DYNAMIC_PACKAGE_PREFIX = "_qs_deep_tool_"
 
@@ -42,7 +42,7 @@ def test_loads_decorated_entrypoint_with_metadata_and_relative_imports(
     tool_path = _write_tool(
         tmp_path,
         main=(
-            "from qs.core.agents.tools.decorator import deep_tool\n"
+            "from exmekh_lib.core.agents.tools.decorator import deep_tool\n"
             "\n"
             "@deep_tool(name='lookup', description='Search the index.')\n"
             "def run(work_root, query: str) -> str:\n"
@@ -66,7 +66,7 @@ def test_uses_folder_name_as_default(tmp_path: Path) -> None:
         tmp_path,
         folder_name="file-search",
         main=(
-            "from qs.core.agents.tools.decorator import deep_tool\n\n"
+            "from exmekh_lib.core.agents.tools.decorator import deep_tool\n\n"
             "@deep_tool(description='Search project files.')\n"
             "def run(work_root) -> str:\n"
             "    del work_root\n"
@@ -84,8 +84,8 @@ def test_loaded_tool_runs_decorator_hooks(tmp_path: Path) -> None:
     tool_path = _write_tool(
         tmp_path,
         main=(
-            "from qs.core.agents.tools.decorator import deep_tool\n"
-            "from qs.interfaces.tool_hook import BeforeTool, AfterTool, ToolArguments\n"
+            "from exmekh_lib.core.agents.tools.decorator import deep_tool\n"
+            "from exmekh_lib.interfaces.tool_hook import BeforeTool, AfterTool, ToolArguments\n"
             "class Before(BeforeTool):\n"
             "    def handle(self, context):\n"
             "        return ToolArguments({'query': context.arguments['query'].upper()})\n"
@@ -110,7 +110,7 @@ def test_rejects_missing_description_even_with_docstring(tmp_path: Path) -> None
     tool_path = _write_tool(
         tmp_path,
         main=(
-            "from qs.core.agents.tools.decorator import deep_tool\n\n"
+            "from exmekh_lib.core.agents.tools.decorator import deep_tool\n\n"
             "@deep_tool()\n"
             "def run(work_root) -> str:\n"
             '    """Search project files."""\n'
@@ -228,7 +228,7 @@ def test_rolls_back_previously_loaded_tools_when_batch_fails(
         tmp_path,
         folder_name="valid",
         main=(
-            "from qs.core.agents.tools.decorator import deep_tool\n\n"
+            "from exmekh_lib.core.agents.tools.decorator import deep_tool\n\n"
             "@deep_tool(description='Valid tool.')\n"
             "def run(work_root) -> None:\n"
             "    del work_root\n"
@@ -256,7 +256,7 @@ def test_independent_loaders_for_same_path_are_isolated(
     tool_path = _write_tool(
         tmp_path,
         main=(
-            "from qs.core.agents.tools.decorator import deep_tool\n\n"
+            "from exmekh_lib.core.agents.tools.decorator import deep_tool\n\n"
             "@deep_tool(description='Lazy tool.')\n"
             "def run(work_root) -> str:\n"
             "    del work_root\n"
@@ -280,7 +280,7 @@ def test_loader_cannot_load_more_than_once(tmp_path: Path) -> None:
     tool_path = _write_tool(
         tmp_path,
         main=(
-            "from qs.core.agents.tools.decorator import deep_tool\n\n"
+            "from exmekh_lib.core.agents.tools.decorator import deep_tool\n\n"
             "@deep_tool(description='Tool.')\n"
             "def run(work_root) -> None:\n"
             "    del work_root\n"
@@ -299,7 +299,7 @@ def test_rejects_multiple_decorated_entrypoints(tmp_path: Path) -> None:
     tool_path = _write_tool(
         tmp_path,
         main=(
-            "from qs.core.agents.tools.decorator import deep_tool\n\n"
+            "from exmekh_lib.core.agents.tools.decorator import deep_tool\n\n"
             "@deep_tool()\n"
             "def first(work_root) -> None:\n"
             "    del work_root\n\n"

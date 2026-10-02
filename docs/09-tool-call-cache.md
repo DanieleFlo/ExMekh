@@ -33,10 +33,10 @@ blocco `with`.
 ```python
 from pathlib import Path
 
-from qs.capabilities.tools.search_tool_outputs.tool_call_search import ToolCallSearch
-from qs.core.cache import SessionCache, ToolCallRecord
+from exmekh_lib.capabilities.tools.search_tool_outputs.tool_call_search import ToolCallSearch
+from exmekh_lib.core.cache import SessionCache, ToolCallRecord
 
-with SessionCache(Path(".qs/examples")) as session:
+with SessionCache(Path(".exmekh_lib/examples")) as session:
     cache = session.node("analysis")
     cache.store(ToolCallRecord(
         name="read_file",
@@ -68,7 +68,7 @@ isolato per nodo: questo stato non viene serializzato nei record.
 Il layout predefinito del tokenizer e della cache runtime è:
 
 ```text
-.qs/tokenizers/<identity-hash>/
+.exmekh_lib/tokenizers/<identity-hash>/
     vocabulary.json
     temp/session-<unique-suffix>/
         counter.json
@@ -251,9 +251,9 @@ directory esplicita gestita dall'applicazione:
 ```python
 from pathlib import Path
 
-from qs.core.tool_calls import ToolCallReader, ToolCallSaver
+from exmekh_lib.core.tool_calls import ToolCallReader, ToolCallSaver
 
-archive = Path(".qs/saved-outputs")
+archive = Path(".exmekh_lib/saved-outputs")
 saver = ToolCallSaver(directory=archive)
 saver.record(
     name="summarize",

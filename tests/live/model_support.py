@@ -5,8 +5,8 @@ import os
 
 from openai import OpenAI
 
-from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
-from qs.providers.local import LocalProvider
+from exmekh_lib.core.tokenizers.sequential_tokenizer import SequentialTokenizer
+from exmekh_lib.providers.local import LocalProvider
 
 DEFAULT_LIVE_REQUEST_TIMEOUT_SECONDS = 900.0
 

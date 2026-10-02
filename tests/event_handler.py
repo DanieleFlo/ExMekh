@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from qs.core.agents.deep_agent.stream_event import DeepAgentEvent
-from qs.core.models.provider_stream_event import ProviderStreamEvent
-from qs.interfaces.event_handler import DeepAgentEventHandler, ProviderEventHandler
+from exmekh_lib.core.agents.deep_agent.stream_event import DeepAgentEvent
+from exmekh_lib.core.models.provider_stream_event import ProviderStreamEvent
+from exmekh_lib.interfaces.event_handler import (
+    DeepAgentEventHandler,
+    ProviderEventHandler,
+)
 
 
 class CallbackProviderEventHandler(ProviderEventHandler):

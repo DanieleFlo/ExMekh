@@ -1,12 +1,12 @@
 # Client & Messaging Model
 
-The `qs` framework provides a strongly-typed, object-oriented layer over raw LLM calls. The primary interaction point is the [`Client`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/models/client.py) class, which maintains conversation history, manages system prompts, and handles tool responses and event streaming.
+The `exmekh_lib` framework provides a strongly-typed, object-oriented layer over raw LLM calls. The primary interaction point is the [`Client`](../src/exmekh_lib/core/models/client.py) class, which maintains conversation history, manages system prompts, and handles tool responses and event streaming.
 
 ---
 
 ## Messaging Hierarchy & Data Models
 
-All chat messages in `qs` implement the [`Message`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/interfaces/message.py) interface.
+All chat messages in `exmekh_lib` implement the [`Message`](../src/exmekh_lib/interfaces/message.py) interface.
 
 ```
                   +-------------------+
@@ -28,16 +28,16 @@ All chat messages in `qs` implement the [`Message`](file:///c:/Users/danie/Deskt
 
 ### Core Message Types
 
-1. **[`SystemMessage`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/models/system_message.py)**: Sets agent role or instructions. Must be the first message in conversation history.
-2. **[`UserMessage`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/models/user_message.py)**: Represents input from the user or prompt source. Supports plain text and structured content payloads.
-3. **[`AssistantMessage`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/models/assistant_message.py)**: Output emitted by the LLM. Contains:
+1. **[`SystemMessage`](../src/exmekh_lib/core/models/system_message.py)**: Sets agent role or instructions. Must be the first message in conversation history.
+2. **[`UserMessage`](../src/exmekh_lib/core/models/user_message.py)**: Represents input from the user or prompt source. Supports plain text and structured content payloads.
+3. **[`AssistantMessage`](../src/exmekh_lib/core/models/assistant_message.py)**: Output emitted by the LLM. Contains:
    - `content`: Text response string (if any).
-   - `thinking`: Optional [`ModelThinking`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/models/model_thinking.py) containing reasoning/chain-of-thought tokens.
+   - `thinking`: Optional [`ModelThinking`](../src/exmekh_lib/core/models/model_thinking.py) containing reasoning/chain-of-thought tokens.
    - `tool_calls`: List of tool call specifications requested by the model.
-   - `usage`: Optional [`ModelUsage`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/models/model_usage.py) tracking prompt/completion tokens.
-4. **[`ToolMessage`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/models/tool_message.py)**: Contains the return output of a tool call, paired with `tool_call_id` and `tool_name`.
-5. **[`FunctionMessage`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/models/function_message.py)**: Legacy function result message.
-6. **[`StructuredAssistantMessage`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/models/structured_assistant_message.py)**: Wraps model responses when validated against a Pydantic schema via `call_structured`.
+   - `usage`: Optional [`ModelUsage`](../src/exmekh_lib/core/models/model_usage.py) tracking prompt/completion tokens.
+4. **[`ToolMessage`](../src/exmekh_lib/core/models/tool_message.py)**: Contains the return output of a tool call, paired with `tool_call_id` and `tool_name`.
+5. **[`FunctionMessage`](../src/exmekh_lib/core/models/function_message.py)**: Legacy function result message.
+6. **[`StructuredAssistantMessage`](../src/exmekh_lib/core/models/structured_assistant_message.py)**: Wraps model responses when validated against a Pydantic schema via `call_structured`.
 
 ---
 
@@ -46,11 +46,11 @@ All chat messages in `qs` implement the [`Message`](file:///c:/Users/danie/Deskt
 ### 1. Basic Synchronous Calls
 
 ```python
-from qs.core.models.client import Client
-from qs.core.models.client_request import ClientRequest
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.user_message import UserMessage
-from qs.providers.local import LocalProvider
+from exmekh_lib.core.models.client import Client
+from exmekh_lib.core.models.client_request import ClientRequest
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.user_message import UserMessage
+from exmekh_lib.providers.local import LocalProvider
 
 provider = LocalProvider(model="Qwen3.8-27B-UD-Q4_K_S")
 client = Client(
@@ -84,8 +84,8 @@ from pathlib import Path
 
 from PIL import Image
 
-from qs.core.models.client_request import ClientRequest
-from qs.core.models.user_message import (
+from exmekh_lib.core.models.client_request import ClientRequest
+from exmekh_lib.core.models.user_message import (
     DocumentUserMessage,
     FilesUserMessage,
     ImagesUserMessage,
@@ -133,7 +133,7 @@ images with PIL and use `ImagesUserMessage`. QS preserves native files for
 other endpoints that support them; it does not extract documents automatically.
 
 `LocalProvider` exposes HTTP 400 as
-`qs.interfaces.provider.ProviderRequestRejectedError`, a `RuntimeError` subclass
+`exmekh_lib.interfaces.provider.ProviderRequestRejectedError`, a `RuntimeError` subclass
 that preserves the server's error message and chains the original API error.
 `Client.call`, `call_structured` and `continue_with_user_messages` remove only
 messages added by the rejected call. Previous context and completed tool results
@@ -143,7 +143,7 @@ Other provider errors retain unanswered input for retry as before. Existing
 history supplied to a tool continuation is preserved on rejection.
 
 ```python
-from qs.interfaces.provider import ProviderRequestRejectedError
+from exmekh_lib.interfaces.provider import ProviderRequestRejectedError
 
 try:
     client.call(ClientRequest(UserMessage(FilesUserMessage([document]))))
@@ -176,7 +176,7 @@ print(final_response.get_message())
 
 ## Conversation History Management
 
-The internal [`MessageHistory`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/models/history.py) enforces key conversation invariants:
+The internal [`MessageHistory`](../src/exmekh_lib/core/models/history.py) enforces key conversation invariants:
 - **First Message Rule**: The first message MUST be a `SystemMessage`.
 - **Leading System Message**: History updates must retain a message with the system role at the beginning.
 - **Copying & Truncation**:
@@ -190,7 +190,7 @@ The internal [`MessageHistory`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core
 
 When streaming is enabled in `ClientRequest` or provider calls, a `ProviderEventHandler` instance receives each `ProviderStreamEvent` through its `handle` method.
 
-### Stream Event Types ([`ProviderStreamEventType`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/models/provider_stream_event.py))
+### Stream Event Types ([`ProviderStreamEventType`](../src/exmekh_lib/core/models/provider_stream_event.py))
 - `START`: Emitted when streaming begins.
 - `REASONING`: Emitted token-by-token during model reasoning/thinking phases.
 - `RESPONSE`: Emitted token-by-token during regular text content generation.
@@ -199,8 +199,8 @@ When streaming is enabled in `ClientRequest` or provider calls, a `ProviderEvent
 - `ERROR`: Emitted if an error occurs during streaming.
 
 ```python
-from qs.core.models.provider_stream_event import ProviderStreamEvent, ProviderStreamEventType
-from qs.interfaces.event_handler import ProviderEventHandler
+from exmekh_lib.core.models.provider_stream_event import ProviderStreamEvent, ProviderStreamEventType
+from exmekh_lib.interfaces.event_handler import ProviderEventHandler
 
 
 class PrintProviderEvents(ProviderEventHandler):

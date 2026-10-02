@@ -3,11 +3,11 @@ from typing import cast
 
 import pytest
 
-from qs.core.agents.deep_skill.catalog import SkillCatalog, SkillCatalogEntry
-from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill, DeepSkill
-from qs.core.agents.deep_skill.execution import DeepSkillExecutionTracker
-from qs.core.agents.deep_skill.metadata import DeepSkillMetadata
-from qs.core.models.assistant_message import FunctionCall, ToolCall
+from exmekh_lib.core.agents.deep_skill.catalog import SkillCatalog, SkillCatalogEntry
+from exmekh_lib.core.agents.deep_skill.deep_skill import CalledDeepSkill, DeepSkill
+from exmekh_lib.core.agents.deep_skill.execution import DeepSkillExecutionTracker
+from exmekh_lib.core.agents.deep_skill.metadata import DeepSkillMetadata
+from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
 
 
 def _metadata() -> DeepSkillMetadata:

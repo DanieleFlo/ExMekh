@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from qs.core.models.assistant_message import FunctionCall, ToolCall
-from qs.core.tool_calls import ToolCallData, ToolCallReader, ToolCallSaver
-from qs.tokenizers.qwen import QwenTokenizer
-from qs.utils.file import read_json_from_path
+from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
+from exmekh_lib.core.tool_calls import ToolCallData, ToolCallReader, ToolCallSaver
+from exmekh_lib.tokenizers.qwen import QwenTokenizer
+from exmekh_lib.utils.file import read_json_from_path
 
 
 class DummyCalledTool:

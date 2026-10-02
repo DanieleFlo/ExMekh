@@ -7,28 +7,32 @@ from openai.types.chat import ChatCompletionChunk
 from openai.types.chat.chat_completion import ChatCompletion
 from pydantic import BaseModel, ValidationError
 
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.model_thinking import ModelThinking
-from qs.core.models.model_usage import ModelUsage
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.provider_stream_event import (
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.model_thinking import ModelThinking
+from exmekh_lib.core.models.model_usage import ModelUsage
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.provider_stream_event import (
     ProviderStreamEvent,
     ProviderStreamEventType,
 )
-from qs.core.models.reasoning_effort import ReasoningEffort, ReasoningEffortLMX
-from qs.core.models.structured_assistant_message import StructuredAssistantMessage
-from qs.core.models.structured_provider_request import StructuredProviderRequest
-from qs.core.models.structured_provider_response import StructuredProviderResponse
-from qs.core.models.system_message import SystemMessage
-from qs.core.providers.chat_completion_openai import ChatCompletionOpenAI
-from qs.core.providers.from_openai_chat_completion_mapper import (
+from exmekh_lib.core.models.reasoning_effort import ReasoningEffort, ReasoningEffortLMX
+from exmekh_lib.core.models.structured_assistant_message import (
+    StructuredAssistantMessage,
+)
+from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
+from exmekh_lib.core.models.structured_provider_response import (
+    StructuredProviderResponse,
+)
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.providers.chat_completion_openai import ChatCompletionOpenAI
+from exmekh_lib.core.providers.from_openai_chat_completion_mapper import (
     FromOpenAIChatCompletionMapper,
 )
-from qs.core.providers.openai_chat_completion_response_format_mapper import (
+from exmekh_lib.core.providers.openai_chat_completion_response_format_mapper import (
     OpenAIChatCompletionResponseFormatMapper,
 )
-from qs.core.providers.to_openai_chat_completion_request_mapper import (
+from exmekh_lib.core.providers.to_openai_chat_completion_request_mapper import (
     ToOpenAIChatCompletionRequestMapper,
 )
 from tests.event_handler import as_provider_handler

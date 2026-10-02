@@ -3,15 +3,15 @@ from pathlib import Path
 
 import pytest
 
-from qs.config import web
-from qs.config.reasoning import FORMAL_LOGIC, MATH
-from qs.config.runtime import RUNTIME
-from qs.core.agents.tools.deep_tools import DeepTools
-from qs.core.reasoning_tools import formal_logic
-from qs.core.reasoning_tools import math as math_tools
-from qs.core.tool_calls import execution_history
-from qs.core.web_navigation import crawler, search
-from qs.core.web_navigation.errors import WebNavigationError
+from exmekh_lib.config import web
+from exmekh_lib.config.reasoning import FORMAL_LOGIC, MATH
+from exmekh_lib.config.runtime import RUNTIME
+from exmekh_lib.core.agents.tools.deep_tools import DeepTools
+from exmekh_lib.core.reasoning_tools import formal_logic
+from exmekh_lib.core.reasoning_tools import math as math_tools
+from exmekh_lib.core.tool_calls import execution_history
+from exmekh_lib.core.web_navigation import crawler, search
+from exmekh_lib.core.web_navigation.errors import WebNavigationError
 
 
 @pytest.mark.parametrize(
@@ -35,7 +35,7 @@ def test_web_tool_uses_shared_defaults(
 
     monkeypatch.setattr(search, "search_web", capture_search)
     monkeypatch.setattr(crawler, "crawl_page", capture)
-    tools_root = Path(__file__).parents[2] / "src/qs/capabilities/tools"
+    tools_root = Path(__file__).parents[2] / "src/exmekh_lib/capabilities/tools"
     tool = DeepTools([tools_root / tool_name], work_root=tmp_path).load()[0]
     arguments = (
         {"query": "topic"}

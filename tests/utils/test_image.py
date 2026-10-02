@@ -5,7 +5,7 @@ from typing import cast
 import pytest
 from PIL import Image
 
-from qs.utils.image import pil_image_to_data_url
+from exmekh_lib.utils.image import pil_image_to_data_url
 
 
 @pytest.mark.parametrize(

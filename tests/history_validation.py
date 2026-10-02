@@ -1,6 +1,6 @@
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.tool_message import ToolMessage
 
 
 def validate_request_history(request: ProviderRequest) -> None:

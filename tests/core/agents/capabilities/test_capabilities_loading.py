@@ -3,10 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from qs.core.agents.capabilities.capabilities import Capabilities
-from qs.core.agents.capability.markdown_capability import MarkdownCapability
-from qs.core.agents.deep_skill.deep_skills import DeepSkills
-from qs.core.agents.hds.hds import HDS
+from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
+from exmekh_lib.core.agents.capability.markdown_capability import MarkdownCapability
+from exmekh_lib.core.agents.deep_skill.deep_skills import DeepSkills
+from exmekh_lib.core.agents.hds.hds import HDS
 
 _DYNAMIC_PACKAGE_PREFIX = "_qs_deep_tool_"
 
@@ -50,8 +50,8 @@ def _write_exit_tool(capabilities_path: Path, name: str) -> None:
     exit_tool_path.mkdir(parents=True)
     (exit_tool_path / "instructions.md").write_text(f"{name} instructions")
     (exit_tool_path / "main.py").write_text(
-        "from qs.core.agents.exit_tool.data import ExitToolData\n"
-        "from qs.core.agents.exit_tool.decorator import exit_tool\n\n"
+        "from exmekh_lib.core.agents.exit_tool.data import ExitToolData\n"
+        "from exmekh_lib.core.agents.exit_tool.decorator import exit_tool\n\n"
         f"@exit_tool(instructions_path='instructions.md', name={name!r}, description='Exit agent')\n"
         "def exit_agent(text: str, items: list[str]) -> ExitToolData:\n"
         "    return ExitToolData(text=text, items=items)\n"
@@ -107,7 +107,7 @@ def _write_tool(
     tool_path = capabilities_path / "tools" / name
     tool_path.mkdir(parents=True)
     (tool_path / "main.py").write_text(
-        "from qs.core.agents.tools.decorator import deep_tool\n\n"
+        "from exmekh_lib.core.agents.tools.decorator import deep_tool\n\n"
         f"@deep_tool(description={description!r})\n"
         "def run(work_root) -> str:\n"
         "    del work_root\n"

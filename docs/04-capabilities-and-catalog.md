@@ -1,6 +1,6 @@
 # Capabilities System & Catalog
 
-The `qs` capabilities framework allows agent behaviors, system prompts, skills, and tools to be modularly defined on the filesystem in Markdown and Python files, and dynamically loaded at runtime.
+The `exmekh_lib` capabilities framework allows agent behaviors, system prompts, skills, and tools to be modularly defined on the filesystem in Markdown and Python files, and dynamically loaded at runtime.
 
 ---
 
@@ -30,9 +30,9 @@ capabilities/
         └── instructions.md     # Plain Markdown exit instructions
 ```
 
-The [`CapabilitiesLayout`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/agents/capabilities/layout.py) class verifies directory integrity and automatically creates missing subfolders when initialized.
+The [`CapabilitiesLayout`](../src/exmekh_lib/core/agents/capabilities/layout.py) class verifies directory integrity and automatically creates missing subfolders when initialized.
 
-Bundled runtime tools also live under `src/qs/capabilities/tools/<name>/main.py`:
+Bundled runtime tools also live under `src/exmekh_lib/capabilities/tools/<name>/main.py`:
 `bash`, `get_execution_history`, `search_tool_outputs`, `read_tool_output`,
 `control_tool_execution`, and `call_sub_agent`. They need node-local state, so
 the node runtime binds their decorated entrypoints to node-local operations
@@ -42,7 +42,7 @@ use the class name in snake case (for example, `bash_tool.py`). Tool factories
 live in `tool.py` next to their decorated entrypoints. The ordinary tool
 loader excludes only these bundled runtime directories; application capability
 roots still load their own tools through `@deep_tool`.
-The bundled root is resolved relative to the `qs` package, like HDS, deep
+The bundled root is resolved relative to the `exmekh_lib` package, like HDS, deep
 skills, and exit tools.
 
 ## Per-node default capabilities
@@ -77,7 +77,7 @@ included or overridden.
 ```python
 from pathlib import Path
 
-from qs.core.agents.node import (
+from exmekh_lib.core.agents.node import (
     DeepSkillOverride,
     DefaultCapabilities,
     Node,
@@ -111,8 +111,8 @@ To customize only the hooks of a selected bundled tool, pass `tool_hooks`.
 ```python
 from typing import Any
 
-from qs.core.agents.node import DefaultCapabilities, ToolHooks
-from qs.interfaces.tool_hook import AfterTool, BeforeTool, ToolArguments, ToolContext
+from exmekh_lib.core.agents.node import DefaultCapabilities, ToolHooks
+from exmekh_lib.interfaces.tool_hook import AfterTool, BeforeTool, ToolArguments, ToolContext
 
 
 class NormalizeCommand(BeforeTool):
@@ -170,10 +170,10 @@ their reader tools are excluded.
 
 ---
 
-## Resource Types ([`CapabilityType`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/agents/capabilities/layout.py))
+## Resource Types ([`CapabilityType`](../src/exmekh_lib/core/agents/capabilities/layout.py))
 
 ### 1. HDS (Hierarchical Domain Specification)
-HDS files are Markdown files located in `capabilities/hds/`. They define the base identity, prompt, available tools, and exit strategy for a [`Node`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/agents/node/node.py).
+HDS files are Markdown files located in `capabilities/hds/`. They define the base identity, prompt, available tools, and exit strategy for a [`Node`](../src/exmekh_lib/core/agents/node/node.py).
 
 ```markdown
 ---
@@ -214,7 +214,7 @@ Follow these guidelines when refactoring code:
 Each HDS must select exactly one exit tool by its exposed name (`exit-tool: exit_agent`). Multiple HDS files can select the same exit tool. The folder name is only the default tool name when `name` is omitted from the decorator.
 
 ```python
-from qs.core.agents.exit_tool import ExitToolData, exit_tool
+from exmekh_lib.core.agents.exit_tool import ExitToolData, exit_tool
 
 
 @exit_tool(
@@ -255,7 +255,7 @@ Move the instruction body into the exit tool directory, remove the old YAML fron
 
 ## Capability Loading & Validation Pipeline
 
-When [`Capabilities.load(...)`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/agents/capabilities/capabilities.py) is called, it executes a multi-stage validation and attachment pipeline:
+When [`Capabilities.load(...)`](../src/exmekh_lib/core/agents/capabilities/capabilities.py) is called, it executes a multi-stage validation and attachment pipeline:
 
 ```mermaid
 flowchart TD

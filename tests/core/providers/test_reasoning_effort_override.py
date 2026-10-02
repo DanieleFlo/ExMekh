@@ -1,9 +1,9 @@
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.system_message import SystemMessage
-from qs.core.providers.to_openai_chat_completion_request_mapper import (
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.providers.to_openai_chat_completion_request_mapper import (
     ToOpenAIChatCompletionRequestMapper,
 )
-from qs.core.providers.to_openai_response_request_mapper import (
+from exmekh_lib.core.providers.to_openai_response_request_mapper import (
     ToOpenAIResponseRequestMapper,
 )
 

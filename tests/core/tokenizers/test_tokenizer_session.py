@@ -1,7 +1,7 @@
 import pytest
 
-from qs.core.tokenizers.tokenizer_session import TokenizerSession
-from qs.utils.file import read_json_from_path
+from exmekh_lib.core.tokenizers.tokenizer_session import TokenizerSession
+from exmekh_lib.utils.file import read_json_from_path
 
 
 def test_session_close_removes_storage_and_prevents_reuse(tmp_path):

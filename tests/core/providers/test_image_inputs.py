@@ -7,22 +7,22 @@ from openai.types.responses import ResponseCompletedEvent, ResponseTextDeltaEven
 from PIL import Image
 from pydantic import BaseModel
 
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.structured_provider_request import StructuredProviderRequest
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.user_message import (
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.user_message import (
     DocumentUserMessage,
     FilesUserMessage,
     ImagesUserMessage,
     TextsUserMessage,
     UserMessage,
 )
-from qs.core.providers.chat_completion_openai import ChatCompletionOpenAI
-from qs.core.providers.response_openai import ResponseOpenAI
-from qs.core.providers.to_openai_chat_completion_mapper import (
+from exmekh_lib.core.providers.chat_completion_openai import ChatCompletionOpenAI
+from exmekh_lib.core.providers.response_openai import ResponseOpenAI
+from exmekh_lib.core.providers.to_openai_chat_completion_mapper import (
     ToOpenAIChatCompletionMapper,
 )
-from qs.core.providers.to_openai_response_mapper import ToOpenAIResponseMapper
+from exmekh_lib.core.providers.to_openai_response_mapper import ToOpenAIResponseMapper
 from tests.core.providers.test_chat_completion_openai import make_stream
 from tests.core.providers.test_response_openai import make_response
 

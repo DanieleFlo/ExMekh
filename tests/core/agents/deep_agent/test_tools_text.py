@@ -6,10 +6,10 @@ import httpx2
 import pytest
 from openai import OpenAI
 
-from qs.core.agents.deep_agent.deep_agent import DeepAgent
-from qs.core.agents.node import DefaultCapabilities, Node
-from qs.core.models.tools import Tools
-from qs.providers.local import LocalProvider
+from exmekh_lib.core.agents.deep_agent.deep_agent import DeepAgent
+from exmekh_lib.core.agents.node import DefaultCapabilities, Node
+from exmekh_lib.core.models.tools import Tools
+from exmekh_lib.providers.local import LocalProvider
 from tests.core.agents.deep_agent.test_deep_agent import (
     StubProvider,
     _StubTokenizer,

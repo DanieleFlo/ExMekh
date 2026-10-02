@@ -3,15 +3,15 @@ from unittest.mock import patch
 import pytest
 from PIL import Image
 
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.user_message import (
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.user_message import (
     DocumentUserMessage,
     FilesUserMessage,
     ImagesUserMessage,
     TextsUserMessage,
     UserMessage,
 )
-from qs.interfaces.provider import ProviderRequestRejectedError
+from exmekh_lib.interfaces.provider import ProviderRequestRejectedError
 from tests.core.agents.node.steering_support import call, tool_reply, user_contents
 from tests.core.agents.node.test_node import SequenceProvider
 from tests.event_handler import as_agent_handler

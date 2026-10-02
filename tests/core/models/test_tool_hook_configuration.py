@@ -4,9 +4,14 @@ from typing import Any
 
 import pytest
 
-from qs.core.models.tool import Tool
-from qs.core.models.tool_hooks import ToolHooks
-from qs.interfaces.tool_hook import AfterTool, BeforeTool, ToolArguments, ToolContext
+from exmekh_lib.core.models.tool import Tool
+from exmekh_lib.core.models.tool_hooks import ToolHooks
+from exmekh_lib.interfaces.tool_hook import (
+    AfterTool,
+    BeforeTool,
+    ToolArguments,
+    ToolContext,
+)
 
 
 class StripText(BeforeTool):

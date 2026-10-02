@@ -6,7 +6,7 @@ import math
 import re
 from xml.etree import ElementTree as ET
 
-from qs.utils.json import JsonValue
+from exmekh_lib.utils.json import JsonValue
 
 
 def parse_tool_result(content: str) -> JsonValue:

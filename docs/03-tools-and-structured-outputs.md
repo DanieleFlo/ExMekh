@@ -1,19 +1,19 @@
 # Function Tools & Structured Outputs
 
-`qs` features type-safe function tool registration, dynamic JSON Schema generation, and strict response parsing against Pydantic models.
+`exmekh_lib` features type-safe function tool registration, dynamic JSON Schema generation, and strict response parsing against Pydantic models.
 
 ---
 
 ## 1. Function Tools (`Tool` & `Tools`)
 
-The [`Tool`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/models/tool.py) wrapper converts standard Python functions into OpenAI-compatible tool specifications.
+The [`Tool`](../src/exmekh_lib/core/models/tool.py) wrapper converts standard Python functions into OpenAI-compatible tool specifications.
 
 ### Function Registration & Parameter Reflection
 
 ```python
 from typing import Literal
-from qs.core.models.tool import Tool
-from qs.core.models.tools import Tools
+from exmekh_lib.core.models.tool import Tool
+from exmekh_lib.core.models.tools import Tools
 
 
 def calculate_discount(
@@ -52,11 +52,11 @@ The schema builder inspects standard Python type hints and docstrings:
 
 ## 2. Agent Capabilities Tools (`@deep_tool`)
 
-Within agent capability directories, function tools are implemented in a `main.py` entrypoint and decorated with [`@deep_tool`](file:///c:/Users/danie/Desktop/qs/qs/src/qs/core/agents/tools/decorator.py).
+Within agent capability directories, function tools are implemented in a `main.py` entrypoint and decorated with [`@deep_tool`](../src/exmekh_lib/core/agents/tools/decorator.py).
 
 ```python
 from pathlib import Path
-from qs.core.agents.tools import deep_tool
+from exmekh_lib.core.agents.tools import deep_tool
 
 
 @deep_tool(
@@ -91,7 +91,7 @@ calls and are kept out of the model's tool schema.
 ```python
 from pathlib import Path
 from typing import Any
-from qs.interfaces.tool_hook import (
+from exmekh_lib.interfaces.tool_hook import (
     AfterTool, BeforeTool, ToolArguments, ToolContext, ToolResponse,
 )
 
@@ -126,10 +126,10 @@ Calling `execute` directly runs the callable without hooks.
 
 ## 3. Tool Call Resolution & Value Coercion
 
-When an LLM requests a tool call, `qs` handles argument extraction and type conversion through `OpenAIChatCompletionToolMapper` and `OpenAIChatCompletionValueCoercer`:
+When an LLM requests a tool call, `exmekh_lib` handles argument extraction and type conversion through `OpenAIChatCompletionToolMapper` and `OpenAIChatCompletionValueCoercer`:
 
 ```python
-from qs.core.providers.openai_chat_completion_tool_mapper import OpenAIToolMapper
+from exmekh_lib.core.providers.openai_chat_completion_tool_mapper import OpenAIToolMapper
 
 # Resolve matching tool from model response payload
 tool_call = assistant_message.get_tool_calls()[0]
@@ -152,9 +152,9 @@ To force the model to output validated Pydantic objects instead of arbitrary pro
 
 ```python
 from pydantic import BaseModel, Field, ValidationError
-from qs.core.models.client import Client
-from qs.core.models.client_request import ClientRequest
-from qs.core.models.user_message import UserMessage
+from exmekh_lib.core.models.client import Client
+from exmekh_lib.core.models.client_request import ClientRequest
+from exmekh_lib.core.models.user_message import UserMessage
 
 
 class FinancialSummary(BaseModel):

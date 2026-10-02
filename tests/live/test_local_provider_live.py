@@ -8,16 +8,16 @@ import pytest
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
-from qs.core.models.assistant_message import ToolCall
-from qs.core.models.client import Client
-from qs.core.models.client_request import ClientRequest
-from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.reasoning_effort import ReasoningEffortLMH
-from qs.core.models.system_message import SystemMessage
-from qs.core.models.tool import Tool
-from qs.core.models.tool_message import ToolMessage
-from qs.core.models.tools import Tools
-from qs.core.models.user_message import UserMessage
+from exmekh_lib.core.models.assistant_message import ToolCall
+from exmekh_lib.core.models.client import Client
+from exmekh_lib.core.models.client_request import ClientRequest
+from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.reasoning_effort import ReasoningEffortLMH
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.tool import Tool
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.tools import Tools
+from exmekh_lib.core.models.user_message import UserMessage
 from tests.live.model_support import LiveModelProvider
 
 pytestmark = pytest.mark.live

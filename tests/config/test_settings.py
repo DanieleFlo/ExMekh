@@ -5,14 +5,14 @@ from unittest.mock import patch
 
 import pytest
 
-from qs.config.cli import CliSettings
-from qs.config.provider import ProviderSettings
-from qs.config.runtime import RUNTIME
-from qs.config.storage import StorageSettings
-from qs.config.tokenizer import QWEN_TOKENIZER, TokenizerSettings
-from qs.core.cache.cache_manager import CacheManager
-from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
-from qs.tokenizers.qwen import QwenTokenizer
+from exmekh_lib.config.cli import CliSettings
+from exmekh_lib.config.provider import ProviderSettings
+from exmekh_lib.config.runtime import RUNTIME
+from exmekh_lib.config.storage import StorageSettings
+from exmekh_lib.config.tokenizer import QWEN_TOKENIZER, TokenizerSettings
+from exmekh_lib.core.cache.cache_manager import CacheManager
+from exmekh_lib.core.tokenizers.sequential_tokenizer import SequentialTokenizer
+from exmekh_lib.tokenizers.qwen import QwenTokenizer
 
 
 class StubTokenizer(SequentialTokenizer):
@@ -81,7 +81,9 @@ def test_tokenizer_timeout_can_be_configured(
     monkeypatch.setenv("QS_TOKENIZER_DOWNLOAD_TIMEOUT", "7")
 
     assert TokenizerSettings.from_environment().download_timeout_seconds == 7
-    with patch("qs.tokenizers.qwen.urlopen", return_value=io.BytesIO(b"{}")) as fetch:
+    with patch(
+        "exmekh_lib.tokenizers.qwen.urlopen", return_value=io.BytesIO(b"{}")
+    ) as fetch:
         QwenTokenizer(tmp_path)._download_tokenizer_data()
     fetch.assert_called_once_with(QWEN_TOKENIZER.download_url, timeout=7)
 

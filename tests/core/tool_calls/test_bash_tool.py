@@ -6,18 +6,24 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
-from qs.capabilities.tools.bash.bash_tool import BashTool
-from qs.capabilities.tools.bash.main import run as run_bash
-from qs.capabilities.tools.read_tool_output.tool_output_reader import ToolOutputReader
-from qs.core.agents.capabilities.defaults import DefaultCapabilities
-from qs.core.agents.node.node import Node
-from qs.core.cache import SessionCache
-from qs.core.models.assistant_message import AssistantMessage, FunctionCall, ToolCall
-from qs.core.models.tool import ExecutionOptions, PreformattedToolResult, Tool
-from qs.core.models.tool_hooks import ToolHooks
-from qs.core.models.tool_message import ToolMessage
-from qs.core.tool_calls.execution_manager import ToolExecutionManager
-from qs.interfaces.tool_hook import (
+from exmekh_lib.capabilities.tools.bash.bash_tool import BashTool
+from exmekh_lib.capabilities.tools.bash.main import run as run_bash
+from exmekh_lib.capabilities.tools.read_tool_output.tool_output_reader import (
+    ToolOutputReader,
+)
+from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
+from exmekh_lib.core.agents.node.node import Node
+from exmekh_lib.core.cache import SessionCache
+from exmekh_lib.core.models.assistant_message import (
+    AssistantMessage,
+    FunctionCall,
+    ToolCall,
+)
+from exmekh_lib.core.models.tool import ExecutionOptions, PreformattedToolResult, Tool
+from exmekh_lib.core.models.tool_hooks import ToolHooks
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
+from exmekh_lib.interfaces.tool_hook import (
     AfterTool,
     BeforeTool,
     ToolArguments,

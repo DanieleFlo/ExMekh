@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
-from qs.core.models.tool import Tool
+from exmekh_lib.core.models.tool import Tool
 from tests.live.tool_execution_support import (
     LiveExecutionRig,
     ProcessFixture,

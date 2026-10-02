@@ -12,13 +12,13 @@ from openai.types.responses import (
 )
 from pydantic import BaseModel
 
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.provider_stream_event import ProviderStreamEventType
-from qs.core.models.structured_provider_request import StructuredProviderRequest
-from qs.core.providers.response_openai import ResponseOpenAI
-from qs.core.providers.to_openai_response_request_mapper import (
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.provider_stream_event import ProviderStreamEventType
+from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
+from exmekh_lib.core.providers.response_openai import ResponseOpenAI
+from exmekh_lib.core.providers.to_openai_response_request_mapper import (
     ToOpenAIResponseRequestMapper,
 )
 from tests.event_handler import as_provider_handler

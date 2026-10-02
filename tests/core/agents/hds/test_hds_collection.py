@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from qs.core.agents.hds.hds_collection import HDSCollection
+from exmekh_lib.core.agents.hds.hds_collection import HDSCollection
 
 
 def test_loads_hds_markdown_files_in_name_order(tmp_path: Path) -> None:

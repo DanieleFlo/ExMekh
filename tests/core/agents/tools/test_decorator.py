@@ -4,7 +4,7 @@ from typing import Any, cast
 
 import pytest
 
-from qs.core.agents.tools.decorator import deep_tool
+from exmekh_lib.core.agents.tools.decorator import deep_tool
 
 
 @pytest.mark.parametrize(

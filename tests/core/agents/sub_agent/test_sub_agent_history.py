@@ -2,15 +2,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from qs.core.agents.deep_agent.deep_agent import DeepAgent
-from qs.core.agents.node import Node
-from qs.core.cache.cache_manager import CacheManager
-from qs.core.cache.session_cache import SessionCache
-from qs.core.models.assistant_message import AssistantMessage, FunctionCall, ToolCall
-from qs.core.models.provider_request import ProviderRequest
-from qs.core.models.provider_response import ProviderResponse
-from qs.interfaces.provider import Provider
-from qs.interfaces.tokenizer import Tokenizer
+from exmekh_lib.core.agents.deep_agent.deep_agent import DeepAgent
+from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.cache.cache_manager import CacheManager
+from exmekh_lib.core.cache.session_cache import SessionCache
+from exmekh_lib.core.models.assistant_message import (
+    AssistantMessage,
+    FunctionCall,
+    ToolCall,
+)
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.interfaces.provider import Provider
+from exmekh_lib.interfaces.tokenizer import Tokenizer
 
 
 class MockTokenizer(Tokenizer):
@@ -21,7 +25,7 @@ class MockTokenizer(Tokenizer):
         return text[:start_tokens] + (text[-end_tokens:] if end_tokens else "")
 
     def __init__(self, cache_dir: Path | None = None) -> None:
-        self._cache_dir = cache_dir or Path(".qs/tokenizers")
+        self._cache_dir = cache_dir or Path(".exmekh_lib/tokenizers")
 
     def initialize(self) -> None:
         pass
@@ -79,8 +83,8 @@ def _setup_capabilities(root: Path) -> Path:
 
     (exit_tool_path / "instructions.md").write_text("Finish")
     (exit_tool_path / "main.py").write_text(
-        "from qs.core.agents.exit_tool.data import ExitToolData\n"
-        "from qs.core.agents.exit_tool.decorator import exit_tool\n\n"
+        "from exmekh_lib.core.agents.exit_tool.data import ExitToolData\n"
+        "from exmekh_lib.core.agents.exit_tool.decorator import exit_tool\n\n"
         "@exit_tool(instructions_path='instructions.md', name='exit_agent', description='Exit')\n"
         "def exit_agent(text: str, items: list[str]) -> ExitToolData:\n"
         "    return ExitToolData(text=text, items=items)\n"

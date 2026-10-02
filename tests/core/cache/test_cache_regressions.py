@@ -4,23 +4,40 @@ from unittest.mock import patch
 
 import pytest
 
-from qs.capabilities.tools.search_tool_outputs.tool_call_search import ToolCallSearch
-from qs.core.cache import SessionCache, SessionPool, ToolCallRecord
-from qs.core.cache.paths import cache_component
-from qs.core.cache.tool_call_store import ToolCallStore
-from qs.core.models.assistant_message import FunctionCall, ToolCall
-from qs.core.models.tool_output_reference import ToolOutputReference
-from qs.core.tool_calls import (
+from exmekh_lib.capabilities.tools.search_tool_outputs.tool_call_search import (
+    ToolCallSearch,
+)
+from exmekh_lib.core.cache import SessionCache, SessionPool, ToolCallRecord
+from exmekh_lib.core.cache.paths import cache_component
+from exmekh_lib.core.cache.tool_call_store import ToolCallStore
+from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
+from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
+from exmekh_lib.core.tool_calls import (
     ToolCallData,
     ToolCallReader,
     ToolCallSaver,
 )
-from qs.utils.file import read_json_from_path, write_json_atomically
+from exmekh_lib.utils.file import read_json_from_path, write_json_atomically
 
 
 def test_tool_call_record_rejects_non_dictionary_execution_metadata():
     with pytest.raises(TypeError, match="execution must be a dictionary or None"):
         ToolCallRecord("work", "output", {}, "result", execution=[])
+
+
+@pytest.mark.parametrize("user_message", [[], "invalid", 42])
+def test_cache_ignores_records_with_malformed_user_message(tmp_path, user_message):
+    record = ToolCallRecord(
+        "steering_message", "guidance", {}, "text", source="UserMessage"
+    )
+    store = ToolCallStore(tmp_path)
+    path = store.save(record)
+    payload = record.to_dict()
+    payload["user_message"] = user_message
+    write_json_atomically(path, payload)
+
+    assert store.get(record.id) is None
+    assert store.get_all() == []
 
 
 @pytest.mark.parametrize(

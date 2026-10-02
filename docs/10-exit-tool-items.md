@@ -82,6 +82,6 @@ occupare la cronologia principale con testo che può essere recuperato dalla
 cache. La preferenza per `saved-output-id` evita l'ambiguità delle call ID.
 
 Le istruzioni specifiche di `exit_agent` sono in
-`src/qs/capabilities/exit-tool/finish/instructions.md` e vengono mostrate
+`src/exmekh_lib/capabilities/exit-tool/finish/instructions.md` e vengono mostrate
 quando si apre una skill. Spiegano scope, segnaposti, ordine degli output e
 correzione degli errori vicino al momento in cui il modello usa il tool.

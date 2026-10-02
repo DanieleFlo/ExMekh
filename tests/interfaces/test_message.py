@@ -1,7 +1,7 @@
 import pytest
 
-from qs.core.models.system_message import SystemMessage
-from qs.interfaces.message import Message
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.interfaces.message import Message
 
 
 class ConcreteMessage(Message[str]):

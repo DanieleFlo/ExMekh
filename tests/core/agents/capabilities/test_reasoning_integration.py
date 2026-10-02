@@ -3,8 +3,8 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
-from qs.core.agents.capabilities.capabilities import Capabilities
-from qs.core.agents.capabilities.defaults import BUILTIN_CAPABILITIES_PATH
+from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
+from exmekh_lib.core.agents.capabilities.defaults import BUILTIN_CAPABILITIES_PATH
 
 
 def _tool(work_root: Path, name: str):

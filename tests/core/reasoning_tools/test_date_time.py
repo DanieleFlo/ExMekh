@@ -3,17 +3,17 @@ from pathlib import Path
 
 import pytest
 
-from qs.core.agents.capabilities.capabilities import Capabilities
-from qs.core.agents.capabilities.defaults import DefaultCapabilities
-from qs.core.models.tool import Tool
-from qs.core.providers.openai_chat_completion_annotation_schema_builder import (
+from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
+from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
+from exmekh_lib.core.models.tool import Tool
+from exmekh_lib.core.providers.openai_chat_completion_annotation_schema_builder import (
     OpenAIChatCompletionAnnotationSchemaBuilder,
 )
-from qs.core.providers.openai_function_tool_definition_mapper import (
+from exmekh_lib.core.providers.openai_function_tool_definition_mapper import (
     OpenAIFunctionToolDefinitionMapper,
 )
-from qs.core.reasoning_tools import date_time
-from qs.core.reasoning_tools.date_time import (
+from exmekh_lib.core.reasoning_tools import date_time
+from exmekh_lib.core.reasoning_tools.date_time import (
     DateTimeDependencyError,
     DateTimeInputError,
     calculate_date_time,

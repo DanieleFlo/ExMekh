@@ -1,5 +1,5 @@
-from qs.core.agents.hds.markdown import HDSMarkdown
-from qs.core.agents.hds.parser import HDSMarkdownParser
+from exmekh_lib.core.agents.hds.markdown import HDSMarkdown
+from exmekh_lib.core.agents.hds.parser import HDSMarkdownParser
 
 
 def test_parses_hds_body_references_and_exit_tool() -> None:

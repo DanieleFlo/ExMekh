@@ -3,12 +3,12 @@ from typing import cast
 import pytest
 from openai.types.chat import ChatCompletionChunk
 
-from qs.core.models.model_usage import ModelUsage
-from qs.core.models.provider_stream_event import (
+from exmekh_lib.core.models.model_usage import ModelUsage
+from exmekh_lib.core.models.provider_stream_event import (
     ProviderStreamEvent,
     ProviderStreamEventType,
 )
-from qs.core.providers.from_openai_chat_completion_stream_mapper import (
+from exmekh_lib.core.providers.from_openai_chat_completion_stream_mapper import (
     FromOpenAIChatCompletionStreamMapper,
 )
 

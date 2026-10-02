@@ -2,7 +2,7 @@ from typing import cast
 
 import pytest
 
-from qs.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.system_message import SystemMessage
 
 
 def test_init_uses_system_role_and_empty_name_by_default() -> None:

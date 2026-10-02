@@ -2,7 +2,7 @@ from typing import Any, cast
 
 import pytest
 
-from qs.core.agents.deep_skill.metadata import (
+from exmekh_lib.core.agents.deep_skill.metadata import (
     DeepSkillMetadata,
     DeepSkillMetadataParser,
 )

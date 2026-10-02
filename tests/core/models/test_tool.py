@@ -3,11 +3,11 @@ from typing import cast
 
 import pytest
 
-from qs.core.models.assistant_message import (
+from exmekh_lib.core.models.assistant_message import (
     FunctionCall,
     ToolCall,
 )
-from qs.core.models.tool import (
+from exmekh_lib.core.models.tool import (
     CalledTool,
     ExecutionOptions,
     PreformattedToolResult,

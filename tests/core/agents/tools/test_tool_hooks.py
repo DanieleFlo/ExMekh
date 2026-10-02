@@ -3,14 +3,17 @@ from typing import Any
 
 import pytest
 
-from qs.core.agents.exit_tool.data import ExitToolData
-from qs.core.agents.exit_tool.decorator import exit_tool, get_exit_tool_definition
-from qs.core.agents.exit_tool.exit_tool import ExitTool
-from qs.core.agents.tools.decorator import deep_tool, get_tool_definition
-from qs.core.agents.tools.deep_tool import DeepTool
-from qs.core.models.assistant_message import FunctionCall, ToolCall
-from qs.core.models.tool import CalledTool, Tool, ToolExecutionOperation
-from qs.interfaces.tool_hook import (
+from exmekh_lib.core.agents.exit_tool.data import ExitToolData
+from exmekh_lib.core.agents.exit_tool.decorator import (
+    exit_tool,
+    get_exit_tool_definition,
+)
+from exmekh_lib.core.agents.exit_tool.exit_tool import ExitTool
+from exmekh_lib.core.agents.tools.decorator import deep_tool, get_tool_definition
+from exmekh_lib.core.agents.tools.deep_tool import DeepTool
+from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
+from exmekh_lib.core.models.tool import CalledTool, Tool, ToolExecutionOperation
+from exmekh_lib.interfaces.tool_hook import (
     AfterTool,
     BeforeTool,
     ToolArguments,

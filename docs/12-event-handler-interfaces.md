@@ -1,7 +1,7 @@
 # Event Handler Interfaces
 
 Implement stream event handlers by subclassing the appropriate interface from
-`qs.interfaces.event_handler`. The runtime checks the `handle` method signature
+`exmekh_lib.interfaces.event_handler`. The runtime checks the `handle` method signature
 and annotations when a handler is supplied.
 
 Use `ProviderEventHandler` for `ClientRequest.on_event` and
@@ -10,9 +10,9 @@ Use `ProviderEventHandler` for `ClientRequest.on_event` and
 implement `handle` with the event type shown below and return `None`.
 
 ```python
-from qs.core.agents.deep_agent import DeepAgentEvent, DeepAgentEventHandler
-from qs.core.models.provider_stream_event import ProviderStreamEvent
-from qs.interfaces.event_handler import ProviderEventHandler
+from exmekh_lib.core.agents.deep_agent import DeepAgentEvent, DeepAgentEventHandler
+from exmekh_lib.core.models.provider_stream_event import ProviderStreamEvent
+from exmekh_lib.interfaces.event_handler import ProviderEventHandler
 
 
 class PrintAgentEvents(DeepAgentEventHandler):

@@ -1,5 +1,5 @@
 [project]
-name = "qs"
+name = "ExMekh-Lib"
 version = "0.1.0"
 description = "Strongly typed framework for hierarchical LLM agents and tools"
 readme = "README.md"
@@ -66,8 +66,8 @@ reportUnnecessaryTypeIgnoreComment = "error"
 
 [tool.coverage.run]
 branch = true
-source = ["qs"]
-omit = ["src/qs/main.py"]
+source = ["exmekh_lib"]
+omit = ["src/exmekh_lib/main.py"]
 
 [tool.coverage.report]
 fail_under = 100
@@ -80,17 +80,20 @@ target-version = "py313"
 select = ["E4", "E7", "E9", "F", "I", "PLC0415"]
 
 [tool.ruff.lint.per-file-ignores]
-"src/qs/capabilities/tools/calculate/main.py" = ["PLC0415"]
-"src/qs/capabilities/tools/interact-web-page/main.py" = ["PLC0415"]
-"src/qs/capabilities/tools/read-web-page/main.py" = ["PLC0415"]
-"src/qs/capabilities/tools/search-web/main.py" = ["PLC0415"]
-"src/qs/core/reasoning_tools/math.py" = ["PLC0415"]
-"src/qs/core/web_navigation/crawler.py" = ["PLC0415"]
-"src/qs/core/web_navigation/ranking.py" = ["PLC0415"]
+"src/exmekh_lib/capabilities/tools/calculate/main.py" = ["PLC0415"]
+"src/exmekh_lib/capabilities/tools/interact-web-page/main.py" = ["PLC0415"]
+"src/exmekh_lib/capabilities/tools/read-web-page/main.py" = ["PLC0415"]
+"src/exmekh_lib/capabilities/tools/search-web/main.py" = ["PLC0415"]
+"src/exmekh_lib/core/reasoning_tools/math.py" = ["PLC0415"]
+"src/exmekh_lib/core/web_navigation/crawler.py" = ["PLC0415"]
+"src/exmekh_lib/core/web_navigation/ranking.py" = ["PLC0415"]
 
 [project.scripts]
-qs = "qs.main:main"
+exmekh-lib = "exmekh_lib.main:main"
 
 [build-system]
 requires = ["uv_build>=0.11.7,<0.12.0"]
 build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "exmekh_lib"

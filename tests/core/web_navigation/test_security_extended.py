@@ -6,8 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from qs.core.web_navigation import security
-from qs.core.web_navigation.errors import WebNavigationError
+from exmekh_lib.core.web_navigation import security
+from exmekh_lib.core.web_navigation.errors import WebNavigationError
 
 
 @pytest.mark.parametrize(

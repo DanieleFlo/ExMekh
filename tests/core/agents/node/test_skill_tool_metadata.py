@@ -2,8 +2,8 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
-from qs.core.models.assistant_message import AssistantMessage
-from qs.core.models.tool import Tool
+from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.tool import Tool
 from tests.core.agents.node.steering_support import call, tool_reply
 from tests.core.agents.node.test_node import SequenceProvider
 from tests.tool_result_support import parse_used_tools

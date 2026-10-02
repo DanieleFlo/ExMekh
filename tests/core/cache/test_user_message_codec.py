@@ -1,14 +1,16 @@
 import pytest
 from PIL import Image
 
-from qs.capabilities.tools.read_tool_output.tool_output_reader import ToolOutputReader
-from qs.core.cache.session_cache import SessionCache
-from qs.core.cache.tool_call_record import ToolCallRecord
-from qs.core.cache.user_message_codec import (
+from exmekh_lib.capabilities.tools.read_tool_output.tool_output_reader import (
+    ToolOutputReader,
+)
+from exmekh_lib.core.cache.session_cache import SessionCache
+from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
+from exmekh_lib.core.cache.user_message_codec import (
     deserialize_user_message,
     serialize_user_message,
 )
-from qs.core.models.user_message import (
+from exmekh_lib.core.models.user_message import (
     DocumentUserMessage,
     FilesUserMessage,
     ImagesUserMessage,

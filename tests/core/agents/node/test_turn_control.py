@@ -2,8 +2,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from qs.core.agents.node.turn_control import TurnControl
-from qs.core.tool_calls.execution_manager import ToolExecutionManager
+from exmekh_lib.core.agents.node.turn_control import TurnControl
+from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
 
 
 def test_run_scope_keeps_admission_exclusive_until_exit():
