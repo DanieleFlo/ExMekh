@@ -5,7 +5,10 @@ from threading import Condition, Event, Thread
 import pytest
 
 from qs.core.cache.tool_call_record import ToolCallRecord
+from qs.core.cache.user_message_codec import serialize_user_message
 from qs.core.models.tool import ExecutionOptions, ToolExecutionOperation
+from qs.core.models.tool_output_reference import ToolOutputReference
+from qs.core.models.user_message import UserMessage
 from qs.core.tool_calls import execution_manager
 from qs.core.tool_calls.execution_manager import ToolExecutionManager
 
@@ -652,3 +655,32 @@ def test_marking_unknown_outputs_does_not_acknowledge_known_work():
 
     assert manager.next_delivery(("root",)).output_id == "output"
     assert [stored for _, stored in manager.completed_to_persist()] == [record]
+
+
+def test_runtime_record_updates_preserve_stored_output_metadata():
+    manager = ToolExecutionManager()
+    manager.start(
+        "call",
+        "work",
+        {"input": "original"},
+        ToolExecutionOperation(lambda: "final"),
+        ("root",),
+        ExecutionOptions(),
+        output_id="output",
+        skill_path="/skill",
+    )
+    record = ToolCallRecord(
+        "work",
+        "output",
+        {"input": "original"},
+        "pending",
+        skill_path="/skill",
+        thinking="reason",
+        execution={"status": "running"},
+        used_tools=(ToolOutputReference("related", "other"),),
+        user_message=serialize_user_message(UserMessage("companion")),
+    )
+    (updated,) = manager.output_records({"output": record})
+    assert updated == replace(record, result="final", execution=updated.execution)
+    assert updated.execution["status"] == "completed"
+    assert updated.execution["storage"] == "saved"

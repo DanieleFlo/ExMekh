@@ -33,9 +33,10 @@ class ToolCallRecord:
     skill_path: str = "/"
     tool_call_id: str | None = None
     thinking: str | None = None
-    source: Literal["Tool", "DeepSkill"] = "Tool"
+    source: Literal["Tool", "DeepSkill", "UserMessage"] = "Tool"
     execution: dict[str, Any] | None = None
     used_tools: tuple[ToolOutputReference, ...] | None = None
+    user_message: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.name, str):
@@ -60,14 +61,18 @@ class ToolCallRecord:
         if self.thinking is not None and not isinstance(self.thinking, str):
             raise TypeError("thinking must be a string or None")
 
-        if self.source not in ("Tool", "DeepSkill"):
-            raise ValueError("source must be 'Tool' or 'DeepSkill'")
+        if self.source not in ("Tool", "DeepSkill", "UserMessage"):
+            raise ValueError("source must be 'Tool', 'DeepSkill', or 'UserMessage'")
 
         if not isinstance(self.args, dict):
             raise TypeError("ToolCallRecord 'args' must be a dictionary")
 
         object.__setattr__(self, "args", to_json_value(self.args))
         object.__setattr__(self, "result", to_json_value(self.result))
+        if self.user_message is not None:
+            if not isinstance(self.user_message, dict):
+                raise TypeError("user_message must be a dictionary or None")
+            object.__setattr__(self, "user_message", to_json_value(self.user_message))
         if self.execution is not None:
             if not isinstance(self.execution, dict):
                 raise TypeError("execution must be a dictionary or None")
@@ -99,6 +104,11 @@ class ToolCallRecord:
             "type": self.source,
             **({"execution": self.execution} if self.execution is not None else {}),
             **(
+                {"user_message": self.user_message}
+                if self.user_message is not None
+                else {}
+            ),
+            **(
                 {"used_tools": [reference.to_dict() for reference in self.used_tools]}
                 if self.used_tools is not None
                 else {}
@@ -129,6 +139,7 @@ class ToolCallRecord:
             thinking=record_dict.get("thinking"),
             source=record_dict.get("type", "Tool"),
             execution=record_dict.get("execution"),
+            user_message=record_dict.get("user_message"),
             used_tools=(
                 tuple(ToolOutputReference.from_dict(item) for item in used_tools)
                 if used_tools is not None
@@ -145,7 +156,7 @@ class ToolCallRecord:
         *,
         skill_path: str = "/",
         thinking: str | None = None,
-        source: Literal["Tool", "DeepSkill"] = "Tool",
+        source: Literal["Tool", "DeepSkill", "UserMessage"] = "Tool",
     ) -> Self:
         """Adapt the two supported call interfaces without guessing attributes."""
         if isinstance(tool_call, ToolCall):

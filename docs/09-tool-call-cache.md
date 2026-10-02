@@ -7,7 +7,8 @@ dal tokenizer vedi [Tokenizer-based IDs](08-tokenizer-ids.md); per la cronologia
 vedi [DeepAgent & Hierarchical Execution](05-deep-agent-and-execution.md).
 
 `NodeRuntime` decide quali risultati salvare: tool ordinari e risultati finali
-delle deep skill. Le istruzioni delle skill e dell'exit tool rimangono nella cronologia. Il runtime
+delle deep skill, oltre ai messaggi di steering inseriti a `depth > 0`.
+Le istruzioni delle skill e dell'exit tool rimangono nella cronologia. Il runtime
 riceve una `NodeCache` dalla configurazione al primo salvataggio e la riutilizza;
 la ricrea se la sessione viene chiusa. L'esecutore non accede allo storage.
 
@@ -97,16 +98,17 @@ come sessione attiva.
 
 | Campo JSON | Significato |
 | --- | --- |
-| `name` | Nome del tool o della deep skill che ha prodotto l'output. |
-| `type` | `Tool` o `DeepSkill`; i record precedenti senza campo usano `Tool`. |
+| `name` | Nome del tool o della deep skill, oppure `steering_message` per uno steering salvato. |
+| `type` | `Tool`, `DeepSkill` o `UserMessage` per steering salvati; i record precedenti senza campo usano `Tool`. |
 | `id` | Chiave del record nello storage del nodo. |
-| `tool_call_id` | ID della chiamata del provider, oppure `null` per record manuali. |
+| `tool_call_id` | ID della chiamata del provider, oppure `null` per record manuali e steering salvati. |
 | `args` | Copia JSON degli argomenti. |
 | `result` | Risultato della funzione convertito in JSON, prima della formattazione XML. |
 | `skill_path` | Percorso logico della skill; `/` indica lo scope radice. |
 | `thinking` | Testo esposto dal provider nel turno della chiamata, oppure `null`. |
 | `execution` | Metadati opzionali del lavoro gestito: stato, tempi, call ID e ID dell'output. Assente nei record precedenti. |
-| `used_tools` | Riferimenti agli output della skill e delle discendenti, con solo `name` e `id`. Conservati nell'header XML anche alla rilettura; assenti nei record precedenti e nei tool ordinari. |
+| `used_tools` | Riferimenti agli output della skill e delle discendenti, inclusi gli steering salvati, con solo `name` e `id`. Conservati nell'header XML anche alla rilettura; assenti nei record precedenti e nei tool ordinari. |
+| `user_message` | Contenuto ordinato dello steering o del messaggio associato a un risultato multimodale, con testo, immagini PNG e file codificati in base64. Assente quando non serve ripristinare un messaggio. |
 
 Nel runtime `id` corrisponde all'ID dell'header XML, quando disponibile; altrimenti
 è un UUID. `tool_call_id` conserva l'ID del tool ordinario o della chiamata che
@@ -132,7 +134,11 @@ ancora leggibili, verificando l'ID completo nel JSON; i vecchi record senza path
 usano `/`. Gli elenchi escludono file corrotti o incoerenti.
 
 Oggetti non JSON vengono rappresentati con `repr`, valori non finiti con stringhe
-e cicli con `<circular reference>`. La cache non ricostruisce oggetti Python.
+e cicli con `<circular reference>`. Gli output ordinari non ricostruiscono oggetti
+Python. Il campo dedicato `user_message` permette invece di ripristinare immagini
+e documenti al momento della rilettura di uno steering o di un risultato
+multimodale. Per gli steering, `result` conserva il testo e le descrizioni
+degli allegati per ricerca e anteprima.
 
 ## Tool di memoria del runtime
 
@@ -141,7 +147,8 @@ Con `Node(..., default_capabilities=DefaultCapabilities(...))`, si possono
 includere, escludere o sovrascrivere singolarmente tramite i nomi seguenti:
 
 - `get_execution_history(start_position=None, limit=20)` restituisce XML
-  navigabile con nome, call ID e posizione delle capability chiamate. Senza
+  navigabile con nome, call ID e posizione delle capability chiamate, oltre agli
+  steering salvati come `steering_message` con il loro output ID. Senza
   `start_position` mostra un'overview composta dal primo 25% e dall'ultimo 75%
   delle chiamate ammesse dal limite, indicando l'intervallo omesso. Con una
   posizione 1-based mostra invece una pagina contigua e i cursori
@@ -156,12 +163,21 @@ includere, escludere o sovrascrivere singolarmente tramite i nomi seguenti:
   Legge anche i lavori attivi e gli output temporanei. Un ID assente produce XML con
   `found=false`, senza interrompere l'agente.
 
+Gli steering consegnati dentro una skill hanno un ID canonico distinto e sono
+recuperabili dopo la compattazione tramite `read_tool_output`, anche da un turno
+successivo dello stesso runtime. Alla rilettura il risultato contiene
+`<type>UserMessage</type>` e `<response-type>final</response-type>`; le immagini e
+i documenti vengono ripassati al provider con il contenuto misto originale.
+L'ID resta nei `used-tools` della skill e delle sue antenate. Gli steering
+consegnati in root restano soltanto nella history ordinaria.
+Vedi [Steering esterno](13-tool-executions.md#steering-esterno).
+
 Il runtime espone inoltre `control_tool_execution` per attesa e annullamento.
 Vedi [Esecuzioni dei tool](13-tool-executions.md) per stati, cursori, consegna
 automatica e durata della vista in memoria.
 
 La ricerca usa la radice XML `<tool-outputs>`. Ogni `<record>` conserva nome,
-`type` (`Tool` o `DeepSkill`), ID canonico e `skill-path`, e aggiunge
+`type` (`Tool`, `DeepSkill` o `UserMessage`), ID canonico e `skill-path`, e aggiunge
 `response-type`, `status` e `storage` (`saved` o `runtime`). Per i lavori gestiti
 include la call ID originaria e i tempi. `response-type` distingue `running`,
 `partial`, `final`, `failed` e `cancelled`. Un vecchio record `running` senza

@@ -13,7 +13,7 @@ from qs.core.models.tool import PreformattedToolResult
 @deep_tool(
     name=RUNTIME.history_tool_name,
     description=(
-        "Return navigable XML history of capability calls. Omit "
+        "Return navigable XML history of capability calls and saved user steering. Omit "
         "start_position for a head-and-tail overview, or use a "
         f"1-based position and limit from {RUNTIME.history_min_page_limit} "
         f"to {RUNTIME.memory_max_page_limit} to read a page."

@@ -5,6 +5,8 @@ from typing import Any
 
 from qs.config.runtime import RUNTIME
 from qs.core.cache.tool_call_record import ToolCallRecord
+from qs.core.cache.user_message_codec import deserialize_user_message
+from qs.core.models.user_message import UserMessage
 from qs.core.models.xml_header import XmlHeader
 from qs.utils.xml import (
     append_text_element,
@@ -32,6 +34,18 @@ class ToolOutputView:
         ):
             return record.result["text"]
         return stringify_tool_result(record.result)
+
+    def attachments(self) -> UserMessage | None:
+        """Restore saved companion content and identify its associated output."""
+        record = self._record
+        if record.user_message is None:
+            return None
+        message = deserialize_user_message(record.user_message)
+        if record.source == "UserMessage" and not message.has_attachments():
+            return None
+        return message.with_text_prefix(
+            RUNTIME.saved_attachment_message.format(output_id=record.id)
+        )
 
     def preview(self, limit: int) -> str:
         """Show useful progress or diagnostics before truncating a preview."""

@@ -34,7 +34,9 @@ def test_init_rejects_non_string_source() -> None:
 
 
 def test_init_rejects_invalid_source_value() -> None:
-    with pytest.raises(ValueError, match="source must be 'Tool' or 'DeepSkill'"):
+    with pytest.raises(
+        ValueError, match="source must be 'Tool', 'DeepSkill', or 'UserMessage'"
+    ):
         XmlHeader(source=cast(Any, "Other"), name="echo", id="id-1")
 
 

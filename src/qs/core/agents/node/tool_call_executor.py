@@ -6,6 +6,7 @@ from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import Any
 
+from qs.config.runtime import RUNTIME
 from qs.core.agents.deep_skill.deep_skill import CalledDeepSkill
 from qs.core.agents.deep_skill.execution import (
     DeepSkillExecution,
@@ -114,6 +115,14 @@ class ToolCallExecutor:
         return self._client.record_tool_call(
             call, batch_call_id=self._agentic_scope.pending_return_call_id
         )
+
+    def record_steering_output(self) -> str:
+        """Expose saved guidance in every enclosing skill's output references."""
+        output_id = self._output_formatter.generate_output_id()
+        self._skill_executions.record_tool_output(
+            RUNTIME.steering_output_name, output_id
+        )
+        return output_id
 
     def execute(
         self,
@@ -247,6 +256,9 @@ class ToolCallExecutor:
             content=content,
             tool_call_id=called_tool.call_id,
             name=called_tool.name,
+            attachments=result.attachments
+            if isinstance(result, PreformattedToolResult)
+            else None,
         )
         return ToolExecutionResult(
             response=tool_response,

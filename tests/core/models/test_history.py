@@ -467,3 +467,26 @@ def test_recorded_tool_call_rejects_malformed_batches_atomically(
             pytest.fail("Malformed batches must be rejected before execution")
 
     assert history.get_history() == messages
+
+
+def test_automatic_tool_call_preserves_the_latest_text_response_and_metadata():
+    response = AssistantMessage("work is ready", name="agent")
+    response.set_metadata("provider", {"response_id": "original"})
+    history = MessageHistory([SystemMessage("rules"), UserMessage("start"), response])
+    call = ToolCall("read", FunctionCall("read_tool_output", {}))
+    with history.record_tool_call(call):
+        history.add(ToolMessage("completed output", "read"))
+
+    messages = history.get_history()
+    assert [message.get_role_name() for message in messages] == [
+        "system",
+        "user",
+        "assistant",
+        "tool",
+    ]
+    updated = messages[2]
+    assert updated.get_message() == "work is ready"
+    assert updated.get_name() == "agent"
+    assert updated.get_metadata() == {"provider": {"response_id": "original"}}
+    assert updated.get_tool_calls() == [call]
+    assert response.get_tool_calls() is None

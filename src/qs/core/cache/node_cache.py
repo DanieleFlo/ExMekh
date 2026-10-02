@@ -41,7 +41,7 @@ class NodeCache:
         *,
         skill_path: str = "/",
         thinking: str | None = None,
-        source: Literal["Tool", "DeepSkill"] = "Tool",
+        source: Literal["Tool", "DeepSkill", "UserMessage"] = "Tool",
     ) -> ToolCallRecord:
         record = ToolCallRecord(
             name=name,
@@ -63,7 +63,7 @@ class NodeCache:
         *,
         skill_path: str = "/",
         thinking: str | None = None,
-        source: Literal["Tool", "DeepSkill"] = "Tool",
+        source: Literal["Tool", "DeepSkill", "UserMessage"] = "Tool",
     ) -> ToolCallRecord:
         record = ToolCallRecord.from_call(
             tool_call,

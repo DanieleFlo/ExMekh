@@ -27,7 +27,10 @@ from qs.core.models.assistant_message import FunctionCall, ToolCall
 from qs.core.models.client import Client
 from qs.core.models.client_request import ClientRequest
 from qs.core.models.provider_response import ProviderResponse
-from qs.core.models.provider_stream_event import ProviderStreamEvent
+from qs.core.models.provider_stream_event import (
+    ProviderStreamEvent,
+    ProviderStreamEventType,
+)
 from qs.core.models.tool import PreformattedToolResult
 from qs.core.models.user_message import ErrorUserMessage, UserMessage
 from qs.core.tool_calls.execution_history import ExecutionHistory
@@ -468,6 +471,13 @@ class NodeRuntime(ProviderEventHandler):
         return None
 
     def handle(self, event: ProviderStreamEvent) -> None:
+        if event.type is ProviderStreamEventType.STEERING_ADDED and self.depth > 0:
+            assert event.message is not None
+            self._result_recorder.persist_steering(
+                event.message,
+                self._executor.record_steering_output(),
+                self._executor.skill_path,
+            )
         self._config.emit_stream(
             DeepAgentStreamEvent(
                 provider_event=event,

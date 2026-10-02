@@ -31,7 +31,9 @@ def make_agent(tmp_path: Path):
     with ExitStack() as cleanup:
         agents = []
 
-        def build(provider, *tools, persistent=True, on_stream=None, children=()):
+        def build(
+            provider, *tools, persistent=True, on_stream=None, children=(), include=()
+        ):
             directory = tmp_path / f"agent-{len(agents)}"
             path = _write_nested_capabilities(directory)
             session = cleanup.enter_context(SessionCache(directory / "cache"))
@@ -49,6 +51,7 @@ def make_agent(tmp_path: Path):
                         "read_tool_output",
                         "control_tool_execution",
                         "call_sub_agent",
+                        *include,
                     },
                     overrides={tool.name: tool for tool in tools},
                 ),

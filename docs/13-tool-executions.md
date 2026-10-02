@@ -164,6 +164,24 @@ viene completato prima di eseguire la successiva chiamata. La risposta
 intermedia viene richiesta senza tool e senza streaming, poi viene sostituita
 dal batch già in attesa.
 
+Gli steering inseriti a `depth > 0` vengono anche salvati nella cache del nodo
+con nome `steering_message`, tipo `UserMessage` e un output ID generato con lo
+stesso meccanismo dei tool. L'ID compare in `get_execution_history`, in
+`search_tool_outputs` e nei `used-tools` di tutte le skill contenitrici. Dopo
+la compattazione, `read_tool_output(output_id)` recupera il testo e ripassa al
+provider le immagini e i file originali. La cache conserva i byte degli allegati
+e l'ordine del contenuto misto; una modifica successiva degli oggetti inviati
+non cambia il messaggio salvato.
+
+La consegna iniziale resta un messaggio utente. Alla rilettura, il testo usa il
+normale risultato del tool con header XML; gli allegati viaggiano in un messaggio
+utente associato all'output, dopo tutte le risposte del batch. Questo permette
+a entrambi i mapper OpenAI di inviare contenuti multimodali senza interrompere
+le coppie tool call/result. Gli steering inseriti in root non creano record:
+la profondità considerata è quella della consegna, anche quando il messaggio
+è stato accodato prima dell'apertura o durante la chiusura di una skill.
+I record seguono durata e isolamento della cache del nodo.
+
 Un'inferenza attiva e i tool con `background_enabled=False` non vengono
 interrotti. `call_sub_agent` resta sincrono: lo steering su `DeepAgent` riguarda
 la history del nodo radice e viene elaborato dopo il ritorno del figlio. Per
@@ -185,7 +203,8 @@ successivo. I messaggi già inseriti seguono la policy della history.
 il suo significato.
 
 La lettura funziona da ogni livello dello stesso nodo, anche dopo la
-compattazione di una skill. Il campo XML `<type>` resta `Tool` o `DeepSkill`;
+compattazione di una skill. Il campo XML `<type>` è `Tool`, `DeepSkill` o
+`UserMessage` per lo steering salvato;
 il nuovo `<response-type>` indica:
 
 | Tipo di risposta | Significato |
@@ -208,6 +227,13 @@ I risultati diretti conclusi e i ritorni delle skill dichiarano
 Un errore nell'annotazione opzionale `thinking` omette solo quell'annotazione.
 Il contenuto di `PreformattedToolResult` viene preservato; un'esecuzione gestita
 lo include nel proprio envelope per aggiungere stato e ID canonico.
+Un `PreformattedToolResult` può associare un `UserMessage` al testo tramite
+`attachments`: il provider lo riceve dopo tutte le risposte del batch.
+La lettura finale di un lavoro gestito conserva lo stesso messaggio associato.
+Quando `cache_result=True`, la cache salva anche il suo contenuto ordinato e
+i byte degli allegati, così una rilettura senza il manager li ripristina.
+Gli errori nei contenuti multimodali salvati vengono segnalati come errori
+recuperabili di lettura.
 
 L'esecuzione diretta e quella gestita usano entrambe l'operazione esposta da
 `Tool.create_execution()`. Gli hook applicano le modifiche agli argomenti prima
@@ -289,6 +315,9 @@ Quando un lavoro termina, il runtime accoda la lettura automatica. Al primo
 confine della history che permette una coppia completa di messaggi, prima della
 prossima inferenza, inserisce una chiamata assistant a `read_tool_output` e il
 suo tool result, con una nuova call ID. Più consegne vengono serializzate.
+Se la history termina con una risposta testuale dell'assistente, la chiamata
+automatica viene associata a quella risposta, conservandone contenuto e
+metadati senza creare due turni assistant consecutivi.
 
 La consegna richiede la stessa sessione conversazionale del nodo e la stessa
 catena di chiamate che hanno aperto le skill. Le posizioni delle aperture
@@ -362,10 +391,10 @@ La consegna automatica produce gli eventi della nuova lettura nel loop.
 | `ToolCallExecutor` | Esecuzione delle capability e transizioni delle skill. |
 | `MessageHistory` | Modifica dei messaggi e dei batch, conservando risposte e metadati nelle sostituzioni. |
 | `ToolExecutionManager` | Worker, attese, accesso concorrente e registro degli stati. |
-| `ExecutionSnapshot` | Vista dello stato e metodi pubblici per ottenere contenuto e risultato salvabile. |
+| `ExecutionSnapshot` | Vista dello stato e metodi pubblici per ottenere contenuto, allegati e risultato salvabile. |
 | `ExecutionControlTool` | Contratto del tool globale di attesa e annullamento. |
 | `ToolOutputReader` | Accesso agli output attivi o salvati, lettura incrementale e conferma della consegna. |
-| `ToolOutputView` | Rappresentazione degli output: contenuto, anteprime, metadati XML e stato dei record salvati. |
+| `ToolOutputView` | Rappresentazione degli output: contenuto, allegati ripristinati, anteprime, metadati XML e stato dei record salvati. |
 | `ToolCallSearch` | Ricerca filtrata e paginata degli output salvati e del runtime, senza confermare la consegna. |
 
 Il runtime usa operazioni pubbliche della history per inserire chiamate automatiche;

@@ -18,7 +18,7 @@ type SearchOutputs = Callable[
     name=RUNTIME.search_tool_name,
     description=(
         "Search this node's saved and runtime tool outputs, including "
-        "background work. Return paginated XML previews with status "
+        "background work and user steering saved inside skills. Return paginated XML previews with status "
         "and output IDs. All filters are optional."
     ),
     background_enabled=False,

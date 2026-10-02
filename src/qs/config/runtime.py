@@ -18,6 +18,8 @@ class RuntimeSettings:
     )
     default_agent_context_id: str = "default"
     history_tool_name: str = "get_execution_history"
+    steering_output_name: str = "steering_message"
+    saved_attachment_message: str = "Attachments from saved output {output_id}:"
     search_tool_name: str = "search_tool_outputs"
     unavailable_execution_message: str = (
         "Execution is unavailable in this runtime; it was not resumed. "
@@ -90,6 +92,9 @@ class RuntimeSettings:
             f"Use {self.search_tool_name} to find saved and runtime outputs, including "
             "background work, by text, tool name or skill path. Search returns IDs, "
             "status and previews; a preview does not acknowledge final delivery.\n"
+            "User steering inserted inside a skill is saved as a UserMessage output. "
+            "Its ID appears in execution history and the skill's used-tools; retrieve "
+            f"it with {self.read_tool_name} after compaction to restore text and attachments.\n"
             "Completed background output is read automatically at a safe history "
             "boundary only in the exact skill instance that started it. After exiting "
             "a skill, keep its output_id and read it explicitly; reopening the skill "

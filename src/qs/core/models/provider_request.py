@@ -6,6 +6,7 @@ from qs.core.models.provider_stream_event import (
     ProviderStreamEvent,
     ProviderStreamEventType,
 )
+from qs.core.models.tool_message import ToolMessage
 from qs.core.models.tools import Tools
 from qs.core.models.user_message import UserMessage
 from qs.interfaces.event_handler import ProviderEventHandler
@@ -32,7 +33,7 @@ class ProviderRequest:
         self.on_event = on_event
         self._reasoning_effort_override = reasoning_effort_override
         self._check_provider_inputs()
-        self._messages = messages.copy()
+        self._messages = self._include_tool_attachments(messages)
         self._extra = dict(extra) if extra is not None else None
 
     def _check_provider_inputs(self) -> None:
@@ -55,6 +56,24 @@ class ProviderRequest:
             or not self._reasoning_effort_override.strip()
         ):
             raise ValueError("Reasoning effort override must be a non-empty string")
+
+    @staticmethod
+    def _include_tool_attachments(
+        source: list[Message[object]],
+    ) -> list[Message[object]]:
+        # Providers receive multimodal companions only after every reply in a batch.
+        messages: list[Message[object]] = []
+        attachments: list[UserMessage] = []
+        for message in source:
+            if not isinstance(message, ToolMessage):
+                messages.extend(attachments)
+                attachments.clear()
+            messages.append(message)
+            if isinstance(message, ToolMessage):
+                companion = message.get_attachments()
+                if companion is not None:
+                    attachments.append(companion)
+        return [*messages, *attachments]
 
     def get_messages(self) -> list[Message[object]]:
         return self._messages.copy()

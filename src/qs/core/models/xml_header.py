@@ -14,7 +14,7 @@ from qs.utils.xml import append_text_element, append_value_element, render_xml
 
 @dataclass
 class XmlHeader:
-    source: Literal["Tool", "DeepSkill"]
+    source: Literal["Tool", "DeepSkill", "UserMessage"]
     name: str
     id: str
     fields: dict[str, Any] = field(default_factory=dict)
@@ -26,9 +26,9 @@ class XmlHeader:
     def __post_init__(self) -> None:
         if not isinstance(self.source, str):
             raise TypeError("source must be a string")
-        if self.source not in ("Tool", "DeepSkill"):
+        if self.source not in ("Tool", "DeepSkill", "UserMessage"):
             raise ValueError(
-                f"source must be 'Tool' or 'DeepSkill', got '{self.source}'"
+                f"source must be 'Tool', 'DeepSkill', or 'UserMessage', got '{self.source}'"
             )
 
         if not isinstance(self.name, str):

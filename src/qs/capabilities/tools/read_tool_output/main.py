@@ -16,7 +16,7 @@ from qs.core.models.tool import PreformattedToolResult
         "Read the current status and available output of a tool by "
         "output ID. Use an optional cursor to read only new output; "
         "omit it to read the complete output. Includes the final "
-        "result when available."
+        "result when available. Also reads saved user steering and restores its attachments."
     ),
     background_enabled=False,
 )

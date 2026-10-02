@@ -13,6 +13,7 @@ from qs.config.runtime import RUNTIME
 from qs.config.validation import VALIDATION_PATTERNS
 from qs.core.models.assistant_message import ToolCall
 from qs.core.models.tool_hooks import ToolHooks
+from qs.core.models.user_message import UserMessage
 from qs.interfaces.tool_hook import (
     AfterTool,
     BeforeTool,
@@ -25,13 +26,20 @@ from qs.interfaces.tool_hook import (
 
 @dataclass(frozen=True, slots=True)
 class PreformattedToolResult:
-    """Tool content that must be returned without an additional XML header."""
+    """Preformatted text with an optional multimodal companion for the provider."""
 
     content: str
+    attachments: UserMessage | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.content, str):
             raise TypeError("Preformatted tool content must be a string")
+        if self.attachments is not None and not isinstance(
+            self.attachments, UserMessage
+        ):
+            raise TypeError(
+                "Preformatted tool attachments must be a UserMessage or None"
+            )
 
 
 @dataclass(frozen=True, slots=True)

@@ -63,6 +63,14 @@ class UserMessage(Message["UserMessageContent"]):
             else:
                 raise TypeError(f"Unsupported user content type: {type(part).__name__}")
 
+    def has_attachments(self) -> bool:
+        return any(not isinstance(part, str) for part in self.iter_content_parts())
+
+    def with_text_prefix(self, text: str) -> UserMessage:
+        """Return a new message without exposing its content containers."""
+        parts = self._content if isinstance(self._content, list) else [self._content]
+        return UserMessage([text, *parts], name=self._name)
+
     def message_dump(self) -> dict[str, str]:
         parts = self.iter_content_parts() if self._content is not None else ()
         return {

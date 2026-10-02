@@ -137,7 +137,14 @@ class MessageHistory:
     ) -> Iterator[None]:
         """Record a harness call and keep an existing batch's final reply last."""
         if batch_call_id is None:
-            self.add_tool_calls([call])
+            if (
+                self._history
+                and isinstance(self._history[-1], AssistantMessage)
+                and not self._history[-1].get_tool_calls()
+            ):
+                self.replace_latest_tool_calls([call])
+            else:
+                self.add_tool_calls([call])
             yield
             return
 

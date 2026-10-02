@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from threading import Condition, Event, Lock, Thread
 from time import monotonic
@@ -15,6 +15,7 @@ from qs.core.models.tool import (
     PreformattedToolResult,
     ToolExecutionOperation,
 )
+from qs.core.models.user_message import UserMessage
 from qs.utils.xml import stringify_tool_result
 
 type ExecutionStatus = Literal["running", "completed", "failed", "cancelled"]
@@ -67,6 +68,13 @@ class ExecutionSnapshot:
         """Return the result value to store, unwrapping preformatted content."""
         result = self.output_result()
         return result.content if isinstance(result, PreformattedToolResult) else result
+
+    def output_attachments(self) -> UserMessage | None:
+        """Expose the completed companion without requiring result introspection."""
+        result = self.output_result()
+        return (
+            result.attachments if isinstance(result, PreformattedToolResult) else None
+        )
 
     def output_content(self) -> str:
         """Render the current result or diagnostic without exposing its representation."""
@@ -320,6 +328,8 @@ class ToolExecutionManager:
                     execution["response_type"] = "partial"
             except Exception as error:
                 result = {**result, "partial_output_error": str(error)}
+        if stored is not None:
+            return replace(stored, result=result, execution=execution)
         return ToolCallRecord(
             name=snapshot.name,
             id=snapshot.output_id,
@@ -327,7 +337,6 @@ class ToolExecutionManager:
             result=result,
             skill_path=snapshot.skill_path,
             tool_call_id=snapshot.call_id,
-            thinking=stored.thinking if stored is not None else None,
             execution=execution,
         )
 

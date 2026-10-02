@@ -529,19 +529,20 @@ def test_tool_descriptions_reflect_hds_and_skill_availability(
         "orphan-tool": "",
         "exit_agent": "Exit agent Available in every skill.",
         "get_execution_history": (
-            "Return navigable XML history of capability calls. Omit "
+            "Return navigable XML history of capability calls and saved user steering. Omit "
             "start_position for a head-and-tail overview, or use a 1-based "
             "position and limit from 2 to 100 to read a page."
         ),
         "search_tool_outputs": (
             "Search this node's saved and runtime tool outputs, including "
-            "background work. Return paginated XML previews with status "
+            "background work and user steering saved inside skills. Return paginated XML previews with status "
             "and output IDs. All filters are optional."
         ),
         "read_tool_output": (
             "Read the current status and available output of a tool by output ID. "
             "Use an optional cursor to read only new output; omit it to read the "
-            "complete output. Includes the final result when available."
+            "complete output. Includes the final result when available. "
+            "Also reads saved user steering and restores its attachments."
         ),
         "control_tool_execution": (
             "Wait for a tool execution by its original tool_call_id, or request "

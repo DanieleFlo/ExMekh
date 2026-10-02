@@ -34,7 +34,10 @@ class ToolOutputReader:
 
         record = self._cache_provider().get(output_id)
         if record is not None:
-            return PreformattedToolResult(ToolOutputView(record).format_saved(cursor))
+            view = ToolOutputView(record)
+            return PreformattedToolResult(
+                view.format_saved(cursor), attachments=view.attachments()
+            )
         root = ET.Element("saved-tool-output")
         append_text_element(root, "id", output_id)
         append_text_element(root, "found", "false")
@@ -61,6 +64,9 @@ class ToolOutputReader:
         content = ToolOutputFormatter.format_execution_output(
             output_id, snapshot, partial, partial_error=partial_error
         )
+        result = PreformattedToolResult(
+            content, attachments=snapshot.output_attachments()
+        )
         if snapshot.is_finished:
             manager.mark_delivered(output_id)
-        return PreformattedToolResult(content)
+        return result
