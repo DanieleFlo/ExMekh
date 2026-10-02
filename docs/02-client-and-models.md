@@ -124,6 +124,36 @@ Document filename indices advance across the whole message, including separate
 `FilesUserMessage` containers. Empty containers contribute no content parts or
 extra blank lines to history dumps; explicit empty strings remain text parts.
 
+### Rejected inputs and history recovery
+
+DS4 accepts text and image content. Native `FilesUserMessage` attachments are
+rejected with HTTP 400 and an explicit message: only text and images are
+supported. Supply textual file contents through `TextsUserMessage`, or open
+images with PIL and use `ImagesUserMessage`. QS preserves native files for
+other endpoints that support them; it does not extract documents automatically.
+
+`LocalProvider` exposes HTTP 400 as
+`qs.interfaces.provider.ProviderRequestRejectedError`, a `RuntimeError` subclass
+that preserves the server's error message and chains the original API error.
+`Client.call`, `call_structured` and `continue_with_user_messages` remove only
+messages added by the rejected call. Previous context and completed tool results
+remain available, so the next request can proceed without manual history repair.
+Streaming and persistent DeepAgent runs use the same recovery behavior.
+Other provider errors retain unanswered input for retry as before. Existing
+history supplied to a tool continuation is preserved on rejection.
+
+```python
+from qs.interfaces.provider import ProviderRequestRejectedError
+
+try:
+    client.call(ClientRequest(UserMessage(FilesUserMessage([document]))))
+except ProviderRequestRejectedError as error:
+    print(str(error))
+
+# The rejected document is no longer in this client's history.
+response = client.call(ClientRequest(UserMessage("Continue with the previous context.")))
+```
+
 ### 2. Continuing After Tool Execution
 
 When tool calls are received in `response.get_tool_calls()`, tools are executed and results added as `ToolMessage` instances to client history. You can then invoke `continue_after_tools`:

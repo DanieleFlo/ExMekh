@@ -20,7 +20,7 @@ from qs.core.models.tool_message import ToolMessage
 from qs.core.models.tools import Tools
 from qs.core.models.user_message import UserMessage
 from qs.interfaces.event_handler import ProviderEventHandler
-from qs.interfaces.provider import Provider
+from qs.interfaces.provider import Provider, ProviderRequestRejectedError
 from qs.interfaces.tokenizer import Tokenizer
 
 if TYPE_CHECKING:
@@ -92,7 +92,12 @@ class Client:
         return self._history.record_tool_call(call, batch_call_id=batch_call_id)
 
     def call(self, request: ClientRequest) -> ProviderResponse:
-        return self._call_provider(self._prepare_request(request))
+        history_start = len(self._history.get_history())
+        try:
+            return self._call_provider(self._prepare_request(request))
+        except ProviderRequestRejectedError:
+            self._history.replace_from(history_start, [])
+            raise
 
     def _call_provider(self, request: ProviderRequest) -> ProviderResponse:
         logger.info(
@@ -160,9 +165,14 @@ class Client:
             stream=streaming,
             on_event=on_event,
         )
+        history_start = len(self._history.get_history())
         self._history.add(added_messages)
-        provider_request.notify_steering_added(messages)
-        return self._call_provider(provider_request)
+        try:
+            provider_request.notify_steering_added(messages)
+            return self._call_provider(provider_request)
+        except ProviderRequestRejectedError:
+            self._history.replace_from(history_start, [])
+            raise
 
     def complete_tool_transition(self, *, extra: Mapping[str, object]) -> None:
         """Complete a provider transition before executing an already queued batch.
@@ -181,12 +191,17 @@ class Client:
         *,
         strict: bool = True,
     ) -> StructuredProviderResponse[ResponseModel]:
-        provider_request = self._prepare_structured_request(
-            request,
-            response_model,
-            strict=strict,
-        )
-        return self._call_structured_provider(provider_request)
+        history_start = len(self._history.get_history())
+        try:
+            provider_request = self._prepare_structured_request(
+                request,
+                response_model,
+                strict=strict,
+            )
+            return self._call_structured_provider(provider_request)
+        except ProviderRequestRejectedError:
+            self._history.replace_from(history_start, [])
+            raise
 
     def continue_after_tools_structured[ResponseModel: BaseModel](
         self,

@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Event
+from unittest.mock import patch
 from xml.etree import ElementTree as ET
 
 import pytest
@@ -18,7 +19,13 @@ from qs.core.models.tool import (
     ToolExecutionOperation,
 )
 from qs.core.models.tool_message import ToolMessage
+from qs.core.models.user_message import (
+    DocumentUserMessage,
+    FilesUserMessage,
+    UserMessage,
+)
 from qs.core.tool_calls.execution_manager import ExecutionSnapshot
+from qs.interfaces.provider import ProviderRequestRejectedError
 from qs.interfaces.tool_hook import AfterTool, BeforeTool, ToolArguments, ToolContext
 from tests.core.agents.node.test_node import (
     SequenceProvider,
@@ -969,3 +976,45 @@ def test_result_owns_the_classification_of_managed_execution_errors(status) -> N
         ToolMessage("result", "origin", "work"), execution=snapshot
     )
     assert result.is_error is (status in ("failed", "cancelled"))
+
+
+def test_rejected_input_after_background_delivery_keeps_tool_output_and_next_run(
+    make_node,
+):
+    release = Event()
+    provider = SequenceProvider(
+        [
+            tool_message(
+                "mock-tool", {"text": "work", "execution_mode": "background"}, "origin"
+            ),
+            AssistantMessage("first"),
+            AssistantMessage("second"),
+        ]
+    )
+    node = make_node(
+        provider, Tool(lambda text: release.wait() and text, name="mock-tool")
+    )
+    try:
+        assert node.run("start").get_message() == "first"
+    finally:
+        release.set()
+    node.control_tool_execution("origin", wait_seconds=1)
+    with (
+        patch.object(
+            provider,
+            "call",
+            side_effect=ProviderRequestRejectedError("Unsupported attachment"),
+        ),
+        pytest.raises(ProviderRequestRejectedError, match="Unsupported attachment"),
+    ):
+        node.run(FilesUserMessage([DocumentUserMessage(b"data", "report", "pdf")]))
+    history = node._runtime._client.get_history()
+    assert len(read_calls(history)) == 1
+    assert not any(
+        isinstance(message, UserMessage)
+        and isinstance(message.get_message(), FilesUserMessage)
+        for message in history
+    )
+    assert "work" in node.read_tool_output("output-1").content
+    assert node.run("valid text").get_message() == "second"
+    assert len(read_calls(provider.requests[-1].get_messages())) == 1

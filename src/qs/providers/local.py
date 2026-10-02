@@ -17,7 +17,7 @@ from qs.core.models.structured_provider_response import StructuredProviderRespon
 from qs.core.models.tools import Tools
 from qs.core.providers.chat_completion_openai import ChatCompletionOpenAI
 from qs.core.providers.response_openai import ResponseOpenAI
-from qs.interfaces.provider import Provider
+from qs.interfaces.provider import Provider, ProviderRequestRejectedError
 from qs.interfaces.tokenizer import Tokenizer
 from qs.tokenizers.qwen import QwenTokenizer
 
@@ -146,8 +146,20 @@ class LocalProvider(Provider):
         try:
             api_adapter = self._create_api_adapter()
             return api_adapter.call(request)
+        except openai.BadRequestError as error:
+            raise ProviderRequestRejectedError(
+                self._rejection_message(error)
+            ) from error
         except openai.APIError as error:
             raise RuntimeError("Local provider request failed") from error
+
+    @staticmethod
+    def _rejection_message(error: openai.BadRequestError) -> str:
+        if isinstance(error.body, dict):
+            detail = error.body.get("error", error.body)
+            if isinstance(detail, dict) and isinstance(detail.get("message"), str):
+                return detail["message"]
+        return error.message
 
     def get_tools_text(self, tools: Tools | None) -> str:
         return self._create_api_adapter().get_tools_text(tools)
@@ -175,5 +187,9 @@ class LocalProvider(Provider):
         try:
             api_adapter = self._create_api_adapter()
             return api_adapter.call_structured(request)
+        except openai.BadRequestError as error:
+            raise ProviderRequestRejectedError(
+                self._rejection_message(error)
+            ) from error
         except openai.APIError as error:
             raise RuntimeError("Local provider request failed") from error

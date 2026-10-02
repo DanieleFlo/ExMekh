@@ -35,6 +35,7 @@ from qs.core.tool_calls.execution_manager import ToolExecutionManager
 from qs.core.tool_calls.harness_memory_tools import HarnessMemoryTools
 from qs.interfaces.event_handler import ProviderEventHandler
 from qs.interfaces.message import Message
+from qs.interfaces.provider import ProviderRequestRejectedError
 
 from .node_runtime_config import NodeRuntimeConfig
 from .thinking_annotation import ThinkingAnnotationResolver
@@ -202,9 +203,16 @@ class NodeRuntime(ProviderEventHandler):
             self._executor.skill_scope_ids
         )
         if pending_result is not None and self._has_read_tool():
+            user_index = len(self._client.get_history())
             self._client.add_user_message(UserMessage(content=user_message))
             self._deliver_completed_tool_outputs()
-            response = self._continue_after_tools()
+            try:
+                response = self._continue_after_tools()
+            except ProviderRequestRejectedError:
+                # Keep completed background output; remove only the rejected input.
+                following = self._client.get_history()[user_index + 1 :]
+                self._client.replace_history_from(user_index, following)
+                raise
         else:
             response = self._client.continue_with_user_messages(
                 self._turn_control.take_user_messages(),

@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from typing import Literal
 from unittest.mock import MagicMock, patch
 
+import httpx
 import openai
 import pytest
 from pydantic import BaseModel
@@ -19,6 +20,7 @@ from qs.core.models.structured_assistant_message import StructuredAssistantMessa
 from qs.core.models.structured_provider_request import StructuredProviderRequest
 from qs.core.models.structured_provider_response import StructuredProviderResponse
 from qs.core.providers.response_openai import ResponseOpenAI
+from qs.interfaces.provider import ProviderRequestRejectedError
 from qs.providers.local import LocalProvider
 
 
@@ -427,3 +429,58 @@ def test_call_structured_translates_openai_api_error_to_runtime_error() -> None:
         provider.call_structured(request)
 
     assert error.value.__cause__ is completion.call_structured.side_effect
+
+
+@pytest.mark.parametrize("api", ["chat_completions", "responses"])
+@pytest.mark.parametrize("structured", [False, True])
+def test_bad_request_preserves_server_message_and_marks_request_as_rejected(
+    api, structured
+):
+    provider = make_provider(api=api)
+    message = "Only text and images are supported. Convert documents before sending."
+    response = httpx.Response(400, request=httpx.Request("POST", "http://localhost/v1"))
+    failure = openai.BadRequestError(
+        message, response=response, body={"error": {"message": message}}
+    )
+    adapter = MagicMock()
+    method = adapter.call_structured if structured else adapter.call
+    method.side_effect = failure
+    name = "ChatCompletionOpenAI" if api == "chat_completions" else "ResponseOpenAI"
+    with (
+        patch(f"qs.providers.local.{name}", return_value=adapter),
+        pytest.raises(
+            ProviderRequestRejectedError, match="Only text and images"
+        ) as error,
+    ):
+        if structured:
+            provider.call_structured(MagicMock(spec=StructuredProviderRequest))
+        else:
+            provider.call(MagicMock(spec=ProviderRequest))
+    assert str(error.value) == message
+    assert error.value.__cause__ is failure
+
+
+@pytest.mark.parametrize(
+    "body,expected",
+    [
+        ({"message": "Use text or images"}, "Use text or images"),
+        ({"error": {"message": "Use text or images"}}, "Use text or images"),
+        ({"message": 123}, "SDK fallback"),
+        ({"error": "unsupported"}, "SDK fallback"),
+        ("invalid response body", "SDK fallback"),
+        (None, "SDK fallback"),
+    ],
+)
+def test_rejected_request_uses_readable_server_message_or_sdk_fallback(body, expected):
+    provider = make_provider()
+    response = httpx.Response(400, request=httpx.Request("POST", "http://localhost/v1"))
+    failure = openai.BadRequestError("SDK fallback", response=response, body=body)
+    adapter = MagicMock()
+    adapter.call.side_effect = failure
+    with (
+        patch("qs.providers.local.ChatCompletionOpenAI", return_value=adapter),
+        pytest.raises(ProviderRequestRejectedError) as error,
+    ):
+        provider.call(MagicMock(spec=ProviderRequest))
+    assert str(error.value) == expected
+    assert error.value.__cause__ is failure

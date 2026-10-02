@@ -20,8 +20,13 @@ from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool import Tool
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.tools import Tools
-from qs.core.models.user_message import TextsUserMessage, UserMessage
-from qs.interfaces.provider import Provider
+from qs.core.models.user_message import (
+    DocumentUserMessage,
+    FilesUserMessage,
+    TextsUserMessage,
+    UserMessage,
+)
+from qs.interfaces.provider import Provider, ProviderRequestRejectedError
 from tests.event_handler import as_provider_handler
 
 
@@ -694,3 +699,89 @@ def test_client_delegates_tokenizer_and_id_generation_to_provider() -> None:
 
     assert client.get_session() is mock_session
     provider.get_session.assert_called_once_with()
+
+
+@pytest.mark.parametrize("structured", [False, True])
+@pytest.mark.parametrize("streaming", [False, True])
+def test_rejected_attachment_restores_history_and_allows_next_turn(
+    structured, streaming
+):
+    provider = MagicMock(spec=Provider)
+    accepted = ProviderResponse(AssistantMessage("Remembered"))
+    provider.call.return_value = accepted
+    client = Client(provider, SystemMessage("Keep previous context"))
+    client.call(ClientRequest(UserMessage("Remember ORBIT-731")))
+    before = client.get_history()
+    attachment = UserMessage(
+        [
+            "Read this",
+            FilesUserMessage([DocumentUserMessage(b"binary", "report", "pdf")]),
+        ]
+    )
+    error = ProviderRequestRejectedError("Only text and images are supported")
+
+    def reject(request):
+        assert request.get_messages() == [*before, attachment]
+        assert client.get_history() == [*before, attachment]
+        raise error
+
+    if structured:
+        provider.call_structured.side_effect = reject
+    else:
+        provider.call.side_effect = reject
+    with pytest.raises(
+        ProviderRequestRejectedError, match="Only text and images"
+    ) as raised:
+        request = ClientRequest(attachment, streaming=streaming)
+        if structured:
+            client.call_structured(request, StructuredAnswer)
+        else:
+            client.call(request)
+    assert raised.value is error
+    assert client.get_history() == before
+
+    provider.call.side_effect = None
+    following = UserMessage("What did I ask you to remember?")
+    client.call(ClientRequest(following))
+    assert provider.call.call_args.args[0].get_messages() == [*before, following]
+    assert client.get_history() == [*before, following, accepted]
+
+
+@pytest.mark.parametrize("with_initial", [False, True])
+def test_rejected_user_continuation_restores_the_whole_added_batch(with_initial):
+    provider = MagicMock(spec=Provider)
+    client = Client(provider, SystemMessage("rules"))
+    before = client.get_history()
+    initial = UserMessage("initial") if with_initial else None
+    messages = [
+        UserMessage("steering"),
+        UserMessage(FilesUserMessage([DocumentUserMessage(b"data", "report", "pdf")])),
+    ]
+    provider.call.side_effect = ProviderRequestRejectedError("Unsupported attachment")
+    with pytest.raises(ProviderRequestRejectedError, match="Unsupported attachment"):
+        client.continue_with_user_messages(messages, initial_message=initial)
+    assert client.get_history() == before
+    provider.call.side_effect = None
+    provider.call.return_value = ProviderResponse(AssistantMessage("OK"))
+    client.continue_with_user_messages([UserMessage("valid text")])
+    assert len(client.get_history()) == 3
+
+
+@pytest.mark.parametrize("structured", [False, True])
+def test_rejected_tool_continuation_preserves_existing_tool_batch(structured):
+    provider = MagicMock(spec=Provider)
+    client = Client(provider, SystemMessage("rules"))
+    client.add_user_message(UserMessage("start"))
+    client.add_tool_calls([ToolCall("call-1", FunctionCall("read", {}))])
+    client.add_tool_response(ToolMessage("result", "call-1", "read"))
+    before = client.get_history()
+    provider.call.side_effect = ProviderRequestRejectedError("Rejected request")
+    provider.call_structured.side_effect = ProviderRequestRejectedError(
+        "Rejected request"
+    )
+    with pytest.raises(ProviderRequestRejectedError):
+        if structured:
+            client.continue_after_tools_structured(StructuredAnswer)
+        else:
+            client.continue_after_tools()
+    assert client.get_history() == before

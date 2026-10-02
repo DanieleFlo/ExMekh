@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from PIL import Image
 
@@ -9,6 +11,7 @@ from qs.core.models.user_message import (
     TextsUserMessage,
     UserMessage,
 )
+from qs.interfaces.provider import ProviderRequestRejectedError
 from tests.core.agents.node.steering_support import call, tool_reply, user_contents
 from tests.core.agents.node.test_node import SequenceProvider
 from tests.event_handler import as_agent_handler
@@ -102,3 +105,32 @@ def test_steered_mixed_content_is_copied_and_archived_after_nested_compaction(
     assert archived[0][2].texts == ["Additional guidance"]
     assert archived[0][3].documents[0].file == b"file nonce"
     assert UserMessage(archived[0]).message_dump() not in response.history
+
+
+@pytest.mark.parametrize("persistent", [True, False])
+def test_rejected_file_does_not_poison_the_next_agent_run(make_agent, persistent):
+    provider = SequenceProvider(
+        [AssistantMessage("remembered"), AssistantMessage("done")]
+    )
+    agent = make_agent(provider, persistent=persistent)
+    first = [
+        "Remember this image",
+        ImagesUserMessage([Image.new("RGB", (2, 3), "red")]),
+    ]
+    agent.run(first)
+    attachment = FilesUserMessage([DocumentUserMessage(b"data", "report", "pdf")])
+    with (
+        patch.object(
+            provider,
+            "call",
+            side_effect=ProviderRequestRejectedError("Unsupported attachment"),
+        ),
+        pytest.raises(ProviderRequestRejectedError, match="Unsupported attachment"),
+    ):
+        agent.run(attachment)
+    response = agent.run("valid text")
+    assert response.get_message() == "done"
+    assert user_contents(provider.requests[-1]) == (
+        [first, "valid text"] if persistent else ["valid text"]
+    )
+    assert not any("Document:" in entry["content"] for entry in response.history)

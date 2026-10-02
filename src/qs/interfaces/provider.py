@@ -16,6 +16,10 @@ if TYPE_CHECKING:
     from qs.core.cache.session_cache import SessionCache
 
 
+class ProviderRequestRejectedError(RuntimeError):
+    """The provider rejected the input before producing a response."""
+
+
 class Provider(ABC):
     def __init__(self, tokenizer: Tokenizer) -> None:
         if not isinstance(tokenizer, Tokenizer):
