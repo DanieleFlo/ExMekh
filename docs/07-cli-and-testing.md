@@ -219,3 +219,47 @@ Public search discovery and reading share one live check: results must be
 bounded, unique public URLs, and at least one discovered source must be readable.
 The check does not require a particular domain to appear among the first five
 results of a changing search index. Exhausted provider failures remain failures.
+
+### Mixed user-content live checks
+
+```shell
+BASE_URL=http://127.0.0.1:8081/v1 \
+QS_LIVE_IMAGE_PATH=/path/to/earth.jpg \
+uv run pytest -n 0 --run-live tests/live/test_mixed_user_inputs_live.py -q
+```
+
+Use an image-capable server with its matching encoder. The tests send ordered
+text/image lists through both APIs, check retained colors and a text reference
+across turns, and inspect a real Earth photo. Reasoning is disabled to keep the
+output budget focused on the asserted reply. The photo case needs the provided
+fixture path.
+
+Native file tests compare the original single-file input with file/text and
+text/image/file/text lists. They require reading a reference present only in the
+attachment bytes; accepting a request while ignoring the attachment fails the
+test. These opt-in checks expose endpoint limitations without changing QS's
+native file transport.
+
+Local verification on 2026-10-02 used Qwen3.8-27B-UD-Q4_K_S with its matching
+F16 vision encoder, an 8192-token context, and reasoning disabled. All eight
+text/image and real-photo cases passed across Chat Completions and Responses.
+All six native TXT-file cases failed, including the unchanged single-file
+input: Chat Completions returned `UNREADABLE`, and Responses rejected
+`input_file` with HTTP 400 (`invalid JSON request`). The DS4 content parsers
+accept text and images but do not ingest native file attachments. This is an
+endpoint limitation already present with the original file message, rather
+than a regression caused by mixed content. The native-file checks remain
+strict and opt-in, so the complete live command currently reports these six
+failures on this engine.
+
+The local JUnit report is `.qs/mixed-input-live-20261002/nonthinking-results.xml`;
+the accompanying `server.log` retains the inference log. These generated
+artifacts are ignored by Git. The dedicated test server was stopped after
+verification.
+
+The subsequent refactoring passed the full offline suite, 100% coverage,
+Ruff and Pyright. SDK payload tests verify the final ordered content and file
+indices. Live checks could not be repeated at final review: DS4 was already
+running on port 8080 without a vision encoder, and rejected a second server.
+That existing process was left running; the live results above describe the
+earlier verification.

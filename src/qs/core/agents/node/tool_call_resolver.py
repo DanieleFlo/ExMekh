@@ -26,18 +26,18 @@ class ToolCallResolver:
     def resolve(self, tool_call: ToolCall) -> ResolvedToolCall:
         tool_name = tool_call.get_name()
         for tool in (*self._capabilities.get_all_tools(), *self._runtime_tools):
-            if tool.name != tool_name:
+            if not isinstance(tool, Tool):
+                raise TypeError(
+                    f"Tool '{tool_name}' is not a valid deep skill, "
+                    "exit tool, or tool instance"
+                )
+            if tool.get_name() != tool_name:
                 continue
             if isinstance(tool, DeepSkill):
                 return CalledDeepSkill(deep_skill=tool, tool_call=tool_call)
             if isinstance(tool, ExitTool):
                 return CalledExitTool(exit_tool=tool, tool_call=tool_call)
-            if isinstance(tool, Tool):
-                return CalledTool(tool=tool, tool_call=tool_call)
-            raise TypeError(
-                f"Tool '{tool_name}' is not a valid deep skill, "
-                "exit tool, or tool instance"
-            )
+            return CalledTool(tool=tool, tool_call=tool_call)
         raise ValueError(
             f"Tool '{tool_name}' is not a valid deep skill, exit tool, or tool"
         )

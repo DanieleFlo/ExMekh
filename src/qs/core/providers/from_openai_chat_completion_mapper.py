@@ -133,7 +133,7 @@ class FromOpenAIChatCompletionMapper:
         return ToolCall(
             id=tool_call.id,
             function=FunctionCall(
-                name=tool.name,
+                name=tool.get_name(),
                 arguments=arguments,
             ),
         )

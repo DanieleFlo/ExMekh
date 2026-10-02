@@ -81,7 +81,7 @@ class AgenticScope:
         allowed = set(allowed_tools) | set(allowed_skills)
         for call in calls:
             if call.get_name() not in allowed:
-                skill_path = "/" + "/".join(skill.name for skill in active_skills)
+                skill_path = "/" + "/".join(skill.get_name() for skill in active_skills)
                 raise ValueError(
                     f"Capability '{call.get_name()}' is not allowed at {skill_path}; "
                     f"allowed_tools={allowed_tools}, allowed_skills={allowed_skills}"

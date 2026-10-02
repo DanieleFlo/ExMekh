@@ -48,7 +48,7 @@ class _NamedOverrideResolver:
     def _find_source[Resource: Tool](
         resources: Sequence[Resource], name: str, label: str
     ) -> Resource:
-        matches = [resource for resource in resources if resource.name == name]
+        matches = [resource for resource in resources if resource.get_name() == name]
         if not matches:
             raise ValueError(
                 f"Override {label} not found in capabilities_paths: {name}"

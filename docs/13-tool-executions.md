@@ -223,6 +223,12 @@ lettura senza cursore restituisce il risultato completo. Un tool senza callback
 incrementale segnala che il cursore non è supportato. Per record soltanto
 salvati il cursore è un offset di caratteri nel contenuto renderizzato.
 
+Se il canale dei progressi fallisce, `read_tool_output` riporta la diagnostica
+in `partial-output-error` nell'header XML e restituisce lo stato disponibile.
+Il guasto non cambia lo stato del lavoro e non nasconde un risultato finale o
+l'errore dell'esecuzione. Non viene avanzato un cursore senza dati validi.
+Un tool che non supporta i cursori continua a rifiutare le letture con cursore.
+
 ## Hook e tool specializzati
 
 `BeforeTool` vede gli argomenti applicativi, la workroot e una copia della
@@ -354,7 +360,7 @@ La consegna automatica produce gli eventi della nuova lettura nel loop.
 | `Tool` | Argomenti di esecuzione, firma pubblica, hook e creazione dell'operazione. |
 | `DeepTool` | Collegamento dell'entrypoint decorato al workroot e alle dipendenze runtime, conservando metadati e hook. |
 | `ToolCallExecutor` | Esecuzione delle capability e transizioni delle skill. |
-| `MessageHistory` | Modifica dei messaggi e dei batch, conservando risposte, metadati e input esterni da riproporre dopo la compattazione. |
+| `MessageHistory` | Modifica dei messaggi e dei batch, conservando risposte e metadati nelle sostituzioni. |
 | `ToolExecutionManager` | Worker, attese, accesso concorrente e registro degli stati. |
 | `ExecutionSnapshot` | Vista dello stato e metodi pubblici per ottenere contenuto e risultato salvabile. |
 | `ExecutionControlTool` | Contratto del tool globale di attesa e annullamento. |
@@ -363,8 +369,8 @@ La consegna automatica produce gli eventi della nuova lettura nel loop.
 | `ToolCallSearch` | Ricerca filtrata e paginata degli output salvati e del runtime, senza confermare la consegna. |
 
 Il runtime usa operazioni pubbliche della history per inserire chiamate automatiche;
-la history identifica anche gli input esterni rimossi dalla compattazione. Il runtime
-non ricostruisce i messaggi né interpreta la struttura interna dei batch. `TurnControl`
+la history identifica il batch corrente e conserva le risposte già presenti.
+Il runtime non ricostruisce i messaggi né interpreta la struttura interna dei batch. `TurnControl`
 gestisce la sincronizzazione tramite i metodi pubblici del manager; un'attesa già
 rilasciata resta tale anche se il loop riattiva subito le attese successive. Gli adapter
 dei provider chiedono a `Tool` quali argomenti appartengono all'esecuzione e come

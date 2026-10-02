@@ -31,3 +31,18 @@ def test_tools_rejects_duplicate_names() -> None:
 def test_tools_rejects_invalid_collection() -> None:
     with pytest.raises(TypeError, match="list of Tool"):
         Tools([object()])
+
+
+def test_tool_registry_uses_the_public_tool_name():
+    class NamedTool(Tool):
+        def get_name(self):
+            return "public-name"
+
+    tool = NamedTool(first_tool)
+    tools = Tools([tool])
+
+    assert tools.list_tools() == ["public-name"]
+    assert tools.get_tool("public-name") is tool
+    assert tools.get_tool("first_tool") is None
+    with pytest.raises(ValueError, match="unique"):
+        Tools([tool, NamedTool(second_tool)])

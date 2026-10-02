@@ -14,6 +14,7 @@ from openai.types.chat.chat_completion_message_function_tool_call import (
 from openai.types.chat.chat_completion_message_function_tool_call import (
     Function as OpenAIFunction,
 )
+from PIL import Image
 from pydantic import BaseModel
 
 from qs.core.models.assistant_message import (
@@ -349,111 +350,66 @@ def test_map_function_message_rejects_unsupported_role() -> None:
         ToOpenAIChatCompletionMapper.map_function_message(message)
 
 
-def test_map_user_content_returns_string_unchanged() -> None:
-    assert ToOpenAIChatCompletionMapper._map_user_content("question") == "question"
+def test_map_user_message_rejects_unsupported_content_parts() -> None:
+    class InvalidMessage(UserMessage):
+        def iter_content_parts(self):
+            yield 42
 
-
-@pytest.mark.parametrize(
-    ("content", "method_name"),
-    [
-        (TextsUserMessage(), "_map_text_parts"),
-        (ImagesUserMessage(), "_map_image_parts"),
-        (FilesUserMessage(), "_map_file_parts"),
-    ],
-)
-def test_map_user_content_dispatches_structured_content(content, method_name) -> None:
-    expected = [{"mapped": True}]
-
-    with patch.object(
-        ToOpenAIChatCompletionMapper, method_name, return_value=expected
-    ) as mapper:
-        result = ToOpenAIChatCompletionMapper._map_user_content(content)
-
-    assert result is expected
-    mapper.assert_called_once_with(content)
-
-
-def test_map_user_content_rejects_unsupported_content() -> None:
     with pytest.raises(TypeError, match="Unsupported user content type: int"):
-        ToOpenAIChatCompletionMapper._map_user_content(42)
+        ToOpenAIChatCompletionMapper.map_user_message(InvalidMessage([]))
 
 
-def test_map_text_parts_maps_each_text_in_order() -> None:
-    content = TextsUserMessage()
-    content.texts = ["first", "second"]
+def test_map_user_message_maps_each_text_in_order() -> None:
+    message = UserMessage(TextsUserMessage(["first", "second"]))
 
-    assert ToOpenAIChatCompletionMapper._map_text_parts(content) == [
+    assert ToOpenAIChatCompletionMapper.map_user_message(message)["content"] == [
         {"text": "first", "type": "text"},
         {"text": "second", "type": "text"},
     ]
 
 
-def test_map_image_parts_maps_each_image_to_data_url() -> None:
-    first_image = object()
-    second_image = object()
-    content = ImagesUserMessage()
-    content.images = [first_image, second_image]
+def test_map_user_message_maps_each_image_to_data_url() -> None:
+    images = [Image.new("RGB", (1, 1), color) for color in ("red", "blue")]
+    message = UserMessage(ImagesUserMessage(images))
 
     with patch(
         "qs.core.providers.to_openai_chat_completion_mapper.pil_image_to_data_url",
         side_effect=["data:image/png;base64,first", "data:image/png;base64,second"],
-    ) as convert:
-        result = ToOpenAIChatCompletionMapper._map_image_parts(content)
+    ):
+        result = ToOpenAIChatCompletionMapper.map_user_message(message)["content"]
 
     assert result == [
-        {
-            "image_url": {"url": "data:image/png;base64,first"},
-            "type": "image_url",
-        },
-        {
-            "image_url": {"url": "data:image/png;base64,second"},
-            "type": "image_url",
-        },
-    ]
-    assert [call.args[0] for call in convert.call_args_list] == [
-        first_image,
-        second_image,
+        {"image_url": {"url": "data:image/png;base64,first"}, "type": "image_url"},
+        {"image_url": {"url": "data:image/png;base64,second"}, "type": "image_url"},
     ]
 
 
-def test_map_file_parts_maps_each_document_with_its_index() -> None:
-    first = DocumentUserMessage(b"first", "report", "pdf")
-    second = DocumentUserMessage(b"second", "data", "csv")
-    content = FilesUserMessage()
-    content.documents = [first, second]
-    mapped = [{"file": "first"}, {"file": "second"}]
-
-    with patch.object(
-        ToOpenAIChatCompletionMapper,
-        "_map_file_document",
-        side_effect=mapped,
-    ) as map_document:
-        result = ToOpenAIChatCompletionMapper._map_file_parts(content)
-
-    assert result == mapped
-    assert map_document.call_args_list[0].args == (first, 0)
-    assert map_document.call_args_list[1].args == (second, 1)
-
-
-def test_map_file_document_builds_indexed_data_url() -> None:
-    document = DocumentUserMessage(
-        b"name,value", "records", "csv", mime_type="text/csv"
+def test_map_user_message_maps_each_document_with_its_index() -> None:
+    message = UserMessage(
+        FilesUserMessage(
+            [
+                DocumentUserMessage(b"first", "report", "pdf"),
+                DocumentUserMessage(b"name,value", "records", "csv", "text/csv"),
+            ]
+        )
     )
 
-    with patch(
-        "qs.core.providers.to_openai_chat_completion_mapper.convert_bytes_to_base64",
-        return_value="bmFtZSx2YWx1ZQ==",
-    ) as convert:
-        mapped = ToOpenAIChatCompletionMapper._map_file_document(document, 3)
-
-    assert mapped == {
-        "type": "file",
-        "file": {
-            "filename": "records_3.csv",
-            "file_data": "data:text/csv;base64,bmFtZSx2YWx1ZQ==",
+    assert ToOpenAIChatCompletionMapper.map_user_message(message)["content"] == [
+        {
+            "type": "file",
+            "file": {
+                "filename": "report_0.pdf",
+                "file_data": "data:application/pdf;base64,Zmlyc3Q=",
+            },
         },
-    }
-    convert.assert_called_once_with(b"name,value")
+        {
+            "type": "file",
+            "file": {
+                "filename": "records_1.csv",
+                "file_data": "data:text/csv;base64,bmFtZSx2YWx1ZQ==",
+            },
+        },
+    ]
 
 
 @pytest.mark.parametrize(
@@ -472,3 +428,32 @@ def test_thinking_from_uses_supported_fields_in_precedence_order(
     message = SimpleNamespace(**attributes)
 
     assert FromOpenAIChatCompletionMapper._thinking_from(message) == expected
+
+
+def test_assistant_mapping_uses_the_public_tool_call_interface():
+    class PublicCall(ToolCall):
+        def get_id(self):
+            return "public-call"
+
+        def get_name(self):
+            return "public-tool"
+
+        def get_arguments(self):
+            return {"text": "public-argument"}
+
+    message = AssistantMessage(
+        None, tool_calls=[PublicCall("internal", FunctionCall("internal", {}))]
+    )
+
+    assert ToOpenAIChatCompletionMapper.map_assistant_message(message)[
+        "tool_calls"
+    ] == [
+        {
+            "id": "public-call",
+            "type": "function",
+            "function": {
+                "name": "public-tool",
+                "arguments": '{"text":"public-argument"}',
+            },
+        },
+    ]

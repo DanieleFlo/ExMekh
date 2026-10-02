@@ -71,9 +71,13 @@ class ToolOutputFormatter:
         output_id: str,
         execution: ExecutionSnapshot,
         partial: tuple[str, int] | None,
+        *,
+        partial_error: str | None = None,
     ) -> str:
         """Render a read with the same execution metadata as its immediate reply."""
         header = cls._execution_header(output_id, execution)
+        if partial_error is not None:
+            header.add_field("partial-output-error", partial_error)
         if partial is None:
             content = execution.output_content()
             response_type = execution.response_type

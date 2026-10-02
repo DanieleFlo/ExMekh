@@ -46,8 +46,8 @@ class _DefaultCapabilitiesComposer:
         )
 
     def _validate_override_targets(self, loaded: CapabilitiesData) -> None:
-        tool_names = {tool.name for tool in loaded.tools}
-        skill_names = {skill.name for skill in loaded.deep_skills}
+        tool_names = {tool.get_name() for tool in loaded.tools}
+        skill_names = {skill.get_name() for skill in loaded.deep_skills}
         missing_tools = {
             name
             for name, replacement in self._defaults.overrides.items()
@@ -76,22 +76,24 @@ class _DefaultCapabilitiesComposer:
             deep_skills=tuple(
                 skill
                 for skill in loaded.deep_skills
-                if self._should_keep_loaded_resource(skill.name, skill.markdown_path)
+                if self._should_keep_loaded_resource(
+                    skill.get_name(), skill.markdown_path
+                )
             ),
             tools=tuple(
                 tool
                 for path, tool in zip(self._tool_paths, loaded.tools, strict=True)
-                if self._should_keep_loaded_resource(tool.name, path)
+                if self._should_keep_loaded_resource(tool.get_name(), path)
             ),
             hds=tuple(
                 hds
                 for hds in loaded.hds
-                if self._should_keep_loaded_resource(hds.name, hds.markdown_path)
+                if self._should_keep_loaded_resource(hds.get_name(), hds.markdown_path)
             ),
             exit_tools=tuple(
                 tool
                 for tool in loaded.exit_tools
-                if self._should_keep_loaded_resource(tool.name, tool.folder_path)
+                if self._should_keep_loaded_resource(tool.get_name(), tool.folder_path)
             ),
         )
 
@@ -131,7 +133,7 @@ class _DefaultCapabilitiesComposer:
     def _validate_selected_names(self, data: CapabilitiesData) -> None:
         required_names = self._defaults.selected_names - RUNTIME_NAMES
         loaded_names = {
-            resource.name
+            resource.get_name()
             for resource in (
                 *data.deep_skills,
                 *data.tools,

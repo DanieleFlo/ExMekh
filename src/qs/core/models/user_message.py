@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -8,13 +9,14 @@ from PIL import Image
 
 from qs.interfaces.message import Message
 
+type UserMessagePart = str | TextsUserMessage | ImagesUserMessage | FilesUserMessage
+type UserMessageContent = UserMessagePart | list[UserMessagePart]
 
-class UserMessage(
-    Message["str | TextsUserMessage | ImagesUserMessage | FilesUserMessage"]
-):
+
+class UserMessage(Message["UserMessageContent"]):
     def __init__(
         self,
-        content: str | TextsUserMessage | ImagesUserMessage | FilesUserMessage,
+        content: UserMessageContent,
         name: str = "",
     ) -> None:
         self._content = content
@@ -22,21 +24,22 @@ class UserMessage(
         self._name = name
         self._check_inputs()
 
-    def _check_inputs(self):
+    def _check_inputs(self) -> None:
         if not isinstance(self._name, str):
             raise TypeError("User name must be a string")
-        if not isinstance(
-            self._content,
-            (str, TextsUserMessage, ImagesUserMessage, FilesUserMessage),
+        parts = self._content if isinstance(self._content, list) else [self._content]
+        if not all(
+            isinstance(
+                part, (str, TextsUserMessage, ImagesUserMessage, FilesUserMessage)
+            )
+            for part in parts
         ):
             raise TypeError(
                 "User content must be a string or an instance of TextsUserMessage, "
-                "ImagesUserMessage, or FilesUserMessage"
+                "ImagesUserMessage, or FilesUserMessage, or a list of these types"
             )
 
-    def get_message(
-        self,
-    ) -> str | TextsUserMessage | ImagesUserMessage | FilesUserMessage:
+    def get_message(self) -> UserMessageContent:
         return self._content
 
     def get_role_name(self) -> str:
@@ -45,26 +48,37 @@ class UserMessage(
     def get_name(self) -> str:
         return self._name
 
+    def iter_content_parts(self) -> Iterator[str | Image.Image | DocumentUserMessage]:
+        """Yield text, images and documents in order, expanding their containers."""
+        parts = self._content if isinstance(self._content, list) else [self._content]
+        for part in parts:
+            if isinstance(part, str):
+                yield part
+            elif isinstance(part, TextsUserMessage):
+                yield from part.texts
+            elif isinstance(part, ImagesUserMessage):
+                yield from part.images
+            elif isinstance(part, FilesUserMessage):
+                yield from part.documents
+            else:
+                raise TypeError(f"Unsupported user content type: {type(part).__name__}")
+
     def message_dump(self) -> dict[str, str]:
-        content = self._content
-        if content is None:
-            content = ""
-        if isinstance(content, TextsUserMessage):
-            content = "\n".join(content.texts)
-        if isinstance(content, ImagesUserMessage):
-            content = "\n".join(
-                [f"Image hash: {self._get_hash(image)}" for image in content.images]
+        parts = self.iter_content_parts() if self._content is not None else ()
+        return {
+            "role": self._role,
+            "content": "\n".join(self._dump_part(part) for part in parts),
+        }
+
+    def _dump_part(self, part: str | Image.Image | DocumentUserMessage) -> str:
+        if isinstance(part, Image.Image):
+            return f"Image hash: {self._get_hash(part)}"
+        if isinstance(part, DocumentUserMessage):
+            return (
+                f"Document: {part.name}, extension: {part.extension}, "
+                f"mime_type: {part.mime_type}, Hash: {self._get_hash(part.file)}"
             )
-        if isinstance(content, FilesUserMessage):
-            content = "\n".join(
-                [
-                    f"Document: {document.name}, extension: {document.extension}, "
-                    f"mime_type: {document.mime_type}, "
-                    f"Hash: {self._get_hash(document.file)}"
-                    for document in content.documents
-                ]
-            )
-        return {"role": self._role, "content": content}
+        return part
 
     def _get_hash(self, data: bytes | Image.Image) -> str:
         raw_data = data if isinstance(data, bytes) else data.tobytes()

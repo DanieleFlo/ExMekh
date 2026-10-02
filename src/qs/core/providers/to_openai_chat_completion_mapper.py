@@ -22,6 +22,7 @@ from openai.types.chat.chat_completion_message_function_tool_call_param import (
 from openai.types.chat.chat_completion_message_tool_call_union_param import (
     ChatCompletionMessageToolCallUnionParam,
 )
+from PIL import Image
 from pydantic import BaseModel
 from pydantic_core import to_json
 
@@ -35,9 +36,6 @@ from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.user_message import (
     DocumentUserMessage,
-    FilesUserMessage,
-    ImagesUserMessage,
-    TextsUserMessage,
     UserMessage,
 )
 from qs.utils.file import convert_bytes_to_base64
@@ -71,13 +69,12 @@ class ToOpenAIChatCompletionMapper:
         user_message: UserMessage,
     ) -> ChatCompletionUserMessageParam:
         role = user_message.get_role_name()
-        content = user_message.get_message()
 
         if role != "user":
             raise ValueError(f"Expected role 'user', got '{role}'")
 
         return ChatCompletionUserMessageParam(
-            content=cls._map_user_content(content),
+            content=cls._map_user_content(user_message),
             role=role,
             name=user_message.get_name(),
         )
@@ -85,56 +82,29 @@ class ToOpenAIChatCompletionMapper:
     @classmethod
     def _map_user_content(
         cls,
-        content: str | TextsUserMessage | ImagesUserMessage | FilesUserMessage,
+        message: UserMessage,
     ) -> str | list[ChatCompletionContentPartParam]:
-
+        content = message.get_message()
         if isinstance(content, str):
             return content
-
-        if isinstance(content, TextsUserMessage):
-            return cls._map_text_parts(content)
-
-        if isinstance(content, ImagesUserMessage):
-            return cls._map_image_parts(content)
-
-        if isinstance(content, FilesUserMessage):
-            return cls._map_file_parts(content)
-
-        raise TypeError(f"Unsupported user content type: {type(content).__name__}")
-
-    @staticmethod
-    def _map_text_parts(
-        content: TextsUserMessage,
-    ) -> list[ChatCompletionContentPartParam]:
-        return [
-            ChatCompletionContentPartTextParam(
-                text=text,
-                type="text",
-            )
-            for text in content.texts
-        ]
-
-    @staticmethod
-    def _map_image_parts(
-        content: ImagesUserMessage,
-    ) -> list[ChatCompletionContentPartParam]:
-        return [
-            ChatCompletionContentPartImageParam(
-                image_url={"url": pil_image_to_data_url(image)},
-                type="image_url",
-            )
-            for image in content.images
-        ]
-
-    @classmethod
-    def _map_file_parts(
-        cls,
-        content: FilesUserMessage,
-    ) -> list[ChatCompletionContentPartParam]:
-        return [
-            cls._map_file_document(document, document_index)
-            for document_index, document in enumerate(content.documents)
-        ]
+        parts: list[ChatCompletionContentPartParam] = []
+        document_index = 0
+        for part in message.iter_content_parts():
+            if isinstance(part, str):
+                parts.append(ChatCompletionContentPartTextParam(type="text", text=part))
+            elif isinstance(part, Image.Image):
+                parts.append(
+                    ChatCompletionContentPartImageParam(
+                        type="image_url",
+                        image_url={"url": pil_image_to_data_url(part)},
+                    )
+                )
+            elif isinstance(part, DocumentUserMessage):
+                parts.append(cls._map_file_document(part, document_index))
+                document_index += 1
+            else:
+                raise TypeError(f"Unsupported user content type: {type(part).__name__}")
+        return parts
 
     @staticmethod
     def _map_file_document(
@@ -228,13 +198,12 @@ class ToOpenAIChatCompletionMapper:
     def _map_function_tool_call(
         tool_call: ToolCall,
     ) -> ChatCompletionMessageFunctionToolCallParam:
-        function = tool_call.function
-        arguments = to_json(function.arguments).decode()
+        arguments = to_json(tool_call.get_arguments()).decode()
 
         return ChatCompletionMessageFunctionToolCallParam(
-            id=tool_call.id,
+            id=tool_call.get_id(),
             function=OpenAIFunction(
-                name=function.name,
+                name=tool_call.get_name(),
                 arguments=arguments,
             ),
             type="function",

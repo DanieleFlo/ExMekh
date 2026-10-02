@@ -4,14 +4,14 @@ from qs.core.models.tool import Tool
 class Tools:
     def __init__(self, tools: list[Tool]):
         self._check_inputs(tools)
-        self._tools = {tool.name: tool for tool in tools}
+        self._tools = {tool.get_name(): tool for tool in tools}
 
     def _check_inputs(self, tools: list[Tool]):
         if not isinstance(tools, list) or not all(
             isinstance(tool, Tool) for tool in tools
         ):
             raise TypeError("Tools must be a list of Tool instances")
-        names = [tool.name for tool in tools]
+        names = [tool.get_name() for tool in tools]
         if len(names) != len(set(names)):
             raise ValueError("Tool names must be unique")
 

@@ -36,7 +36,7 @@ class SkillCatalogAttacher:
         return tuple(
             SkillCatalogEntry(
                 name=name,
-                description=resources[name].description,
+                description=resources[name].get_description(),
             )
             for name in names
         )

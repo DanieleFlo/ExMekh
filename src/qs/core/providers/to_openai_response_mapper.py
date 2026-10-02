@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from PIL import Image
 from pydantic import BaseModel
 from pydantic_core import to_json
 
@@ -12,9 +13,6 @@ from qs.core.models.system_message import SystemMessage
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.user_message import (
     DocumentUserMessage,
-    FilesUserMessage,
-    ImagesUserMessage,
-    TextsUserMessage,
     UserMessage,
 )
 from qs.interfaces.message import Message
@@ -37,7 +35,7 @@ class ToOpenAIResponseMapper:
         return [
             {
                 "role": "user",
-                "content": cls._map_user_content(message.get_message()),
+                "content": cls._map_user_content(message),
             }
         ]
 
@@ -117,26 +115,29 @@ class ToOpenAIResponseMapper:
         }
 
     @classmethod
-    def _map_user_content(cls, content: object) -> str | list[dict[str, Any]]:
+    def _map_user_content(cls, message: UserMessage) -> str | list[dict[str, Any]]:
+        content = message.get_message()
         if isinstance(content, str):
             return content
-        if isinstance(content, TextsUserMessage):
-            return [{"type": "input_text", "text": text} for text in content.texts]
-        if isinstance(content, ImagesUserMessage):
-            return [
-                {
-                    "type": "input_image",
-                    "detail": "auto",
-                    "image_url": pil_image_to_data_url(image),
-                }
-                for image in content.images
-            ]
-        if isinstance(content, FilesUserMessage):
-            return [
-                cls._map_file(document, index)
-                for index, document in enumerate(content.documents)
-            ]
-        raise TypeError(f"Unsupported user content type: {type(content).__name__}")
+        parts: list[dict[str, Any]] = []
+        document_index = 0
+        for part in message.iter_content_parts():
+            if isinstance(part, str):
+                parts.append({"type": "input_text", "text": part})
+            elif isinstance(part, Image.Image):
+                parts.append(
+                    {
+                        "type": "input_image",
+                        "detail": "auto",
+                        "image_url": pil_image_to_data_url(part),
+                    }
+                )
+            elif isinstance(part, DocumentUserMessage):
+                parts.append(cls._map_file(part, document_index))
+                document_index += 1
+            else:
+                raise TypeError(f"Unsupported user content type: {type(part).__name__}")
+        return parts
 
     @staticmethod
     def _map_file(document: DocumentUserMessage, index: int) -> dict[str, Any]:

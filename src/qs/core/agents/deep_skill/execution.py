@@ -32,7 +32,7 @@ class DeepSkillExecution:
 
     @property
     def name(self) -> str:
-        return self.skill.name
+        return self.skill.get_name()
 
     @property
     def scope_id(self) -> str:
@@ -127,7 +127,7 @@ class DeepSkillExecutionTracker:
 
     @property
     def active_path(self) -> str:
-        return "/" + "/".join(skill.name for skill in self.active_skills)
+        return "/" + "/".join(skill.get_name() for skill in self.active_skills)
 
     @property
     def active_scope_ids(self) -> tuple[str, ...]:
@@ -182,7 +182,7 @@ class DeepSkillExecutionTracker:
         self._active.append(execution)
         logger.debug(
             "Tracked deep skill opening: name=%s parent=%s active=%d roots=%d",
-            skill.name,
+            skill.get_name(),
             parent_name,
             len(self._active),
             len(self._roots),

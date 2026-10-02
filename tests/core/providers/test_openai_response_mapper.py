@@ -120,6 +120,10 @@ def test_map_user_message_maps_files() -> None:
     ]
 
 
-def test_map_user_content_rejects_unknown_type() -> None:
+def test_map_user_message_rejects_unknown_content_part() -> None:
+    class InvalidMessage(UserMessage):
+        def iter_content_parts(self):
+            yield object()
+
     with pytest.raises(TypeError, match="Unsupported user content type"):
-        ToOpenAIResponseMapper._map_user_content(object())
+        ToOpenAIResponseMapper.map_user_message(InvalidMessage([]))

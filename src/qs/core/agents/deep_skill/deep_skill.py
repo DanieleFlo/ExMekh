@@ -83,15 +83,15 @@ class CalledDeepSkill:
         self._validate_matching()
 
     def _validate_matching(self) -> None:
-        if self._tool_call.get_name() != self._deep_skill.name:
+        if self._tool_call.get_name() != self._deep_skill.get_name():
             raise ValueError(
                 f"Tool call name '{self._tool_call.get_name()}' does not match "
-                f"deep skill name '{self._deep_skill.name}'"
+                f"deep skill name '{self._deep_skill.get_name()}'"
             )
 
     @property
     def name(self) -> str:
-        return self._deep_skill.name
+        return self._deep_skill.get_name()
 
     @property
     def call_id(self) -> str:

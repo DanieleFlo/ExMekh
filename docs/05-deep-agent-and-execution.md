@@ -39,6 +39,15 @@ response = agent.run("Analyze the codebase and run tests.")
 print("Response:", response.get_message())
 ```
 
+### Sending mixed content
+
+Pass an ordered list such as
+`["Inspect this image", ImagesUserMessage([image]), FilesUserMessage([document])]`
+to `agent.run()` to send text, images, and documents in one user message.
+The same list is accepted by `agent.steer()` during an active run, and existing
+single-content inputs remain supported. See [mixed user content](02-client-and-models.md#mixed-user-content)
+for loading, provider encoding, validation, and history behavior.
+
 ### Inspecting the tools sent to inference
 
 `agent.get_tools_text() -> str` returns the root node's `tools` field as compact

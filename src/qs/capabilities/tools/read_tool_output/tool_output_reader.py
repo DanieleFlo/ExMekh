@@ -48,13 +48,18 @@ class ToolOutputReader:
             return None
 
         partial = None
+        partial_error = None
         if cursor is not None or not snapshot.is_finished:
-            partial = manager.partial_output(output_id, cursor or 0)
-            if cursor is not None and partial is None:
-                raise ValueError("This tool output does not support cursors")
+            try:
+                partial = manager.partial_output(output_id, cursor or 0)
+            except Exception as error:
+                partial_error = str(error)
+            else:
+                if cursor is not None and partial is None:
+                    raise ValueError("This tool output does not support cursors")
 
         content = ToolOutputFormatter.format_execution_output(
-            output_id, snapshot, partial
+            output_id, snapshot, partial, partial_error=partial_error
         )
         if snapshot.is_finished:
             manager.mark_delivered(output_id)

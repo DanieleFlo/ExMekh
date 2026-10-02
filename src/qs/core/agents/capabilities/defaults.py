@@ -283,7 +283,7 @@ class DefaultCapabilities:
             expected is Tool and isinstance(resource, (HDS, DeepSkill, ExitTool))
         ):
             raise TypeError(f"Override for '{name}' must be a {expected.__name__}")
-        if resource.name != name:
+        if resource.get_name() != name:
             raise ValueError(f"Override for '{name}' must have name '{name}'")
 
     @staticmethod

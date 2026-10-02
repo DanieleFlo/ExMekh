@@ -150,3 +150,58 @@ def test_final_cursor_read_includes_new_progress_and_preformatted_result():
     assert int(header.findtext("next-cursor")) == len(progress)
     assert content.strip() == "second\n\npublic final receipt"
     assert manager.next_delivery(("owner",)) is None
+
+
+@pytest.mark.parametrize("status", ["running", "completed", "failed"])
+@pytest.mark.parametrize("cursor", [None, 0])
+def test_progress_failure_preserves_current_state_and_final_output(status, cursor):
+    release = Event()
+    manager = ToolExecutionManager()
+
+    def work():
+        release.wait()
+        if status == "failed":
+            raise RuntimeError("work failed")
+        return "final result"
+
+    def read_progress(cursor):
+        raise OSError("progress <&> unavailable")
+
+    manager.start(
+        "call",
+        "work",
+        {},
+        ToolExecutionOperation(work, read_partial=read_progress),
+        ("owner",),
+        ExecutionOptions(mode="background"),
+        output_id="output",
+    )
+    try:
+        if status != "running":
+            release.set()
+            assert manager.wait("call", 1).is_finished
+        result = ToolOutputReader(unavailable_cache, manager).read("output", cursor)
+        prefix, _, body = result.content.partition("</header>\n")
+        header = ET.fromstring(prefix + "</header>")
+        assert header.findtext("status") == status
+        assert header.findtext("response-type") == (
+            "final" if status == "completed" else status
+        )
+        # Final reads without a cursor do not depend on the progress channel.
+        expects_diagnostic = cursor is not None or status == "running"
+        assert header.findtext("partial-output-error") == (
+            "progress <&> unavailable" if expects_diagnostic else None
+        )
+        assert header.find("next-cursor") is None
+        if status == "completed":
+            assert body == "final result"
+        elif status == "failed":
+            assert "RuntimeError: work failed" in body
+        else:
+            assert "still running" in body
+        assert manager.by_output_id("output").status == status
+        if status != "running":
+            assert manager.next_delivery(("owner",)) is None
+    finally:
+        release.set()
+        assert manager.wait("call", 1).is_finished

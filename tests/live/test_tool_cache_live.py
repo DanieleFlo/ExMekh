@@ -17,11 +17,10 @@ from qs.core.models.provider_request import ProviderRequest
 from qs.core.models.provider_response import ProviderResponse
 from qs.core.models.reasoning_effort import ReasoningEffortLMH
 from qs.core.models.tool_message import ToolMessage
-from qs.core.tokenizers.sequential_tokenizer import SequentialTokenizer
 from qs.core.tool_calls import ToolCallReader
 from qs.utils.file import read_json_from_path
 from tests.event_handler import as_agent_handler
-from tests.live.model_support import LiveModelProvider
+from tests.live.model_support import CacheTestTokenizer, LiveModelProvider
 
 pytestmark = pytest.mark.live
 
@@ -32,19 +31,6 @@ _TRANSIENT_TOOL_NAMES = {
     "read_tool_output",
     "control_tool_execution",
 }
-
-
-class CacheTestTokenizer(SequentialTokenizer):
-    """Exercise real session/ID storage without downloading a vocabulary."""
-
-    def count_tokens(self, text: str) -> int:
-        return len(text)
-
-    def truncate_text(self, text: str, start_tokens: int, end_tokens: int = 0) -> str:
-        return text[:start_tokens] + (text[-end_tokens:] if end_tokens else "")
-
-    def _load_vocabulary_tokens(self) -> list[str]:
-        return [f"token{index:02d}" for index in range(32)]
 
 
 class RecordingLocalProvider(LiveModelProvider):

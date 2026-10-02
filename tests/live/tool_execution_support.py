@@ -31,8 +31,7 @@ from qs.core.models.tool import Tool, ToolExecutionOperation
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.xml_header import XmlHeader
 from tests.event_handler import as_agent_handler
-from tests.live.model_support import LiveModelProvider
-from tests.live.test_tool_cache_live import CacheTestTokenizer
+from tests.live.model_support import CacheTestTokenizer, LiveModelProvider
 from tests.tool_result_support import parse_tool_result
 
 # A stdin gate models externally completed work without relying on inference latency.

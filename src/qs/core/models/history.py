@@ -155,7 +155,7 @@ class MessageHistory:
             raise ValueError("The final tool response does not belong to this batch")
         opening_index, opening = self._latest_assistant_message()
         calls = opening.get_tool_calls() or ()
-        if not any(item.id == batch_call_id for item in calls):
+        if not any(item.get_id() == batch_call_id for item in calls):
             raise ValueError("The assistant message does not contain the batch call")
         self.replace_from(
             opening_index,

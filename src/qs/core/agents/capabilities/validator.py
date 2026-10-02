@@ -15,7 +15,7 @@ class CapabilitiesValidator:
     def validate(self, resources: tuple[MarkdownCapability[Any], ...]) -> None:
         for tool in self._index.exit_tools.values():
             self._validate_reference_group(
-                f"Exit tool '{tool.name}'",
+                f"Exit tool '{tool.get_name()}'",
                 tool.references,
                 self._index.reference_names,
                 "references",
@@ -24,7 +24,7 @@ class CapabilitiesValidator:
             self._validate_resource(resource)
 
     def _validate_resource(self, resource: MarkdownCapability[Any]) -> None:
-        label = f"{resource.resource_type} '{resource.name}'"
+        label = f"{resource.resource_type} '{resource.get_name()}'"
         self._validate_reference_group(
             label,
             resource.references,

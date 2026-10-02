@@ -79,7 +79,7 @@ class NodeRuntimeConfig:
     ) -> ToolCallExecutor:
         agentic_scope = AgenticScope(
             hds=self.hds,
-            exit_tool_name=self.exit_tool.name,
+            exit_tool_name=self.exit_tool.get_name(),
             runtime_tool_names=runtime_tool_names,
             agent_context_id=self.resolved_agent_context_id,
         )

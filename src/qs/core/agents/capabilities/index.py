@@ -48,10 +48,11 @@ class CapabilitiesIndex:
         indexed_resources: dict[str, Resource] = {}
 
         for resource in resources:
-            if resource.name in indexed_resources:
-                raise ValueError(f"Duplicate {resource_type} name: '{resource.name}'")
+            name = resource.get_name()
+            if name in indexed_resources:
+                raise ValueError(f"Duplicate {resource_type} name: '{name}'")
 
-            indexed_resources[resource.name] = resource
+            indexed_resources[name] = resource
 
         return indexed_resources
 

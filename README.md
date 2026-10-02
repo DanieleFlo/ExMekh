@@ -6,6 +6,7 @@
 
 ## Key Features
 
+- **[Mixed User Inputs](docs/02-client-and-models.md#mixed-user-content)**: Combine text, image, and document containers in one ordered user-content list through either provider API, including active-run steering.
 - **[Node-scoped Tool Memory](docs/09-tool-call-cache.md)**: Save tool and deep-skill results with their invocation metadata. By default, nodes expose XML tools for compact execution history, paginated search, and full output retrieval.
 - **[Exit Tool Items](docs/10-exit-tool-items.md)**: Return selected saved outputs from a skill with XML placement and recoverable validation errors.
 - **[Deep Thinking](docs/11-deep-thinking.md)**: Harness skill for web research, calculation, formal Z3 reasoning, and scoped thinking summaries.

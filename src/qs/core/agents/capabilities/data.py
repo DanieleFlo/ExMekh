@@ -63,10 +63,10 @@ class CapabilitiesData:
         for original, contextual in zip(tools, contextual_tools, strict=True):
             logger.debug(
                 "Contextual capability: hds=%s type=%s name=%s description=%s",
-                hds.name,
+                hds.get_name(),
                 type(original).__name__,
-                contextual.name,
-                contextual.description,
+                contextual.get_name(),
+                contextual.get_description(),
             )
         return contextual_tools
 
@@ -79,10 +79,10 @@ class CapabilitiesData:
         if isinstance(tool, ExitTool):
             return tool.with_description_suffix(self._SKILL_ONLY_AVAILABILITY)
 
-        if tool.name in direct_tool_names:
+        if tool.get_name() in direct_tool_names:
             return tool
 
-        skill_names = skill_availability.get(tool.name, [])
+        skill_names = skill_availability.get(tool.get_name(), [])
         if not skill_names:
             description = ""
         elif len(skill_names) == 1:
@@ -94,14 +94,14 @@ class CapabilitiesData:
 
     def get_hds(self, name: str) -> HDS:
         for hds in self.hds:
-            if hds.name == name:
+            if hds.get_name() == name:
                 return hds
-        available_hds = ", ".join(hds.name for hds in self.hds) or "none"
+        available_hds = ", ".join(hds.get_name() for hds in self.hds) or "none"
         raise ValueError(f"HDS '{name}' not found. Available HDS: {available_hds}")
 
     def get_exit_tool(self, name: str) -> ExitTool:
         for tool in self.exit_tools:
-            if tool.name == name:
+            if tool.get_name() == name:
                 return tool
         raise ValueError(f"Exit tool '{name}' not found")
 
@@ -109,7 +109,7 @@ class CapabilitiesData:
         availability: dict[str, list[str]] = {}
         for skill in self.deep_skills:
             for tool_name in skill.get_direct_tool_names():
-                availability.setdefault(tool_name, []).append(skill.name)
+                availability.setdefault(tool_name, []).append(skill.get_name())
 
         return {
             tool_name: tuple(skill_names)

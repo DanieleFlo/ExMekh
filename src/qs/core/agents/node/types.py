@@ -5,14 +5,10 @@ from typing import Any, Literal
 
 from qs.core.models.tool_message import ToolMessage
 from qs.core.models.tool_output_reference import ToolOutputReference
-from qs.core.models.user_message import (
-    FilesUserMessage,
-    ImagesUserMessage,
-    TextsUserMessage,
-)
+from qs.core.models.user_message import UserMessageContent
 from qs.core.tool_calls.execution_manager import ExecutionSnapshot
 
-type NodeUserMessage = str | TextsUserMessage | ImagesUserMessage | FilesUserMessage
+type NodeUserMessage = UserMessageContent
 
 
 @dataclass(frozen=True, slots=True)
