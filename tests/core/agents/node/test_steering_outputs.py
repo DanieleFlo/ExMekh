@@ -28,6 +28,46 @@ def stored_records(monkeypatch):
     return records
 
 
+def _skill_output_header(content):
+    header, separator, _ = content.partition("</header>")
+    assert separator, "Skill output must have an XML header"
+    return ET.fromstring(header + separator)
+
+
+def _assert_skill_return_references(provider, node, expected_skills, expected_outputs):
+    returns = {}
+    for request in provider.requests:
+        for message in request.get_messages():
+            if (
+                isinstance(message, ToolMessage)
+                and message.get_name() in expected_skills
+                and message.get_message().startswith("<header>")
+            ):
+                header = _skill_output_header(message.get_message())
+                assert header.findtext("type") == "DeepSkill"
+                returns[message.get_name()] = header
+
+    assert set(returns) == expected_skills
+    for skill_name, header in returns.items():
+        assert header.findtext("name") == skill_name
+        used_tools = header.find("used-tools")
+        assert used_tools is not None and used_tools.get("type") == "array"
+        references = [
+            (item.findtext("name"), item.findtext("id"))
+            for item in used_tools.findall("item")
+        ]
+        for expected in expected_outputs:
+            assert references.count(expected) == 1
+
+        saved = node.read_tool_output(header.findtext("id"))
+        saved_header = _skill_output_header(saved.content)
+        saved_references = [
+            (item.findtext("name"), item.findtext("id"))
+            for item in saved_header.findall("used-tools/item")
+        ]
+        assert saved_references == references
+
+
 @pytest.mark.parametrize("nested", [False, True])
 @pytest.mark.parametrize("streaming", [False, True])
 def test_skill_steering_is_recoverable_after_compaction(
@@ -86,7 +126,12 @@ def test_skill_steering_is_recoverable_after_compaction(
         assert record.result in read.content
         assert f"<id>{record.id}</id>" in read.content
         assert "<type>UserMessage</type>" in read.content
-        assert record.id in str(response.history)
+    _assert_skill_return_references(
+        provider,
+        agent.root_node,
+        {"mock-skill", "nested-skill"} if nested else {"mock-skill"},
+        [(record.name, record.id) for record in saved],
+    )
     for request in provider.requests:
         assert_complete_tool_batches(request.get_messages())
 
@@ -287,6 +332,13 @@ def test_mock_workflow_discovers_and_reads_steering_through_history(
     assert agent.run("start").get_message() == "done"
     assert executions == ["MOCK_OUTPUT_TOKEN"]
     assert len(history_ids) == 2
+    steering_id, work_id = history_ids[0]
+    _assert_skill_return_references(
+        provider,
+        agent.root_node,
+        {"mock-skill", "nested-skill"} if nested else {"mock-skill"},
+        [("steering_message", steering_id), (work_name, work_id)],
+    )
     messages = provider.requests[-1].get_messages()
     reads = {
         message.get_tool_call_id(): message
