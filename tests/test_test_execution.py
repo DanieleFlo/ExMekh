@@ -61,7 +61,9 @@ def test_live_and_serial_tests_share_one_worker(
     monkeypatch: pytest.MonkeyPatch,
     opt_in: str,
 ) -> None:
-    monkeypatch.setenv("QS_RUN_LIVE_TESTS", "1" if opt_in == "environment" else "0")
+    monkeypatch.setenv(
+        "EXMEKH_LIB_RUN_LIVE_TESTS", "1" if opt_in == "environment" else "0"
+    )
     arguments = ["-n", "2", "--dist=loadgroup", "-q"]
     if opt_in == "flag":
         arguments.append("--run-live")

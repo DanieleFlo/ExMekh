@@ -69,8 +69,10 @@ def test_live_search_reads_a_discovered_source_instead_of_only_snippets(
 def test_live_browser_bootstraps_from_an_empty_cache(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    if os.getenv("QS_LIVE_BROWSER_BOOTSTRAP") != "1":
-        pytest.skip("set QS_LIVE_BROWSER_BOOTSTRAP=1 to download a fresh browser")
+    if os.getenv("EXMEKH_LIB_LIVE_BROWSER_BOOTSTRAP") != "1":
+        pytest.skip(
+            "set EXMEKH_LIB_LIVE_BROWSER_BOOTSTRAP=1 to download a fresh browser"
+        )
 
     with TemporaryDirectory(dir=tmp_path) as browser_directory:
         monkeypatch.setenv("PLAYWRIGHT_BROWSERS_PATH", browser_directory)
@@ -200,5 +202,5 @@ def test_live_image_assisted_search_reports_whether_visual_ranking_ran(
     }
     assert isinstance(result["visual_ranking_applied"], bool)
     assert isinstance(result["visual_images_used"], int)
-    if os.getenv("QS_REQUIRE_LIVE_VISUAL_RANKING") == "1":
+    if os.getenv("EXMEKH_LIB_REQUIRE_LIVE_VISUAL_RANKING") == "1":
         assert result["visual_ranking_applied"] is True

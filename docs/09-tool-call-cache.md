@@ -330,7 +330,7 @@ I test live dedicati si eseguono con:
 uv run pytest --run-live tests/live/test_tool_cache_live.py -v
 ```
 
-Usano `BASE_URL`, `API_KEY` e `QS_LIVE_MODEL`, come gli altri test live, e l'API
+Usano `BASE_URL`, `API_KEY` e `EXMEKH_LIB_LIVE_MODEL`, come gli altri test live, e l'API
 Responses. Coprono streaming e non streaming, tool ordinari, deep skill,
 path annidati, rilettura del JSON, thinking del turno esatto e isolamento
 tra nodi. I test del tool ordinario richiedono un backend che restituisca

@@ -18,9 +18,11 @@ pytestmark = pytest.mark.live
 
 def test_live_model_can_choose_and_combine_every_skill_tool(tmp_path: Path) -> None:
     load_dotenv()
-    model = os.getenv("QS_LIVE_DEEP_THINKING_MODEL")
+    model = os.getenv("EXMEKH_LIB_LIVE_DEEP_THINKING_MODEL")
     if not model:
-        pytest.skip("set QS_LIVE_DEEP_THINKING_MODEL for the model-driven macro test")
+        pytest.skip(
+            "set EXMEKH_LIB_LIVE_DEEP_THINKING_MODEL for the model-driven macro test"
+        )
     provider = LiveModelProvider(
         model=model,
         reasoning_effort=ReasoningEffortLMH.LOW,

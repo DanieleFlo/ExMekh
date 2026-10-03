@@ -140,7 +140,7 @@ uv run pytest --run-live tests/live/test_deep_thinking_web_live.py tests/live/te
 The live web tests cover two search intents, a current-news query followed by
 source reading, a large documentation page, a browser form submission,
 same-origin navigation, image-assisted search, and a blocked cross-origin
-redirect. They require internet access. Set `QS_LIVE_BROWSER_BOOTSTRAP=1` to
+redirect. They require internet access. Set `EXMEKH_LIB_LIVE_BROWSER_BOOTSTRAP=1` to
 also run the test that starts with an empty Playwright browser cache and checks
 automatic Chromium installation. The
 reasoning tests use the real SymPy and Z3 packages.
@@ -150,7 +150,7 @@ results retained after skill compaction. The full-skill live test drives the
 seven web, math, and logic tools through a node with a scripted
 provider and live web access.
 
-Set `QS_LIVE_DEEP_THINKING_MODEL` to a configured local model to also run the
-model-driven full-skill task. Set `QS_REQUIRE_LIVE_VISUAL_RANKING=1` to require
+Set `EXMEKH_LIB_LIVE_DEEP_THINKING_MODEL` to a configured local model to also run the
+model-driven full-skill task. Set `EXMEKH_LIB_REQUIRE_LIVE_VISUAL_RANKING=1` to require
 the actual SigLIP2 stage in the image-assisted search test; this needs the
 model weights to be available in the deployment environment.

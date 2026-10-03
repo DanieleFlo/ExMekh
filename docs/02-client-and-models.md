@@ -119,7 +119,7 @@ hashes in order and do not contain the binary data for restoring attachments.
 
 Images are encoded as PNG data URLs and documents retain their native file
 parts. The endpoint and model determine which attachment types they can read.
-QS preserves that protocol and does not silently convert documents to text.
+`ExMekh-Lib` preserves that protocol and does not silently convert documents to text.
 Document filename indices advance across the whole message, including separate
 `FilesUserMessage` containers. Empty containers contribute no content parts or
 extra blank lines to history dumps; explicit empty strings remain text parts.
@@ -129,7 +129,7 @@ extra blank lines to history dumps; explicit empty strings remain text parts.
 DS4 accepts text and image content. Native `FilesUserMessage` attachments are
 rejected with HTTP 400 and an explicit message: only text and images are
 supported. Supply textual file contents through `TextsUserMessage`, or open
-images with PIL and use `ImagesUserMessage`. QS preserves native files for
+images with PIL and use `ImagesUserMessage`. `ExMekh-Lib` preserves native files for
 other endpoints that support them; it does not extract documents automatically.
 
 `LocalProvider` exposes HTTP 400 as

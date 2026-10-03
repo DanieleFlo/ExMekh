@@ -7,7 +7,7 @@ from exmekh_lib.core.agents.exit_tool.exit_tools import ExitTools
 
 
 def _dynamic_tool_modules() -> set[str]:
-    return {name for name in sys.modules if name.startswith("_qs_deep_tool_")}
+    return {name for name in sys.modules if name.startswith("_exmekh_lib_deep_tool_")}
 
 
 def _write_tool(path: Path, body: str) -> Path:

@@ -39,7 +39,7 @@ Unit tests verify client models, capabilities loading, schema coercion, node exe
 ### After moving or renaming the checkout
 
 Virtual environment activation scripts and Python entry points contain absolute
-paths. After moving the checkout from `qs` to `exmekh_lib`, regenerate the
+paths. After moving or renaming the checkout, regenerate the
 activation scripts and reinstall the locked packages so commands no longer
 reference the old directory:
 
@@ -149,7 +149,7 @@ uv run pytest --run-live tests/live
 #### Method B: Environment Variable
 
 ```shell
-QS_RUN_LIVE_TESTS=1 uv run pytest tests/live
+EXMEKH_LIB_RUN_LIVE_TESTS=1 uv run pytest tests/live
 ```
 
 ### Environment Configuration for Live Tests
@@ -158,7 +158,7 @@ Live tests read endpoint settings from `.env`:
 ```ini
 BASE_URL=http://localhost:8080/v1
 API_KEY=sk-local-key
-QS_LIVE_MODEL=qwen3.5-9b-mtp
+EXMEKH_LIB_LIVE_MODEL=qwen3.5-9b-mtp
 ```
 
 ### Assertion Diagnostic Conventions
@@ -191,7 +191,7 @@ settings, background waits and automatic final delivery, and incremental stdout
 with output cursors. Prompts request only a minimal final reply.
 
 All model live tests use a 900-second HTTP timeout, independently of the tool's
-60-second default wait. Set `QS_LIVE_REQUEST_TIMEOUT_SECONDS` to a finite positive
+60-second default wait. Set `EXMEKH_LIB_LIVE_REQUEST_TIMEOUT_SECONDS` to a finite positive
 number to override the HTTP timeout. Automatic request retries are disabled so a
 failed stateful request is not repeated silently.
 
@@ -229,7 +229,7 @@ The deep-thinking workflow uses a scripted provider and mocked web boundaries in
 capability integration checks run offline in
 `tests/core/agents/capabilities/test_reasoning_integration.py`. The real public-web
 suite remains live, and the complete model-driven deep-thinking audit still
-requires `QS_LIVE_DEEP_THINKING_MODEL`.
+requires `EXMEKH_LIB_LIVE_DEEP_THINKING_MODEL`.
 
 Public search discovery and reading share one live check: results must be
 bounded, unique public URLs, and at least one discovered source must be readable.
@@ -240,7 +240,7 @@ results of a changing search index. Exhausted provider failures remain failures.
 
 ```shell
 BASE_URL=http://127.0.0.1:8081/v1 \
-QS_LIVE_IMAGE_PATH=/path/to/earth.jpg \
+EXMEKH_LIB_LIVE_IMAGE_PATH=/path/to/earth.jpg \
 uv run pytest -n 0 --run-live tests/live/test_mixed_user_inputs_live.py -q
 ```
 

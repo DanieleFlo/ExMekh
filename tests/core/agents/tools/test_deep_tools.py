@@ -8,7 +8,7 @@ import pytest
 
 from exmekh_lib.core.agents.tools.deep_tools import DeepTools
 
-_DYNAMIC_PACKAGE_PREFIX = "_qs_deep_tool_"
+_DYNAMIC_PACKAGE_PREFIX = "_exmekh_lib_deep_tool_"
 
 
 def _dynamic_tool_modules() -> set[str]:

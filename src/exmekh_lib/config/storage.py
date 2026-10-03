@@ -14,7 +14,7 @@ class StorageSettings:
     @classmethod
     def from_environment(cls) -> StorageSettings:
         default = cls()
-        path = os.getenv("QS_TOKENIZER_CACHE_DIR")
+        path = os.getenv("EXMEKH_LIB_TOKENIZER_CACHE_DIR")
         return cls(Path(path) if path else default.tokenizer_cache_directory)
 
 

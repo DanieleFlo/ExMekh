@@ -254,7 +254,7 @@ class RecordingExecutionProvider(LiveModelProvider):
         self.requests: list[ProviderRequest] = []
         self.streaming = streaming
         super().__init__(
-            model=os.getenv("QS_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S"),
+            model=os.getenv("EXMEKH_LIB_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S"),
             reasoning_effort=ReasoningEffortLMH.LOW,
             api="responses",
             tokenizer=CacheTestTokenizer("live-tool-executions", directory),

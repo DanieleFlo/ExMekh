@@ -24,7 +24,7 @@ def build_live_sub_agent_system(
     parent_context_id: str = "main-subagent-live",
 ) -> DeepAgent:
     load_dotenv()
-    model = os.getenv("QS_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S")
+    model = os.getenv("EXMEKH_LIB_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S")
     provider = LiveModelProvider(
         model=model,
         reasoning_effort=ReasoningEffortLMH.LOW,

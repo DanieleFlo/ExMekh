@@ -14,11 +14,11 @@ DEFAULT_LIVE_REQUEST_TIMEOUT_SECONDS = 900.0
 class LiveModelProvider(LocalProvider):
     def _build_client(self) -> OpenAI:
         value = os.getenv(
-            "QS_LIVE_REQUEST_TIMEOUT_SECONDS",
+            "EXMEKH_LIB_LIVE_REQUEST_TIMEOUT_SECONDS",
             str(DEFAULT_LIVE_REQUEST_TIMEOUT_SECONDS),
         )
         message = (
-            "QS_LIVE_REQUEST_TIMEOUT_SECONDS must be a finite number of seconds "
+            "EXMEKH_LIB_LIVE_REQUEST_TIMEOUT_SECONDS must be a finite number of seconds "
             "greater than zero"
         )
         try:

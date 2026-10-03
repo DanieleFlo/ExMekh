@@ -17,7 +17,7 @@ from exmekh_lib.core.models.system_message import SystemMessage
 from exmekh_lib.core.models.user_message import UserMessage
 from tests.history_validation import validate_request_history
 
-_LIVE_TEST_ENV_VAR = "QS_RUN_LIVE_TESTS"
+_LIVE_TEST_ENV_VAR = "EXMEKH_LIB_RUN_LIVE_TESTS"
 _TRUTHY_VALUES = {"1", "true", "yes", "on"}
 
 pytest_plugins = ("pytester",)

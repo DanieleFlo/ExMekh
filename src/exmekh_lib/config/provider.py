@@ -21,11 +21,11 @@ class ProviderSettings:
     @classmethod
     def from_environment(cls) -> ProviderSettings:
         defaults = cls()
-        api = os.getenv("QS_API", defaults.api)
+        api = os.getenv("EXMEKH_LIB_API", defaults.api)
         if api not in ("chat_completions", "responses"):
-            raise ValueError("QS_API must be 'chat_completions' or 'responses'")
+            raise ValueError("EXMEKH_LIB_API must be 'chat_completions' or 'responses'")
         return cls(
-            model=os.getenv("QS_MODEL", defaults.model),
+            model=os.getenv("EXMEKH_LIB_MODEL", defaults.model),
             api=api,
             api_key_env_var=defaults.api_key_env_var,
             base_url_env_var=defaults.base_url_env_var,

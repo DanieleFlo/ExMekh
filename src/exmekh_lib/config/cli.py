@@ -31,6 +31,6 @@ class CliSettings:
     def from_environment(cls) -> CliSettings:
         defaults = cls()
         return cls(
-            root_hds=os.getenv("QS_ROOT_HDS", defaults.root_hds),
-            child_hds=os.getenv("QS_CHILD_HDS", defaults.child_hds),
+            root_hds=os.getenv("EXMEKH_LIB_ROOT_HDS", defaults.root_hds),
+            child_hds=os.getenv("EXMEKH_LIB_CHILD_HDS", defaults.child_hds),
         )

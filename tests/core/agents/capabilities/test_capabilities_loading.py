@@ -8,7 +8,7 @@ from exmekh_lib.core.agents.capability.markdown_capability import MarkdownCapabi
 from exmekh_lib.core.agents.deep_skill.deep_skills import DeepSkills
 from exmekh_lib.core.agents.hds.hds import HDS
 
-_DYNAMIC_PACKAGE_PREFIX = "_qs_deep_tool_"
+_DYNAMIC_PACKAGE_PREFIX = "_exmekh_lib_deep_tool_"
 
 
 def _dynamic_tool_modules() -> set[str]:

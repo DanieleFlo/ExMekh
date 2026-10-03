@@ -30,25 +30,25 @@ class RememberedFacts(BaseModel):
 
 
 class TicketSummary(BaseModel):
-    ticket_id: Literal["QS-2048"]
+    ticket_id: Literal["EXMEKH-LIB-2048"]
     state: Literal["ready"]
     attempts: Literal[3]
 
 
 def lookup_ticket(
-    ticket_id: Literal["QS-1042", "QS-2048"],
+    ticket_id: Literal["EXMEKH-LIB-1042", "EXMEKH-LIB-2048"],
 ) -> str:
     """Return the exact state and attempt count for a ticket."""
     tickets = {
-        "QS-1042": {"state": "queued", "attempts": 2},
-        "QS-2048": {"state": "ready", "attempts": 3},
+        "EXMEKH-LIB-1042": {"state": "queued", "attempts": 2},
+        "EXMEKH-LIB-2048": {"state": "ready", "attempts": 3},
     }
     return json.dumps({"ticket_id": ticket_id, **tickets[ticket_id]})
 
 
 def build_live_client(system_prompt: str, tools: Tools | None = None) -> Client:
     load_dotenv()
-    model = os.getenv("QS_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S")
+    model = os.getenv("EXMEKH_LIB_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S")
     return Client(
         provider=LiveModelProvider(
             model=model, reasoning_effort=ReasoningEffortLMH.LOW
@@ -144,11 +144,13 @@ def test_live_two_tool_round_trips_keep_history_and_ids() -> None:
 
     first_response = client.call(
         ClientRequest(
-            UserMessage("Look up ticket QS-1042 with the tool. Make exactly one call."),
+            UserMessage(
+                "Look up ticket EXMEKH-LIB-1042 with the tool. Make exactly one call."
+            ),
             tool_choice="required",
         )
     )
-    first_calls = require_ticket_calls(first_response, "QS-1042")
+    first_calls = require_ticket_calls(first_response, "EXMEKH-LIB-1042")
     first_tool_messages = [
         ToolMessage(
             lookup_ticket(call.function.arguments["ticket_id"]),
@@ -171,11 +173,13 @@ def test_live_two_tool_round_trips_keep_history_and_ids() -> None:
 
     second_response = client.call(
         ClientRequest(
-            UserMessage("Now look up QS-2048. Again, make exactly one tool call."),
+            UserMessage(
+                "Now look up EXMEKH-LIB-2048. Again, make exactly one tool call."
+            ),
             tool_choice="required",
         )
     )
-    second_calls = require_ticket_calls(second_response, "QS-2048")
+    second_calls = require_ticket_calls(second_response, "EXMEKH-LIB-2048")
     second_tool_messages = [
         ToolMessage(
             lookup_ticket(call.function.arguments["ticket_id"]),
@@ -192,7 +196,7 @@ def test_live_two_tool_round_trips_keep_history_and_ids() -> None:
         tool_choice="none",
     )
     assert structured_response.get_message() == TicketSummary(
-        ticket_id="QS-2048",
+        ticket_id="EXMEKH-LIB-2048",
         state="ready",
         attempts=3,
     ), "MODEL: structured result differs from the second tool response"

@@ -205,7 +205,7 @@ def test_formula_language_reports_invalid_nodes(formula: object, kind: str) -> N
     ("request_fields", "message"),
     [
         ({"task": "proof"}, "Unknown logic task"),
-        ({"variables": {"__qs_reserved": "Bool"}}, "Declare up to 32"),
+        ({"variables": {"__exmekh_lib_reserved": "Bool"}}, "Declare up to 32"),
         ({"variables": {"bad name": "Bool"}}, "Declare up to 32"),
         ({"variables": {"x": "String"}}, "Declare up to 32"),
         ({"variables": {str(i): "Bool" for i in range(33)}}, "Declare up to 32"),

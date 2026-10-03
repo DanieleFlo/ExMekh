@@ -76,10 +76,10 @@ def test_cli_registers_mock_sub_agent(monkeypatch) -> None:
 
 
 def test_cli_reads_provider_settings(monkeypatch) -> None:
-    monkeypatch.setenv("QS_MODEL", "configured-model")
-    monkeypatch.setenv("QS_API", "chat_completions")
-    monkeypatch.setenv("QS_ROOT_HDS", "main")
-    monkeypatch.setenv("QS_CHILD_HDS", "mock-sub-agent")
+    monkeypatch.setenv("EXMEKH_LIB_MODEL", "configured-model")
+    monkeypatch.setenv("EXMEKH_LIB_API", "chat_completions")
+    monkeypatch.setenv("EXMEKH_LIB_ROOT_HDS", "main")
+    monkeypatch.setenv("EXMEKH_LIB_CHILD_HDS", "mock-sub-agent")
     provider = Mock()
     make_provider = Mock(return_value=provider)
     monkeypatch.setattr(main, "LocalProvider", make_provider)

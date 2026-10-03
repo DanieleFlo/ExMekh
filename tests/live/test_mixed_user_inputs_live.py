@@ -29,7 +29,7 @@ def mixed_live_client(request, tmp_path):
     if not os.getenv("BASE_URL"):
         pytest.skip("Set BASE_URL to an image-capable model endpoint.")
     provider = LiveModelProvider(
-        model=os.getenv("QS_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S"),
+        model=os.getenv("EXMEKH_LIB_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S"),
         api=request.param,
         reasoning_effort=ReasoningEffortLMH.OFF,
         tokenizer=CacheTestTokenizer("mixed-content-live", tmp_path / "cache"),
@@ -54,7 +54,7 @@ def test_live_text_and_images_in_one_ordered_message(mixed_live_client, layout):
     client, extra, _provider = mixed_live_client
     first = Image.new("RGB", (256, 256), "red")
     second = Image.new("RGB", (256, 256), "blue")
-    reference = "QS-MIX-731"
+    reference = "EXMEKH-LIB-MIX-731"
     instructions = (
         "Reply with the dominant color of the FIRST image, the dominant color "
         "of the SECOND image, and the reference token from the user text, "
@@ -106,13 +106,13 @@ def test_live_text_and_images_in_one_ordered_message(mixed_live_client, layout):
 
 
 def test_live_real_photo_and_text(mixed_live_client):
-    image_path = os.getenv("QS_LIVE_IMAGE_PATH")
+    image_path = os.getenv("EXMEKH_LIB_LIVE_IMAGE_PATH")
     if not image_path:
-        pytest.skip("Set QS_LIVE_IMAGE_PATH to the Earth photo fixture.")
+        pytest.skip("Set EXMEKH_LIB_LIVE_IMAGE_PATH to the Earth photo fixture.")
     with Image.open(Path(image_path)) as source:
         photo = source.copy()
     client, extra, _provider = mixed_live_client
-    reference = "QS-PHOTO-594"
+    reference = "EXMEKH-LIB-PHOTO-594"
     response = client.call(
         ClientRequest(
             UserMessage(
@@ -142,7 +142,7 @@ def test_live_real_photo_and_text(mixed_live_client):
 )
 def test_live_native_file_content_is_read(mixed_live_client, layout):
     client, extra, provider = mixed_live_client
-    reference = "QS-FILE-482"
+    reference = "EXMEKH-LIB-FILE-482"
     attachment = FilesUserMessage(
         [
             DocumentUserMessage(

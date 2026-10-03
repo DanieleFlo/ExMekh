@@ -251,7 +251,9 @@ def check_logic(
         rlimit=FORMAL_LOGIC.solver_resource_limit,
     )
     for index, formula in enumerate(formulas):
-        solver.assert_and_track(formula, z3.Bool(f"__qs_premise_{index}", ctx=ctx))
+        solver.assert_and_track(
+            formula, z3.Bool(f"__exmekh_lib_premise_{index}", ctx=ctx)
+        )
     base: dict[str, object] = {"backend": "z3", "task": task}
     premise_result = _check_with_deadline(solver, deadline)
     if premise_result is None:
@@ -268,7 +270,7 @@ def check_logic(
             "unsat_core": [
                 premises[index]
                 for index in range(len(premises))
-                if f"__qs_premise_{index}" in core
+                if f"__exmekh_lib_premise_{index}" in core
             ],
         }
     if task == "consistency":
@@ -322,7 +324,7 @@ def _validate_request(
         or any(
             not isinstance(name, str)
             or re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", name) is None
-            or name.startswith("__qs_")
+            or name.startswith("__exmekh_lib_")
             or not isinstance(sort, str)
             or sort not in {"Bool", "Int", "Real"}
             for name, sort in variables.items()

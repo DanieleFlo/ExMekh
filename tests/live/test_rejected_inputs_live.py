@@ -29,11 +29,11 @@ class Reference(BaseModel):
 
 @pytest.mark.parametrize("api", ["chat_completions", "responses"])
 def test_rejected_attachments_allow_same_client_to_continue(api):
-    url = os.getenv("QS_LIVE_REJECTION_URL")
+    url = os.getenv("EXMEKH_LIB_LIVE_REJECTION_URL")
     if not url:
-        pytest.skip("Set QS_LIVE_REJECTION_URL to the updated DS4 endpoint")
+        pytest.skip("Set EXMEKH_LIB_LIVE_REJECTION_URL to the updated DS4 endpoint")
     provider = LocalProvider(
-        model=os.getenv("QS_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S"),
+        model=os.getenv("EXMEKH_LIB_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S"),
         api=api,
         base_url=url,
         api_key="local-test",
@@ -85,7 +85,7 @@ def test_rejected_attachments_allow_same_client_to_continue(api):
                 else:
                     client.call(request)
             assert client.get_history() == before
-        if os.getenv("QS_LIVE_REJECTION_VISION") == "1":
+        if os.getenv("EXMEKH_LIB_LIVE_REJECTION_VISION") == "1":
             mixed = UserMessage(
                 [
                     ImagesUserMessage([Image.new("RGB", (256, 256), "blue")]),

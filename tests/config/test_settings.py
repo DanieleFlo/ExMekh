@@ -27,8 +27,8 @@ class StubTokenizer(SequentialTokenizer):
 
 
 def test_provider_settings_read_environment(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("QS_MODEL", "custom-model")
-    monkeypatch.setenv("QS_API", "chat_completions")
+    monkeypatch.setenv("EXMEKH_LIB_MODEL", "custom-model")
+    monkeypatch.setenv("EXMEKH_LIB_API", "chat_completions")
 
     settings = ProviderSettings.from_environment()
 
@@ -41,15 +41,15 @@ def test_provider_settings_read_environment(monkeypatch: pytest.MonkeyPatch) -> 
 def test_provider_settings_reject_invalid_api(
     monkeypatch: pytest.MonkeyPatch, api: str
 ) -> None:
-    monkeypatch.setenv("QS_API", api)
+    monkeypatch.setenv("EXMEKH_LIB_API", api)
 
-    with pytest.raises(ValueError, match="QS_API must be"):
+    with pytest.raises(ValueError, match="EXMEKH_LIB_API must be"):
         ProviderSettings.from_environment()
 
 
 def test_cli_settings_read_environment(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("QS_ROOT_HDS", "custom-root")
-    monkeypatch.setenv("QS_CHILD_HDS", "custom-child")
+    monkeypatch.setenv("EXMEKH_LIB_ROOT_HDS", "custom-root")
+    monkeypatch.setenv("EXMEKH_LIB_CHILD_HDS", "custom-child")
 
     assert CliSettings.from_environment() == CliSettings(
         root_hds="custom-root", child_hds="custom-child"
@@ -59,7 +59,7 @@ def test_cli_settings_read_environment(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_storage_setting_is_shared_by_cache_and_tokenizer(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setenv("QS_TOKENIZER_CACHE_DIR", str(tmp_path))
+    monkeypatch.setenv("EXMEKH_LIB_TOKENIZER_CACHE_DIR", str(tmp_path))
 
     assert StorageSettings.from_environment().tokenizer_cache_directory == tmp_path
     assert CacheManager.resolve_root() == tmp_path.resolve()
@@ -78,7 +78,7 @@ def test_internal_settings_are_immutable() -> None:
 def test_tokenizer_timeout_can_be_configured(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setenv("QS_TOKENIZER_DOWNLOAD_TIMEOUT", "7")
+    monkeypatch.setenv("EXMEKH_LIB_TOKENIZER_DOWNLOAD_TIMEOUT", "7")
 
     assert TokenizerSettings.from_environment().download_timeout_seconds == 7
     with patch(
@@ -92,7 +92,7 @@ def test_tokenizer_timeout_can_be_configured(
 def test_tokenizer_timeout_requires_positive_integer(
     monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:
-    monkeypatch.setenv("QS_TOKENIZER_DOWNLOAD_TIMEOUT", value)
+    monkeypatch.setenv("EXMEKH_LIB_TOKENIZER_DOWNLOAD_TIMEOUT", value)
 
     with pytest.raises(ValueError, match="positive integer"):
         TokenizerSettings.from_environment()

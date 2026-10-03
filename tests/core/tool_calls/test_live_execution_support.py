@@ -25,7 +25,7 @@ from tests.live.tool_execution_support import (
 def recording_provider(tmp_path, monkeypatch):
     monkeypatch.setenv("BASE_URL", "http://127.0.0.1:1/v1")
     monkeypatch.setenv("API_KEY", "offline-test-key")
-    monkeypatch.setenv("QS_LIVE_MODEL", "offline-test-model")
+    monkeypatch.setenv("EXMEKH_LIB_LIVE_MODEL", "offline-test-model")
     monkeypatch.setattr(
         LocalProvider, "_get_available_models", lambda self: {"offline-test-model"}
     )
@@ -46,7 +46,7 @@ def recording_provider(tmp_path, monkeypatch):
 def test_live_provider_increases_http_timeout_independently_of_tool_wait(
     recording_provider, monkeypatch, provider_type
 ):
-    monkeypatch.delenv("QS_LIVE_REQUEST_TIMEOUT_SECONDS", raising=False)
+    monkeypatch.delenv("EXMEKH_LIB_LIVE_REQUEST_TIMEOUT_SECONDS", raising=False)
     provider = recording_provider(provider_type)
     assert provider.client.timeout == DEFAULT_LIVE_REQUEST_TIMEOUT_SECONDS
     assert provider.client.max_retries == 0
@@ -60,7 +60,7 @@ def test_live_provider_increases_http_timeout_independently_of_tool_wait(
 def test_live_provider_accepts_configured_request_timeout(
     recording_provider, monkeypatch, seconds, provider_type
 ):
-    monkeypatch.setenv("QS_LIVE_REQUEST_TIMEOUT_SECONDS", str(seconds))
+    monkeypatch.setenv("EXMEKH_LIB_LIVE_REQUEST_TIMEOUT_SECONDS", str(seconds))
     provider = recording_provider(provider_type)
     assert provider.client.timeout == seconds
     assert provider.client.max_retries == 0
@@ -73,8 +73,8 @@ def test_live_provider_accepts_configured_request_timeout(
 def test_live_provider_rejects_invalid_request_timeout(
     recording_provider, monkeypatch, value, provider_type
 ):
-    monkeypatch.setenv("QS_LIVE_REQUEST_TIMEOUT_SECONDS", value)
-    with pytest.raises(ValueError, match="QS_LIVE_REQUEST_TIMEOUT_SECONDS"):
+    monkeypatch.setenv("EXMEKH_LIB_LIVE_REQUEST_TIMEOUT_SECONDS", value)
+    with pytest.raises(ValueError, match="EXMEKH_LIB_LIVE_REQUEST_TIMEOUT_SECONDS"):
         recording_provider(provider_type)
 
 

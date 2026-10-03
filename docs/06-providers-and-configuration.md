@@ -80,7 +80,7 @@ would break the corresponding tools and cached data. Explicit arguments to
 Web and reasoning defaults are centralized in `WEB_NAVIGATION`, `WEB_RANKING`,
 `MATH`, and `FORMAL_LOGIC`. Their bundled tool entrypoints use the same defaults
 as the core implementations. Memory pagination defaults and limits are part of
-`RUNTIME`. These modules do not read environment variables; the `QS_*` variables
+`RUNTIME`. These modules do not read environment variables; the `EXMEKH_LIB_*` variables
 below apply only to the settings that explicitly support environment loading.
 Default function arguments and existing module-level constant aliases are bound
 when their modules are imported; these constants are not a live reconfiguration API.
@@ -88,21 +88,21 @@ when their modules are imported; these constants are not a live reconfiguration 
 ### Environment variables
 
 The CLI loads a local `.env` file. The settings classes read the relevant
-`QS_*` values. `LocalProvider` reads `BASE_URL` and `API_KEY`, while the live
-test suite reads `QS_LIVE_MODEL` and `QS_RUN_LIVE_TESTS`.
+`EXMEKH_LIB_*` values. `LocalProvider` reads `BASE_URL` and `API_KEY`, while the live
+test suite reads `EXMEKH_LIB_LIVE_MODEL` and `EXMEKH_LIB_RUN_LIVE_TESTS`.
 
 | Variable | Default | Description |
 |---|---|---|
-| `QS_MODEL` | `Qwen3.8-27B-UD-Q4_K_S` | Model used by the CLI |
-| `QS_API` | `responses` | CLI API protocol: `responses` or `chat_completions` |
+| `EXMEKH_LIB_MODEL` | `Qwen3.8-27B-UD-Q4_K_S` | Model used by the CLI |
+| `EXMEKH_LIB_API` | `responses` | CLI API protocol: `responses` or `chat_completions` |
 | `BASE_URL` | None | Provider URL; required unless passed to `LocalProvider` |
 | `API_KEY` | `local-api-key` | API key used by `LocalProvider` if no key is supplied |
-| `QS_TOKENIZER_CACHE_DIR` | `.exmekh_lib/tokenizers` | Cache root for tokenizer and sessions |
-| `QS_TOKENIZER_DOWNLOAD_TIMEOUT` | `60` | Positive integer timeout in seconds for tokenizer download |
-| `QS_ROOT_HDS` | `main` | Root HDS used by the example CLI |
-| `QS_CHILD_HDS` | `mock-sub-agent` | Child HDS used by the example CLI |
-| `QS_LIVE_MODEL` | `Qwen3.8-27B-UD-Q4_K_S` | Model used by live tests |
-| `QS_RUN_LIVE_TESTS` | `0` | Set to `1` to enable live tests |
+| `EXMEKH_LIB_TOKENIZER_CACHE_DIR` | `.exmekh_lib/tokenizers` | Cache root for tokenizer and sessions |
+| `EXMEKH_LIB_TOKENIZER_DOWNLOAD_TIMEOUT` | `60` | Positive integer timeout in seconds for tokenizer download |
+| `EXMEKH_LIB_ROOT_HDS` | `main` | Root HDS used by the example CLI |
+| `EXMEKH_LIB_CHILD_HDS` | `mock-sub-agent` | Child HDS used by the example CLI |
+| `EXMEKH_LIB_LIVE_MODEL` | `Qwen3.8-27B-UD-Q4_K_S` | Model used by live tests |
+| `EXMEKH_LIB_RUN_LIVE_TESTS` | `0` | Set to `1` to enable live tests |
 
 The HDS names must refer to capabilities available in the selected capability
 paths. The cache directory can also be passed directly to a tokenizer or
@@ -113,8 +113,8 @@ paths. The cache directory can also be passed directly to a tokenizer or
 ```ini
 BASE_URL=http://localhost:8080/v1
 API_KEY=sk-local-secret-key
-QS_MODEL=Qwen3.8-27B-UD-Q4_K_S
-QS_API=responses
-QS_TOKENIZER_CACHE_DIR=.exmekh_lib/tokenizers
-QS_LIVE_MODEL=Qwen3.8-27B-UD-Q4_K_S
+EXMEKH_LIB_MODEL=Qwen3.8-27B-UD-Q4_K_S
+EXMEKH_LIB_API=responses
+EXMEKH_LIB_TOKENIZER_CACHE_DIR=.exmekh_lib/tokenizers
+EXMEKH_LIB_LIVE_MODEL=Qwen3.8-27B-UD-Q4_K_S
 ```

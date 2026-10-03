@@ -37,15 +37,17 @@ class TokenizerSettings:
 
     @classmethod
     def from_environment(cls) -> TokenizerSettings:
-        value = os.getenv("QS_TOKENIZER_DOWNLOAD_TIMEOUT")
+        value = os.getenv("EXMEKH_LIB_TOKENIZER_DOWNLOAD_TIMEOUT")
         if value is None:
             return cls()
         try:
             timeout = int(value)
         except ValueError as error:
             raise ValueError(
-                "QS_TOKENIZER_DOWNLOAD_TIMEOUT must be a positive integer"
+                "EXMEKH_LIB_TOKENIZER_DOWNLOAD_TIMEOUT must be a positive integer"
             ) from error
         if timeout <= 0:
-            raise ValueError("QS_TOKENIZER_DOWNLOAD_TIMEOUT must be a positive integer")
+            raise ValueError(
+                "EXMEKH_LIB_TOKENIZER_DOWNLOAD_TIMEOUT must be a positive integer"
+            )
         return cls(download_timeout_seconds=timeout)

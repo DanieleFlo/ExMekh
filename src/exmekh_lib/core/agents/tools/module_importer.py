@@ -90,7 +90,7 @@ class ToolModuleImporter:
     def _package_name(self, tool_path: Path) -> str:
         canonical_path = str(tool_path.resolve()).encode()
         path_hash = sha256(canonical_path).hexdigest()
-        return f"_qs_deep_tool_{path_hash}_{self._namespace}"
+        return f"_exmekh_lib_deep_tool_{path_hash}_{self._namespace}"
 
     @staticmethod
     def _remove_package_modules(package_name: str) -> None:
