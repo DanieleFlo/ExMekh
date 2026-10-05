@@ -70,3 +70,9 @@ def test_request_is_frozen() -> None:
 def test_request_rejects_invalid_values(arguments, message: str) -> None:
     with pytest.raises(TypeError, match=message):
         ClientRequest(**arguments)
+
+
+@pytest.mark.parametrize("value", ["", " ", 1, object()])
+def test_request_rejects_invalid_reasoning_override(value):
+    with pytest.raises(ValueError, match="Reasoning effort override"):
+        ClientRequest(UserMessage("question"), reasoning_effort_override=value)

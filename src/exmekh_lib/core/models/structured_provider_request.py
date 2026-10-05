@@ -22,6 +22,7 @@ class StructuredProviderRequest[ResponseModel: BaseModel](ProviderRequest):
         tools: Tools | None = None,
         stream: bool = False,
         on_event: ProviderEventHandler | None = None,
+        reasoning_effort_override: str | None = None,
     ) -> None:
         super().__init__(
             messages,
@@ -30,6 +31,7 @@ class StructuredProviderRequest[ResponseModel: BaseModel](ProviderRequest):
             tools=tools,
             stream=stream,
             on_event=on_event,
+            reasoning_effort_override=reasoning_effort_override,
         )
         self._response_model = response_model
         self._strict = strict

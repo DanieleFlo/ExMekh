@@ -14,6 +14,7 @@ class ClientRequest:
     tool_choice: str | None = None
     streaming: bool = False
     on_event: ProviderEventHandler | None = None
+    reasoning_effort_override: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.message, Message):
@@ -26,6 +27,11 @@ class ClientRequest:
             raise TypeError("Streaming must be a boolean")
         if self.on_event is not None:
             ProviderEventHandler.validate_instance(self.on_event)
+        if self.reasoning_effort_override is not None and (
+            not isinstance(self.reasoning_effort_override, str)
+            or not self.reasoning_effort_override.strip()
+        ):
+            raise ValueError("Reasoning effort override must be a non-empty string")
 
         if self.extra is not None:
             object.__setattr__(self, "extra", dict(self.extra))

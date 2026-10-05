@@ -158,10 +158,13 @@ includere, escludere o sovrascrivere singolarmente tramite i nomi seguenti:
   offset=0, limit=20)` cerca gli output salvati e quelli presenti nel runtime,
   compresi lavori in background e risultati con `cache_result=False`.
   Restituisce XML paginato con anteprime di 240 caratteri.
-- `read_tool_output(output_id, cursor=None)` restituisce un `XmlHeader` con nome, tipo,
+- `read_tool_output(output_id, cursor=None, summary_mode="none")` restituisce un `XmlHeader` con nome, tipo,
   ID, argomenti e `response-type`, seguito dallo stato o dall'output disponibile.
   Legge anche i lavori attivi e gli output temporanei. Un ID assente produce XML con
-  `found=false`, senza interrompere l'agente.
+  `found=false`, senza interrompere l'agente. `summary_mode="brief"` o `"detailed"`
+  riassume il corpo da 300 token in su senza cambiare il record, i tempi o gli
+  allegati; il default `"none"` conserva la lettura integrale. Vedi
+  [Riassunti delle letture](13-tool-executions.md#riassunti-delle-letture).
 
 Gli steering consegnati dentro una skill hanno un ID canonico distinto e sono
 recuperabili dopo la compattazione tramite `read_tool_output`, anche da un turno

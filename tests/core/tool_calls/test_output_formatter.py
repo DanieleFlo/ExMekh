@@ -140,3 +140,38 @@ def test_inline_result_and_saved_read_both_report_final_response_type(source):
         header, body = content.split("</header>\n", 1)
         assert ET.fromstring(header + "</header>").findtext("response-type") == "final"
         assert body == "done"
+
+
+@pytest.mark.parametrize("duration", [None, "7"])
+@pytest.mark.parametrize("name", ["work", "read_tool_output", "renamed-read"])
+def test_preformatted_metadata_is_preserved_independently_of_registered_name(
+    duration, name
+):
+    formatter = ToolOutputFormatter(MagicMock(spec=Client))
+    original = XmlHeader("Tool", "work", "output")
+    original.add_field("elapsed-seconds", duration)
+    original_content = original.prepend_to("done")
+    content, output_id = formatter.format_tool_result(
+        name, PreformattedToolResult(original_content), elapsed_seconds=0.25
+    )
+    assert content == original_content
+    assert output_id is None
+
+
+def test_preformatted_text_without_header_is_preserved_when_timing_is_available():
+    formatter = ToolOutputFormatter(MagicMock(spec=Client))
+    content, output_id = formatter.format_tool_result(
+        "work", PreformattedToolResult("authored output"), elapsed_seconds=0.25
+    )
+    assert content == "authored output"
+    assert output_id is None
+
+
+def test_reading_legacy_output_does_not_substitute_read_duration_for_missing_execution_time():
+    formatter = ToolOutputFormatter(MagicMock(spec=Client))
+    original = XmlHeader("Tool", "work", "legacy").prepend_to("done")
+    content, output_id = formatter.format_tool_result(
+        "read_tool_output", PreformattedToolResult(original), elapsed_seconds=0.25
+    )
+    assert content == original
+    assert output_id is None

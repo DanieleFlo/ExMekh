@@ -14,6 +14,7 @@ from exmekh_lib.core.models.tool import (
     PreformattedToolResult,
     ToolExecutionOperation,
 )
+from exmekh_lib.core.tool_calls import execution_manager
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
 from exmekh_lib.utils.xml import stringify_tool_result
 
@@ -207,3 +208,39 @@ def test_progress_failure_preserves_current_state_and_final_output(status, curso
     finally:
         release.set()
         assert manager.wait("call", 1).is_finished
+
+
+def test_elapsed_time_updates_while_running_and_freezes_at_completion(monkeypatch):
+
+    release = Event()
+    manager = ToolExecutionManager()
+    manager.start(
+        "call",
+        "work",
+        {},
+        ToolExecutionOperation(lambda: release.wait() and "done"),
+        ("owner",),
+        ExecutionOptions(mode="background"),
+        output_id="output",
+    )
+    reader = ToolOutputReader(unavailable_cache, manager)
+    clock = execution_manager.monotonic()
+    monkeypatch.setattr(execution_manager, "monotonic", lambda: clock)
+
+    def elapsed():
+        header = reader.read("output").content.split("</header>")[0] + "</header>"
+        return float(ET.fromstring(header).findtext("elapsed-seconds"))
+
+    try:
+        first = elapsed()
+        clock += 5
+        assert elapsed() == pytest.approx(first + 5)
+        clock += 2
+        release.set()
+        assert manager.wait("call", 1).is_finished
+        finished = elapsed()
+        assert finished == pytest.approx(first + 7)
+        clock += 100
+        assert elapsed() == finished
+    finally:
+        release.set()

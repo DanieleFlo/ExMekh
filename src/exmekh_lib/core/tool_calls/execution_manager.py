@@ -122,7 +122,10 @@ class _Execution:
             started_at=self.started_at,
             finished_at=self.finished_at,
             output_id=self.output_id,
-            elapsed_seconds=(self.finished_clock or monotonic()) - self.started_clock,
+            elapsed_seconds=(
+                self.finished_clock if self.finished_clock is not None else monotonic()
+            )
+            - self.started_clock,
             result=self.result,
             error=self.error,
             skill_path=self.skill_path,

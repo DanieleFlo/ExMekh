@@ -11,6 +11,7 @@ from exmekh_lib.capabilities.tools.bash.bash_tool import BashTool
 from exmekh_lib.capabilities.tools.control_tool_execution.execution_control_tool import (
     ExecutionControlTool,
 )
+from exmekh_lib.capabilities.tools.read_tool_output.summary import SummaryMode
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.agents.capabilities.tool_composer import _DefaultToolComposer
 from exmekh_lib.core.agents.deep_agent.agent_response import AgentResponse
@@ -79,6 +80,7 @@ class NodeRuntime(ProviderEventHandler):
             self._get_tool_cache,
             self._execution_manager,
             config.work_root,
+            provider=config.provider,
         )
         self._exit_items = ExitItemResolver(
             self._execution_history,
@@ -130,9 +132,12 @@ class NodeRuntime(ProviderEventHandler):
         )
 
     def read_tool_output(
-        self, output_id: str, cursor: int | None = None
+        self,
+        output_id: str,
+        cursor: int | None = None,
+        summary_mode: SummaryMode = "none",
     ) -> PreformattedToolResult:
-        return self._memory_tools.read_tool_output(output_id, cursor)
+        return self._memory_tools.read_tool_output(output_id, cursor, summary_mode)
 
     def _validate_runtime_tool_names(self) -> None:
         capability_names = {

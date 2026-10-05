@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from exmekh_lib.core.agents.deep_skill import execution as execution_module
 from exmekh_lib.core.agents.deep_skill.deep_skill import DeepSkill
 from exmekh_lib.core.agents.deep_skill.execution import DeepSkillExecutionTracker
 from exmekh_lib.core.agents.deep_skill.metadata import DeepSkillMetadata
@@ -168,3 +169,17 @@ def test_used_tool_references_are_snapshots_and_closed_skills_reject_new_work():
         execution.record_tool_output(ToolOutputReference("work", "late"))
     with pytest.raises(RuntimeError, match="closed deep skill"):
         execution.add_child(execution)
+
+
+def test_closed_skill_duration_stops_increasing(monkeypatch):
+    clock = execution_module.monotonic()
+    monkeypatch.setattr(execution_module, "monotonic", lambda: clock)
+    tracker = DeepSkillExecutionTracker()
+    skill = tracker.open(_skill("skill"), "call", 0)
+    first = skill.elapsed_seconds
+    clock += 5
+    assert skill.elapsed_seconds == pytest.approx(first + 5)
+    tracker.close(end_index=1, output="result", history=[])
+    finished = skill.elapsed_seconds
+    clock += 100
+    assert skill.elapsed_seconds == finished

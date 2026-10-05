@@ -31,8 +31,17 @@ class ToolExecutionResult:
     replace_history_from: int | None = None
     preserved_responses: tuple[ToolMessage, ...] = ()
     execution: ExecutionSnapshot | None = None
+    elapsed_seconds: float | None = None
     used_tools: tuple[ToolOutputReference, ...] | None = None
     failed: bool = False
+
+    def execution_metadata(self) -> dict[str, Any] | None:
+        """Describe execution consistently for persistence without exposing its form."""
+        if self.execution is not None:
+            return self.execution.status_info()
+        if self.elapsed_seconds is None:
+            return None
+        return {"status": "completed", "elapsed_seconds": self.elapsed_seconds}
 
     @property
     def is_error(self) -> bool:

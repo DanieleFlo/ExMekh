@@ -271,3 +271,34 @@ def test_argument_names_with_control_characters_use_encoded_attributes() -> None
         base64.b64decode(argument.get("name")).decode("utf-8", "surrogatepass")
         == argument_name
     )
+
+
+def test_replacing_metadata_removes_existing_copies_and_preserves_body():
+    header = XmlHeader("Tool", "work", "output").add_field("thinking", "original")
+    content = header.prepend_to("body\r\nunchanged")
+    updated = XmlHeader.add_field_to_content(content, "thinking", "new")
+    updated = XmlHeader.add_field_to_content(updated, "thinking", "latest")
+    prefix, body = updated.split("</header>\n", 1)
+    fields = ET.fromstring(prefix + "</header>").findall("thinking")
+    assert len(fields) == 1
+    assert fields[0].text == "latest"
+    assert body == "body\r\nunchanged"
+
+
+@pytest.mark.parametrize("separator", ["", "\n", "\r\n"])
+def test_body_operations_preserve_header_and_line_separator(separator):
+    header = XmlHeader("Tool", "work", "output").to_xml()
+    body = "# tool-authored\r\n<raw>text</raw>"
+    content = header + separator + body
+    assert XmlHeader.body_from_content(content) == body
+    replacement = "summary <&> facts"
+    updated = XmlHeader.replace_body_in_content(content, replacement)
+    assert updated == header + separator + replacement
+
+
+@pytest.mark.parametrize(
+    "content", ["plain text", "<header>unclosed", "<header><name></header>"]
+)
+def test_body_operations_leave_unframed_or_invalid_xml_unchanged(content):
+    assert XmlHeader.body_from_content(content) is None
+    assert XmlHeader.replace_body_in_content(content, "replacement") == content

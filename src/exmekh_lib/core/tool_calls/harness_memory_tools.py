@@ -9,6 +9,10 @@ from exmekh_lib.capabilities.tools.get_execution_history.rendering import (
 from exmekh_lib.capabilities.tools.get_execution_history.tool import (
     create_tool as create_history_tool,
 )
+from exmekh_lib.capabilities.tools.read_tool_output.summary import (
+    SummaryMode,
+    ToolOutputSummarizer,
+)
 from exmekh_lib.capabilities.tools.read_tool_output.tool import (
     create_tool as create_read_tool,
 )
@@ -24,6 +28,7 @@ from exmekh_lib.capabilities.tools.search_tool_outputs.tool import (
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.cache.node_cache import NodeCache
 from exmekh_lib.core.models.tool import PreformattedToolResult, Tool
+from exmekh_lib.interfaces.provider import Provider
 
 from .execution_history import ExecutionHistory
 from .execution_manager import ToolExecutionManager
@@ -42,12 +47,17 @@ class HarnessMemoryTools:
         cache_provider: Callable[[], NodeCache],
         execution_manager: ToolExecutionManager | None = None,
         work_root: Path | None = None,
+        provider: Provider | None = None,
     ) -> None:
         resolved_work_root = work_root or Path.cwd()
         self._history = history
         self._cache_provider = cache_provider
         self._execution_manager = execution_manager
-        self._output_reader = ToolOutputReader(cache_provider, execution_manager)
+        self._output_reader = ToolOutputReader(
+            cache_provider,
+            execution_manager,
+            ToolOutputSummarizer(provider) if provider is not None else None,
+        )
         self._tools = (
             create_history_tool(self.get_execution_history, resolved_work_root),
             create_search_tool(self.search_tool_outputs, resolved_work_root),
@@ -90,6 +100,9 @@ class HarnessMemoryTools:
         )
 
     def read_tool_output(
-        self, output_id: str, cursor: int | None = None
+        self,
+        output_id: str,
+        cursor: int | None = None,
+        summary_mode: SummaryMode = "none",
     ) -> PreformattedToolResult:
-        return self._output_reader.read(output_id, cursor)
+        return self._output_reader.read(output_id, cursor, summary_mode)

@@ -3,6 +3,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from xml.etree import ElementTree as ET
 
+from exmekh_lib.capabilities.tools.read_tool_output.summary import (
+    SummaryMode,
+    ToolOutputSummarizer,
+)
 from exmekh_lib.core.cache.node_cache import NodeCache
 from exmekh_lib.core.models.tool import PreformattedToolResult
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
@@ -18,20 +22,39 @@ class ToolOutputReader:
         self,
         cache_provider: Callable[[], NodeCache],
         execution_manager: ToolExecutionManager | None = None,
+        summarizer: ToolOutputSummarizer | None = None,
     ) -> None:
         self._cache_provider = cache_provider
         self._execution_manager = execution_manager
+        self._summarizer = summarizer
 
-    def read(self, output_id: str, cursor: int | None = None) -> PreformattedToolResult:
+    def read(
+        self,
+        output_id: str,
+        cursor: int | None = None,
+        summary_mode: SummaryMode = "none",
+    ) -> PreformattedToolResult:
         """Read output; a successful final read acknowledges automatic delivery."""
         if cursor is not None and (type(cursor) is not int or cursor < 0):
             raise ValueError("cursor must be a non-negative integer or None")
+        ToolOutputSummarizer.validate_mode(summary_mode)
+        if summary_mode != "none" and self._summarizer is None:
+            raise ValueError("Output summaries require a configured provider")
+        result = self._read_output(output_id, cursor)
+        return (
+            self._summarizer.summarize(result, summary_mode)
+            if self._summarizer is not None
+            else result
+        )
+
+    def _read_output(
+        self, output_id: str, cursor: int | None
+    ) -> PreformattedToolResult:
         manager = self._execution_manager
         if manager is not None:
-            active_output = self._read_active_output(manager, output_id, cursor)
-            if active_output is not None:
-                return active_output
-
+            runtime_output = self._read_runtime_output(manager, output_id, cursor)
+            if runtime_output is not None:
+                return runtime_output
         record = self._cache_provider().get(output_id)
         if record is not None:
             view = ToolOutputView(record)
@@ -43,7 +66,7 @@ class ToolOutputReader:
         append_text_element(root, "found", "false")
         return PreformattedToolResult(render_xml(root))
 
-    def _read_active_output(
+    def _read_runtime_output(
         self, manager: ToolExecutionManager, output_id: str, cursor: int | None
     ) -> PreformattedToolResult | None:
         snapshot = manager.by_output_id(output_id)

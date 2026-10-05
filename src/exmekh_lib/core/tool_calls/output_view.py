@@ -129,7 +129,7 @@ class ToolOutputView:
             header.add_field("status", execution["status"])
         header.add_field("response-type", execution.get("response_type", "final"))
         if cursor is not None:
-            header.add_field("next-cursor", len(self.content()))
+            header.add_field("next-cursor", max(cursor, len(self.content())))
         return header.prepend_to(self._saved_content(execution, cursor))
 
     def _saved_execution_info(self) -> dict[str, Any]:

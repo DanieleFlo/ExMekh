@@ -266,6 +266,7 @@ class Client:
             tools=self.tools,
             stream=request.streaming,
             on_event=request.on_event,
+            reasoning_effort_override=request.reasoning_effort_override,
         )
         self._history.add(request.message)
         return provider_request
@@ -297,6 +298,7 @@ class Client:
             tools=self.tools,
             stream=request.streaming,
             on_event=request.on_event,
+            reasoning_effort_override=request.reasoning_effort_override,
         )
         self._history.add(request.message)
         return provider_request

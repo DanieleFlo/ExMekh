@@ -793,3 +793,21 @@ def test_rejected_tool_continuation_preserves_existing_tool_batch(structured):
         else:
             client.continue_after_tools()
     assert client.get_history() == before
+
+
+@pytest.mark.parametrize("structured", [False, True])
+def test_client_propagates_request_reasoning_override(structured):
+    provider = MagicMock(spec=Provider)
+    client = Client(provider, SystemMessage("rules"))
+    request = ClientRequest(UserMessage("question"), reasoning_effort_override="none")
+    if structured:
+        provider.call_structured.return_value = StructuredProviderResponse(
+            StructuredAssistantMessage(StructuredAnswer(value=1))
+        )
+        client.call_structured(request, StructuredAnswer)
+        actual = provider.call_structured.call_args.args[0]
+    else:
+        provider.call.return_value = ProviderResponse(AssistantMessage("answer"))
+        client.call(request)
+        actual = provider.call.call_args.args[0]
+    assert actual.get_reasoning_effort_override() == "none"

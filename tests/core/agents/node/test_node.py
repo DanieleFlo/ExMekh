@@ -546,7 +546,9 @@ def test_tool_descriptions_reflect_hds_and_skill_availability(
             "Read the current status and available output of a tool by output ID. "
             "Use an optional cursor to read only new output; omit it to read the "
             "complete output. Includes the final result when available. "
-            "Also reads saved user steering and restores its attachments."
+            "Also reads saved user steering and restores its attachments. "
+            "summary_mode defaults to 'none'; 'brief' gives 3 to 5 bullet points, "
+            "'detailed' preserves essential details. Outputs below 300 tokens stay complete."
         ),
         "control_tool_execution": (
             "Wait for a tool execution by its original tool_call_id, or request "
@@ -680,8 +682,12 @@ def test_run_tool_prepends_xml_header_when_client_generates_id() -> None:
     client.get_session.assert_not_called()
     response = result.response
     expected_header = XmlHeader(
-        source="Tool", name="echo", id="id-tool", fields={"response-type": "final"}
+        source="Tool",
+        name="echo",
+        id="id-tool",
+        fields={"elapsed-seconds": result.elapsed_seconds, "response-type": "final"},
     ).to_xml()
+    assert result.elapsed_seconds >= 0
     assert response.get_message().startswith(expected_header + "\n")
     body = response.get_message().split("</header>\n", 1)[1]
     assert ET.fromstring(body).findtext("echo") == "hello"
@@ -823,16 +829,26 @@ def test_skill_increments_depth_prepends_xml_header_on_exit(tmp_path: Path) -> N
     assert response.get_message() == "final answer"
     assert node.depth == 0
     exit_message = cast(ToolMessage, provider.requests[2].get_messages()[-1])
+    header = ET.fromstring(
+        exit_message.get_message().split("</header>")[0] + "</header>"
+    )
+    elapsed_seconds = float(header.findtext("elapsed-seconds"))
+    assert elapsed_seconds >= 0
     expected_header = XmlHeader(
         source="DeepSkill",
         name="mock-skill",
         id="exit-id-456",
-        fields={"response-type": "final", "used-tools": []},
+        fields={
+            "elapsed-seconds": elapsed_seconds,
+            "response-type": "final",
+            "used-tools": [],
+        },
     ).to_xml()
     assert exit_message.get_message() == f"{expected_header}\ndone"
     record = node._runtime._tool_cache.get("exit-id-456")
     assert record.name == "mock-skill"
     assert record.source == "DeepSkill"
+    assert record.execution["elapsed_seconds"] == elapsed_seconds
     assert record.tool_call_id == "skill-call"
     assert record.args == {"topic": "XML & cache"}
     assert record.skill_path == "/mock-skill"

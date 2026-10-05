@@ -137,11 +137,37 @@ class XmlHeader:
         return cls._leading_header(content) is not None
 
     @classmethod
+    def body_from_content(cls, content: str) -> str | None:
+        """Read the body only when content starts with a valid XML header."""
+        leading = cls._leading_header(content)
+        if leading is None:
+            return None
+        return content[cls._body_start(content, leading[1]) :]
+
+    @classmethod
+    def replace_body_in_content(cls, content: str, body: str) -> str:
+        """Replace the body while preserving the header and its line separator."""
+        leading = cls._leading_header(content)
+        if leading is None:
+            return content
+        return content[: cls._body_start(content, leading[1])] + body
+
+    @staticmethod
+    def _body_start(content: str, header_end: int) -> int:
+        if content.startswith("\r\n", header_end):
+            return header_end + 2
+        if content.startswith("\n", header_end):
+            return header_end + 1
+        return header_end
+
+    @classmethod
     def add_field_to_content(cls, content: str, key: str, value: str) -> str:
-        """Add metadata only when content already starts with a valid header."""
+        """Add or replace metadata in a valid header, preserving the body."""
         leading = cls._leading_header(content)
         if leading is None:
             return content
         root, end = leading
+        for existing in root.findall(key):
+            root.remove(existing)
         append_text_element(root, key, value)
         return render_xml(root) + content[end:]

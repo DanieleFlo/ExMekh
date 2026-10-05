@@ -158,7 +158,9 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
             "Read the current status and available output of a tool by output ID. "
             "Use an optional cursor to read only new output; omit it to read the "
             "complete output. Includes the final result when available. "
-            "Also reads saved user steering and restores its attachments."
+            "Also reads saved user steering and restores its attachments. "
+            "summary_mode defaults to 'none'; 'brief' gives 3 to 5 bullet points, "
+            "'detailed' preserves essential details. Outputs below 300 tokens stay complete."
         ),
         "control_tool_execution": (
             "Wait for a tool execution by its original tool_call_id, or request "

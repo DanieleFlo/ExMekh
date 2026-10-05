@@ -4,6 +4,7 @@ import logging
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from pathlib import Path
+from time import monotonic
 from typing import Any
 
 from exmekh_lib.config.runtime import RUNTIME
@@ -192,19 +193,26 @@ class ToolCallExecutor:
         )
         try:
             snapshot = None
+            elapsed_seconds = None
             if called_tool.background_enabled and self._execution_manager is not None:
                 result, snapshot = self._run_managed_tool(
                     called_tool, self._execution_manager
                 )
             else:
+                started_clock = monotonic()
                 result = called_tool.execute(
                     work_root=self._work_root,
                     history=tuple(self._client.dump_history()),
                 )
+                elapsed_seconds = monotonic() - started_clock
         except (TypeError, ValueError) as error:
             return self._recoverable_error(called_tool, f"Invalid arguments: {error}")
         return self._format_tool_result(
-            called_tool, result, snapshot, thinking_annotation_provider
+            called_tool,
+            result,
+            snapshot=snapshot,
+            thinking_annotation_provider=thinking_annotation_provider,
+            elapsed_seconds=elapsed_seconds,
         )
 
     def _run_managed_tool(
@@ -243,8 +251,10 @@ class ToolCallExecutor:
         self,
         called_tool: CalledTool,
         result: Any,
+        *,
         snapshot: ExecutionSnapshot | None,
         thinking_annotation_provider: Callable[[], str | None] | None,
+        elapsed_seconds: float | None,
     ) -> ToolExecutionResult:
         raw_result = (
             result.content if isinstance(result, PreformattedToolResult) else result
@@ -254,6 +264,7 @@ class ToolCallExecutor:
             result,
             annotation_provider=thinking_annotation_provider,
             execution=snapshot,
+            elapsed_seconds=elapsed_seconds,
         )
         tool_response = ToolMessage(
             content=content,
@@ -269,6 +280,7 @@ class ToolCallExecutor:
             save_result=called_tool.cache_result,
             output_id=output_id,
             execution=snapshot,
+            elapsed_seconds=elapsed_seconds,
         )
 
     def _running_tool_outputs(self) -> tuple[ExecutionSnapshot, ...]:
@@ -330,6 +342,7 @@ class ToolCallExecutor:
             )
 
         if self._skill_executions.depth:
+            elapsed_seconds = self._skill_executions.current.elapsed_seconds
             content, output_id = self._output_formatter.format_skill_return(
                 self._skill_executions.current.name,
                 content,
@@ -337,8 +350,9 @@ class ToolCallExecutor:
                 annotation_provider=thinking_annotation_provider,
                 background_tools=self._running_tool_outputs(),
                 used_tools=self._skill_executions.current.used_tools,
+                elapsed_seconds=elapsed_seconds,
             )
-            return self._close_deep_skill(content, result, output_id)
+            return self._close_deep_skill(content, result, output_id, elapsed_seconds)
 
         self._depth = max(0, self._depth - 1)
         logger.warning(
@@ -396,7 +410,7 @@ class ToolCallExecutor:
         )
 
     def _close_deep_skill(
-        self, output: str, result: Any, output_id: str | None
+        self, output: str, result: Any, output_id: str | None, elapsed_seconds: float
     ) -> ToolExecutionResult:
         history = self._client.copy_history()
         start_index = self._skill_executions.get_current_start_index()
@@ -430,6 +444,7 @@ class ToolCallExecutor:
             preserved_responses=execution.preceding_tool_responses,
             output_id=output_id,
             used_tools=execution.used_tools,
+            elapsed_seconds=elapsed_seconds,
             cache_identity=CacheIdentity(
                 name=execution.name,
                 source="DeepSkill",

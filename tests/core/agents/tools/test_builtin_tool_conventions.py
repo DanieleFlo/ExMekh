@@ -66,8 +66,29 @@ def test_runtime_state_is_absent_from_model_schemas(tmp_path: Path) -> None:
     assert schemas == {
         "get_execution_history": {"start_position", "limit"},
         "search_tool_outputs": {"query", "tool_name", "skill_path", "offset", "limit"},
-        "read_tool_output": {"output_id", "cursor"},
+        "read_tool_output": {"output_id", "cursor", "summary_mode"},
         "control_tool_execution": {"tool_call_id", "action", "wait_seconds"},
         "bash": {"command", "execution_mode", "wait_seconds"},
         "call_sub_agent": {"sub_agent", "text"},
     }
+
+
+def test_read_output_summary_schema_has_three_modes_and_no_summary_default(tmp_path):
+    memory = HarnessMemoryTools(ExecutionHistory(), lambda: None, work_root=tmp_path)
+    read = next(tool for tool in memory.tools if tool.name == "read_tool_output")
+    mapper = OpenAIFunctionToolDefinitionMapper(
+        OpenAIChatCompletionAnnotationSchemaBuilder()
+    )
+    for strict in (False, True):
+        schema = mapper.map(read, strict=strict).get_parameters()
+        assert schema["properties"]["summary_mode"]["enum"] == [
+            "none",
+            "brief",
+            "detailed",
+        ]
+        assert schema["properties"]["summary_mode"]["type"] == "string"
+        if strict:
+            assert "summary_mode" in schema["required"]
+        else:
+            assert schema["properties"]["summary_mode"]["default"] == "none"
+            assert "summary_mode" not in schema["required"]

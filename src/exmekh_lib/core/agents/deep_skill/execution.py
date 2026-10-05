@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from copy import deepcopy
 from dataclasses import dataclass, field
+from time import monotonic
 from typing import Any
 
 from exmekh_lib.core.agents.deep_skill.deep_skill import DeepSkill
@@ -29,6 +30,17 @@ class DeepSkillExecution:
     _used_tools: list[ToolOutputReference] = field(
         default_factory=list, init=False, repr=False
     )
+
+    _started_clock: float = field(
+        default_factory=lambda: monotonic(), init=False, repr=False
+    )
+    _finished_clock: float | None = field(default=None, init=False, repr=False)
+
+    @property
+    def elapsed_seconds(self) -> float:
+        """Time since opening, fixed after closure, including nested work."""
+        end = self._finished_clock if self._finished_clock is not None else monotonic()
+        return end - self._started_clock
 
     @property
     def name(self) -> str:
@@ -83,6 +95,7 @@ class DeepSkillExecution:
         if self.output is not None:
             raise RuntimeError("Deep skill execution is already closed")
 
+        self._finished_clock = monotonic()
         self.end_index = end_index
         self.output = output
         self.history = history

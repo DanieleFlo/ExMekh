@@ -197,7 +197,7 @@ successivo. I messaggi già inseriti seguono la policy della history.
 
 ## Lettura e output incrementale
 
-`read_tool_output(output_id, cursor=None)` sostituisce il precedente nome
+`read_tool_output(output_id, cursor=None, summary_mode="none")` sostituisce il precedente nome
 `read_saved_tool_output`. Il nome nei selettori e negli override di
 `DefaultCapabilities` deve essere aggiornato. L'argomento `output_id` conserva
 il suo significato.
@@ -217,8 +217,19 @@ il nuovo `<response-type>` indica:
 
 Per i lavori gestiti sia la risposta immediata sia le letture usano lo stesso
 header con argomenti, stato, call ID, timestamp di avvio, timestamp finale quando
-presente e secondi trascorsi. I record precedenti
-senza metadati di esecuzione vengono letti come risultati finali.
+presente e secondi trascorsi nel campo `<elapsed-seconds>`. Durante un lavoro
+in background il tempo viene ricalcolato con un orologio monotono a ogni lettura;
+dopo completamento, errore o annullamento resta fermo. Le risposte ordinarie dei
+tool sincroni riportano la durata della chiamata, inclusi gli hook; i ritorni delle
+skill riportano il tempo dall'apertura, incluse inferenze e lavoro annidato.
+Queste durate si conservano nella cache e nelle letture dopo il riavvio.
+Una rilettura conserva il tempo dell'output originario. I record precedenti
+senza metadati di esecuzione vengono letti come risultati finali, senza inventare
+tempi mancanti. Gli output preformattati senza header e gli errori recuperabili
+di validazione conservano il loro formato originale, senza aggiungere un header
+solo per la durata. Un risultato preformattato sincrono mantiene i suoi metadati
+indipendentemente dal nome registrato del tool. Un'esecuzione gestita aggiunge i
+propri metadati nell'envelope esterno.
 
 Gli output ordinari e i ritorni delle skill conservano sempre un header e un ID
 leggibile: se il provider non può generare un ID valido, viene usato un UUID.
@@ -247,13 +258,51 @@ decide come interpretarlo. Ometterlo consente la lettura completa. Al termine,
 una lettura con cursore contiene i dati residui e il risultato finale; una
 lettura senza cursore restituisce il risultato completo. Un tool senza callback
 incrementale segnala che il cursore non è supportato. Per record soltanto
-salvati il cursore è un offset di caratteri nel contenuto renderizzato.
+salvati il cursore è un offset di caratteri nel contenuto renderizzato;
+anche oltre la fine, `next-cursor` non torna indietro.
 
 Se il canale dei progressi fallisce, `read_tool_output` riporta la diagnostica
 in `partial-output-error` nell'header XML e restituisce lo stato disponibile.
 Il guasto non cambia lo stato del lavoro e non nasconde un risultato finale o
 l'errore dell'esecuzione. Non viene avanzato un cursore senza dati validi.
 Un tool che non supporta i cursori continua a rifiutare le letture con cursore.
+
+## Riassunti delle letture
+
+Il parametro opzionale `summary_mode` accetta:
+
+| Valore | Contenuto restituito |
+| --- | --- |
+| `none` (default) | Output completo, senza chiamate aggiuntive al modello. |
+| `brief` | Da 3 a 5 punti, con al massimo due frasi per punto. |
+| `detailed` | Solo le informazioni fondamentali, con i dettagli essenziali per usare il risultato. |
+
+Sotto `RUNTIME.tool_output_summary_min_tokens` (300 token per default) il corpo
+viene restituito integralmente in ogni modalità. A partire dalla soglia, `brief`
+e `detailed` usano i rispettivi prompt in `RuntimeSettings`, un client dedicato
+con lo stesso provider e modello del nodo, senza tool, history del nodo,
+streaming o reasoning (`reasoning_effort_override="none"`). Ogni lettura ha un
+client isolato dalle altre letture.
+
+Il riassunto sostituisce soltanto il corpo dopo un header XML valido e aggiunge
+`<summary-mode>` all'header. Testo senza header e header malformati restano
+invariati. Le aggiunte di metadati sostituiscono il campo già presente senza
+creare copie duplicate. Stato, ID, durata, diagnostica, cursore e allegati
+restano disponibili; cache e risultato originario non vengono modificati.
+Con un cursore si riassume il contenuto della lettura corrente, e `next-cursor`
+continua a riferirsi all'output originario. I byte degli allegati non vengono
+inviati al riassuntore: vengono ripristinati dal normale percorso di lettura.
+Se il conteggio dei token o il modello fallisce, oppure manca una risposta
+testuale o la risposta contiene chiamate a tool inattese, si registra la
+diagnostica e si restituisce l'output integrale. Le annotazioni del thinking
+usano lo stesso servizio di riassunto con client isolato, mantenendo la propria
+soglia e cache per turno.
+Una lettura finale riassunta conferma la consegna come una lettura integrale.
+
+```python
+summary = node.read_tool_output(output_id, summary_mode="brief")
+original = node.read_tool_output(output_id)  # sempre recuperabile
+```
 
 ## Hook e tool specializzati
 

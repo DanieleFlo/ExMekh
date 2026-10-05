@@ -69,11 +69,7 @@ class ToolResultRecorder:
                     if attachments is not None
                     else None
                 ),
-                execution=(
-                    result.execution.status_info()
-                    if result.execution is not None
-                    else None
-                ),
+                execution=result.execution_metadata(),
             )
             cache = self._cache_provider()
             cache.store(record)

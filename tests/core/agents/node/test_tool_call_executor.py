@@ -4,16 +4,20 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from exmekh_lib.core.agents.exit_tool.exit_tool import ExitTool
-from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.agents.node import Node, tool_call_executor
 from exmekh_lib.core.agents.node.agentic_scope import AgenticScope
 from exmekh_lib.core.agents.node.tool_call_executor import ToolCallExecutor
 from exmekh_lib.core.agents.node.tool_call_resolver import ToolCallResolver
+from exmekh_lib.core.agents.node.tool_result_recorder import ToolResultRecorder
+from exmekh_lib.core.cache import SessionCache
 from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
 from exmekh_lib.core.models.client import Client
 from exmekh_lib.core.models.system_message import SystemMessage
 from exmekh_lib.core.models.tool import CalledTool, Tool
 from exmekh_lib.core.models.user_message import UserMessage
+from exmekh_lib.core.tool_calls.execution_history import ExecutionHistory
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
+from exmekh_lib.core.tool_calls.harness_memory_tools import HarnessMemoryTools
 from tests.core.agents.node.test_node import (
     SequenceProvider,
     _write_runnable_capabilities,
@@ -114,3 +118,35 @@ def test_skill_return_without_execution_manager_has_a_complete_header(tmp_path):
     assert result.response.get_tool_call_id() == "open"
     assert executor.pending_return_call_id == "open"
     assert executor.depth == 0
+
+
+def test_synchronous_duration_is_measured_and_preserved_in_saved_reads(
+    make_executor, tmp_path, monkeypatch
+):
+
+    clocks = iter([10, 12.5])
+    monkeypatch.setattr(tool_call_executor, "monotonic", lambda: next(clocks))
+    called = CalledTool(
+        Tool(lambda: "done", name="work", background_enabled=False),
+        ToolCall("call", FunctionCall("work", {})),
+    )
+    result = make_executor().execute(called)
+    assert result.elapsed_seconds == 2.5
+    immediate_header = ET.fromstring(
+        result.response.get_message().split("</header>")[0] + "</header>"
+    )
+    assert immediate_header.findtext("elapsed-seconds") == "2.5"
+    with SessionCache(tmp_path) as session:
+        cache = session.node("node")
+        history = ExecutionHistory()
+        recorder = ToolResultRecorder(history, lambda: cache, ToolExecutionManager())
+        identity = recorder.record_call(called, None)
+        recorder.persist_result(result, identity, "/")
+        record = cache.get(result.output_id)
+        assert record.execution == {"status": "completed", "elapsed_seconds": 2.5}
+        read = HarnessMemoryTools(history, lambda: cache).read_tool_output(
+            result.output_id
+        )
+        header = ET.fromstring(read.content.split("</header>")[0] + "</header>")
+        assert header.findtext("elapsed-seconds") == "2.5"
+        assert read.content.endswith("done")

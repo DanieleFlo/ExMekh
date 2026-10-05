@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Final, Literal
 
 from exmekh_lib.capabilities.tools.call_sub_agent.sub_agent_tool import SubAgentTool
+from exmekh_lib.capabilities.tools.read_tool_output.summary import SummaryMode
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
 from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
@@ -194,12 +195,15 @@ class Node:
         return self._runtime.control_tool_execution(tool_call_id, action, wait_seconds)
 
     def read_tool_output(
-        self, output_id: str, cursor: int | None = None
+        self,
+        output_id: str,
+        cursor: int | None = None,
+        summary_mode: SummaryMode = "none",
     ) -> PreformattedToolResult:
         """Read node-local output; a final read acknowledges automatic delivery."""
         if self._runtime is None:
             raise RuntimeError("Node must be initialized before reading tool output")
-        return self._runtime.read_tool_output(output_id, cursor)
+        return self._runtime.read_tool_output(output_id, cursor, summary_mode)
 
     def restore_history(
         self,

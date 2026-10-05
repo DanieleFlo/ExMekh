@@ -217,3 +217,11 @@ response = client.call(ClientRequest(
     on_event=PrintProviderEvents(),
 ))
 ```
+
+### Reasoning override for one request
+
+The optional `ClientRequest(..., reasoning_effort_override="none")` disables
+reasoning for that request. Both `Client.call` and `Client.call_structured`
+forward it without changing the provider configuration or subsequent requests.
+The `read_tool_output` summarizer uses it on a dedicated client with the same
+model as the node.

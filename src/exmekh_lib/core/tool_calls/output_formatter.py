@@ -37,6 +37,7 @@ class ToolOutputFormatter:
         result: Any,
         *,
         execution: ExecutionSnapshot | None = None,
+        elapsed_seconds: float | None = None,
         annotation_provider: Callable[[], str | None] | None = None,
     ) -> tuple[str, str | None]:
         if isinstance(result, PreformattedToolResult) and execution is None:
@@ -60,6 +61,8 @@ class ToolOutputFormatter:
                 execution.output_id or self.generate_output_id(), execution
             )
         )
+        if execution is None:
+            header.add_field("elapsed-seconds", elapsed_seconds)
         header.add_field(
             "response-type", "final" if execution is None else execution.response_type
         )
@@ -108,11 +111,13 @@ class ToolOutputFormatter:
         content: str,
         *,
         thinking: str | None = None,
+        elapsed_seconds: float | None = None,
         annotation_provider: Callable[[], str | None] | None = None,
         background_tools: Sequence[ExecutionSnapshot] = (),
         used_tools: Sequence[ToolOutputReference] = (),
     ) -> tuple[str, str]:
         header = self._new_header("DeepSkill", name)
+        header.add_field("elapsed-seconds", elapsed_seconds)
         header.add_field("response-type", "final")
         header.add_field(
             "used-tools", [reference.to_dict() for reference in used_tools]

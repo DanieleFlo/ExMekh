@@ -550,3 +550,29 @@ def test_existing_header_can_receive_thinking_without_changing_body() -> None:
         XmlHeader.add_field_to_content("<other>body</other>", "thinking", "x")
         == "<other>body</other>"
     )
+
+
+@pytest.mark.parametrize("summary_text", ["", "   "])
+def test_empty_thinking_summary_is_omitted_and_cached_for_the_turn(
+    tmp_path, summary_text
+):
+    with SessionCache(tmp_path / "cache") as session:
+        provider = _Provider(session, [], summary=summary_text)
+        annotations = ThinkingAnnotationResolver(provider)
+        assert annotations.resolve("x" * 201) is None
+        assert annotations.resolve("x" * 201) is None
+        assert len(provider.summary_requests) == 1
+        request = provider.summary_requests[0]
+        assert request.get_tool_choice() == "none"
+        assert request.get_tools() is None
+        assert len(request.get_messages()) == 2
+
+
+def test_thinking_summary_rejects_unexpected_tool_calls(tmp_path):
+    with SessionCache(tmp_path / "cache") as session:
+        provider = _Provider(session, [])
+        provider.call = lambda request: ProviderResponse(
+            AssistantMessage("summary", tool_calls=[_call("unexpected", "call")])
+        )
+        annotations = ThinkingAnnotationResolver(provider)
+        assert annotations.resolve("x" * 201) is None

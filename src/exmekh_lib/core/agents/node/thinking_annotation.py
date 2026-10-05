@@ -5,9 +5,7 @@ from __future__ import annotations
 import logging
 
 from exmekh_lib.config.runtime import RUNTIME
-from exmekh_lib.core.models.provider_request import ProviderRequest
-from exmekh_lib.core.models.system_message import SystemMessage
-from exmekh_lib.core.models.user_message import UserMessage
+from exmekh_lib.core.models.text_summarizer import TextSummarizer
 from exmekh_lib.interfaces.provider import Provider
 
 logger = logging.getLogger(__name__)
@@ -18,6 +16,7 @@ class ThinkingAnnotationResolver:
 
     def __init__(self, provider: Provider) -> None:
         self._provider = provider
+        self._text_summarizer = TextSummarizer(provider)
         self._annotations: dict[str, str | None] = {}
 
     def begin_turn(self) -> None:
@@ -42,20 +41,8 @@ class ThinkingAnnotationResolver:
 
     def _summarize(self, thinking: str) -> str | None:
         try:
-            response = self._provider.call(
-                ProviderRequest(
-                    messages=[
-                        SystemMessage(RUNTIME.thinking_summary_prompt),
-                        UserMessage(thinking),
-                    ],
-                    reasoning_effort_override="none",
-                )
-            )
-            summary = response.get_message()
-            return (
-                summary.strip()
-                if isinstance(summary, str) and summary.strip()
-                else None
+            return self._text_summarizer.summarize(
+                thinking, RUNTIME.thinking_summary_prompt
             )
         except Exception:
             logger.exception("Deep-thinking summary unavailable")
