@@ -202,7 +202,9 @@ def test_group_presets_and_individual_selection() -> None:
     assert DefaultCapabilities().selected_names == HARNESS_NAMES
     assert not RUNTIME_NAMES.intersection(DEEP_THINKING_TOOLS | {"deep-thinking"})
     assert DefaultCapabilities(mocks=True, harness=False).selected_names == (
-        MOCK_NAMES | DEEP_THINKING_TOOLS | {"deep-thinking", "exit_agent"}
+        MOCK_NAMES
+        | DEEP_THINKING_TOOLS
+        | {"deep-thinking", "file-processing", "exit_agent", "inspect-file"}
     )
     assert DefaultCapabilities(mocks=True).selected_names == MOCK_NAMES | HARNESS_NAMES
     selected = DefaultCapabilities(
@@ -329,8 +331,13 @@ def test_harness_defaults_support_an_application_hds_without_mocks(
 
     assert {resource.name for resource in loaded.hds} == {"application"}
     assert {resource.name for resource in loaded.exit_tools} == {"exit_agent"}
-    assert {skill.name for skill in loaded.deep_skills} == {"deep-thinking"}
-    assert {tool.name for tool in loaded.tools} == DEEP_THINKING_TOOLS
+    assert {skill.name for skill in loaded.deep_skills} == {
+        "deep-thinking",
+        "file-processing",
+    }
+    assert {tool.name for tool in loaded.tools} == DEEP_THINKING_TOOLS | {
+        "inspect-file"
+    }
     assert node.run("hello").get_message() == "done"
     request = provider.requests[0]
     assert set(request.get_tools().list_tools()) == HARNESS_NAMES - {"call_sub_agent"}
@@ -360,10 +367,11 @@ def test_mock_preset_works_without_application_paths_and_deduplicates_builtin_pa
         assert {resource.name for resource in loaded.hds} == {"main", "mock-sub-agent"}
         assert {resource.name for resource in loaded.deep_skills} == {
             "deep-thinking",
+            "file-processing",
             "mock-skill",
             "nested-skill",
         }
-        assert len(loaded.tools) == 12
+        assert len(loaded.tools) == 13
 
 
 @pytest.mark.parametrize("paths", [None, []])
@@ -380,7 +388,7 @@ def test_node_uses_bundled_path_when_no_paths_are_supplied(
         "mock-sub-tool",
         "nested-sub-tool",
         "shared-tool",
-    } | DEEP_THINKING_TOOLS
+    } | DEEP_THINKING_TOOLS | {"inspect-file"}
 
 
 def test_direct_capabilities_loader_adds_bundled_path_once(tmp_path: Path) -> None:
@@ -391,7 +399,7 @@ def test_direct_capabilities_loader_adds_bundled_path_once(tmp_path: Path) -> No
             work_root=tmp_path
         )
         assert {hds.name for hds in loaded.hds} == {"main", "mock-sub-agent"}
-        assert len(loaded.tools) == 12
+        assert len(loaded.tools) == 13
 
 
 def test_direct_capabilities_loader_uses_bundled_path_when_paths_are_none(
@@ -655,17 +663,14 @@ def test_excluding_memory_readers_preserves_internal_cache(tmp_path: Path) -> No
     node.initialize(provider, work_root=tmp_path)
     node.run("do work")
 
-    assert (
-        set(provider.requests[0].get_tools().list_tools())
-        == {
-            "mock-tool",
-            "exit_agent",
-            "deep-thinking",
-            "control_tool_execution",
-            "bash",
-        }
-        | DEEP_THINKING_TOOLS
-    )
+    assert set(provider.requests[0].get_tools().list_tools()) == {
+        "mock-tool",
+        "exit_agent",
+        "deep-thinking",
+        "file-processing",
+        "control_tool_execution",
+        "bash",
+    } | DEEP_THINKING_TOOLS | {"inspect-file"}
     assert [record.result for record in node._runtime._tool_cache.get_all()] == [
         "Replacement: cached"
     ]
@@ -759,7 +764,9 @@ def test_application_tool_override_uses_names_from_every_capabilities_path(
     assert defaults.overrides["first-tool"] == ToolOverride("first-tool", "second-tool")
 
     tools = {tool.name: tool for tool in loaded.tools}
-    assert set(tools) == {"first-tool", "second-tool"} | DEEP_THINKING_TOOLS
+    assert set(tools) == {"first-tool", "second-tool"} | DEEP_THINKING_TOOLS | {
+        "inspect-file"
+    }
     assert tools["first-tool"].execute(text="ok") == "second-tool: ok"
     assert tools["second-tool"].execute(text="ok") == "second-tool: ok"
     response = node.run("hello")
@@ -794,7 +801,7 @@ def test_named_tool_override_replaces_a_bundled_tool(tmp_path: Path) -> None:
     assert {tool.name for tool in loaded.tools} == {
         "mock-tool",
         "replacement-tool",
-    } | DEEP_THINKING_TOOLS
+    } | DEEP_THINKING_TOOLS | {"inspect-file"}
     assert (
         next(tool for tool in loaded.tools if tool.name == "mock-tool").execute(
             text="ok"
@@ -936,7 +943,12 @@ def test_named_deep_skill_override_uses_loaded_skill_and_executes(
     other_loaded = other.load_capabilities(work_root=tmp_path)
 
     skills = {skill.name: skill for skill in loaded.deep_skills}
-    assert set(skills) == {"target-skill", "replacement-skill", "deep-thinking"}
+    assert set(skills) == {
+        "target-skill",
+        "replacement-skill",
+        "deep-thinking",
+        "file-processing",
+    }
     assert skills["target-skill"].body == "replacement-skill body"
     assert skills["target-skill"] is not skills["replacement-skill"]
     assert skills["target-skill"] is not next(

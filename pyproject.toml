@@ -20,6 +20,7 @@ dependencies = [
     "playwright>=1.53.0",
     "psutil>=7.2.2",
     "pydantic>=2.0.0",
+    "pypdf>=6.0.0",
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.3",
     "sympy>=1.14.0",
@@ -81,6 +82,7 @@ select = ["E4", "E7", "E9", "F", "I", "PLC0415"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/exmekh_lib/capabilities/tools/calculate/main.py" = ["PLC0415"]
+"src/exmekh_lib/capabilities/tools/inspect-file/main.py" = ["PLC0415"]
 "src/exmekh_lib/capabilities/tools/interact-web-page/main.py" = ["PLC0415"]
 "src/exmekh_lib/capabilities/tools/read-web-page/main.py" = ["PLC0415"]
 "src/exmekh_lib/capabilities/tools/search-web/main.py" = ["PLC0415"]

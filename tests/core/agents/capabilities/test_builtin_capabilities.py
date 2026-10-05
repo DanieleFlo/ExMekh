@@ -66,12 +66,14 @@ def test_loads_builtin_assistant_capabilities(tmp_path: Path) -> None:
     )
     assert {skill.name for skill in capabilities.deep_skills} == {
         "deep-thinking",
+        "file-processing",
         "mock-skill",
         "nested-skill",
     }
     assert {tool.name for tool in capabilities.tools} == {
         "calculate",
         "date-time",
+        "inspect-file",
         "interact-web-page",
         "mock-sub-tool",
         "mock-tool",
@@ -86,7 +88,11 @@ def test_loads_builtin_assistant_capabilities(tmp_path: Path) -> None:
     assert tuple(skill.name for skill in capabilities.exit_tools) == ("exit_agent",)
 
     main_hds = capabilities.hds[0]
-    assert main_hds.get_sub_skill_names() == ("mock-skill", "deep-thinking")
+    assert main_hds.get_sub_skill_names() == (
+        "mock-skill",
+        "deep-thinking",
+        "file-processing",
+    )
     assert main_hds.get_sub_tool_names() == ("mock-tool",)
     assert main_hds.get_exit_tool_name() == "exit_agent"
 
@@ -119,7 +125,10 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
     request_tools = provider.requests[0].get_tools()
     assert request_tools is not None
     descriptions = {tool.name: tool.description for tool in request_tools.get_tools()}
+    assert descriptions["inspect-file"] == "Available in skill 'file-processing'."
     assert descriptions == {
+        "file-processing": "Processes workspace files through bounded inspection and navigation.",
+        "inspect-file": "Available in skill 'file-processing'.",
         "deep-thinking": (
             "Investigates difficult questions with web evidence, "
             "mathematical and date/time computation, and formal Z3 reasoning."

@@ -26,11 +26,13 @@ _MOCK_RESOURCE_TYPES: dict[str, type[Tool]] = {
 }
 _HARNESS_RESOURCE_TYPES: dict[str, type[Tool]] = {
     "deep-thinking": DeepSkill,
+    "file-processing": DeepSkill,
     "search-web": Tool,
     "read-web-page": Tool,
     "interact-web-page": Tool,
     "calculate": Tool,
     "date-time": Tool,
+    "inspect-file": Tool,
     "logic-check": Tool,
     "logic-consistency": Tool,
     "logic-counterexample": Tool,
@@ -50,11 +52,13 @@ _MAIN_HDS_DEPENDENCIES = frozenset(
     {
         RUNTIME.exit_tool_name,
         "deep-thinking",
+        "file-processing",
         "search-web",
         "read-web-page",
         "interact-web-page",
         "calculate",
         "date-time",
+        "inspect-file",
         "logic-check",
         "logic-consistency",
         "logic-counterexample",

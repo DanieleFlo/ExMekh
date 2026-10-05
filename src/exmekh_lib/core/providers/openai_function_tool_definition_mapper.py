@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import json
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
@@ -25,7 +26,7 @@ class OpenAIFunctionToolDefinition:
         return self._name
 
     def get_parameters(self) -> Schema:
-        return self._parameters.copy()
+        return deepcopy(self._parameters)
 
     def get_description(self) -> str:
         return self._description
@@ -33,7 +34,7 @@ class OpenAIFunctionToolDefinition:
     def to_openai(self) -> FunctionDefinition:
         definition = FunctionDefinition(
             name=self._name,
-            parameters=self._parameters,
+            parameters=self.get_parameters(),
         )
         if self._description:
             definition["description"] = self._description

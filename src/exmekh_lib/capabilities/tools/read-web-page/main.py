@@ -6,10 +6,8 @@ from typing import Literal
 from exmekh_lib.config.web import WEB_NAVIGATION
 from exmekh_lib.core.agents.tools.decorator import deep_tool
 from exmekh_lib.core.web_navigation.errors import WebNavigationError
-from exmekh_lib.core.web_navigation.tool_output import (
-    missing_dependency,
-    navigation_error,
-)
+from exmekh_lib.core.web_navigation.tool_output import navigation_error
+from exmekh_lib.utils.tool_errors import missing_dependency
 
 
 @deep_tool(
