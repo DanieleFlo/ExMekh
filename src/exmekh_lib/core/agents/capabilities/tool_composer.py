@@ -26,9 +26,16 @@ class _DefaultToolComposer:
             return None
         replacement = self._defaults.tool_override(name)
         composed = self.apply_hooks(tool if replacement is None else replacement)
-        if not tool.background_enabled:
-            composed = composed.without_background_execution()
-        return composed
+        return self.preserve_execution_policy(tool, composed)
+
+    @staticmethod
+    def preserve_execution_policy(original: Tool, replacement: Tool) -> Tool:
+        """Loaded and runtime overrides must both keep explicitly synchronous tools inline."""
+        return (
+            replacement
+            if original.background_enabled
+            else replacement.without_background_execution()
+        )
 
     def compose_runtime_tools(self, tools: Sequence[Tool]) -> tuple[Tool, ...]:
         composed = []

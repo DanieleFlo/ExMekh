@@ -116,7 +116,7 @@ def test_managed_reply_and_read_have_identical_execution_metadata(status):
     )
     read = formatter.format_execution_output("output", snapshot, None)
 
-    assert immediate.split("</header>", 1)[0] == read.split("</header>", 1)[0]
+    assert immediate == read
     assert output_id == "output"
 
 
@@ -175,3 +175,31 @@ def test_reading_legacy_output_does_not_substitute_read_duration_for_missing_exe
     )
     assert content == original
     assert output_id is None
+
+
+def test_explicit_failed_preformatted_result_preserves_content_with_failed_metadata():
+    client = MagicMock(spec=Client)
+    client.generate_id.return_value = "failed-output"
+    formatter = ToolOutputFormatter(client)
+    content, output_id = formatter.format_tool_result(
+        "work", PreformattedToolResult("authored error"), failed=True
+    )
+    assert output_id == "failed-output"
+    assert "<response-type>failed</response-type>" in content
+    assert content.endswith("authored error")
+
+
+def test_legacy_failed_snapshot_preserves_its_diagnostic_in_structured_output():
+    snapshot = ExecutionSnapshot(
+        call_id="call",
+        name="work",
+        arguments={},
+        status="failed",
+        started_at=datetime(2026, 9, 30, tzinfo=timezone.utc),
+        finished_at=None,
+        output_id="output",
+        elapsed_seconds=1,
+        error="legacy failure",
+    )
+    assert snapshot.output_result()["error"] == "legacy failure"
+    assert "legacy failure" in snapshot.output_content()

@@ -225,9 +225,10 @@ skill riportano il tempo dall'apertura, incluse inferenze e lavoro annidato.
 Queste durate si conservano nella cache e nelle letture dopo il riavvio.
 Una rilettura conserva il tempo dell'output originario. I record precedenti
 senza metadati di esecuzione vengono letti come risultati finali, senza inventare
-tempi mancanti. Gli output preformattati senza header e gli errori recuperabili
-di validazione conservano il loro formato originale, senza aggiungere un header
-solo per la durata. Un risultato preformattato sincrono mantiene i suoi metadati
+tempi mancanti. Gli output preformattati senza header conservano il loro formato
+originale, senza aggiungere un header solo per la durata. Gli errori di
+validazione del runtime usano il renderer XML condiviso e dichiarano
+`response-type=failed`. Un risultato preformattato sincrono mantiene i suoi metadati
 indipendentemente dal nome registrato del tool. Un'esecuzione gestita aggiunge i
 propri metadati nell'envelope esterno.
 
@@ -235,6 +236,20 @@ Gli output ordinari e i ritorni delle skill conservano sempre un header e un ID
 leggibile: se il provider non può generare un ID valido, viene usato un UUID.
 I risultati diretti conclusi e i ritorni delle skill dichiarano
 `response-type=final`, come le letture dei rispettivi output salvati.
+Le eccezioni dei tool sincroni producono un risultato con
+`error_kind=tool_execution_failed`, stato `failed` e durata misurata, senza
+interrompere il loop. Gli errori di binding/validazione prima della funzione
+sono distinti (`invalid_tool_arguments`); una `TypeError` o `ValueError` sollevata
+dal corpo del tool resta un errore di esecuzione. I suggerimenti opzionali
+`argument_guidance` appartengono alla definizione del tool. Gli errori mantengono
+la policy di cache del tool; anche gli errori recuperabili dell'exit tool hanno
+un ID e metadati leggibili. Gli errori dell'infrastruttura fuori dall'invocazione,
+come la scrittura della cache, continuano a propagarsi al chiamante.
+Per lavori gestiti, anche gli stati running/failed/cancelled hanno lo stesso
+contenuto strutturato nelle risposte immediate e nelle riletture; solo i metadati
+temporali di un lavoro ancora attivo continuano ad aggiornarsi.
+Gli override di tool caricati e runtime conservano entrambi la scelta esplicita
+di esecuzione sincrona della definizione originale.
 Un errore nell'annotazione opzionale `thinking` omette solo quell'annotazione.
 Il contenuto di `PreformattedToolResult` viene preservato; un'esecuzione gestita
 lo include nel proprio envelope per aggiungere stato e ID canonico.

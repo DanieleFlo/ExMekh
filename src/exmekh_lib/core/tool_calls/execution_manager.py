@@ -10,12 +10,14 @@ from typing import Any, Literal
 
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
+from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
 from exmekh_lib.core.models.tool import (
     ExecutionOptions,
     PreformattedToolResult,
     ToolExecutionOperation,
 )
 from exmekh_lib.core.models.user_message import UserMessage
+from exmekh_lib.utils.tool_errors import tool_failure_result
 from exmekh_lib.utils.xml import stringify_tool_result
 
 type ExecutionStatus = Literal["running", "completed", "failed", "cancelled"]
@@ -34,6 +36,10 @@ class ExecutionSnapshot:
     result: Any = None
     error: str | None = None
     skill_path: str = "/"
+
+    def tool_call(self) -> ToolCall:
+        """Expose the originating call without leaking the snapshot's representation."""
+        return ToolCall(self.call_id, FunctionCall(self.name, deepcopy(self.arguments)))
 
     @property
     def is_finished(self) -> bool:
@@ -59,6 +65,20 @@ class ExecutionSnapshot:
     def output_result(self) -> Any:
         if self.status == "completed":
             return self.result
+        if self.status == "failed":
+            failure = (
+                self.result
+                if isinstance(self.result, dict)
+                else {
+                    "ok": False,
+                    "error_kind": "tool_execution_failed",
+                }
+            )
+            return {
+                **self.status_info(),
+                **failure,
+                "error": self._diagnostic_content(),
+            }
         result = self.status_info()
         diagnostic_field = "error" if self.error is not None else "message"
         result[diagnostic_field] = self._diagnostic_content()
@@ -78,15 +98,15 @@ class ExecutionSnapshot:
 
     def output_content(self) -> str:
         """Render the current result or diagnostic without exposing its representation."""
-        if self.status == "completed":
-            return stringify_tool_result(self.record_result())
-        return self._diagnostic_content()
+        return stringify_tool_result(self.record_result())
 
     def _diagnostic_content(self) -> str:
         if self.error is not None:
             return self.error
         if self.status == "cancelled":
             return "Tool execution was cancelled."
+        if self.status == "failed":
+            return "Tool execution failed without a diagnostic."
         return "Tool execution is still running."
 
 
@@ -138,6 +158,7 @@ class _Execution:
 
     def fail(self, error: BaseException) -> None:
         if not self.finished.is_set():
+            self.result = tool_failure_result(error)
             self.error = f"{type(error).__name__}: {error}"
             self._finish("failed")
 

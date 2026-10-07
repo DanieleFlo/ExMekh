@@ -455,7 +455,10 @@ def test_invalid_history_arguments_can_be_corrected_inside_skill(
         assert _tool_content(provider.requests[3], "retry").startswith(
             "<execution-history>"
         )
-        assert provider.summary_requests == []
+        assert "<response-type>failed</response-type>" in _tool_content(
+            provider.requests[2], "invalid"
+        )
+        assert len(provider.summary_requests) == 1
 
 
 def test_nested_skill_calls_keep_their_existing_header_behavior(tmp_path: Path) -> None:

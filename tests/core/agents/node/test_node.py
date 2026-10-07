@@ -54,6 +54,7 @@ from exmekh_lib.core.tokenizers.sequential_tokenizer import SequentialTokenizer
 from exmekh_lib.core.tool_calls.execution_history import ExecutionHistory
 from exmekh_lib.interfaces.provider import Provider
 from exmekh_lib.interfaces.tokenizer import Tokenizer
+from exmekh_lib.utils.xml import stringify_tool_result
 from tests.event_handler import as_agent_handler
 
 _RUNTIME_TOOL_NAMES = [
@@ -706,7 +707,8 @@ def test_tool_failure_still_emits_the_end_state(tmp_path: Path) -> None:
                 tool_calls=[
                     _function_call("mock-tool", {"text": "work"}, call_id="call-123")
                 ],
-            )
+            ),
+            AssistantMessage("recovered"),
         ]
     )
     events = []
@@ -724,15 +726,14 @@ def test_tool_failure_still_emits_the_end_state(tmp_path: Path) -> None:
         provider, work_root=tmp_path, on_stream=as_agent_handler(events.append)
     )
 
-    with pytest.raises(RuntimeError, match="tool failed"):
-        node.run("start")
+    assert node.run("start").get_message() == "recovered"
 
     tool_events = [
         event for event in events if isinstance(event, DeepAgentExecutionEvent)
     ]
     assert [event.is_tool_running for event in tool_events] == [True, False]
     assert all(event.tool_call_id == "call-123" for event in tool_events)
-    assert len(provider.requests) == 1
+    assert len(provider.requests) == 2
 
 
 def test_skill_increments_depth_adds_exit_body_and_requires_a_tool(
@@ -936,9 +937,13 @@ def test_exit_items_retry_keeps_skill_open_then_compacts_selected_output(
     records = node._runtime._tool_cache.get_all()
     assert {(record.id, record.tool_call_id) for record in records} == {
         ("out-1", "work"),
-        ("out-2", "open"),
+        ("out-2", "bad-exit"),
+        ("out-3", "open"),
     }
-    saved_result = next(record for record in records if record.id == "out-2").result
+    failed_exit = next(record for record in records if record.id == "out-2")
+    assert failed_exit.result["error_kind"] == "invalid_tool_arguments"
+    assert failed_exit.execution == {"status": "failed"}
+    saved_result = next(record for record in records if record.id == "out-3").result
     assert saved_result == {
         "text": skill_result.split("</header>\n", 1)[1],
         "items": ["work"],
@@ -986,9 +991,16 @@ def test_malformed_exit_items_return_feedback_without_closing_skill(
     assert provider.requests[2].get_tool_choice() == "required"
     assert "Invalid arguments" in provider.requests[2].get_messages()[-1].get_message()
     assert "items=[]" in provider.requests[2].get_messages()[-1].get_message()
-    assert all(
-        record.tool_call_id != "invalid"
+    failed_exit = next(
+        record
         for record in node._runtime._tool_cache.get_all()
+        if record.tool_call_id == "invalid"
+    )
+    assert failed_exit.result["ok"] is False
+    assert failed_exit.result["error_kind"] == "invalid_tool_arguments"
+    assert failed_exit.execution == {"status": "failed"}
+    assert stringify_tool_result(failed_exit.result) == _output_body(
+        provider.requests[2].get_messages()[-1].get_message()
     )
 
 

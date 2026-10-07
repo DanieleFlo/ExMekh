@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 import re
 from collections.abc import Callable
+from contextlib import AbstractContextManager
 from copy import copy
 from dataclasses import dataclass
 from functools import partial
@@ -22,6 +23,7 @@ from exmekh_lib.interfaces.tool_hook import (
     ToolResponse,
     validate_tool_hooks,
 )
+from exmekh_lib.utils.tool_errors import ToolArgumentError
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +83,16 @@ class ToolExecutionOperation:
     cancel: Callable[[], bool] | None = None
     read_partial: Callable[[int], tuple[str, int]] | None = None
 
+    def add_run_context(self, context: AbstractContextManager[object]) -> None:
+        """Wrap execution without losing cancellation/progress updates on this handle."""
+        run = self.run
+
+        def run_in_context() -> Any:
+            with context:
+                return run()
+
+        self.run = run_in_context
+
 
 class Tool:
     def __init__(
@@ -93,6 +105,7 @@ class Tool:
         background_enabled: bool = True,
         before: BeforeTool | None = None,
         after: AfterTool | None = None,
+        argument_guidance: str = "",
     ) -> None:
         self.tool = tool
         self._tool_type: Literal["function"] = "function"
@@ -116,6 +129,9 @@ class Tool:
         validate_tool_hooks(before, after)
         self.before = before
         self.after = after
+        if not isinstance(argument_guidance, str):
+            raise TypeError("argument_guidance must be a string")
+        self.argument_guidance = argument_guidance
         self._check_inputs()
 
     def _resolve_tool_name(self, tool: Callable[..., Any], name: str | None) -> str:
@@ -221,7 +237,15 @@ class Tool:
             if isinstance(decision, ToolResponse):
                 result = decision.result
             else:
-                self.validate_arguments(context.arguments)
+                try:
+                    self.validate_arguments(context.arguments)
+                except (TypeError, ValueError) as error:
+                    guidance = self.argument_guidance or (
+                        f"Correct the arguments and call {self.name} again."
+                    )
+                    raise ToolArgumentError(
+                        f"Invalid arguments: {error}. {guidance}"
+                    ) from error
                 work = self.create_execution(
                     context.arguments,
                     call_id=call_id,
@@ -400,6 +424,10 @@ class CalledTool:
             work_root=work_root,
             history=history,
         )
+
+    def without_background_execution(self) -> CalledTool:
+        """Execute a runtime follow-up to completion before the next inference."""
+        return CalledTool(self._tool.without_background_execution(), self._tool_call)
 
     def _validate_matching(self) -> None:
         call_name = self._tool_call.get_name()

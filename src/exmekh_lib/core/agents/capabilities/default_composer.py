@@ -33,7 +33,7 @@ class _DefaultCapabilitiesComposer:
     def compose(self, loaded: CapabilitiesData) -> CapabilitiesData:
         self._validate_override_targets(loaded)
         selected = self._select_loaded(loaded)
-        composed = self._apply_overrides(selected)
+        composed = self._apply_overrides(selected, loaded)
         self._validate_selected_names(composed)
         return self._apply_tool_hooks(composed)
 
@@ -107,11 +107,14 @@ class _DefaultCapabilitiesComposer:
             self._builtin_root
         ) or self._defaults.includes(name)
 
-    def _apply_overrides(self, selected: CapabilitiesData) -> CapabilitiesData:
+    def _apply_overrides(
+        self, selected: CapabilitiesData, loaded: CapabilitiesData
+    ) -> CapabilitiesData:
         skills = list(selected.deep_skills)
         tools = list(selected.tools)
         hds = list(selected.hds)
         exit_tools = list(selected.exit_tools)
+        original_tools = {tool.get_name(): tool for tool in loaded.tools}
 
         for name, replacement in self._defaults.overrides.items():
             if name in RUNTIME_NAMES:
@@ -123,7 +126,11 @@ class _DefaultCapabilitiesComposer:
             elif isinstance(replacement, ExitTool):
                 exit_tools.append(replacement)
             elif isinstance(replacement, Tool):
-                tools.append(replacement)
+                tools.append(
+                    self._tool_composer.preserve_execution_policy(
+                        original_tools[name], replacement
+                    )
+                )
             else:
                 raise TypeError(
                     f"Override for '{name}' must be resolved before composition"

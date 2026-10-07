@@ -84,6 +84,17 @@ description, but their callable and metadata still come from `@deep_tool`.
 
 ### Before and after hooks
 
+`Tool` and `@deep_tool` also accept `argument_guidance`, a correction message
+used when argument binding/validation fails. It is runtime metadata, not a model
+argument, and survives description/name copies. For example,
+`@deep_tool(description="Read a range", argument_guidance="Inspect the file first.")`
+keeps file-specific advice with the tool definition instead of the agent loop.
+Binding errors are `invalid_tool_arguments`; exceptions from the function or
+hooks are `tool_execution_failed`. Both inline and managed work tools return a
+failed XML response and let the model continue. A valid result containing
+`ok=false` remains a final result. Low-level direct Python calls still raise
+their exceptions; recovery belongs to the node runtime.
+
 `@deep_tool` and `@exit_tool` accept `before` and `after` instances. Plain
 `Tool` objects accept the same constructor arguments. Hooks run for agent tool
 calls and are kept out of the model's tool schema.

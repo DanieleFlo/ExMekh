@@ -568,14 +568,18 @@ def test_file_processing_skill_inspects_exits_and_rereads_saved_xml(tmp_path):
     skill = next(
         skill for skill in loaded.deep_skills if skill.name == "file-processing"
     )
-    assert skill.get_sub_tool_names() == ("inspect-file",)
+    assert skill.get_sub_tool_names() == ("inspect-file", "read-file")
     assert not skill.inherits_parent_tools()
     assert node.run("inspect").get_message() == "done"
     root_tools = set(provider.requests[0].get_extra()["agentic"]["allowed_tools"])
     assert "mock-tool" in root_tools
     assert "inspect-file" not in root_tools
     skill_tools = set(provider.requests[1].get_extra()["agentic"]["allowed_tools"])
-    assert skill_tools == (root_tools - {"mock-tool"}) | {"inspect-file", "exit_agent"}
+    assert skill_tools == (root_tools - {"mock-tool"}) | {
+        "inspect-file",
+        "read-file",
+        "exit_agent",
+    }
     result = next(
         m
         for m in provider.requests[2].get_messages()
@@ -619,11 +623,11 @@ def test_file_processing_skill_can_be_selected_without_other_harness_skills(tmp_
     loaded = Capabilities(
         None,
         default_capabilities=DefaultCapabilities(
-            harness=False, include={"file-processing", "inspect-file"}
+            harness=False, include={"file-processing", "inspect-file", "read-file"}
         ),
     ).load(work_root=tmp_path)
     assert {skill.name for skill in loaded.deep_skills} == {"file-processing"}
-    assert {tool.name for tool in loaded.tools} == {"inspect-file"}
+    assert {tool.name for tool in loaded.tools} == {"inspect-file", "read-file"}
 
 
 @pytest.mark.parametrize("filename", ["empty.yaml", "empty.csv", "empty.toml"])

@@ -39,4 +39,5 @@ class DeepTool(Tool):
             before=before if before is not None else definition.before,
             after=after if after is not None else definition.after,
             background_enabled=definition.background_enabled,
+            argument_guidance=definition.argument_guidance,
         )

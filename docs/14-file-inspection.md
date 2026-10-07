@@ -1,4 +1,4 @@
-# Workspace file inspection
+# Workspace file inspection and reading
 
 `inspect-file` analyzes one regular file inside the node workroot. It returns
 metadata and a bounded navigation map, without returning the full content.
@@ -10,10 +10,12 @@ and exposes immutable selected pages rather than a mutable region list.
 ## Availability and calls
 
 The `file-processing` skill and its `inspect-file` tool belong to
-`DefaultCapabilities(harness=True)`. The bundled main HDS declares the skill
+`DefaultCapabilities(harness=True)`, together with `read-file`. The bundled main
+HDS declares the skill
 in `sub-skills`; `inspect-file` is available inside that skill, with parent
 tools excluded. Custom HDSs must declare `file-processing` in `sub-skills`
-to enter it. The skill currently provides analysis only. Individual selection,
+to enter it. The skill provides inspection and explicit text-line reads. Individual
+selection,
 exclusion, named overrides and Before/After hooks follow the existing
 default-capability API.
 
@@ -83,7 +85,8 @@ when paging.
 `skipped_limit`. A valid inspection may report unavailable/partial analysis
 while keeping `ok=true` and metadata. Path, selection and permission errors
 return `ok=false` with `error_kind=invalid_file_inspection`. Unexpected internal
-failures propagate to the standard runtime error handling. Parser dependencies
+failures use the common runtime error handling: both inline and managed tools
+report `tool_execution_failed` with `response-type=failed`. Parser dependencies
 are loaded at tool execution, so a missing dependency does not break capability
 catalog loading. Such failures use the shared `missing_dependency` result
 also returned by calculation and web tools.
@@ -107,3 +110,118 @@ Deterministic tests create actual files and cover parsers, metadata, limits,
 pagination, invalid paths, symlinks, concurrent modification detection, provider
 schemas, background retrieval and a complete skill open/inspect/exit cycle
 followed by a saved XML read from the parent scope. They do not contact a model provider.
+
+## Explicit reading and prerequisites
+
+`read-file` accepts exactly three required business arguments: `path`,
+`start_line`, and `end_line`. Both indices must be positive integers; booleans,
+strings, floats and null are rejected. Ranges use physical CR/LF lines, are
+1-based and inclusive, and must satisfy `start_line <= end_line <= total_lines`.
+The tool never supplies implicit indices, clamps an interval or defaults to
+the whole file. Results contain `ok`, `path`, `encoding`, the requested indices,
+`total_lines`, and `lines` entries with `line` and `text`. Missing/invalid
+arguments, empty files and formats without readable physical lines produce
+descriptive XML errors. Missing/unexpected arguments use the shared runtime
+`invalid_tool_arguments` result, with the tool's configured correction guidance.
+Invalid path values, indices and line ranges use `invalid_file_read`. NUL paths
+are rejected before recovery. An unavailable or non-directory workroot is an
+explicit inspection error. The inspection byte budget applies to reading too.
+
+Always inspect first and choose indices from the actual report. The runtime
+retains an internal canonical path and XXH3-128 hash of the exact inspected
+bytes. It matches actual assistant calls and full, unchanged results in the
+current history, then rechecks bounded file snapshots and hashes before decoding
+or selecting content. Merely keeping proof in memory or a report in the tool
+cache does not authorize reading. Failed, partial or running analyses, summaries,
+references, and analyses removed by skill exit or compaction do not qualify.
+The prerequisite is frozen at the start of the original call batch; a sibling
+inspection whose result the model has not yet seen cannot authorize that batch's
+read. A completed background inspection qualifies only after its full result
+and the original inspection call are both visible.
+
+Evidence is private runtime metadata, never additional provider arguments or
+hash messages, and is isolated per node. It is not exported with cache records
+or JSON history: after a runtime restart or importing another node's history,
+inspect again. Before/After hooks still apply once per invocation; filtered or
+changed inspection reports cannot authorize a read. A read's recovery request
+remains internal even if its After hook transforms the returned error or fails.
+
+`FileToolRuntime` owns node-local proof and background output registration;
+`FileInspectionHistory` matches that proof against actual history messages.
+`FileInspectionRequests` owns scope checks and deduplication. The generic tool
+executor only calls their public methods, and no longer contains file-specific
+error strings or reconstructs background calls from snapshot fields. Argument
+validation, hash matching and decoding/line selection are separate operations.
+
+Reads and automatic inspections are synchronous: the entire prerequisite
+transition completes before the next inference. Explicit `inspect-file` calls
+retain their existing wait/background protocol. Automatic inspection uses the
+same resolver, workroot, hooks, event recording, XML formatter, skill tracking
+and output cache. Every synthetic call has a fresh call ID and exactly one real
+result. Recovery only appends messages; it does not rewrite any prefix, use
+swap/checkpoint/prefill operations, add special `extra_body` arguments, or require
+provider changes. Existing skill exit compaction retains its usual behavior.
+If the same batch closes the requesting skill or opens another scope, recovery
+does not run in the new scope. The original error remains in the saved skill
+transcript/output. Keep the skill open until reading succeeds, or inspect again
+after entering the appropriate scope. Loaded overrides preserve the original
+tool's synchronous policy, just like runtime overrides.
+
+### Successful read
+
+```text
+assistant: inspect-file({"path":"notes.md"})
+tool:      analysis with total_lines=12
+assistant: read-file({"path":"notes.md","start_line":3,"end_line":5})
+tool:      XML with numbered lines 3, 4, 5
+```
+
+Further reads may reuse that visible report while the file is unchanged; no
+inspection is repeated and no hash-check messages are added.
+
+### Missing or invalidated analysis
+
+```text
+assistant: read-file({"path":"notes.md","start_line":3,"end_line":5})
+tool:      XML error_kind=file_inspection_required
+assistant: inspect-file({"path":"notes.md"})       [synthetic, new ID]
+tool:      real XML analysis of current content
+           [next inference]
+assistant: read-file({"path":"notes.md","start_line":7,"end_line":9})
+tool:      XML with lines chosen by the model from the new analysis
+```
+
+Changing even one byte invalidates the old hash. Recovery never executes the
+rejected read or reuses its indices; the model must request a new interval.
+
+### Mixed and repeated files
+
+```text
+assistant: [read-file(A,1,2), read-file(B,3,4), read-file(C,1,1), read-file(B,5,6)]
+tool:      A content (visible analysis valid)
+tool:      B prerequisite error
+tool:      C prerequisite error
+tool:      B prerequisite error
+assistant: [inspect-file(B), inspect-file(C)]      [synthetic, fresh IDs]
+tool:      B analysis
+tool:      C analysis
+           [next inference]
+```
+
+All original results precede the synthetic group. Resolved aliases of the same
+file are deduplicated. Valid reads and unrelated operations are not rerun.
+
+### Automatic inspection failure
+
+```text
+assistant: read-file({"path":"missing.txt","start_line":1,"end_line":2})
+tool:      XML prerequisite error
+assistant: inspect-file({"path":"missing.txt"})   [synthetic, new ID]
+tool:      XML path/permission/inspection error
+           [next inference; no automatic retry and no content read]
+```
+
+The model receives both outcomes and can correct the path or choose another
+action. Deterministic provider tests cover these flows, unchanged history
+prefixes, call/result pairing, physical-line encodings, hash changes, compaction,
+hook handling and node isolation. They require no live model.

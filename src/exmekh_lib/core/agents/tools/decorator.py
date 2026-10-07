@@ -22,6 +22,7 @@ class ToolDefinition:
     before: BeforeTool | None = None
     after: AfterTool | None = None
     background_enabled: bool = True
+    argument_guidance: str = ""
 
 
 def deep_tool(
@@ -31,11 +32,14 @@ def deep_tool(
     before: BeforeTool | None = None,
     after: AfterTool | None = None,
     background_enabled: bool = True,
+    argument_guidance: str = "",
 ) -> Callable[[ToolFunction], ToolFunction]:
     _validate_definition(name, description)
     validate_tool_hooks(before, after)
     if not isinstance(background_enabled, bool):
         raise TypeError("background_enabled must be a bool")
+    if not isinstance(argument_guidance, str):
+        raise TypeError("argument_guidance must be a string")
 
     definition = ToolDefinition(
         name=name,
@@ -43,6 +47,7 @@ def deep_tool(
         before=before,
         after=after,
         background_enabled=background_enabled,
+        argument_guidance=argument_guidance,
     )
 
     def decorate(function: ToolFunction) -> ToolFunction:

@@ -9,11 +9,13 @@ from exmekh_lib.core.agents.node.agentic_scope import AgenticScope
 from exmekh_lib.core.agents.node.tool_call_executor import ToolCallExecutor
 from exmekh_lib.core.agents.node.tool_call_resolver import ToolCallResolver
 from exmekh_lib.core.agents.node.tool_result_recorder import ToolResultRecorder
+from exmekh_lib.core.agents.node.types import ToolExecutionResult
 from exmekh_lib.core.cache import SessionCache
 from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
 from exmekh_lib.core.models.client import Client
 from exmekh_lib.core.models.system_message import SystemMessage
 from exmekh_lib.core.models.tool import CalledTool, Tool
+from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.core.tool_calls.execution_history import ExecutionHistory
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
@@ -22,7 +24,7 @@ from tests.core.agents.node.test_node import (
     SequenceProvider,
     _write_runnable_capabilities,
 )
-from tests.tool_result_support import parse_used_tools
+from tests.tool_result_support import parse_tool_result, parse_used_tools
 
 
 @pytest.fixture
@@ -150,3 +152,86 @@ def test_synchronous_duration_is_measured_and_preserved_in_saved_reads(
         header = ET.fromstring(read.content.split("</header>")[0] + "</header>")
         assert header.findtext("elapsed-seconds") == "2.5"
         assert read.content.endswith("done")
+
+
+@pytest.mark.parametrize("managed", [False, True])
+@pytest.mark.parametrize(
+    "failure", ["arguments", "type", "value", "runtime", "negative"]
+)
+def test_work_failures_have_consistent_status_and_readable_results(
+    make_executor, tmp_path, managed, failure
+):
+    def work(text):
+        if failure == "type":
+            raise TypeError("internal type error")
+        if failure == "value":
+            raise ValueError("internal value error")
+        if failure == "runtime":
+            raise RuntimeError("internal execution error")
+        return {"ok": False}
+
+    manager = ToolExecutionManager()
+    called = CalledTool(
+        Tool(work, name="work", background_enabled=managed),
+        ToolCall(
+            "origin",
+            FunctionCall("work", {} if failure == "arguments" else {"text": "x"}),
+        ),
+    )
+    result = make_executor(manager).execute(called)
+    immediate = parse_tool_result(result.response.get_message())
+    failed = failure != "negative"
+    assert result.is_error is failed
+    assert result.save_result
+    assert (
+        f"<response-type>{'failed' if failed else 'final'}</response-type>"
+        in result.response.get_message()
+    )
+    assert immediate["ok"] is False
+    if failed:
+        assert immediate["error_kind"] == (
+            "invalid_tool_arguments"
+            if failure == "arguments"
+            else "tool_execution_failed"
+        )
+    with SessionCache(tmp_path / "cache") as session:
+        cache = session.node("node")
+        history = ExecutionHistory()
+        recorder = ToolResultRecorder(history, lambda: cache, manager)
+        identity = recorder.record_call(called, None)
+        recorder.persist_result(result, identity, "/")
+        for reader in (
+            HarnessMemoryTools(history, lambda: cache, manager),
+            HarnessMemoryTools(history, lambda: cache),
+        ):
+            saved = reader.read_tool_output(result.output_id).content
+            assert parse_tool_result(saved) == immediate
+            assert (
+                f"<response-type>{'failed' if failed else 'final'}</response-type>"
+                in saved
+            )
+
+
+def test_failed_inline_result_without_duration_has_failure_metadata():
+    result = ToolExecutionResult(ToolMessage("failed", "origin"), failed=True)
+    assert result.execution_metadata() == {"status": "failed"}
+
+
+@pytest.mark.parametrize(
+    "options", [{"execution_mode": "unknown"}, {"wait_seconds": 0}]
+)
+def test_invalid_execution_options_return_failure_without_starting_work(
+    make_executor, options
+):
+    calls = []
+    called = CalledTool(
+        Tool(lambda: calls.append("ran"), name="work"),
+        ToolCall("origin", FunctionCall("work", options)),
+    )
+    result = make_executor(ToolExecutionManager()).execute(called)
+    assert result.is_error
+    assert (
+        parse_tool_result(result.response.get_message())["error_kind"]
+        == "invalid_tool_arguments"
+    )
+    assert calls == []

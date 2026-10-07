@@ -819,6 +819,7 @@ dependencies = [
     { name = "torchvision" },
     { name = "transformers" },
     { name = "tzdata" },
+    { name = "xxhash" },
     { name = "z3-solver" },
 ]
 
@@ -854,6 +855,7 @@ requires-dist = [
     { name = "torchvision", specifier = ">=0.24.0" },
     { name = "transformers", specifier = ">=5.14.0" },
     { name = "tzdata", specifier = ">=2025.2" },
+    { name = "xxhash", specifier = ">=3.8.1" },
     { name = "z3-solver", specifier = ">=4.15.4.0" },
 ]
 

@@ -24,6 +24,7 @@ from exmekh_lib.core.agents.deep_skill.deep_skill import CalledDeepSkill
 from exmekh_lib.core.agents.exit_tool.exit_tool import CalledExitTool
 from exmekh_lib.core.agents.exit_tool.items import ExitItemResolver
 from exmekh_lib.core.cache.node_cache import NodeCache
+from exmekh_lib.core.file_inspection.runtime import FileInspectionRequests
 from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
 from exmekh_lib.core.models.client import Client
 from exmekh_lib.core.models.client_request import ClientRequest
@@ -32,7 +33,7 @@ from exmekh_lib.core.models.provider_stream_event import (
     ProviderStreamEvent,
     ProviderStreamEventType,
 )
-from exmekh_lib.core.models.tool import PreformattedToolResult
+from exmekh_lib.core.models.tool import CalledTool, PreformattedToolResult
 from exmekh_lib.core.models.user_message import ErrorUserMessage, UserMessage
 from exmekh_lib.core.tool_calls.execution_history import ExecutionHistory
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
@@ -47,7 +48,7 @@ from .tool_call_executor import ToolCallExecutor
 from .tool_call_resolver import ResolvedToolCall, ToolCallResolver
 from .tool_result_recorder import ToolResultRecorder
 from .turn_control import TurnControl
-from .types import NodeUserMessage
+from .types import NodeUserMessage, ToolExecutionResult
 
 logger = logging.getLogger(__name__)
 
@@ -348,13 +349,29 @@ class NodeRuntime(ProviderEventHandler):
                 _DeferredToolBatch(self.depth, deferred_calls, thinking)
             )
 
+        inspections = FileInspectionRequests(
+            self._config.work_root, self._executor.skill_scope_ids
+        )
+        self._executor.begin_tool_batch()
         for index, call in enumerate(active_calls):
-            self._execute_tool_call(
+            result = self._execute_tool_call(
                 call,
                 thinking=thinking,
                 close_scope=index == len(active_calls) - 1,
                 thinking_annotation_provider=annotation_provider,
             )
+            if result.inspection_path is not None:
+                inspections.add(result.inspection_path)
+        if inspection_calls := inspections.create_calls(self._executor.skill_scope_ids):
+            self._inspect_missing_files(inspection_calls)
+
+    def _inspect_missing_files(self, calls: tuple[ToolCall, ...]) -> None:
+        # Only append: all original results precede this new assistant batch.
+        self._client.add_tool_calls(calls)
+        for call in calls:
+            resolved = self._resolver.resolve(call)
+            assert isinstance(resolved, CalledTool)
+            self._execute_tool_call(resolved.without_background_execution())
 
     def _execute_tool_call(
         self,
@@ -363,7 +380,7 @@ class NodeRuntime(ProviderEventHandler):
         thinking: str | None = None,
         close_scope: bool = True,
         thinking_annotation_provider: Callable[[], str | None] | None = None,
-    ) -> None:
+    ) -> ToolExecutionResult:
         self._result_recorder.sync_completed()
         skill_path = self._executor.skill_path
         identity = self._result_recorder.record_call(tool_call, thinking)
@@ -394,6 +411,7 @@ class NodeRuntime(ProviderEventHandler):
                 )
             self._result_recorder.persist_result(result, identity, skill_path)
             failed = result.is_error
+            return result
         finally:
             self._emit_tool_state(
                 tool_call.name,

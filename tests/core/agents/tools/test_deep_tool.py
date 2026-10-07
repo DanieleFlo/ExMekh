@@ -60,3 +60,14 @@ def test_rejects_an_invalid_name_override(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="Tool name must contain"):
         DeepTool(entrypoint, tmp_path, name="")
+
+
+def test_argument_guidance_is_bound_without_becoming_a_model_argument(tmp_path):
+    @deep_tool(description="Read content", argument_guidance="Inspect first.")
+    def entrypoint(work_root: Path, path: str) -> str:
+        return path
+
+    tool = DeepTool(entrypoint, tmp_path)
+    assert "argument_guidance" not in tool.get_signature().parameters
+    with pytest.raises(TypeError, match="Inspect first"):
+        tool.execute_with_hooks({}, work_root=tmp_path, history=())

@@ -15,6 +15,7 @@ from exmekh_lib.core.agents.deep_skill.execution import (
 )
 from exmekh_lib.core.agents.exit_tool.exit_tool import CalledExitTool, ExitTool
 from exmekh_lib.core.agents.exit_tool.items import ExitItemError
+from exmekh_lib.core.file_inspection.runtime import FileToolRuntime
 from exmekh_lib.core.models.assistant_message import ToolCall
 from exmekh_lib.core.models.client import Client
 from exmekh_lib.core.models.tool import CalledTool, PreformattedToolResult
@@ -24,6 +25,7 @@ from exmekh_lib.core.tool_calls.execution_manager import (
     ToolExecutionManager,
 )
 from exmekh_lib.core.tool_calls.output_formatter import ToolOutputFormatter
+from exmekh_lib.utils.tool_errors import ToolArgumentError, tool_failure_result
 
 from .agentic_scope import AgenticScope
 from .tool_call_resolver import ResolvedToolCall
@@ -58,6 +60,11 @@ class ToolCallExecutor:
         self._skill_executions = DeepSkillExecutionTracker()
         self._execution_manager = execution_manager
         self._scope_prefix = scope_prefix
+        self._file_tools = FileToolRuntime(execution_manager)
+
+    def begin_tool_batch(self) -> None:
+        """Freeze prerequisites from context available when this batch was generated."""
+        self._file_tools.begin_batch(self._client.get_history())
 
     @property
     def depth(self) -> int:
@@ -191,47 +198,66 @@ class ToolCallExecutor:
             called_tool.call_id,
             self._depth,
         )
+        snapshot = None
+        elapsed_seconds = None
+        inspection_path = None
+        failed = False
+        started_clock = monotonic()
         try:
-            snapshot = None
-            elapsed_seconds = None
             if called_tool.background_enabled and self._execution_manager is not None:
                 result, snapshot = self._run_managed_tool(
                     called_tool, self._execution_manager
                 )
             else:
-                started_clock = monotonic()
-                result = called_tool.execute(
-                    work_root=self._work_root,
-                    history=tuple(self._client.dump_history()),
-                )
+                with self._file_tools.read_context(
+                    self._client.get_history()
+                ) as context:
+                    try:
+                        result = called_tool.execute(
+                            work_root=self._work_root,
+                            history=tuple(self._client.dump_history()),
+                        )
+                    finally:
+                        inspection_path = context.pending_inspection_path()
                 elapsed_seconds = monotonic() - started_clock
-        except (TypeError, ValueError) as error:
-            return self._recoverable_error(called_tool, f"Invalid arguments: {error}")
+        except Exception as error:
+            result = tool_failure_result(error)
+            failed = True
+            elapsed_seconds = monotonic() - started_clock
         return self._format_tool_result(
             called_tool,
             result,
             snapshot=snapshot,
             thinking_annotation_provider=thinking_annotation_provider,
             elapsed_seconds=elapsed_seconds,
+            inspection_path=inspection_path,
+            failed=failed,
         )
 
     def _run_managed_tool(
         self, called_tool: CalledTool, manager: ToolExecutionManager
     ) -> tuple[Any, ExecutionSnapshot]:
         output_id = self._output_formatter.generate_output_id()
-        snapshot = manager.start(
-            called_tool.call_id,
-            called_tool.name,
-            called_tool.arguments,
-            called_tool.create_execution(
-                work_root=self._work_root,
-                history=tuple(self._client.dump_history()),
-            ),
-            self.skill_scope_ids,
-            called_tool.execution_options,
-            output_id=output_id,
-            skill_path=self.skill_path,
+        operation = called_tool.create_execution(
+            work_root=self._work_root,
+            history=tuple(self._client.dump_history()),
         )
+        operation.add_run_context(
+            self._file_tools.read_context(self._client.get_history())
+        )
+        try:
+            snapshot = manager.start(
+                called_tool.call_id,
+                called_tool.name,
+                called_tool.arguments,
+                operation,
+                self.skill_scope_ids,
+                called_tool.execution_options,
+                output_id=output_id,
+                skill_path=self.skill_path,
+            )
+        except (TypeError, ValueError) as error:
+            raise ToolArgumentError(f"Invalid arguments: {error}") from error
         result = snapshot.output_result()
         if snapshot.is_finished:
             return result, snapshot
@@ -255,6 +281,8 @@ class ToolCallExecutor:
         snapshot: ExecutionSnapshot | None,
         thinking_annotation_provider: Callable[[], str | None] | None,
         elapsed_seconds: float | None,
+        inspection_path: str | None = None,
+        failed: bool = False,
     ) -> ToolExecutionResult:
         raw_result = (
             result.content if isinstance(result, PreformattedToolResult) else result
@@ -265,6 +293,7 @@ class ToolCallExecutor:
             annotation_provider=thinking_annotation_provider,
             execution=snapshot,
             elapsed_seconds=elapsed_seconds,
+            failed=failed,
         )
         tool_response = ToolMessage(
             content=content,
@@ -274,6 +303,7 @@ class ToolCallExecutor:
             if isinstance(result, PreformattedToolResult)
             else None,
         )
+        self._file_tools.record_result(called_tool.tool_call, result, tool_response)
         return ToolExecutionResult(
             response=tool_response,
             raw_result=raw_result,
@@ -281,6 +311,8 @@ class ToolCallExecutor:
             output_id=output_id,
             execution=snapshot,
             elapsed_seconds=elapsed_seconds,
+            inspection_path=inspection_path,
+            failed=failed,
         )
 
     def _running_tool_outputs(self) -> tuple[ExecutionSnapshot, ...]:
@@ -310,9 +342,14 @@ class ToolCallExecutor:
             )
         except (TypeError, ValueError) as error:
             tool_name = called_exit_tool.name
+            diagnostic = (
+                str(error)
+                if isinstance(error, ToolArgumentError)
+                else f"Invalid arguments: {error}"
+            )
             return self._recoverable_error(
                 called_exit_tool,
-                f"Invalid arguments: {error}. "
+                f"{diagnostic} "
                 f'Use {tool_name}(text="<result>", items=[]) or '
                 f'{tool_name}(text="… {{{{<id-output>}}}} …", '
                 'items=["<id-output>"].',
@@ -369,19 +406,29 @@ class ToolCallExecutor:
             response=tool_response, raw_result=result, save_result=True
         )
 
-    @staticmethod
     def _recoverable_error(
-        called_tool: CalledTool | CalledExitTool, message: str
+        self, called_tool: CalledTool | CalledExitTool, message: str
     ) -> ToolExecutionResult:
+        result = {
+            "ok": False,
+            "error_kind": "invalid_tool_arguments",
+            "error": (
+                f"Error {called_tool.name}: {message} "
+                f"Correct the error and call {called_tool.name} again."
+            ),
+        }
+        content, output_id = self._output_formatter.format_tool_result(
+            called_tool.name, result, failed=True
+        )
         return ToolExecutionResult(
             response=ToolMessage(
-                content=(
-                    f"Error {called_tool.name}: {message} "
-                    f"Correct the error and call {called_tool.name} again."
-                ),
+                content=content,
                 tool_call_id=called_tool.call_id,
                 name=called_tool.name,
             ),
+            raw_result=result,
+            save_result=True,
+            output_id=output_id,
             failed=True,
         )
 

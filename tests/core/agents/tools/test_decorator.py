@@ -30,6 +30,11 @@ def test_rejects_non_boolean_background_policy(background_enabled) -> None:
         deep_tool(background_enabled=background_enabled)
 
 
+def test_rejects_non_string_argument_guidance():
+    with pytest.raises(TypeError, match="argument_guidance must be a string"):
+        deep_tool(argument_guidance=None)
+
+
 def test_rejects_non_function_entrypoint() -> None:
     class CallableObject:
         def __call__(self) -> None:

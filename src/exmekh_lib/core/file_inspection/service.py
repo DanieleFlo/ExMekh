@@ -12,6 +12,7 @@ from pypdf.errors import PdfReadError
 from exmekh_lib.config.file_inspection import FILE_INSPECTION, FileInspectionSettings
 
 from .containers import analyze_image, analyze_tar, analyze_zip
+from .evidence import InspectionReport
 from .models import Analysis, RegionIndex, RegionPage
 from .pdf import analyze_pdf
 from .selection import validate_selection
@@ -38,7 +39,10 @@ def inspect_file(
     snapshot = read_snapshot(work_root, path, settings)
     analysis = _analyze(snapshot, settings)
     page = analysis.index.select(max_items=max_items, offset=offset, query=query)
-    return _build_report(snapshot, analysis, page, detailed)
+    report = _build_report(snapshot, analysis, page, detailed)
+    if snapshot.content is not None:
+        return InspectionReport(report, snapshot)
+    return report
 
 
 def _build_report(

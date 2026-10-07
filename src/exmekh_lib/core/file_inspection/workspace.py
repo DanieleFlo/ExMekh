@@ -39,12 +39,27 @@ class FileSnapshot:
         }
 
 
+def validate_file_path(path: str) -> None:
+    if not isinstance(path, str) or not path.strip():
+        raise FileInspectionError(
+            "path must contain non-space text inside the workroot."
+        )
+    if "\x00" in path:
+        raise FileInspectionError("path must not contain NUL characters.")
+
+
 def read_snapshot(
     work_root: Path, path: str, settings: FileInspectionSettings
 ) -> FileSnapshot:
-    if not isinstance(path, str) or not path.strip():
-        raise FileInspectionError("path must contain non-space text.")
-    root = work_root.resolve(strict=True)
+    validate_file_path(path)
+    try:
+        root = work_root.resolve(strict=True)
+        if not root.is_dir():
+            raise FileInspectionError("workroot must identify a directory.")
+    except (OSError, RuntimeError) as error:
+        raise FileInspectionError(
+            "workroot does not exist or cannot be resolved; restore it before retrying."
+        ) from error
     # Whitespace can be part of a filename; only use strip for blank validation.
     candidate = root / path
     try:

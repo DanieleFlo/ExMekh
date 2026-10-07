@@ -34,14 +34,18 @@ class ToolExecutionResult:
     elapsed_seconds: float | None = None
     used_tools: tuple[ToolOutputReference, ...] | None = None
     failed: bool = False
+    inspection_path: str | None = None
 
     def execution_metadata(self) -> dict[str, Any] | None:
         """Describe execution consistently for persistence without exposing its form."""
         if self.execution is not None:
             return self.execution.status_info()
         if self.elapsed_seconds is None:
-            return None
-        return {"status": "completed", "elapsed_seconds": self.elapsed_seconds}
+            return {"status": "failed"} if self.failed else None
+        return {
+            "status": "failed" if self.failed else "completed",
+            "elapsed_seconds": self.elapsed_seconds,
+        }
 
     @property
     def is_error(self) -> bool:

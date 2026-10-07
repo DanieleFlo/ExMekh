@@ -867,7 +867,7 @@ def test_supported_control_cancellation_is_readable_as_cancelled(make_node) -> N
         assert state["cancelled"] is True
         output = node.read_tool_output("output-1").content
         assert "<response-type>cancelled</response-type>" in output
-        assert output.endswith("Tool execution was cancelled.")
+        assert parse_tool_result(output)["message"] == "Tool execution was cancelled."
     finally:
         release.set()
 
@@ -952,11 +952,10 @@ def test_inline_tool_errors_emit_failure_without_reporting_completion(
         Tool(work, name="mock-tool", background_enabled=False),
         on_stream=as_agent_handler(events.append),
     )
-    if failure == "runtime":
-        with pytest.raises(RuntimeError, match="work failed"):
-            node.run("start")
-    else:
-        assert node.run("start").get_message() == "recovered"
+    assert node.run("start").get_message() == "recovered"
+    output = node.read_tool_output("output-1").content
+    assert "<response-type>failed</response-type>" in output
+    assert parse_tool_result(output)["ok"] is False
     execution = [
         event for event in events if isinstance(event, DeepAgentExecutionEvent)
     ]

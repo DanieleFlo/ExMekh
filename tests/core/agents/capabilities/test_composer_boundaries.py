@@ -20,4 +20,4 @@ def test_capability_composer_rejects_unresolved_override(tmp_path) -> None:
     composer = _DefaultCapabilitiesComposer(defaults, tmp_path, ())
 
     with pytest.raises(TypeError, match="must be resolved before composition"):
-        composer._apply_overrides(CapabilitiesData((), ()))
+        composer._apply_overrides(CapabilitiesData((), ()), CapabilitiesData((), ()))

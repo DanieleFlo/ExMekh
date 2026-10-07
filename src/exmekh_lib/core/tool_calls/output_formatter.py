@@ -39,8 +39,13 @@ class ToolOutputFormatter:
         execution: ExecutionSnapshot | None = None,
         elapsed_seconds: float | None = None,
         annotation_provider: Callable[[], str | None] | None = None,
+        failed: bool = False,
     ) -> tuple[str, str | None]:
-        if isinstance(result, PreformattedToolResult) and execution is None:
+        if (
+            isinstance(result, PreformattedToolResult)
+            and execution is None
+            and not failed
+        ):
             content = result.content
             if XmlHeader.has_leading_header(content):
                 annotation = self._thinking_annotation(None, annotation_provider)
@@ -64,7 +69,10 @@ class ToolOutputFormatter:
         if execution is None:
             header.add_field("elapsed-seconds", elapsed_seconds)
         header.add_field(
-            "response-type", "final" if execution is None else execution.response_type
+            "response-type",
+            ("failed" if failed else "final")
+            if execution is None
+            else execution.response_type,
         )
         return self._format_output(header, content, None, annotation_provider)
 

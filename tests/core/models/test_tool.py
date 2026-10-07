@@ -1,4 +1,5 @@
 import inspect
+from pathlib import Path
 from typing import cast
 
 import pytest
@@ -80,6 +81,15 @@ def test_tool_rejects_non_callable() -> None:
 def test_tool_rejects_non_string_description() -> None:
     with pytest.raises(TypeError, match="description must be a string"):
         Tool(documented_tool, description=cast(str, object()))
+
+
+def test_tool_argument_guidance_is_validated_and_preserved_in_copies():
+    with pytest.raises(TypeError, match="argument_guidance must be a string"):
+        Tool(documented_tool, argument_guidance=None)
+    tool = Tool(documented_tool, argument_guidance="Use query='topic'.")
+    for copied in (tool.with_name("renamed"), tool.with_description("contextual")):
+        with pytest.raises(TypeError, match="Use query='topic'"):
+            copied.execute_with_hooks({}, work_root=Path.cwd(), history=())
 
 
 def test_explicit_empty_description_matches_description_copies() -> None:

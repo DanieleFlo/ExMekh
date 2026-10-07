@@ -74,6 +74,7 @@ def test_loads_builtin_assistant_capabilities(tmp_path: Path) -> None:
         "calculate",
         "date-time",
         "inspect-file",
+        "read-file",
         "interact-web-page",
         "mock-sub-tool",
         "mock-tool",
@@ -129,6 +130,7 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
     assert descriptions == {
         "file-processing": "Processes workspace files through bounded inspection and navigation.",
         "inspect-file": "Available in skill 'file-processing'.",
+        "read-file": "Available in skill 'file-processing'.",
         "deep-thinking": (
             "Investigates difficult questions with web evidence, "
             "mathematical and date/time computation, and formal Z3 reasoning."
