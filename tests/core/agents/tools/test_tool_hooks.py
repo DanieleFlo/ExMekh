@@ -11,8 +11,14 @@ from exmekh_lib.core.agents.exit_tool.decorator import (
 from exmekh_lib.core.agents.exit_tool.exit_tool import ExitTool
 from exmekh_lib.core.agents.tools.decorator import deep_tool, get_tool_definition
 from exmekh_lib.core.agents.tools.deep_tool import DeepTool
-from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
+from exmekh_lib.core.models.assistant_message import (
+    AssistantMessage,
+    FunctionCall,
+    ToolCall,
+)
 from exmekh_lib.core.models.tool import CalledTool, Tool, ToolExecutionOperation
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.interfaces.tool_hook import (
     AfterTool,
     BeforeTool,
@@ -25,7 +31,10 @@ from exmekh_lib.interfaces.tool_hook import (
 class ChangeArguments(BeforeTool):
     def handle(self, context: ToolContext) -> ToolArguments:
         assert context.arguments == {"value": "original"}
-        assert context.history == ({"role": "user", "content": "call it"},)
+        assert len(context.history) == 1
+        message = context.history[0]
+        assert isinstance(message, UserMessage)
+        assert message.get_message() == "call it"
         return ToolArguments({"value": "changed"})
 
 
@@ -54,7 +63,7 @@ def test_hooks_change_arguments_and_result(tmp_path: Path) -> None:
     result = tool.execute_with_hooks(
         {"value": "original"},
         work_root=tmp_path,
-        history=({"role": "user", "content": "call it"},),
+        history=(UserMessage("call it"),),
     )
     assert result == "changed!"
     assert calls == ["changed"]
@@ -234,7 +243,9 @@ def test_custom_execution_uses_the_same_hooks_and_context_in_both_modes(
         def create_execution(self, arguments, *, call_id, work_root, history):
             assert call_id == "call"
             assert work_root == tmp_path
-            assert history == ({"role": "user", "content": "start"},)
+            assert len(history) == 1
+            assert isinstance(history[0], UserMessage)
+            assert history[0].get_message() == "start"
             steps.append("create")
 
             def run():
@@ -254,7 +265,7 @@ def test_custom_execution_uses_the_same_hooks_and_context_in_both_modes(
     )
     context = {
         "work_root": tmp_path,
-        "history": ({"role": "user", "content": "start"},),
+        "history": (UserMessage("start"),),
     }
     result = (
         called.create_execution(**context).run()
@@ -264,3 +275,55 @@ def test_custom_execution_uses_the_same_hooks_and_context_in_both_modes(
 
     assert result == "changed!"
     assert steps == ["before", "create", "run", "after"]
+
+
+def test_deferred_execution_keeps_a_private_typed_history_snapshot(tmp_path):
+    user = UserMessage(["start"])
+    call = ToolCall("inspect", FunctionCall("inspect-file", {"path": "notes.txt"}))
+    assistant = AssistantMessage(None, tool_calls=[call])
+    attachments = UserMessage(["attachment"])
+    reply = ToolMessage("report", "inspect", "inspect-file", attachments=attachments)
+    reply.set_metadata("inspection", {"digest": b"original"})
+    seen = []
+
+    class InspectHistory(BeforeTool):
+        def handle(self, context: ToolContext) -> None:
+            saved_user, saved_assistant, saved_reply = context.history
+            assert isinstance(saved_user, UserMessage)
+            assert saved_user.get_message() == ["start"]
+            assert isinstance(saved_assistant, AssistantMessage)
+            saved_call = saved_assistant.get_tool_calls()[0]
+            assert saved_call.get_id() == "inspect"
+            assert saved_call.get_arguments() == {"path": "notes.txt"}
+            assert isinstance(saved_reply, ToolMessage)
+            assert saved_reply.get_tool_call_id() == "inspect"
+            assert saved_reply.get_metadata() == {"inspection": {"digest": b"original"}}
+            saved_attachments = saved_reply.get_attachments()
+            assert saved_attachments.get_message() == ["attachment"]
+            saved_attachments.get_message().append("hook change")
+            saved_call.get_arguments()["path"] = "hook.txt"
+            saved_reply.set_metadata("inspection", {"digest": b"hook"})
+            seen.append(context.history)
+
+    class CheckHistory(AfterTool):
+        def handle(self, context: ToolContext, result: Any) -> Any:
+            assert context.history is seen[0]
+            assert context.history[-1].get_metadata()["inspection"]["digest"] == b"hook"
+            return result
+
+    operation = Tool(
+        lambda: "done", name="read", before=InspectHistory(), after=CheckHistory()
+    ).create_execution_with_hooks(
+        {}, call_id="read", work_root=tmp_path, history=(user, assistant, reply)
+    )
+    # A delayed worker must see the conversation captured before it starts.
+    user.get_message().append("later")
+    call.get_arguments()["path"] = "later.txt"
+    attachments.get_message().append("later")
+    reply.set_metadata("inspection", {"digest": b"later"})
+
+    assert operation.run() == "done"
+    assert user.get_message() == ["start", "later"]
+    assert call.get_arguments() == {"path": "later.txt"}
+    assert attachments.get_message() == ["attachment", "later"]
+    assert reply.get_metadata() == {"inspection": {"digest": b"later"}}

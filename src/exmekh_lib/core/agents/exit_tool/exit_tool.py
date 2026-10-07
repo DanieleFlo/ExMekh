@@ -8,6 +8,7 @@ from exmekh_lib.core.agents.exit_tool.data import ExitToolData, ExitToolResult
 from exmekh_lib.core.agents.exit_tool.decorator import ExitToolFunction
 from exmekh_lib.core.models.assistant_message import ToolCall
 from exmekh_lib.core.models.tool import Tool
+from exmekh_lib.interfaces.message import Message
 from exmekh_lib.interfaces.tool_hook import AfterTool, BeforeTool, ToolContext
 
 
@@ -109,7 +110,7 @@ class CalledExitTool:
         self,
         *,
         work_root: Path | None = None,
-        history: tuple[dict[str, str], ...] = (),
+        history: tuple[Message[object], ...] = (),
     ) -> ExitToolResult:
         return self._exit_tool.execute_with_hooks(
             self.arguments,

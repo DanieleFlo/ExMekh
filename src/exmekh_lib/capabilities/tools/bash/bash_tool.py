@@ -7,6 +7,7 @@ from typing import Any
 
 from exmekh_lib.core.agents.tools.deep_tool import DeepTool
 from exmekh_lib.core.models.tool import ToolExecutionOperation
+from exmekh_lib.interfaces.message import Message
 from exmekh_lib.interfaces.tool_hook import AfterTool, BeforeTool
 
 from .bash_process import _BashProcess
@@ -41,7 +42,7 @@ class BashTool(DeepTool):
         *,
         call_id: str,
         work_root: Path,
-        history: tuple[dict[str, str], ...],
+        history: tuple[Message[object], ...],
     ) -> ToolExecutionOperation:
         del call_id, history
         command = arguments["command"]

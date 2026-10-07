@@ -123,8 +123,14 @@ def search(work_root: Path, query: str) -> str:
 `BeforeTool.handle` returns `None` to continue unchanged, `ToolArguments` to
 replace the arguments, or `ToolResponse` to skip the tool and supply a result.
 `AfterTool.handle` receives the effective arguments and the result, including
-one supplied by `BeforeTool`, and returns the final result. The history is a
-snapshot of messages available when the tool starts. Exit tool results must
+one supplied by `BeforeTool`, and returns the final result. `context.history`
+is a `tuple[Message[object], ...]` containing independent copies of the messages
+available when the execution operation is created, before a background worker
+starts. Use message methods and concrete types such as `AssistantMessage` and
+`ToolMessage` to access calls, results, attachments and local metadata. Both hooks
+and custom execution handles share the invocation's private snapshot; changing
+it cannot modify the caller's history. This also applies to direct
+`execute_with_hooks` and `create_execution_with_hooks` calls. Exit tool results must
 still contain valid `text` and `items` fields. Hook instances must implement
 synchronous `handle` methods with the shown number of parameters.
 
@@ -132,6 +138,12 @@ Direct `execute_with_hooks` calls and managed `create_execution_with_hooks`
 operations apply each hook once and use the same result finalization. Exit tools
 validate and normalize `text` and `items` after the after hook in both paths.
 Calling `execute` directly runs the callable without hooks.
+
+Hooks that previously read dictionary keys from `context.history` must migrate
+to message methods, for example `message.get_role_name()` and
+`message.get_message()`. Provider arguments, history exports and execution-event
+payloads retain their existing serialization; `message.message_dump()` remains
+available when an explicit serialized representation is needed.
 
 ---
 

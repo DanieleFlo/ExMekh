@@ -215,7 +215,7 @@ class ToolCallExecutor:
                     try:
                         result = called_tool.execute(
                             work_root=self._work_root,
-                            history=tuple(self._client.dump_history()),
+                            history=tuple(self._client.get_history()),
                         )
                     finally:
                         inspection_path = context.pending_inspection_path()
@@ -240,7 +240,7 @@ class ToolCallExecutor:
         output_id = self._output_formatter.generate_output_id()
         operation = called_tool.create_execution(
             work_root=self._work_root,
-            history=tuple(self._client.dump_history()),
+            history=tuple(self._client.get_history()),
         )
         operation.add_run_context(
             self._file_tools.read_context(self._client.get_history())
@@ -338,7 +338,7 @@ class ToolCallExecutor:
         try:
             result = called_exit_tool.execute(
                 work_root=self._work_root,
-                history=tuple(self._client.dump_history()),
+                history=tuple(self._client.get_history()),
             )
         except (TypeError, ValueError) as error:
             tool_name = called_exit_tool.name

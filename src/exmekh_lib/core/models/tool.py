@@ -15,6 +15,7 @@ from exmekh_lib.config.validation import VALIDATION_PATTERNS
 from exmekh_lib.core.models.assistant_message import ToolCall
 from exmekh_lib.core.models.tool_hooks import ToolHooks
 from exmekh_lib.core.models.user_message import UserMessage
+from exmekh_lib.interfaces.message import Message
 from exmekh_lib.interfaces.tool_hook import (
     AfterTool,
     BeforeTool,
@@ -184,7 +185,7 @@ class Tool:
         arguments: dict[str, Any],
         *,
         work_root: Path,
-        history: tuple[dict[str, str], ...],
+        history: tuple[Message[object], ...],
         call_id: str = "",
     ) -> Any:
         return self.create_execution_with_hooks(
@@ -198,7 +199,7 @@ class Tool:
         self,
         arguments: dict[str, Any],
         work_root: Path,
-        history: tuple[dict[str, str], ...],
+        history: tuple[Message[object], ...],
     ) -> tuple[ToolContext, ToolResponse | None]:
         context = ToolContext(dict(arguments), work_root, history)
         decision = self.before.handle(context) if self.before is not None else None
@@ -217,7 +218,7 @@ class Tool:
         *,
         call_id: str,
         work_root: Path,
-        history: tuple[dict[str, str], ...],
+        history: tuple[Message[object], ...],
     ) -> ToolExecutionOperation:
         """Create an execution handle; subclasses can add cancellation or progress."""
         return ToolExecutionOperation(run=lambda: self.execute(**arguments))
@@ -228,9 +229,10 @@ class Tool:
         *,
         call_id: str,
         work_root: Path,
-        history: tuple[dict[str, str], ...],
+        history: tuple[Message[object], ...],
     ) -> ToolExecutionOperation:
-        """Apply hooks once, including for tools with custom execution handles."""
+        """Apply hooks once to a private snapshot, including for custom handles."""
+        history = tuple(message.copy() for message in history)
 
         def run() -> Any:
             context, decision = self._prepare_context(arguments, work_root, history)
@@ -403,7 +405,7 @@ class CalledTool:
         self,
         *,
         work_root: Path | None = None,
-        history: tuple[dict[str, str], ...] = (),
+        history: tuple[Message[object], ...] = (),
     ) -> Any:
         return self._tool.execute_with_hooks(
             self.work_arguments,
@@ -416,7 +418,7 @@ class CalledTool:
         self,
         *,
         work_root: Path,
-        history: tuple[dict[str, str], ...],
+        history: tuple[Message[object], ...],
     ) -> ToolExecutionOperation:
         return self._tool.create_execution_with_hooks(
             self.work_arguments,

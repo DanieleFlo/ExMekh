@@ -3,7 +3,7 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
-from exmekh_lib.core.agents.exit_tool.exit_tool import ExitTool
+from exmekh_lib.core.agents.exit_tool.exit_tool import CalledExitTool, ExitTool
 from exmekh_lib.core.agents.node import Node, tool_call_executor
 from exmekh_lib.core.agents.node.agentic_scope import AgenticScope
 from exmekh_lib.core.agents.node.tool_call_executor import ToolCallExecutor
@@ -11,15 +11,21 @@ from exmekh_lib.core.agents.node.tool_call_resolver import ToolCallResolver
 from exmekh_lib.core.agents.node.tool_result_recorder import ToolResultRecorder
 from exmekh_lib.core.agents.node.types import ToolExecutionResult
 from exmekh_lib.core.cache import SessionCache
-from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
+from exmekh_lib.core.models.assistant_message import (
+    AssistantMessage,
+    FunctionCall,
+    ToolCall,
+)
 from exmekh_lib.core.models.client import Client
 from exmekh_lib.core.models.system_message import SystemMessage
 from exmekh_lib.core.models.tool import CalledTool, Tool
+from exmekh_lib.core.models.tool_hooks import ToolHooks
 from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.core.tool_calls.execution_history import ExecutionHistory
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
 from exmekh_lib.core.tool_calls.harness_memory_tools import HarnessMemoryTools
+from exmekh_lib.interfaces.tool_hook import AfterTool, BeforeTool, ToolContext
 from tests.core.agents.node.test_node import (
     SequenceProvider,
     _write_runnable_capabilities,
@@ -32,7 +38,7 @@ def make_executor():
     def build(manager=None):
         client = MagicMock(spec=Client)
         client.generate_id.return_value = "output"
-        client.dump_history.return_value = []
+        client.get_history.return_value = []
         executor = ToolCallExecutor(
             client=client,
             exit_tool=MagicMock(spec=ExitTool),
@@ -235,3 +241,69 @@ def test_invalid_execution_options_return_failure_without_starting_work(
         == "invalid_tool_arguments"
     )
     assert calls == []
+
+
+@pytest.mark.parametrize("mode", ["inline", "managed", "exit"])
+def test_runtime_hooks_receive_messages_without_mutating_client_history(tmp_path, mode):
+    seen = []
+
+    class InspectHistory(BeforeTool):
+        def handle(self, context: ToolContext) -> None:
+            assert isinstance(context.history, tuple)
+            assert isinstance(context.history[0], SystemMessage)
+            user = context.history[1]
+            assert isinstance(user, UserMessage)
+            assert user.get_message() == ["start"]
+            opening = context.history[-1]
+            assert isinstance(opening, AssistantMessage)
+            assert opening.get_tool_calls()[0].get_id() == "origin"
+            assert user.get_metadata() == {"local": {"value": "original"}}
+            user.get_message().append("hook change")
+            user.set_metadata("local", {"value": "hook"})
+            seen.append(context.history)
+
+    class CheckHistory(AfterTool):
+        def handle(self, context: ToolContext, result):
+            assert context.history is seen[0]
+            return result
+
+    capabilities = Node(
+        [_write_runnable_capabilities(tmp_path)], name_hds="main"
+    ).load_capabilities(work_root=tmp_path)
+    client = Client(SequenceProvider([]), SystemMessage("rules"))
+    user = UserMessage(["start"])
+    user.set_metadata("local", {"value": "original"})
+    client.add_user_message(user)
+    hooks = ToolHooks(before=InspectHistory(), after=CheckHistory())
+    exit_tool = capabilities.get_exit_tool("exit_agent").with_hooks(hooks)
+    if mode == "exit":
+        tool_call = ToolCall(
+            "origin", FunctionCall("exit_agent", {"text": "done", "items": []})
+        )
+        called = CalledExitTool(exit_tool, tool_call)
+    else:
+        tool_call = ToolCall("origin", FunctionCall("work", {}))
+        called = CalledTool(
+            Tool(
+                lambda: "done", name="work", background_enabled=mode == "managed"
+            ).with_hooks(hooks),
+            tool_call,
+        )
+    client.add_tool_calls([tool_call])
+    executor = ToolCallExecutor(
+        client=client,
+        exit_tool=exit_tool,
+        initial_depth=0,
+        agentic_scope=AgenticScope(capabilities.get_hds("main"), "exit_agent"),
+        exit_content_resolver=lambda content, items, path, position: content,
+        work_root=tmp_path,
+        execution_manager=ToolExecutionManager(),
+    )
+
+    result = executor.execute(called)
+
+    assert not result.is_error
+    assert len(seen) == 1
+    assert client.get_history()[1].get_message() == ["start"]
+    assert user.get_metadata() == {"local": {"value": "original"}}
+    assert client.dump_history()[1] == {"role": "user", "content": "start"}

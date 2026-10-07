@@ -6,12 +6,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from exmekh_lib.interfaces.message import Message
+
 
 @dataclass(frozen=True, slots=True)
 class ToolContext:
     arguments: dict[str, Any]
     work_root: Path
-    history: tuple[dict[str, str], ...]
+    history: tuple[Message[object], ...]
 
 
 @dataclass(frozen=True, slots=True)
