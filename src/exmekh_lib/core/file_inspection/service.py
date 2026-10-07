@@ -19,11 +19,6 @@ from .selection import validate_selection
 from .text import analyze_text
 from .workspace import FileSnapshot, read_snapshot
 
-_IMAGE_EXTENSIONS = frozenset(
-    {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tif", ".tiff", ".avif", ".ico"}
-)
-_ARCHIVE_EXTENSIONS = frozenset({".tar", ".tgz", ".gz", ".bz2", ".xz"})
-
 
 def inspect_file(
     work_root: Path,
@@ -82,17 +77,11 @@ def _analyze(snapshot: FileSnapshot, settings: FileInspectionSettings) -> Analys
             ],
         )
     try:
-        if raw.startswith(b"PK\x03\x04") or extension in {
-            ".zip",
-            ".docx",
-            ".xlsx",
-            ".xlsm",
-            ".pptx",
-        }:
+        if raw.startswith(b"PK\x03\x04") or extension in settings.zip_extensions:
             return analyze_zip(raw, index)
-        if extension in _ARCHIVE_EXTENSIONS or raw[257:262] == b"ustar":
+        if extension in settings.archive_extensions or raw[257:262] == b"ustar":
             return analyze_tar(raw, index)
-        if extension in _IMAGE_EXTENSIONS:
+        if extension in settings.image_extensions:
             return analyze_image(raw, index)
         if raw.startswith(b"%PDF-") or extension == ".pdf":
             return analyze_pdf(raw, index)

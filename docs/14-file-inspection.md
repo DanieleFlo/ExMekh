@@ -14,7 +14,7 @@ The `file-processing` skill and its `inspect-file` tool belong to
 HDS declares the skill
 in `sub-skills`; `inspect-file` is available inside that skill, with parent
 tools excluded. Custom HDSs must declare `file-processing` in `sub-skills`
-to enter it. The skill provides inspection and explicit text-line reads. Individual
+to enter it. The skill provides inspection, text-line and PDF-page reads, and direct image reads. Individual
 selection,
 exclusion, named overrides and Before/After hooks follow the existing
 default-capability API.
@@ -105,6 +105,9 @@ regions, 200 characters per label, 1,000 query characters, 64 structural levels,
 2,000 PDF pages and 40 million image pixels. ZIP members are never decompressed.
 Oversized files expose metadata only. Changes detected while reading a file
 produce a retryable error; each new inspection reads a fresh snapshot.
+Image, TAR/compressed TAR and ZIP/container filename dispatch are configured by
+`image_extensions`, `archive_extensions` and `zip_extensions`; binary signature
+detection still recognizes ZIP and uncompressed TAR content independently.
 
 Deterministic tests create actual files and cover parsers, metadata, limits,
 pagination, invalid paths, symlinks, concurrent modification detection, provider
@@ -114,20 +117,21 @@ followed by a saved XML read from the parent scope. They do not contact a model 
 ## Explicit reading and prerequisites
 
 `read-file` accepts exactly three required business arguments: `path`,
-`start_line`, and `end_line`. Both indices must be positive integers; booleans,
+`start_line`, and `end_line`. For text, both indices must be positive integers; booleans,
 strings, floats and null are rejected. Ranges use physical CR/LF lines, are
 1-based and inclusive, and must satisfy `start_line <= end_line <= total_lines`.
 The tool never supplies implicit indices, clamps an interval or defaults to
 the whole file. Results contain `ok`, `path`, `encoding`, the requested indices,
 `total_lines`, and `lines` entries with `line` and `text`. Missing/invalid
 arguments, empty files and formats without readable physical lines produce
-descriptive XML errors. Missing/unexpected arguments use the shared runtime
+descriptive XML errors. Supported images use the separate direct-read path described
+below. Missing/unexpected arguments use the shared runtime
 `invalid_tool_arguments` result, with the tool's configured correction guidance.
 Invalid path values, indices and line ranges use `invalid_file_read`. NUL paths
 are rejected before recovery. An unavailable or non-directory workroot is an
 explicit inspection error. The inspection byte budget applies to reading too.
 
-Always inspect first and choose indices from the actual report. The runtime
+For text and PDF, always inspect first and choose indices from the actual report. The runtime
 retains an internal canonical path and XXH3-128 hash of the exact inspected
 bytes. It matches actual assistant calls and full, unchanged results in the
 current history, then rechecks bounded file snapshots and hashes before decoding
@@ -178,6 +182,94 @@ tool:      XML with numbered lines 3, 4, 5
 
 Further reads may reuse that visible report while the file is unchanged; no
 inspection is repeated and no hash-check messages are added.
+
+### Image reads
+
+For a filename with a supported image extension, `read-file` delivers the actual
+image without requiring inspection. Supply `start_line=0` and `end_line=0`; their
+values are ignored, including nonzero, negative or inverted intervals. The three
+arguments remain required. The shared `FILE_INSPECTION.image_extensions` config
+controls image dispatch for both reading and inspection: `.png`, `.jpg`, `.jpeg`,
+`.gif`, `.webp`, `.bmp`, `.tif`, `.tiff`, `.avif`, and `.ico`. Filename extension
+matching is case-insensitive; the image decoder validates the actual content.
+PDF filenames use inspected page ranges as described below; other filenames
+retain the text-read prerequisite and validation.
+
+```text
+assistant: read-file({"path":"photo.jpg","start_line":0,"end_line":0})
+tool:      XML metadata plus an image attachment
+           [next inference receives the image]
+```
+
+The XML result contains path, image format, width, height, frame `1`, and zero line
+indices. The first frame/page is decoded, EXIF orientation is applied, and pixels
+are normalized to RGBA for transport and caching. The source file is closed before
+delivery. Both provider APIs receive the multimodal companion through the existing
+attachment path, after all replies in the call batch; saved-output reads restore
+the image independently of the source file.
+
+The configured byte and pixel limits also apply to image reads. Missing, forbidden,
+unreadable, corrupt, undecodable or oversized images return `invalid_file_read`
+with an explanatory error. These failures never trigger automatic inspection.
+Successful images use `AttachedToolResult`: metadata stays structured for the
+shared XML renderer and cache, while image attachments are stored separately.
+
+### PDF page reads
+
+For `.pdf` filenames (case-insensitive), `read-file` requires a complete, visible
+inspection of the unchanged file so the model knows its page count. The existing
+hash, history and automatic-inspection recovery apply. The required arguments
+`start_line` and `end_line` select inclusive **page numbers**, starting at 1,
+rather than text lines. Zero, invalid types, inverted ranges and pages outside
+the actual document return `invalid_file_read`. Reading more than 5 pages in
+one call also returns an error; no range is truncated or clamped.
+
+```text
+assistant: inspect-file({"path":"report.pdf"})
+tool:      metadata with page_count=12
+assistant: read-file({"path":"report.pdf","start_line":4,"end_line":8})
+tool:      XML metadata plus five ordered page images, labelled 4 through 8
+```
+
+The renderer uses `pypdfium2` directly on the bounded byte snapshot, without
+temporary PDF files, external commands, text extraction or OCR. Only the selected
+pages are rendered. `FILE_INSPECTION.pdf_render_dpi` defaults to **120 DPI**;
+`max_pdf_render_pages` defaults to **5**, independently of the inspection's
+2,000-page metadata budget. `max_image_pixels` limits the total rendered pixels
+per read and is checked before allocating each page bitmap. The input byte budget
+also applies. Native document, page and bitmap handles are explicitly closed;
+returned images own their pixels. PDFium calls in this renderer are serialized
+across nodes because the native library cannot be called concurrently in threads.
+The native renderer is loaded only when a validated, inspection-authorized PDF
+read reaches conversion. Missing PDFium therefore does not prevent metadata
+inspection or automatic prerequisite recovery. DPI and rendering page limits
+must be positive integers; booleans, strings and nonfinite/fractional values
+are rejected before renderer loading.
+
+Results include `start_page`, `end_page`, `total_pages`, `rendered_pages`, `dpi`
+and page dimensions, with a label and image per selected page. Images reach both
+provider APIs and saved-output rereads through the same attachment/cache path.
+Invalid, empty, password-protected or unrenderable documents return descriptive
+errors; a failed render delivers no partial successful attachment result.
+`inspect-file` continues to return PDF metadata only.
+
+### Client integration tests
+
+`tests/core/file_inspection/test_reading_client.py` runs complete simulated-client
+flows for text, an image and PDF pages, including skill entry/exit, prerequisites,
+real file contents, multimodal delivery and cached output rereads. The same fixtures
+are used by three opt-in tests in `tests/live/test_file_reading_live.py`. These
+require the configured `BASE_URL`, an image-capable model (`EXMEKH_LIB_LIVE_MODEL`),
+and the selected `EXMEKH_LIB_API` (default `responses`). The text token and visual
+answers are absent from the prompts, so the real model must use the read results.
+The live provider records actual requests and limits each scenario to 12 turns.
+Each scenario uses an independent agent context so the server's tool registry
+cannot collide with a preceding test or another client session.
+
+```bash
+uv run pytest tests/core/file_inspection/test_reading_client.py
+uv run pytest -n 0 --run-live tests/live/test_file_reading_live.py
+```
 
 ### Missing or invalidated analysis
 

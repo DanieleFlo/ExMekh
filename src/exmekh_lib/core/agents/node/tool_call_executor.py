@@ -18,8 +18,9 @@ from exmekh_lib.core.agents.exit_tool.items import ExitItemError
 from exmekh_lib.core.file_inspection.runtime import FileToolRuntime
 from exmekh_lib.core.models.assistant_message import ToolCall
 from exmekh_lib.core.models.client import Client
-from exmekh_lib.core.models.tool import CalledTool, PreformattedToolResult
+from exmekh_lib.core.models.tool import CalledTool
 from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.tool_result import ToolResult
 from exmekh_lib.core.tool_calls.execution_manager import (
     ExecutionSnapshot,
     ToolExecutionManager,
@@ -284,9 +285,7 @@ class ToolCallExecutor:
         inspection_path: str | None = None,
         failed: bool = False,
     ) -> ToolExecutionResult:
-        raw_result = (
-            result.content if isinstance(result, PreformattedToolResult) else result
-        )
+        output = ToolResult(result)
         content, output_id = self._output_formatter.format_tool_result(
             called_tool.name,
             result,
@@ -299,14 +298,12 @@ class ToolCallExecutor:
             content=content,
             tool_call_id=called_tool.call_id,
             name=called_tool.name,
-            attachments=result.attachments
-            if isinstance(result, PreformattedToolResult)
-            else None,
+            attachments=output.attachments(),
         )
         self._file_tools.record_result(called_tool.tool_call, result, tool_response)
         return ToolExecutionResult(
             response=tool_response,
-            raw_result=raw_result,
+            raw_result=output.value(),
             save_result=called_tool.cache_result,
             output_id=output_id,
             execution=snapshot,

@@ -9,11 +9,13 @@ from exmekh_lib.core.models.assistant_message import (
     ToolCall,
 )
 from exmekh_lib.core.models.tool import (
+    AttachedToolResult,
     CalledTool,
     ExecutionOptions,
     PreformattedToolResult,
     Tool,
 )
+from exmekh_lib.core.models.user_message import UserMessage
 
 
 def documented_tool(query: str) -> str:
@@ -228,3 +230,12 @@ def test_called_tool_factory_returns_valid_wrapper() -> None:
     )
 
     assert CalledTool.from_tool_call(tool, tool_call).execute() == "docs"
+
+
+def test_attached_tool_results_keep_companions_out_of_structured_fields():
+    message = UserMessage("attachment")
+    result = AttachedToolResult({"ok": True}, message)
+    assert dict(result) == {"ok": True}
+    assert result.attachments is message
+    with pytest.raises(TypeError, match="require a UserMessage"):
+        AttachedToolResult({"ok": True}, None)

@@ -139,6 +139,18 @@ operations apply each hook once and use the same result finalization. Exit tools
 validate and normalize `text` and `items` after the after hook in both paths.
 Calling `execute` directly runs the callable without hooks.
 
+For structured results with multimodal companions, return
+`AttachedToolResult(fields, attachments)` from `core.models.tool`, where `fields`
+is a dictionary and `attachments` is a `UserMessage`. Fields use the ordinary XML
+renderer and execution header, while attachments follow the existing provider and
+cache delivery paths for inline and managed work. Attachments are not dictionary
+fields and are never rendered as Python object strings. After hooks can preserve
+the companion by returning the original result or constructing another
+`AttachedToolResult`; returning a plain dictionary intentionally removes it.
+Runtime execution, saved records and formatting obtain values and companions
+through `ToolResult.value()` and `ToolResult.attachments()`, so wrapper handling
+has one owner rather than separate rules for inline and background results.
+
 Hooks that previously read dictionary keys from `context.history` must migrate
 to message methods, for example `message.get_role_name()` and
 `message.get_message()`. Provider arguments, history exports and execution-event

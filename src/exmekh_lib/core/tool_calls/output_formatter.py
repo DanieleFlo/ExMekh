@@ -8,6 +8,7 @@ from uuid import uuid4
 from exmekh_lib.core.models.client import Client
 from exmekh_lib.core.models.tool import PreformattedToolResult
 from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
+from exmekh_lib.core.models.tool_result import ToolResult
 from exmekh_lib.core.models.xml_header import XmlHeader
 from exmekh_lib.core.tool_calls.execution_manager import ExecutionSnapshot
 from exmekh_lib.utils.xml import stringify_tool_result
@@ -54,11 +55,7 @@ class ToolOutputFormatter:
                         content, "thinking", annotation
                     )
             return content, None
-        content = (
-            result.content
-            if isinstance(result, PreformattedToolResult)
-            else stringify_tool_result(result)
-        )
+        content = stringify_tool_result(ToolResult(result).value())
         header = (
             self._new_header("Tool", name)
             if execution is None

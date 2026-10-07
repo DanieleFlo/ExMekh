@@ -1,4 +1,4 @@
-"""Read explicit physical line ranges, gated by visible inspection evidence."""
+"""Read images directly or inspection-gated text ranges and PDF pages."""
 
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -10,7 +10,9 @@ from exmekh_lib.config.file_inspection import FILE_INSPECTION
 from .decoding import decode_text
 from .errors import FileInspectionError
 from .evidence import InspectionEvidence, hash_content
+from .image_reading import read_image
 from .lines import physical_lines
+from .pdf_reading import read_pdf, validate_pdf_read_arguments
 from .workspace import FileSnapshot, read_snapshot, validate_file_path
 
 _NO_READABLE_LINES = (
@@ -57,13 +59,16 @@ def require_inspection(path: str) -> dict[str, object]:
     context = _read_context.get()
     if context is not None:
         context.request_inspection(path)
+    indices = (
+        "page indices" if Path(path).suffix.casefold() == ".pdf" else "line indices"
+    )
     return {
         "ok": False,
         "error_kind": "file_inspection_required",
         "error": (
             "inspect-file(path) and its successful result are missing from the "
             "visible context, or the file has changed. Inspect the current file, "
-            "then choose start_line and end_line again from that analysis and "
+            f"then choose start_line and end_line as {indices} again from that analysis and "
             "make a new read-file call. This read was not performed."
         ),
     }
@@ -85,7 +90,16 @@ def validate_read_arguments(path: str, start_line: int, end_line: int) -> None:
 def read_file(
     work_root: Path, path: str, start_line: int, end_line: int
 ) -> dict[str, object]:
-    validate_read_arguments(path, start_line, end_line)
+    validate_file_path(path)
+    is_pdf = Path(path).suffix.casefold() == ".pdf"
+    if Path(path).suffix.casefold() in FILE_INSPECTION.image_extensions:
+        return read_image(
+            read_snapshot(work_root, path, FILE_INSPECTION), FILE_INSPECTION
+        )
+    if is_pdf:
+        validate_pdf_read_arguments(start_line, end_line, FILE_INSPECTION)
+    else:
+        validate_read_arguments(path, start_line, end_line)
     # No content is decoded or selected before the prerequisite is satisfied.
     context = _read_context.get()
     evidence = context.visible_inspections() if context is not None else ()
@@ -98,6 +112,8 @@ def read_file(
     inspection = _find_matching_inspection(work_root, snapshot, evidence)
     if inspection is None:
         return require_inspection(path)
+    if is_pdf:
+        return read_pdf(snapshot, start_line, end_line, FILE_INSPECTION)
     return _read_line_range(snapshot, inspection, start_line, end_line)
 
 

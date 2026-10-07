@@ -1,5 +1,5 @@
 ---
-description: Processes workspace files through bounded inspection and navigation.
+description: Processes workspace files through inspection, text ranges and image reading.
 inherits-parent-tools: false
 sub-tools:
   - inspect-file
@@ -19,10 +19,10 @@ coverage. A missing physical line count is normal for non-text formats.
 
 PDF inspection returns metadata only; image inspection returns header metadata.
 Archive inspection lists members without extraction. Do not infer file contents
-from these reports. Editing and image-content interpretation are not implemented here. Report
+from these reports. Editing is not implemented here. Report
 unsupported formats, invalid input and resource limits explicitly.
 
-Before every `read-file`, call `inspect-file` on that file and choose `start_line`
+For text `read-file` calls, first call `inspect-file` on that file and choose `start_line`
 and `end_line` from its report. A full analysis already in visible history can be
 reused for unchanged content. All three arguments (`path`, `start_line`,
 `end_line`) are required; indices are positive integers, 1-based and inclusive.
@@ -30,7 +30,22 @@ No implicit indices, whole-file default, clamping or automatic retry is provided
 Reads return numbered physical text lines, using the same CR/LF conventions as
 inspection. Empty files and formats without readable lines report errors.
 
-The runtime checks inspection visibility and content hashes internally. Cache
+For PDF `read-file` calls, `inspect-file` is also required so you can choose pages
+from its page count. `start_line` and `end_line` mean inclusive 1-based page
+numbers, with at most 5 pages per call. Pages are rendered into images at
+`FILE_INSPECTION.pdf_render_dpi` (120 DPI by default), with ordered page labels.
+Use multiple calls to read longer documents; invalid/out-of-bounds intervals,
+render errors and resource limits produce explicit errors without clamping.
+
+For supported images, call `read-file` directly without `inspect-file`, using
+`start_line=0` and `end_line=0`. These indices are ignored even when different
+from zero or invalid for text ranges. Supported filename extensions are configured
+in `FILE_INSPECTION.image_extensions`. The tool delivers the image as an attachment
+with XML metadata; animated/multipage formats deliver only the first frame.
+Image reads respect workroot, byte and pixel limits. Missing, unreadable, corrupt
+or oversized images return descriptive errors without automatic inspection.
+
+For text and PDF reads, the runtime checks inspection visibility and content hashes internally. Cache
 references, summaries and reports from closed/compacted skills do not satisfy
 the prerequisite. If an analysis is missing or stale, the original read returns
 an error; the runtime then appends a real `inspect-file` call and its result

@@ -45,6 +45,20 @@ class PreformattedToolResult:
             )
 
 
+class AttachedToolResult(dict[str, object]):
+    """Structured fields with a multimodal companion outside the serialized result."""
+
+    def __init__(self, result: dict[str, object], attachments: UserMessage) -> None:
+        if not isinstance(attachments, UserMessage):
+            raise TypeError("Attached tool results require a UserMessage")
+        super().__init__(result)
+        self._attachments = attachments
+
+    @property
+    def attachments(self) -> UserMessage:
+        return self._attachments
+
+
 @dataclass(frozen=True, slots=True)
 class ExecutionOptions:
     mode: Literal["wait", "background"] = "wait"

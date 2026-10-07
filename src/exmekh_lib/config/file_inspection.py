@@ -1,4 +1,4 @@
-"""Resource budgets for read-only workspace file analysis."""
+"""Supported file extensions and budgets for workspace inspection and reading."""
 
 from dataclasses import dataclass
 
@@ -18,6 +18,22 @@ class FileInspectionSettings:
     max_expanded_bytes: int = 64 * 1024 * 1024
     table_rows_per_region: int = 100
     max_image_pixels: int = 40_000_000
+    image_extensions: tuple[str, ...] = (
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".webp",
+        ".bmp",
+        ".tif",
+        ".tiff",
+        ".avif",
+        ".ico",
+    )
+    pdf_render_dpi: int = 120
+    max_pdf_render_pages: int = 5
+    archive_extensions: tuple[str, ...] = (".tar", ".tgz", ".gz", ".bz2", ".xz")
+    zip_extensions: tuple[str, ...] = (".zip", ".docx", ".xlsx", ".xlsm", ".pptx")
 
 
 FILE_INSPECTION = FileInspectionSettings()

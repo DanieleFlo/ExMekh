@@ -91,7 +91,10 @@ class ToolOutputView:
             "type": record.source,
             "id": record.id,
             "skill-path": record.skill_path,
-            "response-type": execution.get("response_type", "final"),
+            "response-type": execution.get(
+                "response_type",
+                self._response_type(execution.get("status", "completed")),
+            ),
             "status": execution.get("status", "completed"),
             "storage": execution.get("storage", "saved"),
             "tool-call-id": record.tool_call_id,
@@ -139,12 +142,13 @@ class ToolOutputView:
         status = execution.get("status", "completed")
         execution["status"] = "unavailable" if status == "running" else status
         current_status = execution["status"]
-        execution["response_type"] = {
-            "completed": "final",
-            "unavailable": "failed",
-        }.get(current_status, current_status)
+        execution["response_type"] = self._response_type(current_status)
         execution["storage"] = "saved"
         return execution
+
+    @staticmethod
+    def _response_type(status: str) -> str:
+        return {"completed": "final", "unavailable": "failed"}.get(status, status)
 
     def _saved_content(
         self, execution: dict[str, Any], cursor: int | None = None

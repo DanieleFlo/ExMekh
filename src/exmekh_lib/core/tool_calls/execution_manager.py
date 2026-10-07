@@ -13,9 +13,9 @@ from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
 from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
 from exmekh_lib.core.models.tool import (
     ExecutionOptions,
-    PreformattedToolResult,
     ToolExecutionOperation,
 )
+from exmekh_lib.core.models.tool_result import ToolResult
 from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.utils.tool_errors import tool_failure_result
 from exmekh_lib.utils.xml import stringify_tool_result
@@ -86,15 +86,11 @@ class ExecutionSnapshot:
 
     def record_result(self) -> Any:
         """Return the result value to store, unwrapping preformatted content."""
-        result = self.output_result()
-        return result.content if isinstance(result, PreformattedToolResult) else result
+        return ToolResult(self.output_result()).value()
 
     def output_attachments(self) -> UserMessage | None:
         """Expose the completed companion without requiring result introspection."""
-        result = self.output_result()
-        return (
-            result.attachments if isinstance(result, PreformattedToolResult) else None
-        )
+        return ToolResult(self.output_result()).attachments()
 
     def output_content(self) -> str:
         """Render the current result or diagnostic without exposing its representation."""

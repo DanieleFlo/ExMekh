@@ -9,7 +9,7 @@
 - **[Mixed User Inputs](docs/02-client-and-models.md#mixed-user-content)**: Combine text, image, and document containers in one ordered user-content list through either provider API, including active-run steering.
 - **[Node-scoped Tool Memory](docs/09-tool-call-cache.md)**: Save tool and deep-skill results with their invocation metadata. By default, nodes expose XML tools for compact execution history, paginated search, and full output retrieval.
 - **[Exit Tool Items](docs/10-exit-tool-items.md)**: Return selected saved outputs from a skill with XML placement and recoverable validation errors.
-- **[Workspace File Inspection and Reading](docs/14-file-inspection.md)**: Bounded metadata and navigation, explicit physical-line reads with verified inspection prerequisites, PDF properties and archive/image headers.
+- **[Workspace File Inspection and Reading](docs/14-file-inspection.md)**: Bounded metadata and navigation, verified text-line and PDF-page reads, direct image delivery, PDF rendering and archive/image headers.
 - **[Deep Thinking](docs/11-deep-thinking.md)**: Harness skill for web research, calculation, formal Z3 reasoning, and scoped thinking summaries.
 - **[Sub-agent Delegation](docs/05-deep-agent-and-execution.md#3-sub-agent-delegation)**: By default, nodes with direct children expose `call_sub_agent`, with a child-name enum and a required non-empty user message, in every HDS and skill scope.
 

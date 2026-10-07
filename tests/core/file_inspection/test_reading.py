@@ -210,6 +210,8 @@ def test_read_schema_requires_all_indices_and_describes_prerequisite(tmp_path):
         assert schema["properties"]["start_line"]["type"] == "integer"
     assert "inspect-file first" in tool.description
     assert "visible history" in tool.description
+    assert "no inspection is required" in tool.description
+    assert "ignored even when nonzero" in tool.description
 
 
 def test_successful_visible_analysis_is_reused_without_synthetic_calls(

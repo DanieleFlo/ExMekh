@@ -19,3 +19,23 @@ def test_saved_cursor_never_moves_backwards_when_reading_past_the_end():
     header, body = view.format_saved(100).split("</header>\n", 1)
     assert ET.fromstring(header + "</header>").findtext("next-cursor") == "100"
     assert body == ""
+
+
+@pytest.mark.parametrize(
+    "status,response_type",
+    [
+        ("completed", "final"),
+        ("failed", "failed"),
+        ("cancelled", "cancelled"),
+        ("running", "running"),
+        ("unavailable", "failed"),
+    ],
+)
+def test_search_fields_interpret_execution_status_without_prior_normalization(
+    status, response_type
+):
+    view = ToolOutputView(
+        ToolCallRecord("work", "output", {}, "result", execution={"status": status})
+    )
+    assert view.search_fields()["response-type"] == response_type
+    assert view.search_fields()["status"] == status

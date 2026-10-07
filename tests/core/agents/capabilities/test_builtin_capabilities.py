@@ -128,7 +128,7 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
     descriptions = {tool.name: tool.description for tool in request_tools.get_tools()}
     assert descriptions["inspect-file"] == "Available in skill 'file-processing'."
     assert descriptions == {
-        "file-processing": "Processes workspace files through bounded inspection and navigation.",
+        "file-processing": "Processes workspace files through inspection, text ranges and image reading.",
         "inspect-file": "Available in skill 'file-processing'.",
         "read-file": "Available in skill 'file-processing'.",
         "deep-thinking": (
