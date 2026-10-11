@@ -2,6 +2,7 @@
 
 import math
 import os
+from uuid import uuid4
 
 from openai import OpenAI
 
@@ -9,6 +10,11 @@ from exmekh_lib.core.tokenizers.sequential_tokenizer import SequentialTokenizer
 from exmekh_lib.providers.local import LocalProvider
 
 DEFAULT_LIVE_REQUEST_TIMEOUT_SECONDS = 900.0
+
+
+def fresh_live_context_id(label: str) -> str:
+    """Keep each independent test registry out of previously retained server contexts."""
+    return f"{label}-{uuid4().hex}"
 
 
 class LiveModelProvider(LocalProvider):

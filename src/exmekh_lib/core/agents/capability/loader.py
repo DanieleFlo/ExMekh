@@ -3,6 +3,7 @@ from __future__ import annotations
 from logging import getLogger
 from pathlib import Path
 
+from exmekh_lib.core.agents.capability.config_references import render_config_references
 from exmekh_lib.utils.file import read_file_from_path
 
 logger = getLogger(__name__)
@@ -19,7 +20,7 @@ class MarkdownLoader:
         self._validate_path()
 
         try:
-            return read_file_from_path(self._markdown_path)
+            return render_config_references(read_file_from_path(self._markdown_path))
         except Exception:
             logger.exception("Failed to load Markdown: %s", self._markdown_path)
             raise

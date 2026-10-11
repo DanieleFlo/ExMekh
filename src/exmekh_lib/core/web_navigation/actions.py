@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, Literal, NotRequired, TypedDict, get_args
 
 from exmekh_lib.config.web import WEB_NAVIGATION
 
@@ -11,7 +11,19 @@ from .errors import WebNavigationError
 from .security import NavigationPolicy, validate_public_url
 
 MAX_ACTIONS = WEB_NAVIGATION.max_actions
-ACTION_KINDS = {"click", "fill", "select", "scroll", "wait", "navigate", "back"}
+ActionKind = Literal["click", "fill", "select", "scroll", "wait", "navigate", "back"]
+ACTION_KINDS = frozenset(get_args(ActionKind))
+
+
+class BrowserAction(TypedDict):
+    """Public action fields; validate_actions enforces the rules for each kind."""
+
+    kind: ActionKind
+    selector: NotRequired[str]
+    value: NotRequired[str]
+    delta_y: NotRequired[float]
+    milliseconds: NotRequired[int]
+    url: NotRequired[str]
 
 
 def validate_actions(actions: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:

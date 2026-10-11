@@ -7,6 +7,7 @@ import pytest
 from PIL import Image
 from pydantic import BaseModel
 
+from exmekh_lib.config.provider import DEFAULT_PROVIDER_SETTINGS
 from exmekh_lib.core.models.client import Client
 from exmekh_lib.core.models.client_request import ClientRequest
 from exmekh_lib.core.models.reasoning_effort import ReasoningEffortLMH
@@ -33,7 +34,7 @@ def test_rejected_attachments_allow_same_client_to_continue(api):
     if not url:
         pytest.skip("Set EXMEKH_LIB_LIVE_REJECTION_URL to the updated DS4 endpoint")
     provider = LocalProvider(
-        model=os.getenv("EXMEKH_LIB_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S"),
+        model=os.getenv("EXMEKH_LIB_LIVE_MODEL", DEFAULT_PROVIDER_SETTINGS.model),
         api=api,
         base_url=url,
         api_key="local-test",

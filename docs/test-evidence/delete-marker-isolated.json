@@ -1,0 +1,57 @@
+{
+  "input": [
+    {
+      "role": "system",
+      "content": "Generate the exact required tool arguments."
+    },
+    {
+      "role": "user",
+      "content": "Call edit-file exactly once with path=attack.txt, old_text='@ex_meckh_all', new_text='@ex_meckh_delete'. Return the tool call only."
+    }
+  ],
+  "output": {
+    "role": "assistant",
+    "content": "",
+    "tool_calls": "[\n  {\n    \"id\": \"call_b7b9c332ad1972db0fd74dce\",\n    \"function\": {\n      \"name\": \"edit-file\",\n      \"arguments\": {\n        \"path\": \"attack.txt\",\n        \"old_text\": \"@ex_meckh_all\",\n        \"new_text\": \"\\n@ex_meckh\\n\"\n      }\n    },\n    \"type\": \"function\"\n  }\n]"
+  },
+  "interruptions": [],
+  "exchanges": [
+    [
+      {
+        "type": "interactive.await_input",
+        "version": 1,
+        "status": "awaiting_input",
+        "continuation_id": "cont_bed8db307d174e29d6dbf94d",
+        "exchange_id": "exchange_32b02d27032af9bb6450afe4",
+        "call_id": "call_b7b9c332ad1972db0fd74dce",
+        "tool_name": "edit-file",
+        "behavior": "edit_file.v1",
+        "request": {
+          "kind": "file_snapshot",
+          "values": {
+            "path": "attack.txt"
+          }
+        },
+        "usage": {
+          "input_tokens": 703,
+          "input_tokens_details": {
+            "cached_tokens": 572,
+            "cache_write_tokens": 131
+          },
+          "output_tokens": 108,
+          "output_tokens_details": {
+            "reasoning_tokens": 0,
+            "constrained_prefill_tokens": 0
+          },
+          "total_tokens": 811
+        }
+      },
+      {
+        "status": "provide",
+        "text": "  value\nprefix value\naaa\nvalue",
+        "encoding": "utf-8",
+        "line_count": 4
+      }
+    ]
+  ]
+}

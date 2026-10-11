@@ -24,6 +24,8 @@ from typing import (
 )
 from uuid import UUID
 
+from exmekh_lib.utils.type_hints import typed_dict_required_keys
+
 
 class OpenAIChatCompletionValueCoercer:
     _ARRAY_TYPES: ClassVar[set[Any]] = {
@@ -333,11 +335,7 @@ class OpenAIChatCompletionValueCoercer:
             include_extras=True,
         )
 
-        required_keys = getattr(
-            annotation,
-            "__required_keys__",
-            frozenset(),
-        )
+        required_keys = typed_dict_required_keys(annotation, hints)
 
         self._ensure_known_fields(
             value,

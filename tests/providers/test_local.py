@@ -1,3 +1,4 @@
+import re
 from types import SimpleNamespace
 from typing import Literal
 from unittest.mock import MagicMock, patch
@@ -7,6 +8,7 @@ import openai
 import pytest
 from pydantic import BaseModel
 
+from exmekh_lib.config.provider import DEFAULT_PROVIDER_SETTINGS
 from exmekh_lib.core.models.assistant_message import AssistantMessage
 from exmekh_lib.core.models.provider_request import ProviderRequest
 from exmekh_lib.core.models.provider_response import ProviderResponse
@@ -158,7 +160,7 @@ def test_resolve_api_key_returns_configured_environment_value(monkeypatch) -> No
 def test_resolve_api_key_prefers_explicit_value(monkeypatch) -> None:
     provider = make_provider()
     provider._api_key = "explicit"
-    monkeypatch.setenv("API_KEY", "environment")
+    monkeypatch.setenv(DEFAULT_PROVIDER_SETTINGS.api_key_env_var, "environment")
 
     assert provider._resolve_api_key() == "explicit"
 
@@ -166,16 +168,16 @@ def test_resolve_api_key_prefers_explicit_value(monkeypatch) -> None:
 def test_resolve_api_key_explicit_empty_value_uses_local_fallback(monkeypatch) -> None:
     provider = make_provider()
     provider._api_key = ""
-    monkeypatch.setenv("API_KEY", "environment")
+    monkeypatch.setenv(DEFAULT_PROVIDER_SETTINGS.api_key_env_var, "environment")
 
-    assert provider._resolve_api_key() == "local-api-key"
+    assert provider._resolve_api_key() == DEFAULT_PROVIDER_SETTINGS.fallback_api_key
 
 
 def test_resolve_api_key_returns_local_fallback_when_missing(monkeypatch) -> None:
     provider = make_provider()
-    monkeypatch.delenv("API_KEY", raising=False)
+    monkeypatch.delenv(DEFAULT_PROVIDER_SETTINGS.api_key_env_var, raising=False)
 
-    assert provider._resolve_api_key() == "local-api-key"
+    assert provider._resolve_api_key() == DEFAULT_PROVIDER_SETTINGS.fallback_api_key
 
 
 def test_resolve_base_url_returns_configured_environment_value(monkeypatch) -> None:
@@ -189,7 +191,9 @@ def test_resolve_base_url_returns_configured_environment_value(monkeypatch) -> N
 def test_resolve_base_url_prefers_explicit_value(monkeypatch) -> None:
     provider = make_provider()
     provider._base_url = "http://explicit.test/v1"
-    monkeypatch.setenv("BASE_URL", "http://environment.test/v1")
+    monkeypatch.setenv(
+        DEFAULT_PROVIDER_SETTINGS.base_url_env_var, "http://environment.test/v1"
+    )
 
     assert provider._resolve_base_url() == "http://explicit.test/v1"
 
@@ -199,9 +203,14 @@ def test_resolve_base_url_explicit_empty_value_does_not_use_environment(
 ) -> None:
     provider = make_provider()
     provider._base_url = ""
-    monkeypatch.setenv("BASE_URL", "http://environment.test/v1")
+    monkeypatch.setenv(
+        DEFAULT_PROVIDER_SETTINGS.base_url_env_var, "http://environment.test/v1"
+    )
 
-    with pytest.raises(ValueError, match="BASE_URL.*not set"):
+    with pytest.raises(
+        ValueError,
+        match=rf"{re.escape(DEFAULT_PROVIDER_SETTINGS.base_url_env_var)}.*not set",
+    ):
         provider._resolve_base_url()
 
 
@@ -221,7 +230,7 @@ def test_resolve_base_url_rejects_malformed_or_unsafe_url(
     monkeypatch, base_url: str
 ) -> None:
     provider = make_provider()
-    monkeypatch.setenv("BASE_URL", base_url)
+    monkeypatch.setenv(DEFAULT_PROVIDER_SETTINGS.base_url_env_var, base_url)
 
     with pytest.raises(ValueError):
         provider._resolve_base_url()

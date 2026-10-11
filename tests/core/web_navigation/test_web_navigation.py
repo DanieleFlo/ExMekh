@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from exmekh_lib.config.web import WEB_FORMAT
 from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
 from exmekh_lib.core.agents.capabilities.defaults import BUILTIN_CAPABILITIES_PATH
 from exmekh_lib.core.web_navigation import search, security
@@ -234,11 +235,11 @@ def test_crawl_sets_and_restores_its_work_root_directory(
     observed: list[str | None] = []
 
     async def fake_crawl(**_kwargs: object) -> dict[str, object]:
-        observed.append(os.environ.get("CRAWL4_AI_BASE_DIRECTORY"))
+        observed.append(os.environ.get(WEB_FORMAT.crawler_directory_env_var))
         return {"ok": True}
 
     monkeypatch.setattr(crawler, "_crawl_page", fake_crawl)
-    monkeypatch.setenv("CRAWL4_AI_BASE_DIRECTORY", "original")
+    monkeypatch.setenv(WEB_FORMAT.crawler_directory_env_var, "original")
     result = crawler.crawl_page(
         url="https://example.org",
         output_mode="ast",
@@ -247,8 +248,8 @@ def test_crawl_sets_and_restores_its_work_root_directory(
         actions=[{"kind": "wait", "milliseconds": 1}],
     )
     assert result == {"ok": True}
-    assert observed == [str(tmp_path / ".exmekh_lib" / "web-cache")]
-    assert os.environ["CRAWL4_AI_BASE_DIRECTORY"] == "original"
+    assert observed == [str(tmp_path / WEB_FORMAT.cache_directory)]
+    assert os.environ[WEB_FORMAT.crawler_directory_env_var] == "original"
 
 
 def test_crawl_provisions_missing_browser_and_retries_once(

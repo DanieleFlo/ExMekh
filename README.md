@@ -10,6 +10,7 @@
 - **[Node-scoped Tool Memory](docs/09-tool-call-cache.md)**: Save tool and deep-skill results with their invocation metadata. By default, nodes expose XML tools for compact execution history, paginated search, and full output retrieval.
 - **[Exit Tool Items](docs/10-exit-tool-items.md)**: Return selected saved outputs from a skill with XML placement and recoverable validation errors.
 - **[Workspace File Inspection and Reading](docs/14-file-inspection.md)**: Bounded metadata and navigation, verified text-line and PDF-page reads, direct image delivery, PDF rendering and archive/image headers.
+- **[Interactive Text Editing](docs/15-interactive-file-editing.md)**: Verified text replacement, insertion, creation and removal through the DS4 Responses v1 protocol.
 - **[Deep Thinking](docs/11-deep-thinking.md)**: Harness skill for web research, calculation, formal Z3 reasoning, and scoped thinking summaries.
 - **[Sub-agent Delegation](docs/05-deep-agent-and-execution.md#3-sub-agent-delegation)**: By default, nodes with direct children expose `call_sub_agent`, with a child-name enum and a required non-empty user message, in every HDS and skill scope.
 
@@ -42,6 +43,7 @@ Explore the detailed documentation in the [`docs/`](docs) directory:
 12. **[Event Handler Interfaces](docs/12-event-handler-interfaces.md)**: Implement typed event handlers with registration-time validation.
 13. **[Tool Executions](docs/13-tool-executions.md)**: Wait or continue in background, control executions, read results, and deliver completed output in its original skill instance.
 14. **[Workspace File Inspection and Reading](docs/14-file-inspection.md)**: Analysis, navigation ranges, verified line reads, automatic prerequisite recovery, format support and limits.
+15. **[Interactive Text Editing](docs/15-interactive-file-editing.md)**: Snapshot authorization, exact selections and markers, atomic commits, protocol recovery and security tests.
 
 ---
 

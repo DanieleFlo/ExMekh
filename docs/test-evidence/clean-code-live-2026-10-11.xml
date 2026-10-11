@@ -1,0 +1,2406 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="19" failures="11" skipped="2" tests="41" time="642.725" timestamp="2026-10-11T14:25:17.875737+02:00" hostname="Daniele-Fisso"><testcase classname="tests.live.test_agent_live" name="test_live_agent_blocks_direct_nested_tool_scope_bypass" time="17.115" /><testcase classname="tests.live.test_agent_live" name="test_live_agent_strict_schema_blocks_wrong_argument_type" time="38.078" /><testcase classname="tests.live.test_deep_thinking_skill_live" name="test_live_model_can_choose_and_combine_every_skill_tool" time="392.927"><failure message="RuntimeError: Provider response did not complete: incomplete">tests/live/test_deep_thinking_skill_live.py:65: in test_live_model_can_choose_and_combine_every_skill_tool
+    response = DeepAgent(provider=provider, node=node, work_root=tmp_path).run(
+src/exmekh_lib/core/agents/deep_agent/deep_agent.py:52: in run
+    return self._root_node.run(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node.py:172: in run
+    return self._runtime.run(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:162: in run
+    return self._run_turn(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:234: in _run_turn
+    response = self._route_until_complete(response)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:283: in _route_until_complete
+    response = self._continue_after_tools()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:186: in _continue_after_tools
+    return self._client.continue_after_tools(
+src/exmekh_lib/core/models/client.py:152: in continue_after_tools
+    return self._call_provider(provider_request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/live/test_deep_thinking_skill_live.py:38: in call
+    result = super().call(request)
+             ^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:74: in call
+    return self._parse_response(response, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:176: in _parse_response
+    self._ensure_completed(response)
+src/exmekh_lib/core/providers/response_openai.py:169: in _ensure_completed
+    raise RuntimeError(f"Provider response did not complete: {response.status}")
+E   RuntimeError: Provider response did not complete: incomplete</failure></testcase><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_search_reads_a_discovered_source_instead_of_only_snippets" time="4.102" /><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_browser_bootstraps_from_an_empty_cache" time="9.418" /><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_read_complex_documentation_and_reuse_cache" time="2.557" /><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_browser_form_submission_captures_destination_page" time="5.322" /><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_same_origin_navigation_reaches_a_second_document" time="2.347" /><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_cross_origin_redirect_and_private_url_are_blocked" time="2.333" /><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_image_assisted_search_reports_whether_visual_ranking_ran" time="8.371" /><testcase classname="tests.live.test_file_reading_live" name="test_live_client_reads_files_and_identifies_their_contents[text]" time="156.831"><failure message="RuntimeError: Local provider request failed">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:96: in handle_request
+    return self._connection.handle_request(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/http11.py:125: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/http11.py:97: in handle_request
+    ) = self._receive_response_headers(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/http11.py:167: in _receive_response_headers
+    event = self._receive_event(timeout=timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/http11.py:212: in _receive_event
+    raise RemoteProtocolError(msg)
+E   httpcore2.RemoteProtocolError: Server disconnected without sending a response.
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.RemoteProtocolError: Server disconnected without sending a response.
+
+The above exception was the direct cause of the following exception:
+src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:73: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:95: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:117: in _execute_payload
+    response = self._client.responses.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/responses/responses.py:1028: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.
+
+The above exception was the direct cause of the following exception:
+tests/live/test_file_reading_live.py:64: in test_live_client_reads_files_and_identifies_their_contents
+    response = node.run(fixture.prompt)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node.py:172: in run
+    return self._runtime.run(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:162: in run
+    return self._run_turn(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:226: in _run_turn
+    response = self._client.continue_with_user_messages(
+src/exmekh_lib/core/models/client.py:209: in continue_with_user_messages
+    return self._call_provider(provider_request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/live/test_file_reading_live.py:42: in call
+    return super().call(request)
+           ^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:167: in call
+    raise RuntimeError("Local provider request failed") from error
+E   RuntimeError: Local provider request failed</failure></testcase><testcase classname="tests.live.test_file_reading_live" name="test_live_client_reads_files_and_identifies_their_contents[image]" time="0.003"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_file_reading_live.py:50: in read_provider
+    provider = RecordingReadProvider(tmp_path)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/live/test_file_reading_live.py:24: in __init__
+    super().__init__(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_file_reading_live" name="test_live_client_reads_files_and_identifies_their_contents[pdf]" time="0.002"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_file_reading_live.py:50: in read_provider
+    provider = RecordingReadProvider(tmp_path)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/live/test_file_reading_live.py:24: in __init__
+    super().__init__(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_local_provider_live" name="test_live_chained_messages_preserve_multiple_facts" time="0.002"><failure message="openai.APIConnectionError: Connection error.">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_local_provider_live.py:81: in test_live_chained_messages_preserve_multiple_facts
+    client = build_live_client(
+tests/live/test_local_provider_live.py:54: in build_live_client
+    provider=LiveModelProvider(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</failure></testcase><testcase classname="tests.live.test_local_provider_live" name="test_live_two_tool_round_trips_keep_history_and_ids" time="0.002"><failure message="openai.APIConnectionError: Connection error.">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_local_provider_live.py:140: in test_live_two_tool_round_trips_keep_history_and_ids
+    client = build_live_client(
+tests/live/test_local_provider_live.py:54: in build_live_client
+    provider=LiveModelProvider(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</failure></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_text_and_images_in_one_ordered_message[chat_completions-text_then_images]" time="0.002"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:32: in mixed_live_client
+    provider = LiveModelProvider(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_text_and_images_in_one_ordered_message[chat_completions-interleaved]" time="0.002"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:32: in mixed_live_client
+    provider = LiveModelProvider(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_text_and_images_in_one_ordered_message[chat_completions-text_groups]" time="0.002"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:32: in mixed_live_client
+    provider = LiveModelProvider(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_text_and_images_in_one_ordered_message[responses-text_then_images]" time="0.002"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:32: in mixed_live_client
+    provider = LiveModelProvider(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_text_and_images_in_one_ordered_message[responses-interleaved]" time="0.002"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:32: in mixed_live_client
+    provider = LiveModelProvider(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_text_and_images_in_one_ordered_message[responses-text_groups]" time="0.002"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:32: in mixed_live_client
+    provider = LiveModelProvider(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_real_photo_and_text[chat_completions]" time="0.002"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:32: in mixed_live_client
+    provider = LiveModelProvider(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_real_photo_and_text[responses]" time="0.002"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:32: in mixed_live_client
+    provider = LiveModelProvider(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_native_file_content_is_read[chat_completions-single_file]" time="0.002"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:32: in mixed_live_client
+    provider = LiveModelProvider(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_native_file_content_is_read[chat_completions-file_and_text]" time="0.002"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:32: in mixed_live_client
+    provider = LiveModelProvider(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_native_file_content_is_read[chat_completions-text_image_file_text]" time="0.002"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:32: in mixed_live_client
+    provider = LiveModelProvider(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_native_file_content_is_read[responses-single_file]" time="0.002"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:32: in mixed_live_client
+    provider = LiveModelProvider(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_native_file_content_is_read[responses-file_and_text]" time="0.002"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:32: in mixed_live_client
+    provider = LiveModelProvider(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_native_file_content_is_read[responses-text_image_file_text]" time="0.002"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:32: in mixed_live_client
+    provider = LiveModelProvider(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_rejected_inputs_live" name="test_rejected_attachments_allow_same_client_to_continue[chat_completions]" time="0.001"><skipped type="pytest.skip" message="Set EXMEKH_LIB_LIVE_REJECTION_URL to the updated DS4 endpoint">/home/daniele/ds4/exmekh_lib/tests/live/test_rejected_inputs_live.py:35: Set EXMEKH_LIB_LIVE_REJECTION_URL to the updated DS4 endpoint</skipped></testcase><testcase classname="tests.live.test_rejected_inputs_live" name="test_rejected_attachments_allow_same_client_to_continue[responses]" time="0.001"><skipped type="pytest.skip" message="Set EXMEKH_LIB_LIVE_REJECTION_URL to the updated DS4 endpoint">/home/daniele/ds4/exmekh_lib/tests/live/test_rejected_inputs_live.py:35: Set EXMEKH_LIB_LIVE_REJECTION_URL to the updated DS4 endpoint</skipped></testcase><testcase classname="tests.live.test_sub_agent_live" name="test_live_sub_agent_memory_matches_history_policy[persistent]" time="0.002"><failure message="openai.APIConnectionError: Connection error.">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_sub_agent_live.py:83: in test_live_sub_agent_memory_matches_history_policy
+    agent = build_live_sub_agent_system(
+tests/live/test_sub_agent_live.py:29: in build_live_sub_agent_system
+    provider = LiveModelProvider(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</failure></testcase><testcase classname="tests.live.test_sub_agent_live" name="test_live_sub_agent_memory_matches_history_policy[ephemeral]" time="0.002"><failure message="openai.APIConnectionError: Connection error.">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_sub_agent_live.py:83: in test_live_sub_agent_memory_matches_history_policy
+    agent = build_live_sub_agent_system(
+tests/live/test_sub_agent_live.py:29: in build_live_sub_agent_system
+    provider = LiveModelProvider(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</failure></testcase><testcase classname="tests.live.test_tool_cache_live" name="test_live_regular_tool_saves_output_and_calling_thinking[non-streaming]" time="0.002"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_tool_cache_live.py:76: in live_provider
+    provider = RecordingLocalProvider(tmp_path / "cache")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/live/test_tool_cache_live.py:51: in __init__
+    super().__init__(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_tool_cache_live" name="test_live_regular_tool_saves_output_and_calling_thinking[streaming]" time="0.002"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_tool_cache_live.py:76: in live_provider
+    provider = RecordingLocalProvider(tmp_path / "cache")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/live/test_tool_cache_live.py:51: in __init__
+    super().__init__(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_tool_cache_live" name="test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code" time="0.002"><error message="failed on setup with &quot;openai.APIConnectionError: Connection error.&quot;">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_tool_cache_live.py:76: in live_provider
+    provider = RecordingLocalProvider(tmp_path / "cache")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/live/test_tool_cache_live.py:51: in __init__
+    super().__init__(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</error></testcase><testcase classname="tests.live.test_tool_executions_live" name="test_live_default_wait_returns_real_file_result[ordinary]" time="0.002"><failure message="openai.APIConnectionError: Connection error.">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_tool_executions_live.py:92: in test_live_default_wait_returns_real_file_result
+    rig = live_rig(tools, streaming=streaming)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/live/test_tool_executions_live.py:38: in build
+    provider = RecordingExecutionProvider(
+tests/live/tool_execution_support.py:258: in __init__
+    super().__init__(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</failure></testcase><testcase classname="tests.live.test_tool_executions_live" name="test_live_default_wait_returns_real_file_result[streaming]" time="0.002"><failure message="openai.APIConnectionError: Connection error.">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_tool_executions_live.py:92: in test_live_default_wait_returns_real_file_result
+    rig = live_rig(tools, streaming=streaming)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/live/test_tool_executions_live.py:38: in build
+    provider = RecordingExecutionProvider(
+tests/live/tool_execution_support.py:258: in __init__
+    super().__init__(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</failure></testcase><testcase classname="tests.live.test_tool_executions_live" name="test_live_background_wait_and_automatic_delivery[ordinary]" time="0.002"><failure message="openai.APIConnectionError: Connection error.">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_tool_executions_live.py:120: in test_live_background_wait_and_automatic_delivery
+    rig = live_rig(streaming=streaming)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/live/test_tool_executions_live.py:38: in build
+    provider = RecordingExecutionProvider(
+tests/live/tool_execution_support.py:258: in __init__
+    super().__init__(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</failure></testcase><testcase classname="tests.live.test_tool_executions_live" name="test_live_background_wait_and_automatic_delivery[streaming]" time="0.002"><failure message="openai.APIConnectionError: Connection error.">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_tool_executions_live.py:120: in test_live_background_wait_and_automatic_delivery
+    rig = live_rig(streaming=streaming)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/live/test_tool_executions_live.py:38: in build
+    provider = RecordingExecutionProvider(
+tests/live/tool_execution_support.py:258: in __init__
+    super().__init__(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</failure></testcase><testcase classname="tests.live.test_tool_executions_live" name="test_live_expired_waits_and_incremental_output" time="0.002"><failure message="openai.APIConnectionError: Connection error.">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:94: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:74: in handle_request
+    stream = self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:117: in _connect
+    stream = self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:203: in connect_tcp
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ConnectError: [Errno 111] Connection refused
+
+The above exception was the direct cause of the following exception:
+tests/live/test_tool_executions_live.py:165: in test_live_expired_waits_and_incremental_output
+    rig = live_rig()
+          ^^^^^^^^^^
+tests/live/test_tool_executions_live.py:38: in build
+    provider = RecordingExecutionProvider(
+tests/live/tool_execution_support.py:258: in __init__
+    super().__init__(
+src/exmekh_lib/providers/local.py:56: in __init__
+    self._check_provider()
+src/exmekh_lib/providers/local.py:119: in _check_provider
+    available_models = self._get_available_models()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:133: in _get_available_models
+    model_list = self.client.models.list()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/models.py:98: in list
+    return self._get_api_list(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1468: in get_api_list
+    return self._request_api_list(model, page, opts)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1267: in _request_api_list
+    return self.request(page, options, stream=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1122: in request
+    raise APIConnectionError(request=request) from err
+E   openai.APIConnectionError: Connection error.</failure></testcase></testsuite></testsuites>

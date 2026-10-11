@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="6" time="411.673" timestamp="2026-10-11T13:49:10.467374+02:00" hostname="Daniele-Fisso"><testcase classname="tests.live.test_file_editing_live" name="test_live_model_edits_creates_and_removes_files[edit]" time="87.908" /><testcase classname="tests.live.test_file_editing_live" name="test_live_model_edits_creates_and_removes_files[new]" time="37.956" /><testcase classname="tests.live.test_file_editing_live" name="test_live_model_edits_creates_and_removes_files[remove]" time="196.727"><failure message="AssertionError: Model exceeded the file editing turn budget&#10;assert 14 &lt; 14&#10; +  where 14 = len([&lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5d00&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a6450&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5be0&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5520&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5c70&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a6180&gt;, ...])&#10; +    where [&lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5d00&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a6450&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5be0&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5520&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5c70&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a6180&gt;, ...] = &lt;test_file_editing_live.EditingLiveProvider object at 0x7d66c557ac10&gt;.requests">tests/live/test_file_editing_live.py:175: in test_live_model_edits_creates_and_removes_files
+    result = node.run(
+src/exmekh_lib/core/agents/node/node.py:172: in run
+    return self._runtime.run(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:162: in run
+    return self._run_turn(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:234: in _run_turn
+    response = self._route_until_complete(response)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:283: in _route_until_complete
+    response = self._continue_after_tools()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:186: in _continue_after_tools
+    return self._client.continue_after_tools(
+src/exmekh_lib/core/models/client.py:152: in continue_after_tools
+    return self._call_provider(provider_request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/live/test_file_editing_live.py:69: in call
+    assert len(self.requests) &lt; 14, "Model exceeded the file editing turn budget"
+E   AssertionError: Model exceeded the file editing turn budget
+E   assert 14 &lt; 14
+E    +  where 14 = len([&lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5d00&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a6450&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5be0&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5520&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5c70&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a6180&gt;, ...])
+E    +    where [&lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5d00&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a6450&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5be0&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5520&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5c70&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a6180&gt;, ...] = &lt;test_file_editing_live.EditingLiveProvider object at 0x7d66c557ac10&gt;.requests</failure></testcase><testcase classname="tests.live.test_file_editing_live" name="test_live_adversarial_old_text_cannot_escape_for_30_seconds" time="30.575"><properties><property name="adversarial_seconds" value="30.564693201999944" /><property name="attempts" value="2" /><property name="validated_calls" value="1" /></properties></testcase><testcase classname="tests.live.test_file_editing_live" name="test_live_server_generates_an_exact_delete_marker[ordinary]" time="14.568"><failure message="AssertionError: assert {'path': 'att...eckh\ndelete'} == {'path': 'att...meckh_delete'}&#10;  &#10;  Omitting 2 identical items, use -vv to show&#10;  Differing items:&#10;  {'new_text': '\n@ex_meckh\ndelete'} != {'new_text': '@ex_meckh_delete'}&#10;  &#10;  Full diff:&#10;    {...&#10;  &#10;  ...Full output truncated (7 lines hidden), use '-vv' to show">tests/live/test_file_editing_live.py:416: in test_live_server_generates_an_exact_delete_marker
+    assert calls[0].get_arguments() == {
+E   AssertionError: assert {'path': 'att...eckh\ndelete'} == {'path': 'att...meckh_delete'}
+E
+E     Omitting 2 identical items, use -vv to show
+E     Differing items:
+E     {'new_text': '\n@ex_meckh\ndelete'} != {'new_text': '@ex_meckh_delete'}
+E
+E     Full diff:
+E       {...
+E
+E     ...Full output truncated (7 lines hidden), use '-vv' to show</failure></testcase><testcase classname="tests.live.test_file_editing_live" name="test_live_server_generates_an_exact_delete_marker[marker_enum]" time="43.811"><failure message="AssertionError: [{'type': 'interactive.failed', 'version': 1, 'continuation_id': 'cont_c92c9e8a205c82cefc422a05', 'status': 'failed', ...}]&#10;assert 0 == 1&#10; +  where 0 = len([])">tests/live/test_file_editing_live.py:415: in test_live_server_generates_an_exact_delete_marker
+    assert len(calls) == 1, [message.record for message in result.interruptions]
+E   AssertionError: [{'type': 'interactive.failed', 'version': 1, 'continuation_id': 'cont_c92c9e8a205c82cefc422a05', 'status': 'failed', ...}]
+E   assert 0 == 1
+E    +  where 0 = len([])</failure></testcase></testsuite></testsuites>

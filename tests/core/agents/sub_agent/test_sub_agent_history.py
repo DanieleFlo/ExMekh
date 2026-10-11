@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from exmekh_lib.config.storage import DEFAULT_STORAGE_SETTINGS
 from exmekh_lib.core.agents.deep_agent.deep_agent import DeepAgent
 from exmekh_lib.core.agents.node import Node
 from exmekh_lib.core.cache.cache_manager import CacheManager
@@ -25,7 +26,9 @@ class MockTokenizer(Tokenizer):
         return text[:start_tokens] + (text[-end_tokens:] if end_tokens else "")
 
     def __init__(self, cache_dir: Path | None = None) -> None:
-        self._cache_dir = cache_dir or Path(".exmekh_lib/tokenizers")
+        self._cache_dir = (
+            cache_dir or DEFAULT_STORAGE_SETTINGS.tokenizer_cache_directory
+        )
 
     def initialize(self) -> None:
         pass

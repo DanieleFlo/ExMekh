@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from exmekh_lib.config.cache import CACHE_FORMAT
 from exmekh_lib.core.cache import (
     CacheManager,
     NodeCache,
@@ -157,8 +158,8 @@ def test_unified_session_holds_counter_and_node_tool_calls(tmp_path: Path):
     idx = session.reserve_next_index(100)
     assert idx == 0
 
-    # counter.json exists
-    counter_file = session_dir / "counter.json"
+    # The shared tokenizer counter exists.
+    counter_file = session_dir / CACHE_FORMAT.counter_filename
     assert counter_file.is_file()
     assert read_json_from_path(counter_file) == {"next_index": 1}
 
@@ -172,8 +173,12 @@ def test_unified_session_holds_counter_and_node_tool_calls(tmp_path: Path):
         result=["line 1", "line 2"],
     )
 
-    # Tool call file exists inside session_dir / tool_calls / node_worker / call_000.json
-    tool_call_file = session_dir / "tool_calls" / "node_worker" / "call_000.json"
+    tool_call_file = (
+        session_dir
+        / CACHE_FORMAT.tool_calls_folder
+        / "node_worker"
+        / f"call_000{CACHE_FORMAT.record_suffix}"
+    )
     assert tool_call_file.is_file()
     assert read_json_from_path(tool_call_file)["name"] == "grep"
 
@@ -262,9 +267,12 @@ def test_sequential_tokenizer_shares_session_with_cache_manager(tmp_path: Path):
     # Verify both counter and tool call reside under the same session folder
     session_dir = node.session_dir
 
-    assert (session_dir / "counter.json").is_file()
+    assert (session_dir / CACHE_FORMAT.counter_filename).is_file()
     assert (
-        session_dir / "tool_calls" / "analysis_node" / f"{generated_id}.json"
+        session_dir
+        / CACHE_FORMAT.tool_calls_folder
+        / "analysis_node"
+        / f"{generated_id}{CACHE_FORMAT.record_suffix}"
     ).is_file()
 
     # Reset closes and wipes everything
@@ -289,7 +297,9 @@ def test_concurrent_tool_calls_and_index_reservation(tmp_path: Path):
         list(pool.map(worker, range(80)))
 
     # 80 indices reserved in total
-    counter_data = read_json_from_path(session.session_dir / "counter.json")
+    counter_data = read_json_from_path(
+        session.session_dir / CACHE_FORMAT.counter_filename
+    )
     assert counter_data["next_index"] == 80
 
     # 20 records per node

@@ -8,6 +8,7 @@ from pydantic_core import to_json
 
 from exmekh_lib.core.models.assistant_message import AssistantMessage, ToolCall
 from exmekh_lib.core.models.function_message import FunctionMessage
+from exmekh_lib.core.models.interactive import InterruptedMessage
 from exmekh_lib.core.models.structured_assistant_message import (
     StructuredAssistantMessage,
 )
@@ -80,6 +81,8 @@ class ToOpenAIResponseMapper:
 
     @classmethod
     def map_message(cls, message: Message[object]) -> list[dict[str, Any]]:
+        if isinstance(message, InterruptedMessage):
+            return [message.record]
         if isinstance(message, SystemMessage):
             return cls.map_system_message(message)
         if isinstance(message, UserMessage):

@@ -6,6 +6,7 @@ from typing import Any
 
 from PIL import Image
 
+from exmekh_lib.core.models.interactive import InterruptedMessage
 from exmekh_lib.core.models.user_message import (
     DocumentUserMessage,
     FilesUserMessage,
@@ -34,12 +35,25 @@ def serialize_user_message(message: UserMessage) -> dict[str, Any]:
                     "mime_type": part.mime_type,
                 }
             )
-    return {"name": message.get_name(), "parts": parts}
+    return {
+        "name": message.get_name(),
+        "parts": parts,
+        **(
+            {"interactive": message.record}
+            if isinstance(message, InterruptedMessage)
+            else {}
+        ),
+    }
 
 
 def deserialize_user_message(data: dict[str, Any]) -> UserMessage:
     """Restore fresh attachments, reporting malformed cache data as a read error."""
     try:
+        if "interactive" in data:
+            record = data["interactive"]
+            if not isinstance(record, dict):
+                raise ValueError("Cached interactive record must be an object")
+            return InterruptedMessage(record)
         name = _text_field(data, "name")
         raw_parts = data["parts"]
         if not isinstance(raw_parts, list):

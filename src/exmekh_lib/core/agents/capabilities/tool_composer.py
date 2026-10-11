@@ -31,11 +31,15 @@ class _DefaultToolComposer:
     @staticmethod
     def preserve_execution_policy(original: Tool, replacement: Tool) -> Tool:
         """Loaded and runtime overrides must both keep explicitly synchronous tools inline."""
-        return (
+        composed = (
             replacement
             if original.background_enabled
             else replacement.without_background_execution()
         )
+        if original.interactive is not None:
+            composed = composed.without_background_execution()
+            composed.interactive = original.interactive
+        return composed
 
     def compose_runtime_tools(self, tools: Sequence[Tool]) -> tuple[Tool, ...]:
         composed = []

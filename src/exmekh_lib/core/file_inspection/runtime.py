@@ -83,6 +83,11 @@ class FileToolRuntime:
     def begin_batch(self, history: Sequence[Message[object]]) -> None:
         self._batch_evidence = self._history.visible(history)
 
+    def visible_evidence(
+        self, history: Sequence[Message[object]]
+    ) -> tuple[InspectionEvidence, ...]:
+        return self._history.visible(history)
+
     def read_context(
         self, history: Sequence[Message[object]]
     ) -> AbstractContextManager[FileReadContext]:

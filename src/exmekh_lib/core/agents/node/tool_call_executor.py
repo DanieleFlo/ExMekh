@@ -15,6 +15,7 @@ from exmekh_lib.core.agents.deep_skill.execution import (
 )
 from exmekh_lib.core.agents.exit_tool.exit_tool import CalledExitTool, ExitTool
 from exmekh_lib.core.agents.exit_tool.items import ExitItemError
+from exmekh_lib.core.file_inspection.interactive import FileInteractiveCalls
 from exmekh_lib.core.file_inspection.runtime import FileToolRuntime
 from exmekh_lib.core.models.assistant_message import ToolCall
 from exmekh_lib.core.models.client import Client
@@ -62,6 +63,20 @@ class ToolCallExecutor:
         self._execution_manager = execution_manager
         self._scope_prefix = scope_prefix
         self._file_tools = FileToolRuntime(execution_manager)
+        self._interactive_calls = FileInteractiveCalls(
+            self._file_tools,
+            self._work_root,
+            self._client.get_history,
+            lambda: False,
+            lambda: self.skill_scope_ids,
+        )
+
+    def configure_interactive_calls(self, cancelled: Callable[[], bool]) -> None:
+        self._interactive_calls.set_cancellation_check(cancelled)
+        self._client.interactive_handler = self._interactive_calls
+
+    def pending_interactive_inspections(self) -> tuple[ToolCall, ...]:
+        return self._interactive_calls.pending_inspections()
 
     def begin_tool_batch(self) -> None:
         """Freeze prerequisites from context available when this batch was generated."""
@@ -130,10 +145,11 @@ class ToolCallExecutor:
 
     def record_steering_output(self) -> str:
         """Expose saved guidance in every enclosing skill's output references."""
+        return self.record_runtime_output(RUNTIME.steering_output_name)
+
+    def record_runtime_output(self, name: str) -> str:
         output_id = self._output_formatter.generate_output_id()
-        self._skill_executions.record_tool_output(
-            RUNTIME.steering_output_name, output_id
-        )
+        self._skill_executions.record_tool_output(name, output_id)
         return output_id
 
     def execute(
@@ -210,9 +226,12 @@ class ToolCallExecutor:
                     called_tool, self._execution_manager
                 )
             else:
-                with self._file_tools.read_context(
-                    self._client.get_history()
-                ) as context:
+                with (
+                    self._file_tools.read_context(
+                        self._client.get_history()
+                    ) as context,
+                    self._interactive_calls.execution_context(called_tool.call_id),
+                ):
                     try:
                         result = called_tool.execute(
                             work_root=self._work_root,
@@ -304,6 +323,11 @@ class ToolCallExecutor:
         return ToolExecutionResult(
             response=tool_response,
             raw_result=output.value(),
+            executed_arguments=(
+                snapshot.output_arguments()
+                if snapshot is not None
+                else called_tool.executed_arguments
+            ),
             save_result=called_tool.cache_result,
             output_id=output_id,
             execution=snapshot,

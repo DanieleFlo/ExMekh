@@ -1,9 +1,11 @@
+from dataclasses import replace
 from pathlib import Path
 from typing import cast
 from unittest.mock import patch
 
 import pytest
 
+from exmekh_lib.config import file_inspection
 from exmekh_lib.core.agents.capability.loader import MarkdownLoader
 
 
@@ -58,4 +60,35 @@ def test_propagates_file_read_error(tmp_path: Path) -> None:
         ),
         pytest.raises(OSError, match="unreadable"),
     ):
+        MarkdownLoader(markdown_path).load()
+
+
+def test_configuration_references_follow_changed_limits_and_preserve_other_braces(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(
+        file_inspection,
+        "FILE_INSPECTION",
+        replace(
+            file_inspection.FILE_INSPECTION, max_pdf_render_pages=2, pdf_render_dpi=72
+        ),
+    )
+    markdown_path = tmp_path / "skill.md"
+    markdown_path.write_text(
+        "Pages: {{config.FILE_INSPECTION.max_pdf_render_pages}}, "
+        'DPI: {{config.FILE_INSPECTION.pdf_render_dpi}}; {{!other-skill}}; {{output-id}}; {"example":1}'
+    )
+    assert MarkdownLoader(markdown_path).load() == (
+        'Pages: 2, DPI: 72; {{!other-skill}}; {{output-id}}; {"example":1}'
+    )
+
+
+@pytest.mark.parametrize(
+    "reference",
+    ["UNKNOWN.value", "FILE_INSPECTION.missing", "FILE_INSPECTION.image_extensions"],
+)
+def test_invalid_configuration_reference_fails_before_model_use(tmp_path, reference):
+    markdown_path = tmp_path / "skill.md"
+    markdown_path.write_text("{{config." + reference + "}}")
+    with pytest.raises(ValueError, match="configuration reference"):
         MarkdownLoader(markdown_path).load()

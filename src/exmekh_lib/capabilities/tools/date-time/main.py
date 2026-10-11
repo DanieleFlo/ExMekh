@@ -17,7 +17,7 @@ from exmekh_lib.core.reasoning_tools.date_time import (
     description=(
         "Read the current time (now), convert ISO 8601 dates/datetimes to an IANA "
         "timezone (convert), add a signed elapsed duration (add), or calculate "
-        "other minus value (difference). timezone defaults to UTC and also "
+        f"other minus value (difference). timezone defaults to {DATE_TIME.default_timezone} and also "
         "interprets inputs without an offset; date-only inputs mean midnight. "
         "Use explicit offsets for ambiguous local times. amount and unit control "
         "addition; unit controls the difference result. A day is 24 elapsed hours."

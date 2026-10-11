@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from threading import Lock
 from typing import cast
@@ -23,7 +23,7 @@ class TurnControl:
         self._pending_messages: list[UserMessage] = []
 
     @contextmanager
-    def run(self) -> Iterator[None]:
+    def run(self) -> Generator[None]:
         if not self._run_lock.acquire(blocking=False):
             raise RuntimeError(RUNTIME.concurrent_run_message)
         try:
@@ -51,6 +51,10 @@ class TurnControl:
             self._pending_messages.clear()
             self._execution_manager.resume_waits()
             return messages
+
+    def has_pending_messages(self) -> bool:
+        with self._steering_lock:
+            return bool(self._pending_messages)
 
     def try_close(self) -> bool:
         """Stop acceptance atomically only when all accepted input is consumed."""

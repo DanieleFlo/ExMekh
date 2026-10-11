@@ -1,9 +1,10 @@
 ---
-description: Processes workspace files through inspection, text ranges and image reading.
+description: Inspects, reads, edits, creates and removes workspace files.
 inherits-parent-tools: false
 sub-tools:
   - inspect-file
   - read-file
+  - edit-file
 ---
 # File Processing
 
@@ -19,7 +20,7 @@ coverage. A missing physical line count is normal for non-text formats.
 
 PDF inspection returns metadata only; image inspection returns header metadata.
 Archive inspection lists members without extraction. Do not infer file contents
-from these reports. Editing is not implemented here. Report
+from these reports. Report
 unsupported formats, invalid input and resource limits explicitly.
 
 For text `read-file` calls, first call `inspect-file` on that file and choose `start_line`
@@ -28,12 +29,13 @@ reused for unchanged content. All three arguments (`path`, `start_line`,
 `end_line`) are required; indices are positive integers, 1-based and inclusive.
 No implicit indices, whole-file default, clamping or automatic retry is provided.
 Reads return numbered physical text lines, using the same CR/LF conventions as
-inspection. Empty files and formats without readable lines report errors.
+inspection. For an inspected empty text file, use 0/0 to obtain a successful
+empty read; other formats without readable lines report errors.
 
 For PDF `read-file` calls, `inspect-file` is also required so you can choose pages
 from its page count. `start_line` and `end_line` mean inclusive 1-based page
-numbers, with at most 5 pages per call. Pages are rendered into images at
-`FILE_INSPECTION.pdf_render_dpi` (120 DPI by default), with ordered page labels.
+numbers, with at most {{config.FILE_INSPECTION.max_pdf_render_pages}} pages per call.
+Pages are rendered at {{config.FILE_INSPECTION.pdf_render_dpi}} DPI, with ordered page labels.
 Use multiple calls to read longer documents; invalid/out-of-bounds intervals,
 render errors and resource limits produce explicit errors without clamping.
 
@@ -60,6 +62,39 @@ exits the skill or changes scope, automatic inspection is not delivered to the
 new scope; the error remains recoverable from the saved transcript/output.
 
 Use the harness execution and output tools for background work or saved reports.
+
+Use `edit-file(path, old_text, new_text)` for all text modifications. Inspect and
+then read an existing file first, including empty files. Keep both complete,
+successful results visible in this skill, with the same current content. Reads
+may select relevant ranges; an intervening unrelated tool is allowed. Cache IDs,
+summaries, filtered outputs and results removed by skill exit do not authorize
+edits. Missing inspection rejects the interrupted edit and triggers inspection;
+missing reading requires an explicit new read. Then make a new edit call.
+
+Literal `old_text` must be nonempty, start at a physical line boundary (including
+indentation), and occur exactly once in the whole file, counting overlapping and
+mid-line occurrences. It may span lines and end mid-line. Supply exact characters
+and newline sequences; choose a larger block to disambiguate. `new_text` may be
+longer or empty; empty replacement removes the selected text, keeping the file.
+
+Use the entire `old_text="{{config.FILE_EDITING.line_example}}"` to insert before line N. Valid lines
+are 1..L+1; L+1 appends, and an empty file permits only 1. Supply any required
+newlines yourself. Use `old_text="{{config.FILE_EDITING.all_marker}}"` to rewrite the whole content.
+To delete an existing inspected/read file, use exactly
+`old_text="{{config.FILE_EDITING.all_marker}}", new_text="{{config.FILE_EDITING.delete_marker}}"`.
+Use the entire exact value: no space or newline before or after either marker, including
+framing newlines in native tool parameters. Empty replacement keeps the file.
+For a missing path, no inspection/read is needed: use
+`{{config.FILE_EDITING.all_marker}}` or `{{config.FILE_EDITING.first_line_marker}}` to create,
+even with empty new_text; the parent directory must already exist.
+
+The entire `{{config.FILE_EDITING.reserved_prefix}}` family, including its incomplete
+stem `{{config.FILE_EDITING.marker_prefix}}`, is reserved: no surrounding whitespace, embedded,
+unknown, repeated or wrong-field markers, including markers in ordinary source
+text. There is no implicit escaping. Existing encoding/BOM and untouched newline
+sequences are preserved; new files use exact UTF-8 without an added newline.
+The server authorizes path before generating old/new. Local checks after hooks
+reject changed paths, changed snapshots and invalid arguments without writes.
 Finish with the relevant findings, file paths, line ranges and recoverable output
 IDs. Forward full reports only when the caller needs their contents immediately;
 otherwise preserve the IDs to avoid filling the parent context.

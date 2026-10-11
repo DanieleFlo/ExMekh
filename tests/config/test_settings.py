@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from exmekh_lib.config.cli import CliSettings
-from exmekh_lib.config.provider import ProviderSettings
+from exmekh_lib.config.provider import DEFAULT_PROVIDER_SETTINGS, ProviderSettings
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.config.storage import StorageSettings
 from exmekh_lib.config.tokenizer import QWEN_TOKENIZER, TokenizerSettings
@@ -34,7 +34,7 @@ def test_provider_settings_read_environment(monkeypatch: pytest.MonkeyPatch) -> 
 
     assert settings.model == "custom-model"
     assert settings.api == "chat_completions"
-    assert settings.api_key_env_var == "API_KEY"
+    assert settings.api_key_env_var == DEFAULT_PROVIDER_SETTINGS.api_key_env_var
 
 
 @pytest.mark.parametrize("api", ["", "invalid"])

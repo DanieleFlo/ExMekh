@@ -15,6 +15,7 @@ from exmekh_lib.core.models.history import (
     MessageHistory,
     ToolBatchHistory,
 )
+from exmekh_lib.core.models.interactive import InteractiveHandler
 from exmekh_lib.core.models.provider_request import ProviderRequest
 from exmekh_lib.core.models.provider_response import ProviderResponse
 from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
@@ -53,6 +54,7 @@ class Client:
         if tools is not None and not isinstance(tools, Tools):
             raise TypeError("Tools must be a Tools instance")
         self.tools = tools
+        self.interactive_handler: InteractiveHandler | None = None
 
     def _validate_provider(self) -> None:
         if not isinstance(self._provider, Provider):
@@ -111,8 +113,18 @@ class Client:
             len(request.get_messages()),
             request.get_tool_choice(),
         )
+        request.interactive_handler = self.interactive_handler
         response = self._provider.call(request)
-        self._history.add(response)
+        if not isinstance(response, ProviderResponse):
+            raise TypeError(
+                "Item must be an instance of Message or a list of Message instances"
+            )
+        if (
+            response.get_message() is not None
+            or response.get_tool_calls()
+            or not response.interruptions
+        ):
+            self._history.add(response)
         logger.info(
             "Provider response recorded: tool_calls=%d history_size=%d",
             len(response.get_tool_calls() or ()),
@@ -138,6 +150,25 @@ class Client:
             on_event=on_event,
         )
         return self._call_provider(provider_request)
+
+    def continue_after_interruption(
+        self,
+        *,
+        extra: Mapping[str, object],
+        tool_choice: str | None,
+        streaming: bool,
+        on_event: ProviderEventHandler,
+    ) -> ProviderResponse:
+        return self._call_provider(
+            ProviderRequest(
+                self._history.get_history(),
+                extra=extra,
+                tools=self.tools,
+                tool_choice=tool_choice,
+                stream=streaming,
+                on_event=on_event,
+            )
+        )
 
     def continue_with_user_messages(
         self,

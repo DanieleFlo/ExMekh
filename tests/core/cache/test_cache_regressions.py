@@ -7,6 +7,7 @@ import pytest
 from exmekh_lib.capabilities.tools.search_tool_outputs.tool_call_search import (
     ToolCallSearch,
 )
+from exmekh_lib.config.cache import CACHE_FORMAT
 from exmekh_lib.core.cache import SessionCache, SessionPool, ToolCallRecord
 from exmekh_lib.core.cache.paths import cache_component
 from exmekh_lib.core.cache.tool_call_store import ToolCallStore
@@ -141,7 +142,7 @@ def test_ids_are_opaque_and_portable(tmp_path, identifier):
         record = node.record("tool", identifier, {}, "value")
         assert node.get(identifier) == record
         assert node.list_ids() == [identifier]
-        files = list(session.session_dir.rglob("*.json"))
+        files = list(session.session_dir.rglob(f"*{CACHE_FORMAT.record_suffix}"))
         assert len(files) == 1
         assert files[0].is_relative_to(session.session_dir)
         assert len(files[0].relative_to(session.session_dir).parts) == 3
@@ -174,7 +175,7 @@ def test_read_operations_do_not_create_storage(tmp_path):
         assert node.get("missing") is None
         assert node.get_all() == []
         assert node.list_ids() == []
-        assert not (session.session_dir / "tool_calls").exists()
+        assert not (session.session_dir / CACHE_FORMAT.tool_calls_folder).exists()
 
 
 def test_record_snapshots_mutable_inputs_and_supports_cycles(tmp_path):
@@ -218,8 +219,9 @@ def test_reader_and_session_share_one_record_format(tmp_path):
     with SessionCache(tmp_path) as session:
         node = session.node("node")
         record = node.record("tool", "id", {}, {"value": 1}, skill_path="/parent/child")
-        reader = ToolCallReader(directory=session.session_dir / "tool_calls" / "node")
-        assert reader.directory == session.session_dir / "tool_calls" / "node"
+        directory = session.session_dir / CACHE_FORMAT.tool_calls_folder / "node"
+        reader = ToolCallReader(directory=directory)
+        assert reader.directory == directory
         assert reader.get("id") == record
         assert ToolCallData is ToolCallRecord
 
@@ -245,9 +247,9 @@ def test_record_rejects_invalid_skill_path(path):
 
 def test_malformed_or_mismatched_files_are_not_returned(tmp_path):
     store = ToolCallStore(tmp_path)
-    (tmp_path / "broken.json").write_text("not json")
-    (tmp_path / "list.json").write_text("[]")
-    (tmp_path / "wrong.json").write_text(
+    (tmp_path / f"broken{CACHE_FORMAT.record_suffix}").write_text("not json")
+    (tmp_path / f"list{CACHE_FORMAT.record_suffix}").write_text("[]")
+    (tmp_path / f"wrong{CACHE_FORMAT.record_suffix}").write_text(
         '{"name":"tool","id":"other","args":{},"result":1}'
     )
     assert store.get("broken") is None
@@ -310,7 +312,9 @@ def test_search_rejects_invalid_parameters(tmp_path, kwargs):
 
 def test_legacy_filename_is_read_without_reintroducing_id_collisions(tmp_path):
     old_record = ToolCallRecord("tool", "a/b", {}, "old")
-    write_json_atomically(tmp_path / "a_b.json", old_record.to_dict())
+    write_json_atomically(
+        tmp_path / f"a_b{CACHE_FORMAT.record_suffix}", old_record.to_dict()
+    )
     store = ToolCallStore(tmp_path)
     assert store.get("a/b") == old_record
     assert store.get("a_b") is None
@@ -428,7 +432,7 @@ def test_session_refuses_redirected_node_directory(tmp_path):
     outside = tmp_path / "outside"
     outside.mkdir()
     with SessionCache(tmp_path / "sessions") as session:
-        node_directory = session.session_dir / "tool_calls" / "node"
+        node_directory = session.session_dir / CACHE_FORMAT.tool_calls_folder / "node"
         node_directory.parent.mkdir()
         node_directory.symlink_to(outside, target_is_directory=True)
         try:
@@ -459,7 +463,7 @@ def test_store_does_not_follow_record_symlinks(tmp_path):
 @pytest.mark.parametrize("canonical_first", [False, True])
 def test_canonical_record_wins_regardless_of_directory_order(tmp_path, canonical_first):
     legacy = ToolCallRecord("tool", "a/b", {}, "old")
-    legacy_path = tmp_path / "a_b.json"
+    legacy_path = tmp_path / f"a_b{CACHE_FORMAT.record_suffix}"
     write_json_atomically(legacy_path, legacy.to_dict())
     store = ToolCallStore(tmp_path)
     current = ToolCallRecord("tool", "a/b", {}, "new")

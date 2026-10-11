@@ -7,6 +7,7 @@ import pytest
 from dotenv import load_dotenv
 from PIL import Image
 
+from exmekh_lib.config.provider import DEFAULT_PROVIDER_SETTINGS
 from exmekh_lib.core.models.client import Client
 from exmekh_lib.core.models.client_request import ClientRequest
 from exmekh_lib.core.models.reasoning_effort import ReasoningEffortLMH
@@ -26,10 +27,10 @@ pytestmark = pytest.mark.live
 @pytest.fixture(params=["chat_completions", "responses"])
 def mixed_live_client(request, tmp_path):
     load_dotenv()
-    if not os.getenv("BASE_URL"):
+    if not os.getenv(DEFAULT_PROVIDER_SETTINGS.base_url_env_var):
         pytest.skip("Set BASE_URL to an image-capable model endpoint.")
     provider = LiveModelProvider(
-        model=os.getenv("EXMEKH_LIB_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S"),
+        model=os.getenv("EXMEKH_LIB_LIVE_MODEL", DEFAULT_PROVIDER_SETTINGS.model),
         api=request.param,
         reasoning_effort=ReasoningEffortLMH.OFF,
         tokenizer=CacheTestTokenizer("mixed-content-live", tmp_path / "cache"),

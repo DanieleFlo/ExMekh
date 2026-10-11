@@ -5,6 +5,7 @@ import os
 import pytest
 from dotenv import load_dotenv
 
+from exmekh_lib.config.provider import DEFAULT_PROVIDER_SETTINGS
 from exmekh_lib.core.models.assistant_message import AssistantMessage
 from exmekh_lib.core.models.reasoning_effort import ReasoningEffortLMH
 from tests.file_reading_support import (
@@ -21,7 +22,7 @@ class RecordingReadProvider(LiveModelProvider):
     def __init__(self, directory):
         self.requests = []
         super().__init__(
-            model=os.getenv("EXMEKH_LIB_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S"),
+            model=os.getenv("EXMEKH_LIB_LIVE_MODEL", DEFAULT_PROVIDER_SETTINGS.model),
             api=os.getenv("EXMEKH_LIB_API", "responses"),
             reasoning_effort=ReasoningEffortLMH.OFF,
             tokenizer=CacheTestTokenizer("live-file-reading", directory / "cache"),
@@ -44,7 +45,7 @@ class RecordingReadProvider(LiveModelProvider):
 @pytest.fixture
 def read_provider(tmp_path):
     load_dotenv()
-    if not os.getenv("BASE_URL"):
+    if not os.getenv(DEFAULT_PROVIDER_SETTINGS.base_url_env_var):
         pytest.skip("Set BASE_URL to a live image-capable model endpoint.")
     provider = RecordingReadProvider(tmp_path)
     try:

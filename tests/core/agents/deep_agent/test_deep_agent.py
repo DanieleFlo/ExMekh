@@ -6,6 +6,7 @@ from typing import cast
 import pytest
 from pydantic import BaseModel
 
+from exmekh_lib.config.storage import DEFAULT_STORAGE_SETTINGS
 from exmekh_lib.core.agents.deep_agent.deep_agent import DeepAgent
 from exmekh_lib.core.agents.node import Node
 from exmekh_lib.core.cache.cache_manager import CacheManager
@@ -36,7 +37,9 @@ class _StubTokenizer(Tokenizer):
 
     def get_session(self) -> SessionCache:
         return CacheManager.get_session(
-            "stub-deep-agent", "default", Path(".exmekh_lib/tokenizers")
+            "stub-deep-agent",
+            "default",
+            DEFAULT_STORAGE_SETTINGS.tokenizer_cache_directory,
         )
 
 

@@ -110,6 +110,7 @@ def initialize_reading_node(provider, directory: Path) -> Node:
                 "file-processing",
                 "inspect-file",
                 "read-file",
+                "edit-file",
                 "exit_agent",
             },
         ),

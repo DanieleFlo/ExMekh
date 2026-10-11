@@ -103,7 +103,10 @@ class ToolOutputFormatter:
     @staticmethod
     def _execution_header(output_id: str, execution: ExecutionSnapshot) -> XmlHeader:
         header = XmlHeader(
-            source="Tool", name=execution.name, id=output_id, args=execution.arguments
+            source="Tool",
+            name=execution.name,
+            id=output_id,
+            args=execution.tool_call().get_arguments(),
         )
         for name, value in execution.status_info().items():
             if name != "output_id":

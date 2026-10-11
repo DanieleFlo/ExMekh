@@ -76,6 +76,15 @@ essere adatti all'esecuzione in un thread; due invocazioni in background possono
 lavorare contemporaneamente. Le chiamate `run()` sullo stesso nodo restano
 sequenziali.
 
+La history conserva gli argomenti della chiamata generata dal provider. La cache
+conserva invece gli argomenti applicativi scelti da `BeforeTool`, congelati prima
+di avviare il lavoro, anche quando il lavoro fallisce. La regola vale per tool
+sincroni, `wait` e `background`; gli argomenti di controllo restano nel protocollo
+dell'harness. Un record ancora in attesa dell'hook può mostrare gli argomenti
+originari e viene aggiornato quando il risultato è disponibile. Le modifiche
+successive apportate dal tool a liste o dizionari di input non cambiano la copia
+salvata degli argomenti.
+
 ## Operazioni sincrone
 
 Apertura e uscita delle skill, tool di lettura e controllo dell'harness e

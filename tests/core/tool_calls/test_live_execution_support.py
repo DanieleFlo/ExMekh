@@ -1,15 +1,26 @@
 """Validate live subprocess fixtures and request settings without a model endpoint."""
 
+import json
 from contextlib import ExitStack
 from threading import Condition
 
 import pytest
 
+from exmekh_lib.config.provider import DEFAULT_PROVIDER_SETTINGS
+from exmekh_lib.core.models.assistant_message import (
+    AssistantMessage,
+    FunctionCall,
+    ToolCall,
+)
+from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.provider_response import ProviderResponse
 from exmekh_lib.core.models.tool import ExecutionOptions, ToolExecutionOperation
+from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.core.tool_calls import execution_manager
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
 from exmekh_lib.providers.local import LocalProvider
 from tests.live.model_support import DEFAULT_LIVE_REQUEST_TIMEOUT_SECONDS
+from tests.live.test_deep_thinking_skill_live import DeepThinkingLiveProvider
 from tests.live.test_tool_cache_live import RecordingLocalProvider
 from tests.live.tool_execution_support import (
     FailedProcessTool,
@@ -23,8 +34,10 @@ from tests.live.tool_execution_support import (
 
 @pytest.fixture
 def recording_provider(tmp_path, monkeypatch):
-    monkeypatch.setenv("BASE_URL", "http://127.0.0.1:1/v1")
-    monkeypatch.setenv("API_KEY", "offline-test-key")
+    monkeypatch.setenv(
+        DEFAULT_PROVIDER_SETTINGS.base_url_env_var, "http://127.0.0.1:1/v1"
+    )
+    monkeypatch.setenv(DEFAULT_PROVIDER_SETTINGS.api_key_env_var, "offline-test-key")
     monkeypatch.setenv("EXMEKH_LIB_LIVE_MODEL", "offline-test-model")
     monkeypatch.setattr(
         LocalProvider, "_get_available_models", lambda self: {"offline-test-model"}
@@ -38,6 +51,40 @@ def recording_provider(tmp_path, monkeypatch):
             return provider
 
         yield build
+
+
+def test_macro_live_test_bounds_model_turns_and_saves_its_trace(
+    recording_provider, monkeypatch, tmp_path
+):
+    provider = recording_provider(
+        lambda directory: DeepThinkingLiveProvider(
+            "offline-test-model", tmp_path, max_turns=2
+        )
+    )
+    monkeypatch.setattr(
+        LocalProvider,
+        "call",
+        lambda self, request: ProviderResponse(
+            AssistantMessage(
+                None,
+                tool_calls=[
+                    ToolCall(
+                        "retry", FunctionCall("interact-web-page", {"actions": []})
+                    )
+                ],
+            )
+        ),
+    )
+    request = ProviderRequest([UserMessage("complete the macro")])
+    provider.call(request)
+    provider.call(request)
+    with pytest.raises(AssertionError, match="MODEL: exceeded 2 macro turns"):
+        provider.call(request)
+    repeated = [{"name": "interact-web-page", "arguments": {"actions": []}}]
+    assert json.loads((tmp_path / "macro-model-trace.json").read_text()) == [
+        repeated,
+        repeated,
+    ]
 
 
 @pytest.mark.parametrize(

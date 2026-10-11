@@ -22,6 +22,15 @@ import pytest
 from exmekh_lib.core.providers.openai_chat_completion_value_coercer import (
     OpenAIChatCompletionValueCoercer,
 )
+from exmekh_lib.core.web_navigation.actions import BrowserAction
+
+
+def test_postponed_typed_dict_hints_preserve_optional_browser_action_fields():
+    action = {"kind": "navigate", "url": "https://docs.python.org/3/library/math.html"}
+    assert (
+        OpenAIChatCompletionValueCoercer().coerce(action, BrowserAction, "action")
+        == action
+    )
 
 
 class OptionalFilters(TypedDict, total=False):

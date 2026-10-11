@@ -1,0 +1,155 @@
+[
+  [
+    {
+      "name": "search_tool_outputs",
+      "arguments": {
+        "query": "Python statistics.mean documentation",
+        "tool_name": "search-web",
+        "skill_path": "deep-thinking",
+        "offset": 0,
+        "limit": 5
+      }
+    }
+  ],
+  [
+    {
+      "name": "deep-thinking",
+      "arguments": {}
+    }
+  ],
+  [
+    {
+      "name": "search-web",
+      "arguments": {
+        "query": "Python statistics.mean documentation docs.python.org",
+        "max_results": 5,
+        "timeout_seconds": 30,
+        "image_path": null
+      }
+    }
+  ],
+  [
+    {
+      "name": "read-web-page",
+      "arguments": {
+        "url": "https://docs.python.org/3/library/statistics.html",
+        "output_mode": "markdown",
+        "timeout_seconds": 60
+      }
+    }
+  ],
+  [
+    {
+      "name": "interact-web-page",
+      "arguments": {
+        "url": "https://docs.python.org/3/library/statistics.html",
+        "actions": [
+          {
+            "kind": "navigate",
+            "url": "https://docs.python.org/3/library/math.html"
+          },
+          {
+            "kind": "wait",
+            "milliseconds": -1
+          }
+        ],
+        "output_mode": "markdown",
+        "timeout_seconds": 60
+      }
+    }
+  ],
+  [
+    {
+      "name": "calculate",
+      "arguments": {
+        "operation": "evaluate",
+        "expression": "(3 + 5 + 7) / 3",
+        "variable": "m",
+        "lower_bound": null,
+        "upper_bound": null,
+        "matrix": null,
+        "precision": 10
+      }
+    }
+  ],
+  [
+    {
+      "name": "logic-consistency",
+      "arguments": {
+        "variables": {
+          "m": "Int"
+        },
+        "premises": [
+          {
+            "op": "=",
+            "left": {
+              "var": "m"
+            },
+            "right": {
+              "const": 5
+            }
+          }
+        ],
+        "timeout_seconds": 30
+      }
+    },
+    {
+      "name": "logic-check",
+      "arguments": {
+        "variables": {
+          "m": "Int"
+        },
+        "premises": [
+          {
+            "op": "=",
+            "left": {
+              "var": "m"
+            },
+            "right": {
+              "const": 5
+            }
+          }
+        ],
+        "conclusion": {
+          "op": ">",
+          "left": {
+            "var": "m"
+          },
+          "right": {
+            "const": 4
+          }
+        },
+        "timeout_seconds": 30
+      }
+    },
+    {
+      "name": "logic-counterexample",
+      "arguments": {
+        "variables": {
+          "m": "Int"
+        },
+        "premises": [
+          {
+            "op": ">",
+            "left": {
+              "var": "m"
+            },
+            "right": {
+              "const": 0
+            }
+          }
+        ],
+        "conclusion": {
+          "op": ">",
+          "left": {
+            "var": "m"
+          },
+          "right": {
+            "const": 10
+          }
+        },
+        "timeout_seconds": 30
+      }
+    }
+  ]
+]

@@ -9,6 +9,8 @@ import pytest
 from tokenizers import Tokenizer as TextTokenizer
 from tokenizers import decoders, models, pre_tokenizers, trainers
 
+from exmekh_lib.config.cache import CACHE_FORMAT
+from exmekh_lib.config.tokenizer import QWEN_TOKENIZER, TokenizerSettings
 from exmekh_lib.core.tokenizers.sequential_tokenizer import SequentialTokenizer
 from exmekh_lib.core.tokenizers.tokenizer_session_registry import (
     TokenizerSessionRegistry,
@@ -67,7 +69,11 @@ def test_filter_sequence_and_exhaustion(tmp_path):
     with pytest.raises(RuntimeError, match="exhausted"):
         tokenizer.generate_id()
     assert tokenizer.loads == 1
-    counter = next(tmp_path.glob("*/temp/session-*/counter.json"))
+    counter = next(
+        tmp_path.glob(
+            f"*/{CACHE_FORMAT.temporary_folder}/{CACHE_FORMAT.session_prefix}*/{CACHE_FORMAT.counter_filename}"
+        )
+    )
     assert read_json_from_path(counter) == {"next_index": 27}
 
 
@@ -93,8 +99,17 @@ def test_tokenizer_identities_have_separate_paths_and_counters(tmp_path):
     first = SampleTokenizer(tmp_path, identity="vendor/model-one:revision")
     second = SampleTokenizer(tmp_path, identity="vendor/model-two:revision")
     assert first.generate_id() == second.generate_id()
-    assert len(list(tmp_path.glob("*/vocabulary.json"))) == 2
-    assert len(list(tmp_path.glob("*/temp/session-*/counter.json"))) == 2
+    assert len(list(tmp_path.glob(f"*/{CACHE_FORMAT.vocabulary_filename}"))) == 2
+    assert (
+        len(
+            list(
+                tmp_path.glob(
+                    f"*/{CACHE_FORMAT.temporary_folder}/{CACHE_FORMAT.session_prefix}*/{CACHE_FORMAT.counter_filename}"
+                )
+            )
+        )
+        == 2
+    )
 
 
 def test_new_process_session_reuses_cache_but_restarts_sequence(tmp_path):
@@ -103,7 +118,16 @@ def test_new_process_session_reuses_cache_but_restarts_sequence(tmp_path):
     with patch("exmekh_lib.core.cache.session_pool.os.getpid", return_value=-1):
         assert tokenizer.generate_id() == "2_2_2"
     assert tokenizer.loads == 1
-    assert len(list(tmp_path.glob("*/temp/session-*"))) == 2
+    assert (
+        len(
+            list(
+                tmp_path.glob(
+                    f"*/{CACHE_FORMAT.temporary_folder}/{CACHE_FORMAT.session_prefix}*"
+                )
+            )
+        )
+        == 2
+    )
 
 
 def test_failed_counter_write_does_not_reissue_reserved_id(tmp_path):
@@ -124,7 +148,7 @@ def test_failed_counter_write_does_not_reissue_reserved_id(tmp_path):
 def test_empty_vocabulary_not_cached(tmp_path, tokens):
     with pytest.raises(ValueError, match="no ASCII"):
         SampleTokenizer(tmp_path, tokens).generate_id()
-    assert not list(tmp_path.rglob("vocabulary.json"))
+    assert not list(tmp_path.rglob(CACHE_FORMAT.vocabulary_filename))
 
 
 @pytest.mark.parametrize(
@@ -143,7 +167,7 @@ def test_empty_vocabulary_not_cached(tmp_path, tokens):
 def test_invalid_cache_fails_without_download(tmp_path, data):
     tokenizer = SampleTokenizer(tmp_path)
     tokenizer.initialize()
-    cache = next(tmp_path.glob("*/vocabulary.json"))
+    cache = next(tmp_path.glob(f"*/{CACHE_FORMAT.vocabulary_filename}"))
     cache.write_text(data, encoding="utf-8")
     other = SampleTokenizer(tmp_path)
     with pytest.raises(ValueError, match="Invalid tokenizer cache"):
@@ -188,8 +212,8 @@ def test_qwen_loads_official_vocabulary_and_excludes_special_tokens(tmp_path):
     ) as download:
         assert tokenizer.generate_id() == "word_word_word"
     download.assert_called_once_with(
-        "https://huggingface.co/Qwen/Qwen3.8-27B/resolve/main/tokenizer.json",
-        timeout=60,
+        QWEN_TOKENIZER.download_url,
+        timeout=TokenizerSettings.from_environment().download_timeout_seconds,
     )
     with patch("exmekh_lib.tokenizers.qwen.urlopen", side_effect=AssertionError):
         QwenTokenizer(tmp_path).initialize()
@@ -309,7 +333,7 @@ def test_qwen_downloads_full_tokenizer_for_an_existing_vocabulary_cache(tmp_path
         return_value=io.BytesIO(json.dumps(payload).encode()),
     ):
         tokenizer.generate_id()
-    (tokenizer._directory / "tokenizer.json").unlink()
+    (tokenizer._directory / QWEN_TOKENIZER.filename).unlink()
 
     with patch(
         "exmekh_lib.tokenizers.qwen.urlopen",
@@ -326,7 +350,7 @@ def test_download_failure_leaves_no_cache_and_can_retry(tmp_path):
         pytest.raises(OSError),
     ):
         tokenizer.initialize()
-    assert not list(tmp_path.rglob("vocabulary.json"))
+    assert not list(tmp_path.rglob(CACHE_FORMAT.vocabulary_filename))
     with patch.object(tokenizer, "_load_vocabulary_tokens", return_value=["retry"]):
         assert tokenizer.generate_id() == "retry_retry_retry"
 

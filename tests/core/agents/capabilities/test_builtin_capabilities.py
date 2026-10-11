@@ -1,7 +1,11 @@
 from pathlib import Path
 
+import pytest
 from pydantic import BaseModel
 
+from exmekh_lib.config.runtime import RUNTIME
+from exmekh_lib.config.storage import DEFAULT_STORAGE_SETTINGS
+from exmekh_lib.config.web import WEB_NAVIGATION
 from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
 from exmekh_lib.core.agents.node import Node
 from exmekh_lib.core.cache.cache_manager import CacheManager
@@ -12,6 +16,13 @@ from exmekh_lib.core.models.provider_response import ProviderResponse
 from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
 from exmekh_lib.core.models.structured_provider_response import (
     StructuredProviderResponse,
+)
+from exmekh_lib.core.models.tools import Tools
+from exmekh_lib.core.providers.openai_chat_completion_tool_mapper import (
+    OpenAIChatCompletionToolMapper,
+)
+from exmekh_lib.core.providers.openai_response_tool_mapper import (
+    OpenAIResponseToolMapper,
 )
 from exmekh_lib.interfaces.provider import Provider
 from exmekh_lib.interfaces.tokenizer import Tokenizer
@@ -36,7 +47,9 @@ class _StubTokenizer(Tokenizer):
 
     def get_session(self) -> SessionCache:
         return CacheManager.get_session(
-            "stub-capabilities", "default", Path(".exmekh_lib/tokenizers")
+            "stub-capabilities",
+            "default",
+            DEFAULT_STORAGE_SETTINGS.tokenizer_cache_directory,
         )
 
 
@@ -57,6 +70,24 @@ class RecordingProvider(Provider):
         raise NotImplementedError
 
 
+@pytest.mark.parametrize("api", ["chat_completions", "responses"])
+def test_browser_action_schema_describes_valid_bounded_actions(tmp_path: Path, api):
+    capabilities = Capabilities([CAPABILITIES_PATH]).load(work_root=tmp_path)
+    tool = next(tool for tool in capabilities.tools if tool.name == "interact-web-page")
+    if api == "responses":
+        definition = OpenAIResponseToolMapper.map_tools(Tools([tool]))[0]
+    else:
+        definition = OpenAIChatCompletionToolMapper.map_tools(Tools([tool]))[0][
+            "function"
+        ]
+    actions = definition["parameters"]["properties"]["actions"]
+    assert actions["minItems"] == 1
+    assert actions["maxItems"] == WEB_NAVIGATION.max_actions
+    assert actions["items"]["required"] == ["kind"]
+    assert "navigate" in actions["items"]["properties"]["kind"]["enum"]
+    assert actions["items"]["properties"]["url"]["type"] == "string"
+
+
 def test_loads_builtin_assistant_capabilities(tmp_path: Path) -> None:
     capabilities = Capabilities([CAPABILITIES_PATH]).load(work_root=tmp_path)
 
@@ -75,6 +106,7 @@ def test_loads_builtin_assistant_capabilities(tmp_path: Path) -> None:
         "date-time",
         "inspect-file",
         "read-file",
+        "edit-file",
         "interact-web-page",
         "mock-sub-tool",
         "mock-tool",
@@ -128,9 +160,10 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
     descriptions = {tool.name: tool.description for tool in request_tools.get_tools()}
     assert descriptions["inspect-file"] == "Available in skill 'file-processing'."
     assert descriptions == {
-        "file-processing": "Processes workspace files through inspection, text ranges and image reading.",
+        "file-processing": "Inspects, reads, edits, creates and removes workspace files.",
         "inspect-file": "Available in skill 'file-processing'.",
         "read-file": "Available in skill 'file-processing'.",
+        "edit-file": "Available in skill 'file-processing'.",
         "deep-thinking": (
             "Investigates difficult questions with web evidence, "
             "mathematical and date/time computation, and formal Z3 reasoning."
@@ -158,7 +191,7 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
         "get_execution_history": (
             "Return navigable XML history of capability calls and saved user steering. Omit "
             "start_position for a head-and-tail overview, or use a 1-based "
-            "position and limit from 2 to 100 to read a page."
+            f"position and limit from {RUNTIME.history_min_page_limit} to {RUNTIME.memory_max_page_limit} to read a page."
         ),
         "search_tool_outputs": (
             "Search this node's saved and runtime tool outputs, including "
@@ -171,17 +204,17 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
             "complete output. Includes the final result when available. "
             "Also reads saved user steering and restores its attachments. "
             "summary_mode defaults to 'none'; 'brief' gives 3 to 5 bullet points, "
-            "'detailed' preserves essential details. Outputs below 300 tokens stay complete."
+            f"'detailed' preserves essential details. Outputs below {RUNTIME.tool_output_summary_min_tokens} tokens stay complete."
         ),
         "control_tool_execution": (
             "Wait for a tool execution by its original tool_call_id, or request "
             "cancellation. Waiting returns as soon as the work finishes or "
-            "the wait limit expires; read its output with read_tool_output."
+            f"the wait limit expires; read its output with {RUNTIME.read_tool_name}."
         ),
         "bash": (
             "Run a command in Bash from the node workroot. Each call starts an "
             "independent process. Read incremental stdout/stderr with "
-            "read_tool_output(output_id, cursor); wait or cancel with "
-            "control_tool_execution(tool_call_id). Requires Bash on PATH."
+            f"{RUNTIME.read_tool_name}(output_id, cursor); wait or cancel with "
+            f"{RUNTIME.execution_tool_name}(tool_call_id). Requires Bash on PATH."
         ),
     }

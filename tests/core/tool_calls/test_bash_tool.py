@@ -1,5 +1,6 @@
 import shutil
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 from xml.etree import ElementTree as ET
@@ -83,7 +84,10 @@ def test_bash_short_command_reports_cwd_output_and_nonzero_exit(
     assert first.result["stdout"].endswith("hello")
     assert first.result["cwd"] == str(tmp_path)
     assert "test_bash_short_command" in first.result["stdout"]
-    assert first.result["started_at"] <= first.result["finished_at"]
+    # UTC wall time may move backwards; execution duration uses a monotonic clock.
+    assert datetime.fromisoformat(first.result["started_at"]).tzinfo == UTC
+    assert datetime.fromisoformat(first.result["finished_at"]).tzinfo == UTC
+    assert first.elapsed_seconds >= 0
 
     failed_command = start_bash(
         manager, bash_executable, tmp_path, "printf problem >&2; exit 7", "two"

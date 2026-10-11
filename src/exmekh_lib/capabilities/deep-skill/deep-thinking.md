@@ -26,7 +26,7 @@ authentication, robots restrictions, or the public URL boundary.
 
 Use `date-time` to read the current clock, convert timezones, add signed durations,
 or measure elapsed time between ISO dates/datetimes. Set an IANA timezone explicitly
-when UTC is not intended; inputs without offsets use that timezone. Resolve
+when {{config.DATE_TIME.default_timezone}} is not intended; inputs without offsets use that timezone. Resolve
 ambiguous local times with explicit offsets. Durations are elapsed time, with
 one day equal to 24 hours, including across daylight-saving changes.
 

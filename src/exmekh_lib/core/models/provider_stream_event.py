@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -14,6 +15,7 @@ class ProviderStreamEventType(StrEnum):
     TOTALS = "totals"
     END = "end"
     STEERING_ADDED = "steering_added"
+    INTERACTIVE = "interactive"
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,8 +24,17 @@ class ProviderStreamEvent:
     content: str | None = None
     usage: ModelUsage | None = None
     message: UserMessage | None = None
+    interactive: dict[str, object] | None = None
 
     def __post_init__(self) -> None:
+        if self.type is ProviderStreamEventType.INTERACTIVE:
+            if not isinstance(self.interactive, dict):
+                raise TypeError(
+                    "Interactive events require structured control metadata"
+                )
+            object.__setattr__(self, "interactive", deepcopy(self.interactive))
+        elif self.interactive is not None:
+            raise ValueError("Only interactive events can contain control metadata")
         if not isinstance(self.type, ProviderStreamEventType):
             raise TypeError("Stream event type must be a ProviderStreamEventType")
         if self.content is not None and not isinstance(self.content, str):

@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="9.807" timestamp="2026-10-11T13:46:47.225095+02:00" hostname="Daniele-Fisso"><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_browser_bootstraps_from_an_empty_cache" time="9.775" /></testsuite></testsuites>

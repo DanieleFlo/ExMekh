@@ -16,6 +16,8 @@ from uuid import uuid4
 from xml.etree import ElementTree as ET
 
 from exmekh_lib.config.cache import CACHE_FORMAT
+from exmekh_lib.config.provider import DEFAULT_PROVIDER_SETTINGS
+from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
 from exmekh_lib.core.agents.deep_agent.stream_event import (
     DeepAgentEvent,
@@ -199,8 +201,8 @@ class ProcessTool(Tool):
             name=name,
             description=(
                 "Launch one real file-processing job. Its receipt is generated only "
-                "when it finishes. Keep tool_call_id for control_tool_execution and "
-                "the XML output ID for read_tool_output. Do not relaunch pending jobs."
+                f"when it finishes. Keep tool_call_id for {RUNTIME.execution_tool_name} and "
+                f"the XML output ID for {RUNTIME.read_tool_name}. Do not relaunch pending jobs."
             ),
             **kwargs,
         )
@@ -254,7 +256,7 @@ class RecordingExecutionProvider(LiveModelProvider):
         self.requests: list[ProviderRequest] = []
         self.streaming = streaming
         super().__init__(
-            model=os.getenv("EXMEKH_LIB_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S"),
+            model=os.getenv("EXMEKH_LIB_LIVE_MODEL", DEFAULT_PROVIDER_SETTINGS.model),
             reasoning_effort=ReasoningEffortLMH.LOW,
             api="responses",
             tokenizer=CacheTestTokenizer("live-tool-executions", directory),
@@ -310,7 +312,7 @@ class RecordingExecutionProvider(LiveModelProvider):
         model_ids = {call.id for call in self.calls()}
         return [
             call
-            for call in self.history_calls("read_tool_output")
+            for call in self.history_calls(RUNTIME.read_tool_name)
             if call.id not in model_ids
         ]
 
@@ -350,11 +352,11 @@ def write_capabilities(directory: Path, tool_names: list[str]) -> Path:
         "Follow the user's ordered test steps precisely. Use real returned IDs. "
         "Execution controls and output reads do not launch a new job. "
         "A running response is not completion. Never guess a receipt. "
-        "Inside a skill return with exit_agent(text=..., items=[]). "
+        f"Inside a skill return with {RUNTIME.exit_tool_name}(text=..., items=[]). "
         "Use only the required tool calls and a final sentence of at most ten words."
     )
     (hds / "main.md").write_text(
-        "---\ndescription: Live execution test\nexit-tool: exit_agent\n"
+        f"---\ndescription: Live execution test\nexit-tool: {RUNTIME.exit_tool_name}\n"
         f"sub-skills:\n  - work-scope\n{tool_section}---\n{instructions}",
         encoding="utf-8",
     )
@@ -387,12 +389,12 @@ class LiveExecutionRig:
         defaults = DefaultCapabilities(
             harness=False,
             include={
-                "exit_agent",
-                "get_execution_history",
-                "search_tool_outputs",
-                "read_tool_output",
-                "control_tool_execution",
-                "call_sub_agent",
+                RUNTIME.exit_tool_name,
+                RUNTIME.history_tool_name,
+                RUNTIME.search_tool_name,
+                RUNTIME.read_tool_name,
+                RUNTIME.execution_tool_name,
+                RUNTIME.sub_agent_tool_name,
             },
             overrides={tool.name: tool for tool in tools},
         )
@@ -419,7 +421,7 @@ class LiveExecutionRig:
             calls = [
                 call for call in self.provider.calls() if call.id == event.tool_call_id
             ]
-            if event.tool_name == "control_tool_execution" and calls:
+            if event.tool_name == RUNTIME.execution_tool_name and calls:
                 arguments = calls[0].get_arguments()
                 if (
                     arguments.get("action", "wait") == "wait"
@@ -461,7 +463,7 @@ class LiveExecutionRig:
         )
         return [
             ToolCallRecord.from_dict(json.loads(path.read_text(encoding="utf-8")))
-            for path in directory.rglob("*.json")
+            for path in directory.rglob(f"*{CACHE_FORMAT.record_suffix}")
         ]
 
     def saved_output(self, output_id: str) -> ToolCallRecord | None:

@@ -24,6 +24,8 @@ from typing import (
 )
 from uuid import UUID
 
+from exmekh_lib.utils.type_hints import typed_dict_required_keys
+
 Schema = dict[str, Any]
 
 
@@ -260,11 +262,7 @@ class OpenAIChatCompletionAnnotationSchemaBuilder:
             name: self.build(member, nested_types) for name, member in hints.items()
         }
 
-        required_keys = getattr(
-            annotation,
-            "__required_keys__",
-            frozenset(),
-        )
+        required_keys = typed_dict_required_keys(annotation, hints)
 
         required = [name for name in hints if name in required_keys]
 

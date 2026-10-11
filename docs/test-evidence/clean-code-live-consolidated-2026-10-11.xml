@@ -1,0 +1,320 @@
+<testsuites><testsuite name="Latest live result per case across separate sequential runs" tests="47" failures="10" errors="0" skipped="2"><testcase classname="tests.live.test_agent_live" name="test_live_agent_blocks_direct_nested_tool_scope_bypass" time="17.115"><properties><property name="evidence_report" value="clean-code-live-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_agent_live" name="test_live_agent_strict_schema_blocks_wrong_argument_type" time="38.078"><properties><property name="evidence_report" value="clean-code-live-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_deep_thinking_skill_live" name="test_live_model_can_choose_and_combine_every_skill_tool" time="189.824"><properties><property name="evidence_report" value="clean-code-live-final-2026-10-11.xml" /></properties><failure message="exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Prompt has 57643 tokens, but the configured context size is 26000 tokens">src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:73: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:95: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:117: in _execute_payload
+    response = self._client.responses.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/responses/responses.py:1028: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1155: in request
+    raise self._make_status_error_from_response(err.response) from None
+E   openai.BadRequestError: Error code: 400 - {'error': {'message': 'Prompt has 57643 tokens, but the configured context size is 26000 tokens', 'type': 'invalid_request_error', 'param': 'input', 'code': 'context_length_exceeded', 'n_prompt_tokens': 57643, 'n_ctx': 26000}}
+
+The above exception was the direct cause of the following exception:
+tests/live/test_deep_thinking_skill_live.py:65: in test_live_model_can_choose_and_combine_every_skill_tool
+    response = DeepAgent(provider=provider, node=node, work_root=tmp_path).run(
+src/exmekh_lib/core/agents/deep_agent/deep_agent.py:52: in run
+    return self._root_node.run(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node.py:172: in run
+    return self._runtime.run(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:162: in run
+    return self._run_turn(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:234: in _run_turn
+    response = self._route_until_complete(response)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:283: in _route_until_complete
+    response = self._continue_after_tools()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:186: in _continue_after_tools
+    return self._client.continue_after_tools(
+src/exmekh_lib/core/models/client.py:152: in continue_after_tools
+    return self._call_provider(provider_request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/live/test_deep_thinking_skill_live.py:38: in call
+    result = super().call(request)
+             ^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:163: in call
+    raise ProviderRequestRejectedError(
+E   exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Prompt has 57643 tokens, but the configured context size is 26000 tokens</failure></testcase><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_browser_bootstraps_from_an_empty_cache" time="9.418"><properties><property name="evidence_report" value="clean-code-live-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_browser_form_submission_captures_destination_page" time="5.322"><properties><property name="evidence_report" value="clean-code-live-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_cross_origin_redirect_and_private_url_are_blocked" time="2.333"><properties><property name="evidence_report" value="clean-code-live-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_image_assisted_search_reports_whether_visual_ranking_ran" time="8.371"><properties><property name="evidence_report" value="clean-code-live-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_read_complex_documentation_and_reuse_cache" time="2.557"><properties><property name="evidence_report" value="clean-code-live-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_same_origin_navigation_reaches_a_second_document" time="2.347"><properties><property name="evidence_report" value="clean-code-live-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_search_reads_a_discovered_source_instead_of_only_snippets" time="4.102"><properties><property name="evidence_report" value="clean-code-live-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_file_editing_live" name="test_live_adversarial_old_text_cannot_escape_for_30_seconds" time="30.575"><properties><property name="adversarial_seconds" value="30.564693201999944" /><property name="attempts" value="2" /><property name="validated_calls" value="1" /><property name="evidence_report" value="clean-code-live-file-editing-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_file_editing_live" name="test_live_model_edits_creates_and_removes_files[edit]" time="87.908"><properties><property name="evidence_report" value="clean-code-live-file-editing-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_file_editing_live" name="test_live_model_edits_creates_and_removes_files[new]" time="37.956"><properties><property name="evidence_report" value="clean-code-live-file-editing-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_file_editing_live" name="test_live_model_edits_creates_and_removes_files[remove]" time="196.727"><properties><property name="evidence_report" value="clean-code-live-file-editing-2026-10-11.xml" /></properties><failure message="AssertionError: Model exceeded the file editing turn budget&#xA;assert 14 &lt; 14&#xA; +  where 14 = len([&lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5d00&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a6450&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5be0&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5520&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5c70&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a6180&gt;, ...])&#xA; +    where [&lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5d00&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a6450&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5be0&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5520&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5c70&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a6180&gt;, ...] = &lt;test_file_editing_live.EditingLiveProvider object at 0x7d66c557ac10&gt;.requests">tests/live/test_file_editing_live.py:175: in test_live_model_edits_creates_and_removes_files
+    result = node.run(
+src/exmekh_lib/core/agents/node/node.py:172: in run
+    return self._runtime.run(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:162: in run
+    return self._run_turn(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:234: in _run_turn
+    response = self._route_until_complete(response)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:283: in _route_until_complete
+    response = self._continue_after_tools()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:186: in _continue_after_tools
+    return self._client.continue_after_tools(
+src/exmekh_lib/core/models/client.py:152: in continue_after_tools
+    return self._call_provider(provider_request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/live/test_file_editing_live.py:69: in call
+    assert len(self.requests) &lt; 14, "Model exceeded the file editing turn budget"
+E   AssertionError: Model exceeded the file editing turn budget
+E   assert 14 &lt; 14
+E    +  where 14 = len([&lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5d00&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a6450&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5be0&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5520&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5c70&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a6180&gt;, ...])
+E    +    where [&lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5d00&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a6450&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5be0&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5520&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a5c70&gt;, &lt;exmekh_lib.core.models.provider_request.ProviderRequest object at 0x7d66c55a6180&gt;, ...] = &lt;test_file_editing_live.EditingLiveProvider object at 0x7d66c557ac10&gt;.requests</failure></testcase><testcase classname="tests.live.test_file_editing_live" name="test_live_server_generates_an_exact_delete_marker[marker_enum]" time="43.811"><properties><property name="evidence_report" value="clean-code-live-file-editing-2026-10-11.xml" /></properties><failure message="AssertionError: [{'type': 'interactive.failed', 'version': 1, 'continuation_id': 'cont_c92c9e8a205c82cefc422a05', 'status': 'failed', ...}]&#xA;assert 0 == 1&#xA; +  where 0 = len([])">tests/live/test_file_editing_live.py:415: in test_live_server_generates_an_exact_delete_marker
+    assert len(calls) == 1, [message.record for message in result.interruptions]
+E   AssertionError: [{'type': 'interactive.failed', 'version': 1, 'continuation_id': 'cont_c92c9e8a205c82cefc422a05', 'status': 'failed', ...}]
+E   assert 0 == 1
+E    +  where 0 = len([])</failure></testcase><testcase classname="tests.live.test_file_editing_live" name="test_live_server_generates_an_exact_delete_marker[ordinary]" time="14.568"><properties><property name="evidence_report" value="clean-code-live-file-editing-2026-10-11.xml" /></properties><failure message="AssertionError: assert {'path': 'att...eckh\ndelete'} == {'path': 'att...meckh_delete'}&#xA;  &#xA;  Omitting 2 identical items, use -vv to show&#xA;  Differing items:&#xA;  {'new_text': '\n@ex_meckh\ndelete'} != {'new_text': '@ex_meckh_delete'}&#xA;  &#xA;  Full diff:&#xA;    {...&#xA;  &#xA;  ...Full output truncated (7 lines hidden), use '-vv' to show">tests/live/test_file_editing_live.py:416: in test_live_server_generates_an_exact_delete_marker
+    assert calls[0].get_arguments() == {
+E   AssertionError: assert {'path': 'att...eckh\ndelete'} == {'path': 'att...meckh_delete'}
+E
+E     Omitting 2 identical items, use -vv to show
+E     Differing items:
+E     {'new_text': '\n@ex_meckh\ndelete'} != {'new_text': '@ex_meckh_delete'}
+E
+E     Full diff:
+E       {...
+E
+E     ...Full output truncated (7 lines hidden), use '-vv' to show</failure></testcase><testcase classname="tests.live.test_file_reading_live" name="test_live_client_reads_files_and_identifies_their_contents[image]" time="46.579"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_file_reading_live" name="test_live_client_reads_files_and_identifies_their_contents[pdf]" time="63.917"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_file_reading_live" name="test_live_client_reads_files_and_identifies_their_contents[text]" time="54.248"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_local_provider_live" name="test_live_chained_messages_preserve_multiple_facts" time="25.840"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_local_provider_live" name="test_live_two_tool_round_trips_keep_history_and_ids" time="57.989"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_native_file_content_is_read[chat_completions-file_and_text]" time="0.004"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties><failure message="exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.">src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/chat_completion_openai.py:70: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/chat_completion_openai.py:92: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/chat_completion_openai.py:115: in _execute_payload
+    response = self._client.chat.completions.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_utils/_utils.py:298: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py:1296: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1155: in request
+    raise self._make_status_error_from_response(err.response) from None
+E   openai.BadRequestError: Error code: 400 - {'error': {'message': 'Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.', 'type': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:172: in test_live_native_file_content_is_read
+    response = client.call(
+src/exmekh_lib/core/models/client.py:105: in call
+    return self._call_provider(self._prepare_request(request))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:163: in call
+    raise ProviderRequestRejectedError(
+E   exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.</failure></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_native_file_content_is_read[chat_completions-single_file]" time="0.004"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties><failure message="exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.">src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/chat_completion_openai.py:70: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/chat_completion_openai.py:92: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/chat_completion_openai.py:115: in _execute_payload
+    response = self._client.chat.completions.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_utils/_utils.py:298: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py:1296: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1155: in request
+    raise self._make_status_error_from_response(err.response) from None
+E   openai.BadRequestError: Error code: 400 - {'error': {'message': 'Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.', 'type': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:172: in test_live_native_file_content_is_read
+    response = client.call(
+src/exmekh_lib/core/models/client.py:105: in call
+    return self._call_provider(self._prepare_request(request))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:163: in call
+    raise ProviderRequestRejectedError(
+E   exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.</failure></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_native_file_content_is_read[chat_completions-text_image_file_text]" time="0.005"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties><failure message="exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.">src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/chat_completion_openai.py:70: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/chat_completion_openai.py:92: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/chat_completion_openai.py:115: in _execute_payload
+    response = self._client.chat.completions.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_utils/_utils.py:298: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py:1296: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1155: in request
+    raise self._make_status_error_from_response(err.response) from None
+E   openai.BadRequestError: Error code: 400 - {'error': {'message': 'Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.', 'type': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:172: in test_live_native_file_content_is_read
+    response = client.call(
+src/exmekh_lib/core/models/client.py:105: in call
+    return self._call_provider(self._prepare_request(request))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:163: in call
+    raise ProviderRequestRejectedError(
+E   exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.</failure></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_native_file_content_is_read[responses-file_and_text]" time="0.004"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties><failure message="exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.">src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:73: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:95: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:117: in _execute_payload
+    response = self._client.responses.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/responses/responses.py:1028: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1155: in request
+    raise self._make_status_error_from_response(err.response) from None
+E   openai.BadRequestError: Error code: 400 - {'error': {'message': 'Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.', 'type': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:172: in test_live_native_file_content_is_read
+    response = client.call(
+src/exmekh_lib/core/models/client.py:105: in call
+    return self._call_provider(self._prepare_request(request))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:163: in call
+    raise ProviderRequestRejectedError(
+E   exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.</failure></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_native_file_content_is_read[responses-single_file]" time="0.004"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties><failure message="exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.">src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:73: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:95: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:117: in _execute_payload
+    response = self._client.responses.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/responses/responses.py:1028: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1155: in request
+    raise self._make_status_error_from_response(err.response) from None
+E   openai.BadRequestError: Error code: 400 - {'error': {'message': 'Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.', 'type': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:172: in test_live_native_file_content_is_read
+    response = client.call(
+src/exmekh_lib/core/models/client.py:105: in call
+    return self._call_provider(self._prepare_request(request))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:163: in call
+    raise ProviderRequestRejectedError(
+E   exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.</failure></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_native_file_content_is_read[responses-text_image_file_text]" time="0.005"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties><failure message="exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.">src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:73: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:95: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:117: in _execute_payload
+    response = self._client.responses.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/responses/responses.py:1028: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1155: in request
+    raise self._make_status_error_from_response(err.response) from None
+E   openai.BadRequestError: Error code: 400 - {'error': {'message': 'Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.', 'type': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:172: in test_live_native_file_content_is_read
+    response = client.call(
+src/exmekh_lib/core/models/client.py:105: in call
+    return self._call_provider(self._prepare_request(request))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:163: in call
+    raise ProviderRequestRejectedError(
+E   exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.</failure></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_real_photo_and_text[chat_completions]" time="0.003"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties><skipped type="pytest.skip" message="Set EXMEKH_LIB_LIVE_IMAGE_PATH to the Earth photo fixture.">/home/daniele/ds4/exmekh_lib/tests/live/test_mixed_user_inputs_live.py:112: Set EXMEKH_LIB_LIVE_IMAGE_PATH to the Earth photo fixture.</skipped></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_real_photo_and_text[responses]" time="0.002"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties><skipped type="pytest.skip" message="Set EXMEKH_LIB_LIVE_IMAGE_PATH to the Earth photo fixture.">/home/daniele/ds4/exmekh_lib/tests/live/test_mixed_user_inputs_live.py:112: Set EXMEKH_LIB_LIVE_IMAGE_PATH to the Earth photo fixture.</skipped></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_text_and_images_in_one_ordered_message[chat_completions-interleaved]" time="8.950"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_text_and_images_in_one_ordered_message[chat_completions-text_groups]" time="9.202"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_text_and_images_in_one_ordered_message[chat_completions-text_then_images]" time="11.440"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_text_and_images_in_one_ordered_message[responses-interleaved]" time="17.878"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_text_and_images_in_one_ordered_message[responses-text_groups]" time="18.276"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_text_and_images_in_one_ordered_message[responses-text_then_images]" time="17.343"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_rejected_inputs_live" name="test_rejected_attachments_allow_same_client_to_continue[chat_completions]" time="8.440"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_rejected_inputs_live" name="test_rejected_attachments_allow_same_client_to_continue[responses]" time="7.072"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_sub_agent_live" name="test_live_sub_agent_memory_matches_history_policy[ephemeral]" time="103.576"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_sub_agent_live" name="test_live_sub_agent_memory_matches_history_policy[persistent]" time="126.054"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_tool_cache_live" name="test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code" time="102.094"><properties><property name="evidence_report" value="clean-code-live-final-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_tool_cache_live" name="test_live_regular_tool_saves_output_and_calling_thinking[non-streaming]" time="34.157"><properties><property name="evidence_report" value="clean-code-live-final-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_tool_cache_live" name="test_live_regular_tool_saves_output_and_calling_thinking[streaming]" time="26.875"><properties><property name="evidence_report" value="clean-code-live-final-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_tool_executions_live" name="test_live_background_wait_and_automatic_delivery[ordinary]" time="42.256"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_tool_executions_live" name="test_live_background_wait_and_automatic_delivery[streaming]" time="55.806"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_tool_executions_live" name="test_live_default_wait_returns_real_file_result[ordinary]" time="22.894"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_tool_executions_live" name="test_live_default_wait_returns_real_file_result[streaming]" time="36.893"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase><testcase classname="tests.live.test_tool_executions_live" name="test_live_expired_waits_and_incremental_output" time="77.840"><properties><property name="evidence_report" value="clean-code-live-recovery-2026-10-11.xml" /></properties></testcase></testsuite></testsuites>

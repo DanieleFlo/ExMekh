@@ -8,18 +8,19 @@ import pytest
 from dotenv import load_dotenv
 
 import exmekh_lib
+from exmekh_lib.config.provider import DEFAULT_PROVIDER_SETTINGS
 from exmekh_lib.core.agents.deep_agent.agent_response import AgentResponse
 from exmekh_lib.core.agents.deep_agent.deep_agent import DeepAgent
 from exmekh_lib.core.agents.node import Node
 from exmekh_lib.core.models.reasoning_effort import ReasoningEffortLMH
-from tests.live.model_support import LiveModelProvider
+from tests.live.model_support import LiveModelProvider, fresh_live_context_id
 
 pytestmark = pytest.mark.live
 
 
 def build_live_agent() -> DeepAgent:
     load_dotenv()
-    model = os.getenv("EXMEKH_LIB_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S")
+    model = os.getenv("EXMEKH_LIB_LIVE_MODEL", DEFAULT_PROVIDER_SETTINGS.model)
     provider = LiveModelProvider(
         model=model,
         reasoning_effort=ReasoningEffortLMH.LOW,
@@ -30,6 +31,7 @@ def build_live_agent() -> DeepAgent:
         capabilities_paths=[capabilities_path],
         name_hds="main",
         persistent_history=False,
+        agent_context_id=fresh_live_context_id("live-agent"),
     )
     return DeepAgent(provider=provider, node=node, work_root=Path.cwd())
 

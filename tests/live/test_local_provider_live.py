@@ -8,6 +8,7 @@ import pytest
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
+from exmekh_lib.config.provider import DEFAULT_PROVIDER_SETTINGS
 from exmekh_lib.core.models.assistant_message import ToolCall
 from exmekh_lib.core.models.client import Client
 from exmekh_lib.core.models.client_request import ClientRequest
@@ -48,7 +49,7 @@ def lookup_ticket(
 
 def build_live_client(system_prompt: str, tools: Tools | None = None) -> Client:
     load_dotenv()
-    model = os.getenv("EXMEKH_LIB_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S")
+    model = os.getenv("EXMEKH_LIB_LIVE_MODEL", DEFAULT_PROVIDER_SETTINGS.model)
     return Client(
         provider=LiveModelProvider(
             model=model, reasoning_effort=ReasoningEffortLMH.LOW

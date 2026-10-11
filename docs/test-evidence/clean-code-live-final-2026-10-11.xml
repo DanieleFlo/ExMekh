@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="4" time="353.076" timestamp="2026-10-11T14:55:14.102076+02:00" hostname="Daniele-Fisso"><testcase classname="tests.live.test_tool_cache_live" name="test_live_regular_tool_saves_output_and_calling_thinking[non-streaming]" time="34.157" /><testcase classname="tests.live.test_tool_cache_live" name="test_live_regular_tool_saves_output_and_calling_thinking[streaming]" time="26.875" /><testcase classname="tests.live.test_tool_cache_live" name="test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code" time="102.094" /><testcase classname="tests.live.test_deep_thinking_skill_live" name="test_live_model_can_choose_and_combine_every_skill_tool" time="189.824"><failure message="exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Prompt has 57643 tokens, but the configured context size is 26000 tokens">src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:73: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:95: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:117: in _execute_payload
+    response = self._client.responses.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/responses/responses.py:1028: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1155: in request
+    raise self._make_status_error_from_response(err.response) from None
+E   openai.BadRequestError: Error code: 400 - {'error': {'message': 'Prompt has 57643 tokens, but the configured context size is 26000 tokens', 'type': 'invalid_request_error', 'param': 'input', 'code': 'context_length_exceeded', 'n_prompt_tokens': 57643, 'n_ctx': 26000}}
+
+The above exception was the direct cause of the following exception:
+tests/live/test_deep_thinking_skill_live.py:65: in test_live_model_can_choose_and_combine_every_skill_tool
+    response = DeepAgent(provider=provider, node=node, work_root=tmp_path).run(
+src/exmekh_lib/core/agents/deep_agent/deep_agent.py:52: in run
+    return self._root_node.run(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node.py:172: in run
+    return self._runtime.run(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:162: in run
+    return self._run_turn(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:234: in _run_turn
+    response = self._route_until_complete(response)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:283: in _route_until_complete
+    response = self._continue_after_tools()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:186: in _continue_after_tools
+    return self._client.continue_after_tools(
+src/exmekh_lib/core/models/client.py:152: in continue_after_tools
+    return self._call_provider(provider_request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/live/test_deep_thinking_skill_live.py:38: in call
+    result = super().call(request)
+             ^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:163: in call
+    raise ProviderRequestRejectedError(
+E   exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Prompt has 57643 tokens, but the configured context size is 26000 tokens</failure></testcase></testsuite></testsuites>

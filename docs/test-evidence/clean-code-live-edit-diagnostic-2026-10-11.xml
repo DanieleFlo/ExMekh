@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="30.439" timestamp="2026-10-11T13:43:19.657702+02:00" hostname="Daniele-Fisso"><testcase classname="tests.live.test_file_editing_live" name="test_live_model_edits_creates_and_removes_files[edit]" time="30.233"><failure message="RuntimeError: Local provider request failed">.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:98: in map_httpcore_exceptions
+    yield
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:245: in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:242: in handle_request
+    raise exc from None
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection_pool.py:224: in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/connection.py:96: in handle_request
+    return self._connection.handle_request(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/http11.py:125: in handle_request
+    raise exc
+.venv/lib/python3.13/site-packages/httpcore2/_sync/http11.py:97: in handle_request
+    ) = self._receive_response_headers(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/http11.py:167: in _receive_response_headers
+    event = self._receive_event(timeout=timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_sync/http11.py:200: in _receive_event
+    data = self._network_stream.read(self.READ_NUM_BYTES, timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpcore2/_backends/sync.py:125: in read
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpcore2/_exceptions.py:17: in map_exceptions
+    raise to_exc(exc) from exc
+E   httpcore2.ReadTimeout: timed out
+
+The above exception was the direct cause of the following exception:
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1087: in request
+    response = self._send_request(
+.venv/lib/python3.13/site-packages/openai/_client.py:560: in _send_request
+    response = self._send_with_auth_retry(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_client.py:539: in _send_with_auth_retry
+    response = super()._send_request(request, stream=stream, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1010: in _send_request
+    return self._client.send(request, stream=stream, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:980: in send
+    response = self._send_handling_auth(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1008: in _send_handling_auth
+    response = self._send_handling_redirects(
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1043: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_client.py:1076: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:244: in handle_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-linux-x86_64-gnu/lib/python3.13/contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv/lib/python3.13/site-packages/httpx2/_transports/default.py:115: in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+E   httpx2.ReadTimeout: timed out
+
+The above exception was the direct cause of the following exception:
+src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:73: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:95: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:117: in _execute_payload
+    response = self._client.responses.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/responses/responses.py:1028: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1105: in request
+    raise APITimeoutError(request=request) from err
+E   openai.APITimeoutError: Request timed out.
+
+The above exception was the direct cause of the following exception:
+tests/live/test_file_editing_live.py:175: in test_live_model_edits_creates_and_removes_files
+    result = node.run(
+src/exmekh_lib/core/agents/node/node.py:172: in run
+    return self._runtime.run(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:162: in run
+    return self._run_turn(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:226: in _run_turn
+    response = self._client.continue_with_user_messages(
+src/exmekh_lib/core/models/client.py:209: in continue_with_user_messages
+    return self._call_provider(provider_request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/live/test_file_editing_live.py:86: in call
+    result = super().call(request)
+             ^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:167: in call
+    raise RuntimeError("Local provider request failed") from error
+E   RuntimeError: Local provider request failed</failure></testcase></testsuite></testsuites>

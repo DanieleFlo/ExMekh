@@ -40,4 +40,5 @@ class DeepTool(Tool):
             after=after if after is not None else definition.after,
             background_enabled=definition.background_enabled,
             argument_guidance=definition.argument_guidance,
+            interactive=definition.interactive,
         )

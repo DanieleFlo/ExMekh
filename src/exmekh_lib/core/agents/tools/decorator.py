@@ -8,6 +8,10 @@ from pathlib import Path
 from typing import Any, Final
 
 from exmekh_lib.config.capabilities import CAPABILITY_FORMAT
+from exmekh_lib.core.models.interactive import (
+    InteractiveDefinition,
+    validate_interactive_tool,
+)
 from exmekh_lib.interfaces.tool_hook import AfterTool, BeforeTool, validate_tool_hooks
 
 type ToolFunction = Callable[..., Any]
@@ -23,6 +27,7 @@ class ToolDefinition:
     after: AfterTool | None = None
     background_enabled: bool = True
     argument_guidance: str = ""
+    interactive: InteractiveDefinition | None = None
 
 
 def deep_tool(
@@ -33,6 +38,7 @@ def deep_tool(
     after: AfterTool | None = None,
     background_enabled: bool = True,
     argument_guidance: str = "",
+    interactive: InteractiveDefinition | None = None,
 ) -> Callable[[ToolFunction], ToolFunction]:
     _validate_definition(name, description)
     validate_tool_hooks(before, after)
@@ -40,6 +46,7 @@ def deep_tool(
         raise TypeError("background_enabled must be a bool")
     if not isinstance(argument_guidance, str):
         raise TypeError("argument_guidance must be a string")
+    validate_interactive_tool(interactive, background_enabled=background_enabled)
 
     definition = ToolDefinition(
         name=name,
@@ -48,6 +55,7 @@ def deep_tool(
         after=after,
         background_enabled=background_enabled,
         argument_guidance=argument_guidance,
+        interactive=interactive,
     )
 
     def decorate(function: ToolFunction) -> ToolFunction:

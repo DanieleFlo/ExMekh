@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="6" skipped="2" tests="31" time="1007.730" timestamp="2026-10-11T14:37:32.381075+02:00" hostname="Daniele-Fisso"><testcase classname="tests.live.test_file_reading_live" name="test_live_client_reads_files_and_identifies_their_contents[text]" time="54.248" /><testcase classname="tests.live.test_file_reading_live" name="test_live_client_reads_files_and_identifies_their_contents[image]" time="46.579" /><testcase classname="tests.live.test_file_reading_live" name="test_live_client_reads_files_and_identifies_their_contents[pdf]" time="63.917" /><testcase classname="tests.live.test_local_provider_live" name="test_live_chained_messages_preserve_multiple_facts" time="25.840" /><testcase classname="tests.live.test_local_provider_live" name="test_live_two_tool_round_trips_keep_history_and_ids" time="57.989" /><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_text_and_images_in_one_ordered_message[chat_completions-text_then_images]" time="11.440" /><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_text_and_images_in_one_ordered_message[chat_completions-interleaved]" time="8.950" /><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_text_and_images_in_one_ordered_message[chat_completions-text_groups]" time="9.202" /><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_text_and_images_in_one_ordered_message[responses-text_then_images]" time="17.343" /><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_text_and_images_in_one_ordered_message[responses-interleaved]" time="17.878" /><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_text_and_images_in_one_ordered_message[responses-text_groups]" time="18.276" /><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_real_photo_and_text[chat_completions]" time="0.003"><skipped type="pytest.skip" message="Set EXMEKH_LIB_LIVE_IMAGE_PATH to the Earth photo fixture.">/home/daniele/ds4/exmekh_lib/tests/live/test_mixed_user_inputs_live.py:112: Set EXMEKH_LIB_LIVE_IMAGE_PATH to the Earth photo fixture.</skipped></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_real_photo_and_text[responses]" time="0.002"><skipped type="pytest.skip" message="Set EXMEKH_LIB_LIVE_IMAGE_PATH to the Earth photo fixture.">/home/daniele/ds4/exmekh_lib/tests/live/test_mixed_user_inputs_live.py:112: Set EXMEKH_LIB_LIVE_IMAGE_PATH to the Earth photo fixture.</skipped></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_native_file_content_is_read[chat_completions-single_file]" time="0.004"><failure message="exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.">src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/chat_completion_openai.py:70: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/chat_completion_openai.py:92: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/chat_completion_openai.py:115: in _execute_payload
+    response = self._client.chat.completions.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_utils/_utils.py:298: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py:1296: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1155: in request
+    raise self._make_status_error_from_response(err.response) from None
+E   openai.BadRequestError: Error code: 400 - {'error': {'message': 'Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.', 'type': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:172: in test_live_native_file_content_is_read
+    response = client.call(
+src/exmekh_lib/core/models/client.py:105: in call
+    return self._call_provider(self._prepare_request(request))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:163: in call
+    raise ProviderRequestRejectedError(
+E   exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.</failure></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_native_file_content_is_read[chat_completions-file_and_text]" time="0.004"><failure message="exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.">src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/chat_completion_openai.py:70: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/chat_completion_openai.py:92: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/chat_completion_openai.py:115: in _execute_payload
+    response = self._client.chat.completions.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_utils/_utils.py:298: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py:1296: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1155: in request
+    raise self._make_status_error_from_response(err.response) from None
+E   openai.BadRequestError: Error code: 400 - {'error': {'message': 'Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.', 'type': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:172: in test_live_native_file_content_is_read
+    response = client.call(
+src/exmekh_lib/core/models/client.py:105: in call
+    return self._call_provider(self._prepare_request(request))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:163: in call
+    raise ProviderRequestRejectedError(
+E   exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.</failure></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_native_file_content_is_read[chat_completions-text_image_file_text]" time="0.005"><failure message="exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.">src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/chat_completion_openai.py:70: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/chat_completion_openai.py:92: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/chat_completion_openai.py:115: in _execute_payload
+    response = self._client.chat.completions.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_utils/_utils.py:298: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py:1296: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1155: in request
+    raise self._make_status_error_from_response(err.response) from None
+E   openai.BadRequestError: Error code: 400 - {'error': {'message': 'Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.', 'type': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:172: in test_live_native_file_content_is_read
+    response = client.call(
+src/exmekh_lib/core/models/client.py:105: in call
+    return self._call_provider(self._prepare_request(request))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:163: in call
+    raise ProviderRequestRejectedError(
+E   exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.</failure></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_native_file_content_is_read[responses-single_file]" time="0.004"><failure message="exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.">src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:73: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:95: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:117: in _execute_payload
+    response = self._client.responses.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/responses/responses.py:1028: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1155: in request
+    raise self._make_status_error_from_response(err.response) from None
+E   openai.BadRequestError: Error code: 400 - {'error': {'message': 'Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.', 'type': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:172: in test_live_native_file_content_is_read
+    response = client.call(
+src/exmekh_lib/core/models/client.py:105: in call
+    return self._call_provider(self._prepare_request(request))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:163: in call
+    raise ProviderRequestRejectedError(
+E   exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.</failure></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_native_file_content_is_read[responses-file_and_text]" time="0.004"><failure message="exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.">src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:73: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:95: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:117: in _execute_payload
+    response = self._client.responses.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/responses/responses.py:1028: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1155: in request
+    raise self._make_status_error_from_response(err.response) from None
+E   openai.BadRequestError: Error code: 400 - {'error': {'message': 'Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.', 'type': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:172: in test_live_native_file_content_is_read
+    response = client.call(
+src/exmekh_lib/core/models/client.py:105: in call
+    return self._call_provider(self._prepare_request(request))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:163: in call
+    raise ProviderRequestRejectedError(
+E   exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.</failure></testcase><testcase classname="tests.live.test_mixed_user_inputs_live" name="test_live_native_file_content_is_read[responses-text_image_file_text]" time="0.005"><failure message="exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.">src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:73: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:95: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:117: in _execute_payload
+    response = self._client.responses.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/responses/responses.py:1028: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1155: in request
+    raise self._make_status_error_from_response(err.response) from None
+E   openai.BadRequestError: Error code: 400 - {'error': {'message': 'Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.', 'type': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+tests/live/test_mixed_user_inputs_live.py:172: in test_live_native_file_content_is_read
+    response = client.call(
+src/exmekh_lib/core/models/client.py:105: in call
+    return self._call_provider(self._prepare_request(request))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:163: in call
+    raise ProviderRequestRejectedError(
+E   exmekh_lib.interfaces.provider.ProviderRequestRejectedError: Unsupported content type: only text and images are supported. Convert documents or other attachments to text or images before sending.</failure></testcase><testcase classname="tests.live.test_rejected_inputs_live" name="test_rejected_attachments_allow_same_client_to_continue[chat_completions]" time="8.440" /><testcase classname="tests.live.test_rejected_inputs_live" name="test_rejected_attachments_allow_same_client_to_continue[responses]" time="7.072" /><testcase classname="tests.live.test_sub_agent_live" name="test_live_sub_agent_memory_matches_history_policy[persistent]" time="126.054" /><testcase classname="tests.live.test_sub_agent_live" name="test_live_sub_agent_memory_matches_history_policy[ephemeral]" time="103.576" /><testcase classname="tests.live.test_tool_cache_live" name="test_live_regular_tool_saves_output_and_calling_thinking[non-streaming]" time="43.210" /><testcase classname="tests.live.test_tool_cache_live" name="test_live_regular_tool_saves_output_and_calling_thinking[streaming]" time="28.098" /><testcase classname="tests.live.test_tool_cache_live" name="test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code" time="122.962" /><testcase classname="tests.live.test_tool_executions_live" name="test_live_default_wait_returns_real_file_result[ordinary]" time="22.894" /><testcase classname="tests.live.test_tool_executions_live" name="test_live_default_wait_returns_real_file_result[streaming]" time="36.893" /><testcase classname="tests.live.test_tool_executions_live" name="test_live_background_wait_and_automatic_delivery[ordinary]" time="42.256" /><testcase classname="tests.live.test_tool_executions_live" name="test_live_background_wait_and_automatic_delivery[streaming]" time="55.806" /><testcase classname="tests.live.test_tool_executions_live" name="test_live_expired_waits_and_incremental_output" time="77.840" /></testsuite></testsuites>

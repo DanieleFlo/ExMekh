@@ -1,6 +1,6 @@
 """Private proof of the exact bytes and report produced by an inspection."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from exmekh_lib.utils.xml import stringify_tool_result
@@ -22,6 +22,7 @@ class InspectionEvidence:
     report_content: str
     readable: bool
     successful: bool
+    source: str = "inspect"
 
 
 class InspectionReport(dict[str, object]):
@@ -41,3 +42,13 @@ class InspectionReport(dict[str, object]):
     @property
     def evidence(self) -> InspectionEvidence:
         return self._evidence
+
+
+class ReadReport(InspectionReport):
+    """Successful text reading, with proof of the snapshot actually delivered."""
+
+    def __init__(self, report: dict[str, object], snapshot: FileSnapshot) -> None:
+        super().__init__(report, snapshot)
+        self._evidence = replace(
+            self._evidence, source="read", readable=True, successful=True
+        )

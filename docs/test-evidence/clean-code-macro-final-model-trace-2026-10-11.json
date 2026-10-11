@@ -1,0 +1,50 @@
+[
+  [
+    {
+      "name": "deep-thinking",
+      "arguments": {}
+    }
+  ],
+  [
+    {
+      "name": "search-web",
+      "arguments": {
+        "query": "official Python statistics.mean documentation docs.python.org",
+        "max_results": 5,
+        "timeout_seconds": 30,
+        "image_path": null
+      }
+    }
+  ],
+  [
+    {
+      "name": "read-web-page",
+      "arguments": {
+        "url": "https://docs.python.org/3/library/statistics.html",
+        "output_mode": "markdown",
+        "timeout_seconds": 60
+      }
+    }
+  ],
+  [
+    {
+      "name": "interact-web-page",
+      "arguments": {
+        "url": "https://docs.python.org/3/library/statistics.html",
+        "actions": [
+          {
+            "kind": "navigate",
+            "url": "https://docs.python.org/3/library/math.html"
+          },
+          {
+            "kind": "wait",
+            "milliseconds": -1
+          }
+        ],
+        "output_mode": "ast",
+        "timeout_seconds": 60
+      }
+    }
+  ],
+  []
+]

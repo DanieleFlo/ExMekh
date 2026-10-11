@@ -6,6 +6,7 @@ from xml.etree import ElementTree as ET
 
 import pytest
 
+from exmekh_lib.config.cache import CACHE_FORMAT
 from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
 from exmekh_lib.core.agents.deep_agent.stream_event import DeepAgentExecutionEvent
 from exmekh_lib.core.agents.node.node import Node
@@ -24,6 +25,7 @@ from exmekh_lib.core.models.user_message import (
     FilesUserMessage,
     UserMessage,
 )
+from exmekh_lib.core.tool_calls import ToolCallReader
 from exmekh_lib.core.tool_calls.execution_manager import ExecutionSnapshot
 from exmekh_lib.interfaces.provider import ProviderRequestRejectedError
 from exmekh_lib.interfaces.tool_hook import (
@@ -86,6 +88,69 @@ def read_calls(messages) -> list:
         for call in message.get_tool_calls() or ()
         if call.get_name() == "read_tool_output"
     ]
+
+
+@pytest.mark.parametrize("mode", ["synchronous", "wait", "background"])
+@pytest.mark.parametrize("fails", [False, True])
+def test_cached_arguments_follow_before_hooks_in_every_execution_mode(
+    make_node, mode, fails
+):
+    release = Event()
+
+    class Normalize(BeforeTool):
+        def handle(self, context: ToolContext):
+            return ToolArguments({"value": context.arguments["value"].lower()})
+
+    def work(value: str):
+        if mode == "background":
+            assert release.wait(2)
+        if fails:
+            raise ValueError("work failed")
+        return value
+
+    arguments = {"value": "ORIGINAL"}
+    if mode != "synchronous":
+        arguments["execution_mode"] = mode
+    provider = SequenceProvider(
+        [
+            tool_message("mock-tool", arguments, "origin"),
+            AssistantMessage("done"),
+            AssistantMessage("done"),
+        ]
+    )
+    node = make_node(
+        provider,
+        Tool(
+            work,
+            name="mock-tool",
+            before=Normalize(),
+            background_enabled=mode != "synchronous",
+        ),
+    )
+    try:
+        node.run("start")
+    finally:
+        release.set()
+    if mode == "background":
+        node.control_tool_execution("origin", wait_seconds=1)
+        node.run("continue")
+    directory = provider.get_session().session_dir / CACHE_FORMAT.tool_calls_folder
+    record = next(
+        record
+        for node_directory in directory.iterdir()
+        for record in ToolCallReader(directory=node_directory).read_all()
+        if record.tool_call_id == "origin"
+    )
+    assert record.args == {"value": "original"}
+    assert record.execution["status"] == ("failed" if fails else "completed")
+    original = next(
+        call
+        for message in provider.requests[1].get_messages()
+        if isinstance(message, AssistantMessage)
+        for call in message.get_tool_calls() or ()
+        if call.id == "origin"
+    )
+    assert original.get_arguments() == arguments
 
 
 def test_background_status_control_and_saved_result_use_xml(make_node):

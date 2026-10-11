@@ -36,6 +36,15 @@ class ExecutionSnapshot:
     result: Any = None
     error: str | None = None
     skill_path: str = "/"
+    executed_arguments: dict[str, Any] | None = None
+
+    def output_arguments(self) -> dict[str, Any]:
+        """Expose work inputs while tool_call() retains the provider's call."""
+        return deepcopy(
+            self.executed_arguments
+            if self.executed_arguments is not None
+            else self.arguments
+        )
 
     def tool_call(self) -> ToolCall:
         """Expose the originating call without leaking the snapshot's representation."""
@@ -145,6 +154,7 @@ class _Execution:
             result=self.result,
             error=self.error,
             skill_path=self.skill_path,
+            executed_arguments=self.operation.get_executed_arguments(),
         )
 
     def complete(self, result: Any) -> None:
@@ -349,11 +359,16 @@ class ToolExecutionManager:
             except Exception as error:
                 result = {**result, "partial_output_error": str(error)}
         if stored is not None:
-            return replace(stored, result=result, execution=execution)
+            return replace(
+                stored,
+                args=snapshot.output_arguments(),
+                result=result,
+                execution=execution,
+            )
         return ToolCallRecord(
             name=snapshot.name,
             id=snapshot.output_id,
-            args=snapshot.arguments,
+            args=snapshot.output_arguments(),
             result=result,
             skill_path=snapshot.skill_path,
             tool_call_id=snapshot.call_id,

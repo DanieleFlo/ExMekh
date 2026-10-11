@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from exmekh_lib.config.web import WEB_FORMAT, WEB_NAVIGATION
 from exmekh_lib.core.web_navigation import crawler
 from exmekh_lib.core.web_navigation.errors import WebNavigationError
 
@@ -303,7 +304,7 @@ def test_crawler_input_validation_and_cache_lifecycle(
         return {"final_url": URL, "markdown": "content"}
 
     monkeypatch.setattr(crawler, "_crawl_page", fake_crawl)
-    monkeypatch.delenv("CRAWL4_AI_BASE_DIRECTORY", raising=False)
+    monkeypatch.delenv(WEB_FORMAT.crawler_directory_env_var, raising=False)
     first = crawler.crawl_page(
         url=URL, output_mode="markdown", timeout_seconds=2, workroot=tmp_path
     )
@@ -312,12 +313,13 @@ def test_crawler_input_validation_and_cache_lifecycle(
     )
     assert first == second
     assert calls == 1
-    assert "CRAWL4_AI_BASE_DIRECTORY" not in os.environ
+    assert WEB_FORMAT.crawler_directory_env_var not in os.environ
 
     path = crawler._cache_path(
-        cache_root=tmp_path / ".exmekh_lib" / "web-cache", url=URL, mode="markdown"
+        cache_root=tmp_path / WEB_FORMAT.cache_directory, url=URL, mode="markdown"
     )
-    os.utime(path, (time.time() - 2000, time.time() - 2000))
+    expired_at = time.time() - WEB_NAVIGATION.cache_ttl_seconds - 1
+    os.utime(path, (expired_at, expired_at))
     crawler.crawl_page(
         url=URL, output_mode="markdown", timeout_seconds=2, workroot=tmp_path
     )

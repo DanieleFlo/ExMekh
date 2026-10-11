@@ -16,7 +16,7 @@ from exmekh_lib.utils.tool_errors import missing_dependency
         "regions with inclusive 1-based line ranges, without full file content. "
         "Supports Python symbols, Markdown sections/fences, structured data, CSV/TSV, "
         "archive indexes, PDF metadata and image headers. Other Unicode files get text statistics; "
-        "unsupported formats and limits are explicit. max_items defaults to 50; "
+        f"unsupported formats and limits are explicit. max_items defaults to {FILE_INSPECTION.default_max_items}; "
         "use offset to paginate or query to rank the bounded index lexically. "
         "detailed adds technical metadata and applied limits. No extraction, OCR "
         "or model downloads. Standard background execution and output retrieval apply."

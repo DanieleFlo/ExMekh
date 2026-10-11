@@ -18,6 +18,7 @@ from exmekh_lib.core.models.structured_provider_response import (
 )
 from exmekh_lib.core.models.tools import Tools
 from exmekh_lib.core.providers.chat_completion_openai import ChatCompletionOpenAI
+from exmekh_lib.core.providers.interactive_openai import InteractiveResponseOpenAI
 from exmekh_lib.core.providers.response_openai import ResponseOpenAI
 from exmekh_lib.interfaces.provider import Provider, ProviderRequestRejectedError
 from exmekh_lib.interfaces.tokenizer import Tokenizer
@@ -147,6 +148,16 @@ class LocalProvider(Provider):
     def call(self, request: ProviderRequest) -> ProviderResponse:
         try:
             api_adapter = self._create_api_adapter()
+            if self._has_interactive_tools(request):
+                if self._api != "responses":
+                    raise ProviderRequestRejectedError(
+                        "Interactive tools require the DS4 Responses v1 API"
+                    )
+                api_adapter = InteractiveResponseOpenAI(
+                    client=self.client,
+                    model=self._model,
+                    reasoning_effort=self._reasoning_effort,
+                )
             return api_adapter.call(request)
         except openai.BadRequestError as error:
             raise ProviderRequestRejectedError(
@@ -165,6 +176,20 @@ class LocalProvider(Provider):
 
     def get_tools_text(self, tools: Tools | None) -> str:
         return self._create_api_adapter().get_tools_text(tools)
+
+    @staticmethod
+    def _has_interactive_tools(request: ProviderRequest) -> bool:
+        tools = request.get_tools()
+        scope = (request.get_extra() or {}).get("agentic", {})
+        return (
+            tools is not None
+            and isinstance(scope, dict)
+            and any(
+                tool.interactive is not None
+                and tool.name in scope.get("allowed_tools", [])
+                for tool in tools.get_tools()
+            )
+        )
 
     def _create_api_adapter(self) -> ChatCompletionOpenAI | ResponseOpenAI:
         if self._api == "chat_completions":
@@ -186,6 +211,10 @@ class LocalProvider(Provider):
         self,
         request: StructuredProviderRequest[ResponseModel],
     ) -> StructuredProviderResponse[ResponseModel]:
+        if self._has_interactive_tools(request):
+            raise ProviderRequestRejectedError(
+                "Structured responses do not support interactive tool continuations"
+            )
         try:
             api_adapter = self._create_api_adapter()
             return api_adapter.call_structured(request)

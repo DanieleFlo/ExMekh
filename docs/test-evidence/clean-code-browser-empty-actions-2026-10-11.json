@@ -1,0 +1,25 @@
+{
+  "capture": "Read-only inspection of the live session before interruption; temporary cache files were removed when the process ended.",
+  "observed_call": {
+    "name": "interact-web-page",
+    "arguments": {
+      "url": "https://docs.python.org/3/library/statistics.html",
+      "actions": [],
+      "output_mode": "ast",
+      "timeout_seconds": 60
+    },
+    "result": {
+      "error_kind": "invalid_actions",
+      "error": "Actions must contain between 1 and 10 items."
+    }
+  },
+  "observed_record_times": [
+    "2026-10-11T14:01:04.4662554+02:00",
+    "2026-10-11T14:01:25.1083436+02:00",
+    "2026-10-11T14:01:42.735704+02:00",
+    "2026-10-11T14:02:20.9433943+02:00",
+    "2026-10-11T14:02:39.3045023+02:00",
+    "2026-10-11T14:03:14.524451+02:00",
+    "2026-10-11T14:03:50.6259648+02:00"
+  ]
+}

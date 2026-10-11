@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from exmekh_lib.core.models.interactive import (
+    InteractiveHandler,
+    InteractiveProtocolError,
+)
 from exmekh_lib.core.models.provider_stream_event import (
     ProviderStreamEvent,
     ProviderStreamEventType,
@@ -32,6 +36,7 @@ class ProviderRequest:
         self.stream = stream
         self.on_event = on_event
         self._reasoning_effort_override = reasoning_effort_override
+        self.interactive_handler: InteractiveHandler | None = None
         self._check_provider_inputs()
         self._messages = self._include_tool_attachments(messages)
         self._extra = dict(extra) if extra is not None else None
@@ -89,6 +94,13 @@ class ProviderRequest:
 
     def get_streaming(self) -> bool:
         return self.stream
+
+    def require_interactive_handler(self) -> InteractiveHandler:
+        if self.interactive_handler is None:
+            raise InteractiveProtocolError(
+                "Interactive tools require a node runtime handler"
+            )
+        return self.interactive_handler
 
     def get_reasoning_effort_override(self) -> str | None:
         return self._reasoning_effort_override

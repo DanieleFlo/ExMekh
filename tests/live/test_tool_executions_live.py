@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
+from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.models.tool import Tool
 from tests.live.tool_execution_support import (
     LiveExecutionRig,
@@ -55,7 +56,13 @@ def assert_saved_final(rig: LiveExecutionRig, call, output_id: str) -> None:
     assert record.tool_call_id == call.id
     assert record.execution["status"] == "completed"
     assert record.result["receipt"] == rig.fixture.job(call.id).receipt["receipt"]
-    assert record.args == call.get_arguments(), "CACHE: original call arguments changed"
+    tools = rig.provider.requests[0].get_tools()
+    assert tools is not None
+    tool = tools.get_tool(call.get_name())
+    assert tool is not None
+    assert record.args == tool.get_work_arguments(call.get_arguments()), (
+        "CACHE: executed work arguments changed"
+    )
     assert (
         len([item for item in rig.saved_outputs() if item.tool_call_id == call.id]) == 1
     )
@@ -88,7 +95,7 @@ def test_live_default_wait_returns_real_file_result(live_rig, streaming):
         "Call live_process_job exactly once with label='quick-default'. "
         "Use default execution settings (null execution_mode and null wait_seconds if required). "
         "Then call read_fixture_hash once with default settings. "
-        "Finally reply only DONE. Do not use exit_agent at root."
+        f"Finally reply only DONE. Do not use {RUNTIME.exit_tool_name} at root."
     )
     call = executed_call(rig, label="quick-default", response_type="final")
     header, result = rig.result(call)
@@ -114,9 +121,9 @@ def test_live_background_wait_and_automatic_delivery(live_rig, streaming):
     rig = live_rig(streaming=streaming)
     rig.node.run(
         "Call live_process_job once with label='background', execution_mode='background', "
-        "wait_seconds=60. Then call control_tool_execution with the original tool_call_id, "
+        f"wait_seconds=60. Then call {RUNTIME.execution_tool_name} with the original tool_call_id, "
         "action='wait', wait_seconds=2. The fixture completes during that wait. "
-        "The harness will supply the final read automatically; do not call read_tool_output yourself. "
+        f"The harness will supply the final read automatically; do not call {RUNTIME.read_tool_name} yourself. "
         "Finally reply only DONE."
     )
     call = executed_call(rig, label="background", response_type="running")
@@ -128,7 +135,7 @@ def test_live_background_wait_and_automatic_delivery(live_rig, streaming):
     assert rig.durations[call.id] < 1, "CLIENT: background invocation blocked"
     controls = [
         control
-        for control in rig.provider.calls("control_tool_execution")
+        for control in rig.provider.calls(RUNTIME.execution_tool_name)
         if control.get_arguments().get("tool_call_id") == call.id
         and rig.result(control)[1].get("status") == "completed"
     ]
@@ -162,11 +169,11 @@ def test_live_expired_waits_and_incremental_output(live_rig):
     def observe(event):
         if event.is_tool_running:
             return
-        if event.tool_name == "control_tool_execution":
+        if event.tool_name == RUNTIME.execution_tool_name:
             rig.fixture.job(
                 executed_call(rig, label="incremental", response_type="running").id
             )
-        if event.tool_name == "read_tool_output":
+        if event.tool_name == RUNTIME.read_tool_name:
             header, body = split_output(rig.outputs[event.tool_call_id])
             if header["response-type"] == "partial":
                 partials.append((header, body))
@@ -183,17 +190,17 @@ def test_live_expired_waits_and_incremental_output(live_rig):
     rig.node.run(
         "Execute these steps in separate model responses: "
         "1. Call live_process_job once with label='incremental', execution_mode='wait', wait_seconds=0.05. "
-        "2. Call control_tool_execution with its original tool_call_id, action='wait', wait_seconds=0.05. "
+        f"2. Call {RUNTIME.execution_tool_name} with its original tool_call_id, action='wait', wait_seconds=0.05. "
         "The job will still be running; do not cancel or relaunch it. "
-        "3. Call read_tool_output with its XML output ID and cursor=0. "
-        "4. Call read_tool_output again with that same output ID and the returned next-cursor. "
+        f"3. Call {RUNTIME.read_tool_name} with its XML output ID and cursor=0. "
+        f"4. Call {RUNTIME.read_tool_name} again with that same output ID and the returned next-cursor. "
         "The fixture then completes and an automatic final read arrives. "
         "5. Reply only DONE."
     )
     call = executed_call(rig, label="incremental", response_type="running")
     controls = [
         control
-        for control in rig.provider.calls("control_tool_execution")
+        for control in rig.provider.calls(RUNTIME.execution_tool_name)
         if control.get_arguments().get("tool_call_id") == call.id
         and rig.result(control)[1].get("status") == "running"
     ]
@@ -212,7 +219,7 @@ def test_live_expired_waits_and_incremental_output(live_rig):
     assert '"phase": "started"' not in advanced[1], "CLIENT: cursor repeated old output"
     assert int(advanced[0]["next-cursor"]) > int(first[0]["next-cursor"])
     assert first[0]["id"] == advanced[0]["id"]
-    assert len(rig.provider.calls("read_tool_output")) >= 2
+    assert len(rig.provider.calls(RUNTIME.read_tool_name)) >= 2
     output_id = rig.result(call)[0]["id"]
     assert (
         len(

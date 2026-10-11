@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterator, Sequence
+from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 
@@ -134,7 +134,7 @@ class MessageHistory:
     @contextmanager
     def record_tool_call(
         self, call: ToolCall, *, batch_call_id: str | None = None
-    ) -> Iterator[None]:
+    ) -> Generator[None]:
         """Record a harness call and keep an existing batch's final reply last."""
         if batch_call_id is None:
             if (

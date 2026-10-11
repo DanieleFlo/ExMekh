@@ -1,5 +1,7 @@
 """Resolve workspace paths and read bounded snapshots of regular files."""
 
+from __future__ import annotations
+
 import mimetypes
 import os
 import stat
@@ -19,6 +21,16 @@ class FileSnapshot:
     stat: os.stat_result
     content: bytes | None
     is_symlink: bool
+
+    def matches(self, other: FileSnapshot) -> bool:
+        """Compare complete bytes and file identity; partial snapshots never match."""
+        return (
+            self.content is not None
+            and other.content is not None
+            and self.path == other.path
+            and self.content == other.content
+            and _identity(self.stat) == _identity(other.stat)
+        )
 
     def metadata(self) -> dict[str, object]:
         value = self.stat

@@ -272,11 +272,21 @@ class NodeRuntime(ProviderEventHandler):
                 self._execute_batch(resolved_tool_calls, thinking)
                 self._execute_deferred_batches()
 
+                if response.interruptions:
+                    self._record_interruptions(response)
+                    response = self._continue_after_interruption()
+                    continue
+
                 self._result_recorder.sync_completed()
                 self._deliver_completed_tool_outputs()
 
                 response = self._continue_after_tools()
                 self._executor.acknowledge_agentic_extra()
+                continue
+
+            if response.interruptions:
+                self._record_interruptions(response)
+                response = self._continue_after_interruption()
                 continue
 
             content = response.get_message()
@@ -313,6 +323,32 @@ class NodeRuntime(ProviderEventHandler):
         """Validate against the generating scope before any execution changes it."""
         self._executor.validate_tool_calls(tool_calls)
         return self._resolver.resolve_all(tool_calls)
+
+    def _record_interruptions(self, response: ProviderResponse) -> None:
+        if self._executor.pending_return_call_id is not None:
+            self._finish_return_before_deferred_calls()
+        for message in response.interruptions:
+            self._client.add_user_message(message)
+            self._result_recorder.persist_steering(
+                message,
+                self._executor.record_runtime_output("interactive_call_interrupted"),
+                self._executor.skill_path,
+                name="interactive_call_interrupted",
+            )
+        calls = self._executor.pending_interactive_inspections()
+        if calls:
+            self._inspect_missing_files(calls)
+
+    def _continue_after_interruption(self) -> ProviderResponse:
+        steered = self._continue_with_steering()
+        if steered is not None:
+            return steered
+        return self._client.continue_after_interruption(
+            extra=self._executor.build_agentic_extra(),
+            tool_choice=self._current_tool_choice(),
+            streaming=self._config.is_streaming(),
+            on_event=self,
+        )
 
     def _execute_deferred_batches(self) -> None:
         while self._pending_batches and self._pending_batches[-1].depth == self.depth:
@@ -472,6 +508,9 @@ class NodeRuntime(ProviderEventHandler):
             exit_content_resolver=self._compose_exit_content,
             execution_manager=self._execution_manager,
             scope_prefix=self._scope_prefix,
+        )
+        self._executor.configure_interactive_calls(
+            self._turn_control.has_pending_messages
         )
 
     def _compose_exit_content(

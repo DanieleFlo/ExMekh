@@ -4,8 +4,8 @@ import inspect
 import re
 from collections.abc import Callable
 from contextlib import AbstractContextManager
-from copy import copy
-from dataclasses import dataclass
+from copy import copy, deepcopy
+from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
 from typing import Annotated, Any, Literal, Self, get_type_hints
@@ -13,6 +13,10 @@ from typing import Annotated, Any, Literal, Self, get_type_hints
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.config.validation import VALIDATION_PATTERNS
 from exmekh_lib.core.models.assistant_message import ToolCall
+from exmekh_lib.core.models.interactive import (
+    InteractiveDefinition,
+    validate_interactive_tool,
+)
 from exmekh_lib.core.models.tool_hooks import ToolHooks
 from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.interfaces.message import Message
@@ -97,6 +101,15 @@ class ToolExecutionOperation:
     run: Callable[[], Any]
     cancel: Callable[[], bool] | None = None
     read_partial: Callable[[int], tuple[str, int]] | None = None
+    _arguments: dict[str, Any] | None = field(default=None, init=False, repr=False)
+
+    def record_arguments(self, arguments: dict[str, Any]) -> None:
+        """Freeze selected work inputs before the callable can mutate them."""
+        self._arguments = deepcopy(arguments)
+
+    def get_executed_arguments(self) -> dict[str, Any] | None:
+        """Snapshot the work arguments selected by Before, once it has run."""
+        return deepcopy(self._arguments)
 
     def add_run_context(self, context: AbstractContextManager[object]) -> None:
         """Wrap execution without losing cancellation/progress updates on this handle."""
@@ -121,6 +134,7 @@ class Tool:
         before: BeforeTool | None = None,
         after: AfterTool | None = None,
         argument_guidance: str = "",
+        interactive: InteractiveDefinition | None = None,
     ) -> None:
         self.tool = tool
         self._tool_type: Literal["function"] = "function"
@@ -147,6 +161,8 @@ class Tool:
         if not isinstance(argument_guidance, str):
             raise TypeError("argument_guidance must be a string")
         self.argument_guidance = argument_guidance
+        validate_interactive_tool(interactive, background_enabled=background_enabled)
+        self.interactive = interactive
         self._check_inputs()
 
     def _resolve_tool_name(self, tool: Callable[..., Any], name: str | None) -> str:
@@ -250,6 +266,7 @@ class Tool:
 
         def run() -> Any:
             context, decision = self._prepare_context(arguments, work_root, history)
+            operation.record_arguments(context.arguments)
             if isinstance(decision, ToolResponse):
                 result = decision.result
             else:
@@ -377,6 +394,7 @@ class CalledTool:
 
         self._tool = tool
         self._tool_call = tool_call
+        self._execution: ToolExecutionOperation | None = None
         self._validate_matching()
 
     @classmethod
@@ -421,12 +439,14 @@ class CalledTool:
         work_root: Path | None = None,
         history: tuple[Message[object], ...] = (),
     ) -> Any:
-        return self._tool.execute_with_hooks(
-            self.work_arguments,
-            call_id=self.call_id,
+        return self.create_execution(
             work_root=work_root if work_root is not None else Path.cwd(),
             history=history,
-        )
+        ).run()
+
+    @property
+    def executed_arguments(self) -> dict[str, Any] | None:
+        return self._execution.get_executed_arguments() if self._execution else None
 
     def create_execution(
         self,
@@ -434,12 +454,13 @@ class CalledTool:
         work_root: Path,
         history: tuple[Message[object], ...],
     ) -> ToolExecutionOperation:
-        return self._tool.create_execution_with_hooks(
+        self._execution = self._tool.create_execution_with_hooks(
             self.work_arguments,
             call_id=self.call_id,
             work_root=work_root,
             history=history,
         )
+        return self._execution
 
     def without_background_execution(self) -> CalledTool:
         """Execute a runtime follow-up to completion before the next inference."""

@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="10" time="322.752" timestamp="2026-10-11T14:15:27.393325+02:00" hostname="Daniele-Fisso"><testcase classname="tests.live.test_agent_live" name="test_live_agent_blocks_direct_nested_tool_scope_bypass" time="0.213"><failure message="RuntimeError: Local provider request failed">src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:73: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:95: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:117: in _execute_payload
+    response = self._client.responses.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/responses/responses.py:1028: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1155: in request
+    raise self._make_status_error_from_response(err.response) from None
+E   openai.ConflictError: Error code: 409 - {'error': {'message': 'Agentic tool registry changed within an agent context', 'type': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+tests/live/test_agent_live.py:65: in test_live_agent_blocks_direct_nested_tool_scope_bypass
+    response = build_live_agent().run(
+src/exmekh_lib/core/agents/deep_agent/deep_agent.py:52: in run
+    return self._root_node.run(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node.py:172: in run
+    return self._runtime.run(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:162: in run
+    return self._run_turn(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:226: in _run_turn
+    response = self._client.continue_with_user_messages(
+src/exmekh_lib/core/models/client.py:209: in continue_with_user_messages
+    return self._call_provider(provider_request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:167: in call
+    raise RuntimeError("Local provider request failed") from error
+E   RuntimeError: Local provider request failed</failure></testcase><testcase classname="tests.live.test_agent_live" name="test_live_agent_strict_schema_blocks_wrong_argument_type" time="0.022"><failure message="RuntimeError: Local provider request failed">src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:73: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:95: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:117: in _execute_payload
+    response = self._client.responses.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/responses/responses.py:1028: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1155: in request
+    raise self._make_status_error_from_response(err.response) from None
+E   openai.ConflictError: Error code: 409 - {'error': {'message': 'Agentic tool registry changed within an agent context', 'type': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+tests/live/test_agent_live.py:93: in test_live_agent_strict_schema_blocks_wrong_argument_type
+    response = build_live_agent().run(
+src/exmekh_lib/core/agents/deep_agent/deep_agent.py:52: in run
+    return self._root_node.run(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node.py:172: in run
+    return self._runtime.run(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:162: in run
+    return self._run_turn(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:226: in _run_turn
+    response = self._client.continue_with_user_messages(
+src/exmekh_lib/core/models/client.py:209: in continue_with_user_messages
+    return self._call_provider(provider_request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:167: in call
+    raise RuntimeError("Local provider request failed") from error
+E   RuntimeError: Local provider request failed</failure></testcase><testcase classname="tests.live.test_deep_thinking_skill_live" name="test_live_model_can_choose_and_combine_every_skill_tool" time="0.036"><failure message="RuntimeError: Local provider request failed">src/exmekh_lib/providers/local.py:161: in call
+    return api_adapter.call(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:73: in call
+    response = self._execute_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:95: in _execute_request
+    return self._execute_payload(request, payload)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/providers/response_openai.py:117: in _execute_payload
+    response = self._client.responses.create(**payload)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/resources/responses/responses.py:1028: in create
+    return self._post(
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1382: in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.13/site-packages/openai/_base_client.py:1155: in request
+    raise self._make_status_error_from_response(err.response) from None
+E   openai.ConflictError: Error code: 409 - {'error': {'message': 'Agentic tool registry changed within an agent context', 'type': 'invalid_request_error'}}
+
+The above exception was the direct cause of the following exception:
+tests/live/test_deep_thinking_skill_live.py:61: in test_live_model_can_choose_and_combine_every_skill_tool
+    response = DeepAgent(provider=provider, node=node, work_root=tmp_path).run(
+src/exmekh_lib/core/agents/deep_agent/deep_agent.py:52: in run
+    return self._root_node.run(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node.py:172: in run
+    return self._runtime.run(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:162: in run
+    return self._run_turn(user_message)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/agents/node/node_runtime.py:226: in _run_turn
+    response = self._client.continue_with_user_messages(
+src/exmekh_lib/core/models/client.py:209: in continue_with_user_messages
+    return self._call_provider(provider_request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/conftest.py:35: in call_with_valid_history
+    return original_call(client, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/core/models/client.py:117: in _call_provider
+    response = self._provider.call(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/live/test_deep_thinking_skill_live.py:38: in call
+    result = super().call(request)
+             ^^^^^^^^^^^^^^^^^^^^^
+src/exmekh_lib/providers/local.py:167: in call
+    raise RuntimeError("Local provider request failed") from error
+E   RuntimeError: Local provider request failed</failure></testcase><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_search_reads_a_discovered_source_instead_of_only_snippets" time="9.801" /><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_browser_bootstraps_from_an_empty_cache" time="9.472" /><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_read_complex_documentation_and_reuse_cache" time="2.204" /><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_browser_form_submission_captures_destination_page" time="5.549" /><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_same_origin_navigation_reaches_a_second_document" time="2.388" /><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_cross_origin_redirect_and_private_url_are_blocked" time="2.393" /><testcase classname="tests.live.test_deep_thinking_web_live" name="test_live_image_assisted_search_reports_whether_visual_ranking_ran" time="7.950" /><testcase time="0.004" /></testsuite></testsuites>

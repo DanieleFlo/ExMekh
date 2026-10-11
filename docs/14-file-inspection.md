@@ -10,11 +10,12 @@ and exposes immutable selected pages rather than a mutable region list.
 ## Availability and calls
 
 The `file-processing` skill and its `inspect-file` tool belong to
-`DefaultCapabilities(harness=True)`, together with `read-file`. The bundled main
+`DefaultCapabilities(harness=True)`, together with `read-file` and `edit-file`. The bundled main
 HDS declares the skill
 in `sub-skills`; `inspect-file` is available inside that skill, with parent
 tools excluded. Custom HDSs must declare `file-processing` in `sub-skills`
-to enter it. The skill provides inspection, text-line and PDF-page reads, and direct image reads. Individual
+to enter it. The skill provides inspection, text-line and PDF-page reads, direct image reads,
+and [interactive text editing](15-interactive-file-editing.md). Individual
 selection,
 exclusion, named overrides and Before/After hooks follow the existing
 default-capability API.
@@ -123,13 +124,17 @@ strings, floats and null are rejected. Ranges use physical CR/LF lines, are
 The tool never supplies implicit indices, clamps an interval or defaults to
 the whole file. Results contain `ok`, `path`, `encoding`, the requested indices,
 `total_lines`, and `lines` entries with `line` and `text`. Missing/invalid
-arguments, empty files and formats without readable physical lines produce
+arguments and formats without readable physical lines produce
 descriptive XML errors. Supported images use the separate direct-read path described
 below. Missing/unexpected arguments use the shared runtime
 `invalid_tool_arguments` result, with the tool's configured correction guidance.
 Invalid path values, indices and line ranges use `invalid_file_read`. NUL paths
 are rejected before recovery. An unavailable or non-directory workroot is an
 explicit inspection error. The inspection byte budget applies to reading too.
+
+An inspected empty text file accepts the explicit range `start_line=0, end_line=0`
+and returns `lines=[]`. This successful read authorizes editing an existing empty
+file; other ranges on empty files remain errors.
 
 For text and PDF, always inspect first and choose indices from the actual report. The runtime
 retains an internal canonical path and XXH3-128 hash of the exact inspected

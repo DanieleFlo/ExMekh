@@ -9,29 +9,33 @@ import pytest
 from dotenv import load_dotenv
 
 import exmekh_lib
-from exmekh_lib.capabilities.tools.search_tool_outputs.tool_call_search import (
-    ToolCallSearch,
-)
+from exmekh_lib.config.cache import CACHE_FORMAT
+from exmekh_lib.config.provider import DEFAULT_PROVIDER_SETTINGS
+from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.agents.node import Node
-from exmekh_lib.core.cache.node_cache import NodeCache
 from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
 from exmekh_lib.core.models.provider_request import ProviderRequest
 from exmekh_lib.core.models.provider_response import ProviderResponse
 from exmekh_lib.core.models.reasoning_effort import ReasoningEffortLMH
+from exmekh_lib.core.models.tool import PreformattedToolResult
 from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.core.tool_calls import ToolCallReader
 from exmekh_lib.utils.file import read_json_from_path
 from tests.event_handler import as_agent_handler
-from tests.live.model_support import CacheTestTokenizer, LiveModelProvider
+from tests.live.model_support import (
+    CacheTestTokenizer,
+    LiveModelProvider,
+    fresh_live_context_id,
+)
 
 pytestmark = pytest.mark.live
 
 _TRANSIENT_TOOL_NAMES = {
-    "exit_agent",
-    "get_execution_history",
-    "search_tool_outputs",
-    "read_tool_output",
-    "control_tool_execution",
+    RUNTIME.exit_tool_name,
+    RUNTIME.history_tool_name,
+    RUNTIME.search_tool_name,
+    RUNTIME.read_tool_name,
+    RUNTIME.execution_tool_name,
 }
 
 
@@ -42,7 +46,7 @@ class RecordingLocalProvider(LiveModelProvider):
         self.responses: list[ProviderResponse] = []
         self.requests: list[ProviderRequest] = []
         super().__init__(
-            model=os.getenv("EXMEKH_LIB_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S"),
+            model=os.getenv("EXMEKH_LIB_LIVE_MODEL", DEFAULT_PROVIDER_SETTINGS.model),
             reasoning_effort=ReasoningEffortLMH.LOW,
             api="responses",
             tokenizer=CacheTestTokenizer("live-tool-cache", directory),
@@ -82,6 +86,7 @@ def initialize_node(
         capabilities_paths=[Path(exmekh_lib.__file__).parent / "capabilities"],
         name_hds="main",
         persistent_history=False,
+        agent_context_id=fresh_live_context_id("live-tool-cache"),
     )
     node.initialize(
         provider,
@@ -91,16 +96,10 @@ def initialize_node(
     return node
 
 
-def saved_cache(node: Node) -> NodeCache:
-    assert node._runtime is not None
-    cache = node._runtime._tool_cache
-    assert cache is not None, "CACHE: model tool calls produced no node cache"
-    return cache
-
-
 def verify_saved_calls(
     node: Node, provider: RecordingLocalProvider
 ) -> list[ToolCallRecord]:
+    transient_names = _TRANSIENT_TOOL_NAMES | {node.get_hds().get_exit_tool_name()}
     executed_ids = {
         message.get_tool_call_id()
         for request in provider.requests
@@ -108,29 +107,43 @@ def verify_saved_calls(
         if isinstance(message, ToolMessage)
     }
     expected = {
-        call.id: (call, response.thinking.thoughts if response.thinking else None)
-        for response in provider.responses
+        call.id: (
+            call,
+            response.thinking.thoughts if response.thinking else None,
+            request,
+        )
+        for request, response in zip(provider.requests, provider.responses, strict=True)
         for call in response.get_tool_calls() or []
-        if call.get_name() not in _TRANSIENT_TOOL_NAMES and call.id in executed_ids
+        if call.get_name() not in transient_names and call.id in executed_ids
     }
     assert expected, "MODEL: expected at least one executable tool call"
-    cache = saved_cache(node)
-    records = cache.get_all()
-    assert len(records) == len(expected), "CACHE: missing or unexpected saved outputs"
-    assert {record.tool_call_id for record in records} == set(expected)
-    files = list((cache.session_dir / "tool_calls").rglob("*.json"))
+    files = list(
+        (provider.get_session().session_dir / CACHE_FORMAT.tool_calls_folder).rglob(
+            f"*{CACHE_FORMAT.record_suffix}"
+        )
+    )
     payloads = {}
     for path in files:
         payload = read_json_from_path(path)
         payloads[payload["id"]] = (path, payload)
+    records = [
+        record
+        for directory in sorted({path.parent for path in files})
+        for record in ToolCallReader(directory=directory).read_all()
+    ]
+    assert len(records) == len(expected), "CACHE: missing or unexpected saved outputs"
+    assert {record.tool_call_id for record in records} == set(expected)
     for record in records:
-        call, thinking = expected[record.tool_call_id]
+        call, thinking, request = expected[record.tool_call_id]
+        tools = request.get_tools()
+        assert tools is not None
+        tool = tools.get_tool(call.get_name())
+        assert tool is not None
         assert record.name == call.get_name()
-        assert record.args == call.get_arguments()
+        assert record.args == tool.get_work_arguments(call.get_arguments())
         assert record.thinking == thinking, (
             "CACHE: thinking does not match its calling turn"
         )
-        assert cache.get(record.id) == record
         path, payload = payloads[record.id]
         assert "thinking" in payload
         assert payload == record.to_dict(), (
@@ -191,8 +204,17 @@ def test_live_regular_tool_saves_output_and_calling_thinking(
         assert record.thinking is None
     else:
         assert isinstance(record.thinking, str) and record.thinking.strip()
-    page = ToolCallSearch(saved_cache(node)).search(query=token, skill_path="/")
-    assert any(item["id"] == record.id for item in page["records"])
+    tools = live_provider.requests[0].get_tools()
+    assert tools is not None
+    search_tool = tools.get_tool(RUNTIME.search_tool_name)
+    assert search_tool is not None
+    page = search_tool.execute(query=token, skill_path="/")
+    assert isinstance(page, PreformattedToolResult)
+    search_xml = ET.fromstring(page.content)
+    assert any(
+        item.findtext("id") == record.id
+        for item in search_xml.findall("./records/record")
+    )
     assert token.casefold() in (response.get_message() or "").casefold()
 
 
@@ -201,12 +223,13 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
     tmp_path,
 ):
     node = initialize_node(live_provider, tmp_path)
+    exit_tool_name = node.get_hds().get_exit_tool_name()
     response = node.run(
         "Enter mock-skill. Choose a 6-12 character alphanumeric code. Call "
-        "mock-sub-tool with text=code, then exit_agent with text=code and items=[]. "
-        "At root, search_tool_outputs for the code and tool_name='mock-sub-tool' "
+        f"mock-sub-tool with text=code, then {exit_tool_name} with text=code and items=[]. "
+        f"At root, {RUNTIME.search_tool_name} for the code and tool_name='mock-sub-tool' "
         "with skill_path='/mock-skill'. Read the matching output ID with "
-        "read_tool_output and cursor=null to read the complete result. "
+        f"{RUNTIME.read_tool_name} and cursor=null to read the complete result. "
         "Reply only with the saved code."
     )
 
@@ -218,9 +241,9 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
     expected_call_names = (
         "mock-skill",
         "mock-sub-tool",
-        "exit_agent",
-        "search_tool_outputs",
-        "read_tool_output",
+        exit_tool_name,
+        RUNTIME.search_tool_name,
+        RUNTIME.read_tool_name,
     )
     calls_by_name = {
         name: [call for call in calls if call.get_name() == name]
@@ -259,7 +282,7 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
     exit_call = next(
         (
             call
-            for call in calls_by_name["exit_agent"]
+            for call in calls_by_name[exit_tool_name]
             if calls.index(call) > calls.index(sub_tool_call)
             and code.casefold() in str(call.get_arguments().get("text", "")).casefold()
             and call.get_arguments().get("items") == []
@@ -275,7 +298,7 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
     search_call = next(
         (
             call
-            for call in calls_by_name["search_tool_outputs"]
+            for call in calls_by_name[RUNTIME.search_tool_name]
             if call.get_arguments().get("skill_path") == "/mock-skill"
             and calls.index(call) > calls.index(exit_call)
             and code.casefold() in str(call.get_arguments().get("query", "")).casefold()
@@ -285,7 +308,7 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
     )
     assert search_call is not None, (
         "MODEL: no search used the absolute mock-skill path: "
-        f"{[call.get_arguments() for call in calls_by_name['search_tool_outputs']]!r}"
+        f"{[call.get_arguments() for call in calls_by_name[RUNTIME.search_tool_name]]!r}"
     )
     search_arguments = search_call.get_arguments()
     assert code.casefold() in search_arguments.get("query", "").casefold()
@@ -301,7 +324,7 @@ def test_live_agent_reads_saved_sub_tool_output_and_matches_exit_code(
 
     read_attempts = [
         (call, get_tool_response(live_provider, call.id))
-        for call in calls_by_name["read_tool_output"]
+        for call in calls_by_name[RUNTIME.read_tool_name]
         if call.get_arguments().get("output_id") == sub_tool_record.id
         and calls.index(call) > calls.index(search_call)
     ]

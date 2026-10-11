@@ -1,0 +1,255 @@
+{
+  "schema_kind": "ordinary",
+  "requests": [
+    {
+      "model": "Qwen3.8-27B-UD-Q4_K_S",
+      "input": [
+        {
+          "role": "system",
+          "content": "Generate the exact required tool arguments."
+        },
+        {
+          "role": "user",
+          "content": "The file attack.txt has been inspected and read: '  value\\nprefix value\\naaa\\nvalue'. Call edit-file exactly once with path=attack.txt, old_text='@ex_meckh_all', new_text='@ex_meckh_delete'. Markers must be inline, with no framing space or newline. Return the tool call only."
+        }
+      ],
+      "stream": true,
+      "reasoning": {
+        "effort": "none"
+      },
+      "tool_choice": "required",
+      "tools": [
+        {
+          "type": "function",
+          "name": "edit-file",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Exact file path inside the workroot, frozen before generating old/new."
+              },
+              "old_text": {
+                "type": "string",
+                "description": "Exact unique literal from a physical line start, @ex_meckh_line[N] for insertion, or @ex_meckh_all for the entire file. Include indentation. Markers have no surrounding spaces or newlines."
+              },
+              "new_text": {
+                "type": "string",
+                "description": "Exact replacement content, including any intended newline characters. To delete the file after old_text=@ex_meckh_all, use exactly @ex_meckh_delete, starting with @ as the first character and ending with e. Do not add native framing newlines around a marker. Empty content keeps the file; it does not delete it."
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "old_text",
+              "new_text"
+            ]
+          },
+          "strict": true,
+          "description": "Edit a text file inside the workroot synchronously. Supply path, old_text and new_text as exact strings. Existing files require a successful inspect-file followed by read-file of the unchanged content, both fully visible. Literal old_text must start at a physical line boundary including indentation and occur exactly once globally; new_text replaces that occurrence, and may be longer or empty. Use @ex_meckh_line[N] as the entire old_text to insert before physical line N (1..L+1, L+1 appends); include your own newlines. Use @ex_meckh_all to rewrite the whole file. To DELETE an existing file, use old_text=\"@ex_meckh_all\" and new_text=\"@ex_meckh_delete\". Each marker must start with @ immediately, with no leading or trailing space or newline, including native parameter framing newlines. Empty new_text removes content but keeps the file. To create a missing file use all or line[1], including empty new_text, without inspect/read; its parent must already exist. The @ex_meckh_ family is reserved even inside ordinary text. No implicit escaping, normalization or truncation. The server pauses after path for authorization; missing/stale inspection triggers automatic inspection, while a missing read requires a new explicit read. Changed files and invalid paths/markers/selections are rejected without writes."
+        }
+      ],
+      "agentic": {
+        "agent_context_id": "delete-marker-9599fef401bd46bcae04cad64a79c616",
+        "allowed_tools": [
+          "edit-file"
+        ],
+        "allowed_skills": [],
+        "interactive": {
+          "version": 1,
+          "operation": "configure",
+          "request_id": "5501942911284aad89ee9452ff3af1ee",
+          "tools": [
+            {
+              "name": "edit-file",
+              "behavior": "edit_file.v1",
+              "fields": {
+                "resource": "path",
+                "selection": "old_text",
+                "replacement": "new_text"
+              },
+              "first_fields": [
+                "path"
+              ],
+              "markers": {
+                "line": "@ex_meckh_line[<N>]",
+                "all": "@ex_meckh_all",
+                "delete": "@ex_meckh_delete"
+              }
+            }
+          ]
+        }
+      },
+      "max_output_tokens": 256,
+      "temperature": 0
+    },
+    {
+      "agentic": {
+        "agent_context_id": "delete-marker-9599fef401bd46bcae04cad64a79c616",
+        "allowed_tools": [
+          "edit-file"
+        ],
+        "allowed_skills": [],
+        "interactive": {
+          "version": 1,
+          "operation": "resume",
+          "continuation_id": "cont_35a1486f5cc5d64aae3a3869",
+          "exchange_id": "exchange_f28c732ff54c8e9e3753a824",
+          "reply": {
+            "status": "provide",
+            "text": "  value\nprefix value\naaa\nvalue",
+            "encoding": "utf-8",
+            "line_count": 4
+          },
+          "request_id": "d9f9f5dee1d3454ea6e8e473f773f94e"
+        }
+      }
+    }
+  ],
+  "events": [
+    {
+      "type": "response.created",
+      "sequence_number": 0,
+      "response": {
+        "id": "resp_65257ad2a2c7b086bda2929b",
+        "object": "response",
+        "created_at": 1791558567,
+        "status": "in_progress",
+        "model": "Qwen3.8-27B-UD-Q4_K_S",
+        "output": []
+      }
+    },
+    {
+      "type": "interactive.accepted",
+      "sequence_number": 1,
+      "version": 1,
+      "continuation_id": "cont_35a1486f5cc5d64aae3a3869"
+    },
+    {
+      "type": "interactive.await_input",
+      "version": 1,
+      "status": "awaiting_input",
+      "continuation_id": "cont_35a1486f5cc5d64aae3a3869",
+      "exchange_id": "exchange_f28c732ff54c8e9e3753a824",
+      "call_id": "call_9cc82004f1dcb500a53c5e58",
+      "tool_name": "edit-file",
+      "behavior": "edit_file.v1",
+      "request": {
+        "kind": "file_snapshot",
+        "values": {
+          "path": "attack.txt"
+        }
+      },
+      "usage": {
+        "input_tokens": 875,
+        "input_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 875
+        },
+        "output_tokens": 44,
+        "output_tokens_details": {
+          "reasoning_tokens": 0,
+          "constrained_prefill_tokens": 0
+        },
+        "total_tokens": 919
+      }
+    },
+    {
+      "type": "response.created",
+      "sequence_number": 0,
+      "response": {
+        "id": "resp_a42af008e49e72922b5950ac",
+        "object": "response",
+        "created_at": 1791558569,
+        "status": "in_progress",
+        "model": "Qwen3.8-27B-UD-Q4_K_S",
+        "output": []
+      }
+    },
+    {
+      "type": "interactive.accepted",
+      "sequence_number": 1,
+      "version": 1,
+      "continuation_id": "cont_35a1486f5cc5d64aae3a3869"
+    },
+    {
+      "type": "response.output_item.added",
+      "sequence_number": 2,
+      "output_index": 0,
+      "item": {
+        "id": "fc_8519d7673b45e6873da0a7f4",
+        "type": "function_call",
+        "status": "in_progress",
+        "name": "edit-file",
+        "call_id": "call_9cc82004f1dcb500a53c5e58",
+        "arguments": ""
+      }
+    },
+    {
+      "type": "response.function_call_arguments.delta",
+      "sequence_number": 3,
+      "item_id": "fc_8519d7673b45e6873da0a7f4",
+      "output_index": 0,
+      "delta": "{\"path\":\"attack.txt\",\"old_text\":\"@ex_meckh_all\",\"new_text\":\"\\n@ex_meckh\\ndelete\"}"
+    },
+    {
+      "type": "response.function_call_arguments.done",
+      "sequence_number": 4,
+      "item_id": "fc_8519d7673b45e6873da0a7f4",
+      "output_index": 0,
+      "name": "edit-file",
+      "arguments": "{\"path\":\"attack.txt\",\"old_text\":\"@ex_meckh_all\",\"new_text\":\"\\n@ex_meckh\\ndelete\"}"
+    },
+    {
+      "type": "response.output_item.done",
+      "sequence_number": 5,
+      "output_index": 0,
+      "item": {
+        "id": "fc_8519d7673b45e6873da0a7f4",
+        "type": "function_call",
+        "status": "completed",
+        "name": "edit-file",
+        "call_id": "call_9cc82004f1dcb500a53c5e58",
+        "arguments": "{\"path\":\"attack.txt\",\"old_text\":\"@ex_meckh_all\",\"new_text\":\"\\n@ex_meckh\\ndelete\"}"
+      }
+    },
+    {
+      "type": "response.completed",
+      "sequence_number": 6,
+      "response": {
+        "id": "resp_a42af008e49e72922b5950ac",
+        "object": "response",
+        "created_at": 1791558569,
+        "status": "completed",
+        "model": "Qwen3.8-27B-UD-Q4_K_S",
+        "output": [
+          {
+            "id": "fc_8519d7673b45e6873da0a7f4",
+            "type": "function_call",
+            "status": "completed",
+            "name": "edit-file",
+            "call_id": "call_9cc82004f1dcb500a53c5e58",
+            "arguments": "{\"path\":\"attack.txt\",\"old_text\":\"@ex_meckh_all\",\"new_text\":\"\\n@ex_meckh\\ndelete\"}"
+          }
+        ],
+        "interactive": {
+          "version": 1,
+          "continuation_id": "cont_35a1486f5cc5d64aae3a3869"
+        },
+        "usage": {
+          "input_tokens": 875,
+          "input_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 875
+          },
+          "output_tokens": 120,
+          "output_tokens_details": {
+            "reasoning_tokens": 0,
+            "constrained_prefill_tokens": 0
+          },
+          "total_tokens": 995
+        }
+      }
+    }
+  ]
+}

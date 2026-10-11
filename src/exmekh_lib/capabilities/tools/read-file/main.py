@@ -26,7 +26,8 @@ from exmekh_lib.utils.tool_errors import missing_dependency
         "the whole file or adjusts indices. Missing/stale analysis returns an "
         "error followed by an automatic inspect-file call; choose new indices "
         "and call read-file again. Returns numbered text lines; other binary formats "
-        "and empty files are explicit errors. Reads run synchronously so the "
+        "are explicit errors. For an inspected empty text file use 0/0 for a "
+        "successful empty read. Reads run synchronously so the "
         "prerequisite error and automatic inspection precede the next inference."
     ),
     background_enabled=False,

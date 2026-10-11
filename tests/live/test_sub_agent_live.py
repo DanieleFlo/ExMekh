@@ -8,11 +8,13 @@ import pytest
 from dotenv import load_dotenv
 
 import exmekh_lib
+from exmekh_lib.config.provider import DEFAULT_PROVIDER_SETTINGS
+from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.agents.deep_agent.agent_response import AgentResponse
 from exmekh_lib.core.agents.deep_agent.deep_agent import DeepAgent
 from exmekh_lib.core.agents.node import Node
 from exmekh_lib.core.models.reasoning_effort import ReasoningEffortLMH
-from tests.live.model_support import LiveModelProvider
+from tests.live.model_support import LiveModelProvider, fresh_live_context_id
 
 pytestmark = pytest.mark.live
 
@@ -21,10 +23,10 @@ def build_live_sub_agent_system(
     *,
     parent_persistent: bool = True,
     child_persistent: bool = True,
-    parent_context_id: str = "main-subagent-live",
+    parent_context_name: str = "main-subagent-live",
 ) -> DeepAgent:
     load_dotenv()
-    model = os.getenv("EXMEKH_LIB_LIVE_MODEL", "Qwen3.8-27B-UD-Q4_K_S")
+    model = os.getenv("EXMEKH_LIB_LIVE_MODEL", DEFAULT_PROVIDER_SETTINGS.model)
     provider = LiveModelProvider(
         model=model,
         reasoning_effort=ReasoningEffortLMH.LOW,
@@ -35,14 +37,14 @@ def build_live_sub_agent_system(
         capabilities_paths=[capabilities_path],
         name_hds="mock-sub-agent",
         persistent_history=child_persistent,
-        agent_context_id="mock-sub-agent",
+        agent_context_id=fresh_live_context_id("mock-sub-agent"),
     )
     parent = Node(
         capabilities_paths=[capabilities_path],
         name_hds="main",
         children=[child],
         persistent_history=parent_persistent,
-        agent_context_id=parent_context_id,
+        agent_context_id=fresh_live_context_id(parent_context_name),
     )
     return DeepAgent(provider=provider, node=parent, work_root=Path.cwd())
 
@@ -69,7 +71,7 @@ def get_sub_agent_tool_calls(
             )
             name = function.get("name")
             arguments = function.get("arguments")
-            if name == "call_sub_agent" and isinstance(arguments, dict):
+            if name == RUNTIME.sub_agent_tool_name and isinstance(arguments, dict):
                 calls.append((name, arguments))
     return calls
 
@@ -81,10 +83,10 @@ def test_live_sub_agent_memory_matches_history_policy(child_persistent: bool) ->
     code = "ALPHA-PERSIST-7712"
     agent = build_live_sub_agent_system(
         child_persistent=child_persistent,
-        parent_context_id=f"parent-memory-{child_persistent}",
+        parent_context_name=f"parent-memory-{child_persistent}",
     )
     first = agent.run(
-        "Call call_sub_agent with sub_agent='mock-sub-agent' "
+        f"Call {RUNTIME.sub_agent_tool_name} with sub_agent='mock-sub-agent' "
         f"and text='Remember code {code}. Reply with only an acknowledgement.'. "
         "After delegation, reply only ACK."
     )
@@ -92,7 +94,7 @@ def test_live_sub_agent_memory_matches_history_policy(child_persistent: bool) ->
         "MODEL: expected delegation to store the code"
     )
     second = agent.run(
-        "Call call_sub_agent with sub_agent='mock-sub-agent' "
+        f"Call {RUNTIME.sub_agent_tool_name} with sub_agent='mock-sub-agent' "
         "and text='What code did you save earlier? Reply with only the code or NO SAVED CODE.'. "
         "Then return only the sub-agent's answer."
     )

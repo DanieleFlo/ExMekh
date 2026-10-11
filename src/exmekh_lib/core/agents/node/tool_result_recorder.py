@@ -53,6 +53,8 @@ class ToolResultRecorder:
         record = None
         if result.save_result:
             identity = result.cache_identity or identity
+            if result.executed_arguments is not None:
+                identity = replace(identity, args=result.executed_arguments)
             attachments = result.response.get_attachments()
             record = ToolCallRecord(
                 name=identity.name,
@@ -83,10 +85,15 @@ class ToolResultRecorder:
             )
 
     def persist_steering(
-        self, message: UserMessage, output_id: str, skill_path: str
+        self,
+        message: UserMessage,
+        output_id: str,
+        skill_path: str,
+        *,
+        name: str = RUNTIME.steering_output_name,
     ) -> None:
         record = ToolCallRecord(
-            name=RUNTIME.steering_output_name,
+            name=name,
             id=output_id,
             args={},
             result=message.message_dump()["content"],
@@ -105,6 +112,7 @@ class ToolResultRecorder:
             self._cache_provider().store(
                 replace(
                     record,
+                    args=snapshot.output_arguments(),
                     result=snapshot.record_result(),
                     execution=snapshot.status_info(),
                     user_message=(

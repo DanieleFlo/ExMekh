@@ -9,8 +9,10 @@ from exmekh_lib.core.cache.user_message_codec import serialize_user_message
 from exmekh_lib.core.models.tool import ExecutionOptions, ToolExecutionOperation
 from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
 from exmekh_lib.core.models.user_message import UserMessage
+from exmekh_lib.core.models.xml_header import XmlHeader
 from exmekh_lib.core.tool_calls import execution_manager
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
+from exmekh_lib.core.tool_calls.output_formatter import ToolOutputFormatter
 
 
 def test_resuming_waits_does_not_lose_an_already_released_wait(monkeypatch):
@@ -684,3 +686,34 @@ def test_runtime_record_updates_preserve_stored_output_metadata():
     assert updated == replace(record, result="final", execution=updated.execution)
     assert updated.execution["status"] == "completed"
     assert updated.execution["storage"] == "saved"
+
+
+@pytest.mark.parametrize("saved", [False, True])
+def test_runtime_records_use_work_arguments_and_reads_preserve_call_provenance(saved):
+    operation = ToolExecutionOperation(lambda: "done")
+    work_arguments = {"input": ["normalized"]}
+    operation.record_arguments(work_arguments)
+    work_arguments["input"].append("changed after publication")
+    manager = ToolExecutionManager()
+    snapshot = manager.start(
+        "call",
+        "work",
+        {"input": ["original"]},
+        operation,
+        ("root",),
+        ExecutionOptions(),
+        output_id="output",
+    )
+    records = (
+        {"output": ToolCallRecord("work", "output", {"input": ["original"]}, "pending")}
+        if saved
+        else {}
+    )
+    (record,) = manager.output_records(records)
+    assert record.args == {"input": ["normalized"]}
+    assert snapshot.tool_call().get_arguments() == {"input": ["original"]}
+    content = ToolOutputFormatter.format_execution_output("output", snapshot, None)
+    expected = XmlHeader(
+        source="Tool", name="work", id="output", args={"input": ["original"]}
+    )
+    assert expected.to_xml()[: -len(f"</{XmlHeader.ROOT_TAG}>")] in content

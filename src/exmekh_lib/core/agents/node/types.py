@@ -35,6 +35,7 @@ class ToolExecutionResult:
     used_tools: tuple[ToolOutputReference, ...] | None = None
     failed: bool = False
     inspection_path: str | None = None
+    executed_arguments: dict[str, Any] | None = None
 
     def execution_metadata(self) -> dict[str, Any] | None:
         """Describe execution consistently for persistence without exposing its form."""

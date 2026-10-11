@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from exmekh_lib.config.cache import CACHE_FORMAT
 from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
 from exmekh_lib.core.tool_calls import ToolCallData, ToolCallReader, ToolCallSaver
 from exmekh_lib.tokenizers.qwen import QwenTokenizer
@@ -116,7 +117,7 @@ def test_saver_path_resolution_with_identity(tmp_path: Path):
         cache_directory=tmp_path,
         folder_name="my_calls",
     )
-    expected_dir = tmp_path / expected_hash / "temp" / "my_calls"
+    expected_dir = tmp_path / expected_hash / CACHE_FORMAT.temporary_folder / "my_calls"
     assert saver.directory == expected_dir
     assert expected_dir.is_dir()
 
@@ -128,7 +129,13 @@ def test_saver_path_resolution_with_tokenizer_instance(tmp_path: Path):
         tokenizer=tokenizer,
         cache_directory=tmp_path,
     )
-    assert saver.directory == tmp_path / expected_hash / "temp" / "tool_calls"
+    assert (
+        saver.directory
+        == tmp_path
+        / expected_hash
+        / CACHE_FORMAT.temporary_folder
+        / CACHE_FORMAT.tool_calls_folder
+    )
 
 
 def test_saver_invalid_inputs():
@@ -154,7 +161,7 @@ def test_saver_record_and_save(tmp_path: Path):
     assert record.name == "calculator"
     assert record.id == "call_999"
 
-    saved_file = tmp_path / "call_999.json"
+    saved_file = tmp_path / f"call_999{CACHE_FORMAT.record_suffix}"
     assert saved_file.is_file()
     data = read_json_from_path(saved_file)
     assert data["result"] == 30
@@ -246,7 +253,7 @@ def test_reader_handles_corrupted_file(tmp_path: Path):
 
     saver.record(name="valid", id="valid_id", args={}, result="ok")
 
-    corrupt_file = tmp_path / "corrupt.json"
+    corrupt_file = tmp_path / f"corrupt{CACHE_FORMAT.record_suffix}"
     corrupt_file.write_text("invalid json content!", encoding="utf-8")
 
     # read_all skips corrupted files gracefully

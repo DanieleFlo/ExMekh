@@ -1,8 +1,7 @@
-from pathlib import Path
-
 import pytest
 from pydantic import BaseModel
 
+from exmekh_lib.config.storage import DEFAULT_STORAGE_SETTINGS
 from exmekh_lib.core.cache.cache_manager import CacheManager
 from exmekh_lib.core.cache.session_cache import SessionCache
 from exmekh_lib.core.models.assistant_message import AssistantMessage
@@ -35,7 +34,9 @@ class StubTokenizer(Tokenizer):
 
     def get_session(self) -> SessionCache:
         return CacheManager.get_session(
-            "stub-provider", "default", Path(".exmekh_lib/tokenizers")
+            "stub-provider",
+            "default",
+            DEFAULT_STORAGE_SETTINGS.tokenizer_cache_directory,
         )
 
 
