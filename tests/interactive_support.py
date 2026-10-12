@@ -1,6 +1,7 @@
 """Actual OpenAI SDK with a scripted raw DS4 transport and real node runtime."""
 
 import json
+from html import escape
 from uuid import uuid4
 
 import httpx2 as httpx
@@ -60,7 +61,7 @@ def response(*calls, text=None, continuation=None):
         },
     }
     if continuation is not None:
-        value["interactive"] = {"version": 1, "continuation_id": continuation}
+        value["interactive"] = {"version": 2, "continuation_id": continuation}
     return value
 
 
@@ -72,26 +73,31 @@ def pause(
     continuation="cont-edit",
     exchange="exchange-edit",
     fields=None,
+    edit_index=1,
 ):
     return {
         "type": "interactive.await_input",
-        "version": 1,
+        "version": 2,
         "status": "awaiting_input",
         "continuation_id": continuation,
         "exchange_id": exchange,
         "call_id": call_id,
         "tool_name": name,
-        "behavior": "edit_file.v1",
-        "request": {"kind": "file_snapshot", "values": fields or {"path": path}},
+        "behavior": "edit_file.v2",
+        "request": {
+            "kind": "file_snapshot",
+            "edit_index": edit_index,
+            "values": {"path": path} if fields is None else fields,
+        },
         "usage": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
     }
 
 
 CAPABILITIES = {
     "interactive": {
-        "version": 1,
+        "version": 2,
         "apis": ["responses"],
-        "behaviors": ["edit_file.v1"],
+        "behaviors": ["edit_file.v2"],
         "model_syntax": "qwen27",
         "syntaxes": ["qwen27"],
         "model_supported": True,
@@ -227,3 +233,23 @@ def exit_skill():
     return response(
         ("exit", "exit_agent", {"text": "done", "items": []}), continuation="cont-exit"
     )
+
+
+def line_tag(number):
+    return f'<line number="{number}"/>'
+
+
+def edit_fragment(path, old, new):
+    old_body = (
+        old
+        if isinstance(old, str) and old.startswith("<")
+        else escape(old)
+        if isinstance(old, str)
+        else str(old)
+    )
+    new_body = "<delete/>" if new is None else escape(new)
+    return f'<edit path="{escape(path, quote=True)}"><old_text>{old_body}</old_text><new_text>{new_body}</new_text></edit>'
+
+
+def edit_arguments(path, old, new):
+    return {"edits": edit_fragment(path, old, new)}

@@ -7,15 +7,17 @@ from dataclasses import replace
 import pytest
 
 from exmekh_lib.config.file_editing import FILE_EDITING
-from exmekh_lib.core.file_inspection import edit_filesystem, editing
+from exmekh_lib.core.file_inspection import edit_filesystem
 from exmekh_lib.core.file_inspection.editing import (
     approve_edit,
-    edit_file,
+    edit_files,
     file_edit_context,
 )
 from exmekh_lib.core.file_inspection.errors import FileInspectionError
 from exmekh_lib.core.file_inspection.reading import file_read_context, read_file
 from exmekh_lib.core.file_inspection.service import inspect_file
+from exmekh_lib.core.models import edit_document
+from tests.interactive_support import edit_fragment
 
 
 def evidence_for(tmp_path, path):
@@ -63,10 +65,10 @@ def test_read_only_file_is_not_overwritten_using_parent_write_permissions(
     approval = approve_edit(tmp_path, path.name, evidence)
     monkeypatch.setattr(edit_filesystem.os, "access", lambda *args, **kwargs: False)
     with (
-        file_edit_context(approval, evidence),
+        file_edit_context((approval,), evidence),
         pytest.raises(FileInspectionError, match="not writable"),
     ):
-        edit_file(tmp_path, path.name, FILE_EDITING.all_marker, "BAD")
+        edit_files(tmp_path, edit_fragment(path.name, "<all/>", "BAD"))
     assert path.read_text() == "KEEP"
 
 
@@ -84,8 +86,8 @@ def test_exclusive_commit_rejects_a_file_appearing_after_the_final_absence_check
     monkeypatch.setattr(edit_filesystem.os, "link", competing_create)
     # supports_dir_fd describes the original implementation, not the test wrapper.
     monkeypatch.setattr(os, "supports_dir_fd", {*os.supports_dir_fd, competing_create})
-    with file_edit_context(approval, ()), pytest.raises(FileExistsError):
-        edit_file(tmp_path, path.name, FILE_EDITING.all_marker, "BAD")
+    with file_edit_context((approval,), ()), pytest.raises(FileExistsError):
+        edit_files(tmp_path, edit_fragment(path.name, "<all/>", "BAD"))
     assert path.read_text() == "CONCURRENT"
     assert not list(tmp_path.glob(".exmekh-edit-*"))
 
@@ -102,8 +104,8 @@ def test_replace_failure_leaves_original_bytes_and_removes_the_prepared_file(
         raise PermissionError("commit failed")
 
     monkeypatch.setattr(edit_filesystem.os, "replace", fail_replace)
-    with file_edit_context(approval, evidence), pytest.raises(PermissionError):
-        edit_file(tmp_path, path.name, FILE_EDITING.all_marker, "BAD")
+    with file_edit_context((approval,), evidence), pytest.raises(PermissionError):
+        edit_files(tmp_path, edit_fragment(path.name, "<all/>", "BAD"))
     assert path.read_text() == "KEEP"
     assert not list(tmp_path.glob(".exmekh-edit-*"))
 
@@ -131,12 +133,15 @@ def test_commit_preserves_encoding_bom_newlines_and_rejects_unrepresentable_text
     evidence = evidence_for(tmp_path, filename)
     approval = approve_edit(tmp_path, filename, evidence)
     if filename == "notes.py":
-        with file_edit_context(approval, evidence), pytest.raises(UnicodeEncodeError):
-            edit_file(tmp_path, filename, FILE_EDITING.all_marker, new)
+        with (
+            file_edit_context((approval,), evidence),
+            pytest.raises(UnicodeEncodeError),
+        ):
+            edit_files(tmp_path, edit_fragment(filename, "<all/>", new))
         assert path.read_bytes() == approval.snapshot.content
     else:
-        with file_edit_context(approval, evidence):
-            edit_file(tmp_path, filename, "  uno", new)
+        with file_edit_context((approval,), evidence):
+            edit_files(tmp_path, edit_fragment(filename, "  uno", new))
         expected = (
             codecs.BOM_UTF16_BE + "  due\r\nKEEP".encode("utf-16-be")
             if raw.startswith(codecs.BOM_UTF16_BE)
@@ -159,13 +164,13 @@ def test_snapshot_and_generated_byte_limits_reject_without_truncating(
     monkeypatch.setattr(edit_filesystem, "FILE_EDITING", FILE_EDITING)
     approval = approve_edit(tmp_path, path.name, evidence)
     monkeypatch.setattr(
-        editing, "FILE_EDITING", replace(FILE_EDITING, max_generated_bytes=3)
+        edit_document, "FILE_EDITING", replace(FILE_EDITING, max_generated_bytes=3)
     )
     with (
-        file_edit_context(approval, evidence),
-        pytest.raises(FileInspectionError, match="byte limit"),
+        file_edit_context((approval,), evidence),
+        pytest.raises(ValueError, match="byte limit"),
     ):
-        edit_file(tmp_path, path.name, FILE_EDITING.all_marker, "TOO LONG")
+        edit_files(tmp_path, edit_fragment(path.name, "<all/>", "TOO LONG"))
     assert path.read_text() == "KEEP"
 
 
@@ -178,10 +183,10 @@ def test_same_bytes_with_a_new_inode_still_invalidate_the_approved_resource(tmp_
     replacement.write_text("KEEP")
     replacement.replace(path)
     with (
-        file_edit_context(approval, evidence),
+        file_edit_context((approval,), evidence),
         pytest.raises(FileInspectionError, match="changed"),
     ):
-        edit_file(tmp_path, path.name, FILE_EDITING.all_marker, "BAD")
+        edit_files(tmp_path, edit_fragment(path.name, "<all/>", "BAD"))
     assert path.read_text() == "KEEP"
 
 
@@ -191,11 +196,11 @@ def test_visibility_is_rechecked_at_execution_after_a_hook_removes_evidence(tmp_
     evidence = evidence_for(tmp_path, path.name)
     approval = approve_edit(tmp_path, path.name, evidence)
     visible = evidence
-    with file_edit_context(approval, lambda: visible):
+    with file_edit_context((approval,), lambda: visible):
         # A Before hook may replace history through the node's public interface.
         visible = ()
         with pytest.raises(FileInspectionError, match="visible inspection"):
-            edit_file(tmp_path, path.name, FILE_EDITING.all_marker, "BAD")
+            edit_files(tmp_path, edit_fragment(path.name, "<all/>", "BAD"))
     assert path.read_text() == "KEEP"
 
 
@@ -222,8 +227,8 @@ def test_changed_ancestor_cannot_redirect_temporary_writes_outside_workroot(
 
     monkeypatch.setattr(edit_filesystem.os, "open", redirect_parent)
     monkeypatch.setattr(os, "supports_dir_fd", {*os.supports_dir_fd, redirect_parent})
-    with file_edit_context(approval, evidence), pytest.raises(OSError):
-        edit_file(tmp_path, "nested/folder/notes.txt", FILE_EDITING.all_marker, "BAD")
+    with file_edit_context((approval,), evidence), pytest.raises(OSError):
+        edit_files(tmp_path, edit_fragment("nested/folder/notes.txt", "<all/>", "BAD"))
     assert outside_file.read_text() == "OUTSIDE"
     assert not list(outside.rglob(".exmekh-edit-*"))
     assert (tmp_path / "original" / "folder" / "notes.txt").read_text() == "KEEP"

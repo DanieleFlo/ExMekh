@@ -1,6 +1,5 @@
-"""Shared edit-file contract and bounded client operations."""
+"""Shared XML edit contract and bounded client operations."""
 
-import re
 from dataclasses import dataclass
 
 
@@ -11,13 +10,6 @@ class FileEditingSettings:
     protocol_timeout_seconds: float = 300
     max_exchanges: int = 64
     max_response_bytes: int = 16 * 1024 * 1024
-    marker_prefix: str = "@ex_meckh"
-    all_marker_name: str = "all"
-    delete_marker_name: str = "delete"
-    line_marker_name: str = "line"
-    resource_description: str = (
-        "Exact file path inside the workroot, frozen before generating old/new."
-    )
     inspection_required: str = (
         "Inspect the current file first. The visible inspection is missing or stale; "
         "this edit was rejected. Read the current file, then make a new edit-file call."
@@ -26,102 +18,45 @@ class FileEditingSettings:
         "Read the current file with read-file after its inspection. A complete, "
         "unchanged successful read must remain visible. This edit was rejected."
     )
-    changed: str = "File or path changed during generation; inspect and read again. No edit was applied."
+    changed: str = "File or path changed during generation; inspect and read again."
     selection_error: str = (
         "old_text must be nonempty, occur exactly once (including overlapping and "
         "mid-line matches), and start at a physical line boundary including indentation. "
         "Choose a larger or different literal block."
     )
-
-    @property
-    def reserved_prefix(self) -> str:
-        return f"{self.marker_prefix}_"
-
-    @property
-    def reserved_marker_pattern(self) -> str:
-        return re.escape(self.marker_prefix) + r"(?:_|(?!\w))"
-
-    @property
-    def all_marker(self) -> str:
-        return f"{self.reserved_prefix}{self.all_marker_name}"
-
-    @property
-    def delete_marker(self) -> str:
-        return f"{self.reserved_prefix}{self.delete_marker_name}"
-
-    def line_marker(self, line: int | str) -> str:
-        return f"{self.reserved_prefix}{self.line_marker_name}[{line}]"
-
-    @property
-    def line_family(self) -> str:
-        return self.line_marker("<N>")
-
-    @property
-    def line_example(self) -> str:
-        return self.line_marker("N")
-
-    @property
-    def first_line_marker(self) -> str:
-        return self.line_marker(1)
-
-    @property
-    def line_pattern(self) -> str:
-        return re.escape(self.line_family).replace(re.escape("<N>"), r"([1-9][0-9]*)")
-
-    @property
-    def selection_description(self) -> str:
-        return (
-            f"Exact unique literal from a physical line start, {self.line_example} for "
-            f"insertion, or {self.all_marker} for the entire file. Include indentation. "
-            "Markers have no surrounding spaces or newlines."
-        )
-
-    @property
-    def replacement_description(self) -> str:
-        return (
-            "Exact replacement content, including any intended newline characters. "
-            f"To delete the file after old_text={self.all_marker}, use exactly "
-            f"{self.delete_marker} as the entire argument. "
-            "Do not add native framing newlines around a marker. Empty content keeps "
-            "the file; it does not delete it."
-        )
-
-    @property
-    def invalid_marker(self) -> str:
-        return (
-            f"Reserved {self.reserved_prefix} markers must occupy the entire correct field. "
-            f"Use {self.all_marker} or {self.line_example} in old_text, and "
-            f"{self.delete_marker} only in new_text with {self.all_marker} on an existing file."
-        )
-
-    @property
-    def creation_required(self) -> str:
-        return (
-            f"Creation requires old_text={self.all_marker} or {self.first_line_marker}."
-        )
+    range_error: str = "Line numbers must be positive, ordered and within the physical lines of the initial snapshot."
+    conflict_error: str = (
+        "Edits of the same canonical file must use the initial snapshot without overlapping "
+        "replacements, interior insertions or duplicate insertion positions. "
+        "Whole-file rewrite or deletion must be that file's only edit."
+    )
+    creation_required: str = 'Creation requires <all/> or <line number="1"/> in old_text and cannot delete a file.'
+    document_description: str = (
+        'One exact XML string with one or more consecutive <edit path="file.txt">'
+        "<old_text>...</old_text><new_text>...</new_text></edit> fragments. "
+        "Each path is authorized before old/new generation. Use entities or CDATA for literal markup. "
+        "The final </new_text> before each </edit> closes its replacement; earlier bare </new_text> is literal. "
+        "A literal </new_text></edit> pair requires entities or CDATA. Preserve intended CR/LF and spaces. "
+        'Use <all/> as the sole old_text content to rewrite/create; <line number="N"/> to insert before '
+        "physical line N (1..L+1, L+1 appends); <delete/> as sole new_text content with <all/> to delete "
+        "an existing file. Empty new_text keeps the file. For extremely long selections only, use "
+        '<old_text start_line="N" end_line="M"></old_text> for inclusive physical lines. '
+        "Escaped/CDATA command tags are literal text."
+    )
 
     @property
     def description(self) -> str:
         return (
-            "Edit a text file inside the workroot synchronously. Supply path, old_text and "
-            "new_text as exact strings. Existing files require a successful inspect-file "
-            "followed by read-file of the unchanged content, both fully visible. "
-            "Literal old_text must start at a physical line boundary including indentation "
-            "and occur exactly once globally; new_text replaces that occurrence, and may "
-            f"be longer or empty. Use {self.line_example} as the entire old_text to insert "
-            "before physical line N (1..L+1, L+1 appends); include your own newlines. "
-            f"Use {self.all_marker} to rewrite the whole file. To DELETE an existing file, "
-            f'use old_text="{self.all_marker}" and new_text="{self.delete_marker}". '
-            "Each marker must occupy the entire value, with no leading or trailing "
-            "space or newline, including native parameter framing newlines. "
-            "Empty new_text removes content but keeps the file. To create a missing file "
-            f"use {self.all_marker} or {self.first_line_marker}, including empty new_text, "
-            "without inspect/read; its parent "
-            f"must already exist. The {self.reserved_prefix} family is reserved even inside ordinary "
-            "text. No implicit escaping, normalization or truncation. The server pauses "
-            "after path for authorization; missing/stale inspection triggers automatic "
-            "inspection, while a missing read requires a new explicit read. Changed files "
-            "and invalid paths/markers/selections are rejected without writes."
+            "Edit workspace text files synchronously using the single edits document. "
+            "Existing files require successful inspect-file and subsequent read-file of unchanged "
+            "content, both fully visible. Missing inspection rejects the call and triggers inspection; "
+            "missing read requires an explicit read and a new edit call. Missing files need no inspect/read; "
+            "their parent must exist. Literal selections must start at a physical line boundary, include "
+            "indentation and occur exactly once globally. All edits of each canonical file refer to one "
+            "initial snapshot. Any rejected resource invalidates the entire call. The client validates "
+            "the complete document after hooks before writing, preserves encoding/BOM, and checks concurrency. "
+            "Each file is committed once; distinct files have no transactional rollback guarantee. "
+            + self.document_description
         )
 
 

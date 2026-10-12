@@ -19,50 +19,22 @@ class InteractiveProtocolError(RuntimeError):
 class InteractiveDefinition:
     behavior: str
     fields: Mapping[str, str]
-    first_fields: tuple[str, ...]
-    markers: Mapping[str, str]
 
     def configuration(self, name: str, schema: dict[str, Any]) -> dict[str, object]:
         properties = schema.get("properties", {})
         required = schema.get("required", [])
-        if not self.first_fields or len(set(self.first_fields)) != len(
-            self.first_fields
+        field = self.fields.get("document")
+        if (
+            self.behavior != "edit_file.v2"
+            or set(self.fields) != {"document"}
+            or set(properties) != {field}
+            or set(required) != {field}
+            or properties.get(field, {}).get("type") != "string"
         ):
             raise InteractiveProtocolError(
-                "first_fields must be ordered, nonempty and unique"
+                "XML edit behavior requires exactly one required document string"
             )
-        if any(field not in required for field in self.first_fields):
-            raise InteractiveProtocolError(
-                "All first_fields must be required schema properties"
-            )
-        roles = tuple(self.fields.values())
-        if len(set(roles)) != len(roles):
-            raise InteractiveProtocolError(
-                "Interactive roles must refer to distinct fields"
-            )
-        if self.behavior == "edit_file.v1":
-            if set(self.fields) != {"resource", "selection", "replacement"} or any(
-                field not in required
-                or properties.get(field, {}).get("type") != "string"
-                for field in roles
-            ):
-                raise InteractiveProtocolError(
-                    "Edit roles require three distinct required strings"
-                )
-            if self.fields["resource"] not in self.first_fields or any(
-                self.fields[role] in self.first_fields
-                for role in ("selection", "replacement")
-            ):
-                raise InteractiveProtocolError(
-                    "Edit selection/replacement must follow resource authorization"
-                )
-        return {
-            "name": name,
-            "behavior": self.behavior,
-            "fields": dict(self.fields),
-            "first_fields": list(self.first_fields),
-            "markers": dict(self.markers),
-        }
+        return {"name": name, "behavior": self.behavior, "fields": dict(self.fields)}
 
 
 def validate_interactive_tool(

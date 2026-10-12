@@ -2,10 +2,11 @@
 
 import pytest
 
-from exmekh_lib.config.file_editing import FILE_EDITING
+from exmekh_lib.core.models.interactive import InteractiveProtocolError
 from exmekh_lib.core.models.tool_hooks import ToolHooks
 from exmekh_lib.interfaces.tool_hook import AfterTool, BeforeTool, ToolArguments
 from tests.interactive_support import (
+    edit_arguments,
     enter,
     exit_skill,
     inspect,
@@ -38,8 +39,8 @@ def test_sdk_client_authorizes_and_executes_exactly_once(
             after_calls.append(result)
             return result
 
-    old = "  old" if operation == "edit" else FILE_EDITING.all_marker
-    new = FILE_EDITING.delete_marker if operation == "remove" else "LONGER new\r\n"
+    old = "  old" if operation == "edit" else "<all/>"
+    new = None if operation == "remove" else "LONGER new\r\n"
 
     def resume(body):
         assert set(body) == {"agentic"}
@@ -60,7 +61,7 @@ def test_sdk_client_authorizes_and_executes_exactly_once(
             (
                 "edit",
                 "edit-file",
-                {"path": "notes.txt", "old_text": old, "new_text": new},
+                edit_arguments("notes.txt", old, new),
             ),
             continuation="cont-edit",
         )
@@ -99,8 +100,7 @@ def test_sdk_client_authorizes_and_executes_exactly_once(
     [
         "midline",
         "overlap",
-        "marker",
-        "truncated_marker",
+        "malformed_xml",
         "hook_path",
         "hook_selection",
         "changed",
@@ -122,9 +122,9 @@ def test_mock_server_and_hooks_cannot_force_an_unsafe_file_mutation(
     class Before(BeforeTool):
         def handle(self, context):
             if attack == "hook_path":
-                return ToolArguments({**context.arguments, "path": "other.txt"})
+                return ToolArguments(edit_arguments("other.txt", "<all/>", "BAD"))
             if attack == "hook_selection":
-                return ToolArguments({**context.arguments, "old_text": "aa"})
+                return ToolArguments(edit_arguments("notes.txt", "aa", "BAD"))
             return None
 
     class Filter(AfterTool):
@@ -134,15 +134,15 @@ def test_mock_server_and_hooks_cannot_force_an_unsafe_file_mutation(
     old = {
         "midline": "fix",
         "overlap": "aa",
-        "marker": (" " + FILE_EDITING.all_marker),
-    }.get(attack, FILE_EDITING.all_marker)
+        "malformed_xml": "<all/> ",
+    }.get(attack, "<all/>")
 
     def resume(body):
         if attack == "filtered_read":
             assert body["agentic"]["interactive"]["reply"]["status"] == "reject"
             return {
                 "type": "interactive.rejected",
-                "version": 1,
+                "version": 2,
                 "continuation_id": "cont-edit",
                 "call_id": "edit",
                 "tool_name": "edit-file",
@@ -150,6 +150,8 @@ def test_mock_server_and_hooks_cannot_force_an_unsafe_file_mutation(
                 "code": "unread",
                 "message": "read first",
                 "output": [],
+                "edit_index": 1,
+                "exchange_id": "exchange-edit",
             }
         if attack == "changed":
             path.write_bytes(b"CONCURRENT")
@@ -162,13 +164,7 @@ def test_mock_server_and_hooks_cannot_force_an_unsafe_file_mutation(
             (
                 "edit",
                 "edit-file",
-                {
-                    "path": "notes.txt",
-                    "old_text": old,
-                    "new_text": ("\n" + FILE_EDITING.marker_prefix + "\n")
-                    if attack == "truncated_marker"
-                    else "BAD",
-                },
+                edit_arguments("notes.txt", old, "BAD"),
             ),
             continuation="cont-edit",
         )
@@ -183,6 +179,11 @@ def test_mock_server_and_hooks_cannot_force_an_unsafe_file_mutation(
     )
     node, server, provider = make_sdk_node(tmp_path, monkeypatch, steps, hooks=hooks)
     try:
+        if attack == "malformed_xml":
+            with pytest.raises(InteractiveProtocolError):
+                node.run("attack")
+            assert path.read_bytes() == original
+            return
         result = node.run("attack")
         assert path.read_bytes() == (
             b"CONCURRENT"

@@ -36,6 +36,8 @@ from exmekh_lib.providers.local import LocalProvider
 from tests.interactive_support import (
     CAPABILITIES,
     ScriptedServer,
+    edit_arguments,
+    edit_fragment,
     enter,
     exit_skill,
     make_sdk_node,
@@ -48,7 +50,7 @@ from tests.live.model_support import CacheTestTokenizer
 def cancelled():
     return {
         "type": "interactive.cancelled",
-        "version": 1,
+        "version": 2,
         "continuation_id": "cont-edit",
         "code": "cancelled",
         "message": "cancelled",
@@ -67,12 +69,7 @@ def test_invalid_interactive_metadata_is_rejected_at_definition_time(definition_
 
 @pytest.mark.parametrize("definition_kind", ["tool", "decorator"])
 def test_interactive_background_policy_is_rejected_at_definition_time(definition_kind):
-    interactive = InteractiveDefinition(
-        "edit_file.v1",
-        {"resource": "path", "selection": "old_text", "replacement": "new_text"},
-        ("path",),
-        {},
-    )
+    interactive = InteractiveDefinition("edit_file.v2", {"document": "edits"})
     with pytest.raises(
         ValueError, match="Interactive tools must execute synchronously"
     ):
@@ -118,11 +115,7 @@ def test_protocol_errors_cannot_dispatch_or_create_files(tmp_path, monkeypatch, 
     call = (
         "edit",
         "edit-file",
-        {
-            "path": "notes.txt",
-            "old_text": FILE_EDITING.all_marker,
-            "new_text": "unsafe",
-        },
+        edit_arguments("notes.txt", "<all/>", "unsafe"),
     )
     final = response(call, continuation="cont-edit")
     if attack == "changed_id":
@@ -135,11 +128,9 @@ def test_protocol_errors_cannot_dispatch_or_create_files(tmp_path, monkeypatch, 
     elif attack == "duplicate_call":
         final = response(call, call, continuation="cont-edit")
     elif attack == "coercion":
-        final["output"][0]["arguments"] = json.dumps({**call[2], "old_text": False})
+        final["output"][0]["arguments"] = json.dumps({"edits": False})
     elif attack == "duplicate_key":
-        final["output"][0]["arguments"] = (
-            json.dumps(call[2])[:-1] + ',"new_text":"other"}'
-        )
+        final["output"][0]["arguments"] = json.dumps(call[2])[:-1] + ',"edits":"other"}'
     elif attack == "no_acceptance":
         final.pop("interactive")
     if attack == "no_exchange":
@@ -178,7 +169,7 @@ def test_rejected_uninspected_call_is_replayed_without_orphan_outputs_and_recove
         assert "text" not in reply
         return {
             "type": "interactive.rejected",
-            "version": 1,
+            "version": 2,
             "continuation_id": "cont-edit",
             "call_id": "edit",
             "tool_name": "edit-file",
@@ -186,6 +177,8 @@ def test_rejected_uninspected_call_is_replayed_without_orphan_outputs_and_recove
             "code": "uninspected",
             "message": "inspect first",
             "output": [],
+            "edit_index": 1,
+            "exchange_id": "exchange-edit",
         }
 
     def after_inspection(body):
@@ -263,11 +256,7 @@ def test_disconnect_retries_exact_resume_payload_without_duplicating_the_edit(
             (
                 "edit",
                 "edit-file",
-                {
-                    "path": "notes.txt",
-                    "old_text": FILE_EDITING.all_marker,
-                    "new_text": "ONCE",
-                },
+                edit_arguments("notes.txt", "<all/>", "ONCE"),
             ),
             continuation="cont-edit",
         )
@@ -302,7 +291,7 @@ def test_disconnect_retries_exact_resume_payload_without_duplicating_the_edit(
 @pytest.mark.parametrize(
     "field,value",
     [
-        ("version", 2),
+        ("version", 1),
         ("model_supported", False),
         ("apis", ["chat_completions"]),
         ("model_syntax", "unsupported"),
@@ -328,53 +317,29 @@ def test_negotiation_requires_actual_model_and_behavior_support(
         server.client.close()
 
 
-def test_generic_roles_and_multiple_priority_fields_are_frozen_without_path_assumptions(
+def test_renamed_document_field_preserves_scope_return_and_exact_paths(
     tmp_path, monkeypatch
 ):
-    def edit(target: str, format: bool, replacement: str, selection: str):
+    def edit(document: str):
         return None
 
     tool = Tool(
         edit,
         name="renamed-edit",
         background_enabled=False,
-        interactive=InteractiveDefinition(
-            "edit_file.v1",
-            {
-                "resource": "target",
-                "selection": "selection",
-                "replacement": "replacement",
-            },
-            ("target", "format"),
-            {
-                "line": FILE_EDITING.line_family,
-                "all": FILE_EDITING.all_marker,
-                "delete": FILE_EDITING.delete_marker,
-            },
-        ),
+        interactive=InteractiveDefinition("edit_file.v2", {"document": "document"}),
     )
-    event = pause(
-        name="renamed-edit", fields={"target": 'quoted"\\name', "format": True}
-    )
+    path = 'quoted"\\\\name'
+    document = edit_fragment(path, "<all/>", "new")
 
     def resume(body):
         assert set(body) == {"agentic"}
         assert "operation" not in body["agentic"]
         return response(
-            (
-                "edit",
-                "renamed-edit",
-                {
-                    "target": 'quoted"\\name',
-                    "format": True,
-                    "selection": FILE_EDITING.all_marker,
-                    "replacement": "new",
-                },
-            ),
-            continuation="cont-edit",
+            ("edit", "renamed-edit", {"document": document}), continuation="cont-edit"
         )
 
-    server = ScriptedServer([event, resume])
+    server = ScriptedServer([pause(name="renamed-edit", path=path), resume])
     monkeypatch.setattr(LocalProvider, "_build_client", lambda self: server.client)
     provider = LocalProvider(
         "model",
@@ -388,7 +353,12 @@ def test_generic_roles_and_multiple_priority_fields_are_frozen_without_path_assu
             pass
 
         def prepare(self, event, definition):
-            assert definition["first_fields"] == ["target", "format"]
+            assert definition == {
+                "name": "renamed-edit",
+                "behavior": "edit_file.v2",
+                "fields": {"document": "document"},
+            }
+            assert event["request"]["edit_index"] == 1
             return {"status": "create"}
 
         def validate_completed(self, calls):
@@ -413,7 +383,7 @@ def test_generic_roles_and_multiple_priority_fields_are_frozen_without_path_assu
     request.interactive_handler = Handler()
     try:
         result = provider.call(request)
-        assert result.get_tool_calls()[0].get_arguments()["format"] is True
+        assert result.get_tool_calls()[0].get_arguments() == {"document": document}
         assert server.requests[0]["agentic"]["operation"] == "return"
         assert result.usage.total_tokens == 30
     finally:
@@ -428,11 +398,7 @@ def test_consumed_continuation_recovers_a_terminal_status_receipt(
         (
             "edit",
             "edit-file",
-            {
-                "path": "notes.txt",
-                "old_text": FILE_EDITING.all_marker,
-                "new_text": "ONCE",
-            },
+            edit_arguments("notes.txt", "<all/>", "ONCE"),
         ),
         continuation="cont-edit",
     )
@@ -445,7 +411,7 @@ def test_consumed_continuation_recovers_a_terminal_status_receipt(
         assert control["operation"] == "status" and "request_id" not in control
         return {
             "type": "interactive.status",
-            "version": 1,
+            "version": 2,
             "continuation_id": "cont-edit",
             "status": "completed",
             "result": final,
@@ -508,7 +474,7 @@ def test_steering_at_rejection_discards_earlier_complete_edits_and_recovery(
         node.steer("stop all edits")
         return {
             "type": "interactive.rejected",
-            "version": 1,
+            "version": 2,
             "continuation_id": "cont-edit",
             "call_id": "reject",
             "tool_name": "edit-file",
@@ -519,13 +485,11 @@ def test_steering_at_rejection_discards_earlier_complete_edits_and_recovery(
                 (
                     "edit",
                     "edit-file",
-                    {
-                        "path": "new.txt",
-                        "old_text": FILE_EDITING.all_marker,
-                        "new_text": "BAD",
-                    },
+                    edit_arguments("new.txt", "<all/>", "BAD"),
                 )
             )["output"],
+            "edit_index": 1,
+            "exchange_id": "next-exchange",
         }
 
     node, server, provider = make_sdk_node(
@@ -565,7 +529,7 @@ def test_recovery_inspection_stays_in_the_skill_that_requested_it(
     (tmp_path / "notes.txt").write_text("KEEP")
     rejected = {
         "type": "interactive.rejected",
-        "version": 1,
+        "version": 2,
         "continuation_id": "cont-edit",
         "call_id": "edit",
         "tool_name": "edit-file",
@@ -573,6 +537,8 @@ def test_recovery_inspection_stays_in_the_skill_that_requested_it(
         "code": "uninspected",
         "message": "inspect first",
         "output": exit_skill()["output"],
+        "edit_index": 1,
+        "exchange_id": "exchange-edit",
     }
     node, server, provider = make_sdk_node(
         tmp_path,
@@ -614,7 +580,7 @@ def test_logical_timeout_is_not_reset_after_the_pause(tmp_path, monkeypatch):
             def __iter__(self):
                 accepted = {
                     "type": "interactive.accepted",
-                    "version": 1,
+                    "version": 2,
                     "continuation_id": "cont-edit",
                 }
                 yield f"data: {json.dumps(accepted)}\n\n".encode()
@@ -648,11 +614,7 @@ def test_server_cannot_complete_an_edit_after_the_client_rejected_it(
         (
             "edit",
             "edit-file",
-            {
-                "path": "notes.txt",
-                "old_text": FILE_EDITING.all_marker,
-                "new_text": "BAD",
-            },
+            edit_arguments("notes.txt", "<all/>", "BAD"),
         ),
         continuation="cont-edit",
     )
@@ -689,11 +651,7 @@ def test_fragmented_sse_utf8_and_escaped_json_resume_the_same_call(
             (
                 "edit",
                 "edit-file",
-                {
-                    "path": filename,
-                    "old_text": FILE_EDITING.all_marker,
-                    "new_text": text,
-                },
+                edit_arguments(filename, "<all/>", text),
             ),
             continuation="cont-edit",
         )
@@ -719,35 +677,14 @@ def test_fragmented_sse_utf8_and_escaped_json_resume_the_same_call(
         server.client.close()
 
 
-def test_rejected_priority_values_preserve_json_types():
-    definition = {
-        "behavior": "edit_file.v1",
-        "first_fields": ["target", "flag"],
-    }
+@pytest.mark.parametrize("index", [True, 1.0, "1", 0, -1, 2])
+def test_pause_edit_index_has_strict_type_and_order(index):
     contract = InteractiveContract(
-        {"renamed": definition},
-        {
-            "renamed": {
-                "properties": {
-                    "target": {"type": "string"},
-                    "flag": {"type": "boolean"},
-                }
-            }
-        },
+        {"edit-file": {"behavior": "edit_file.v2", "fields": {"document": "edits"}}}
     )
-    event = pause()
-    event.update(tool_name="renamed")
-    event["request"]["values"] = {"target": "notes.txt", "flag": True}
-    contract.record_pause(event)
-    contract.record_reply(event, {"status": "reject"})
-    with pytest.raises(InteractiveProtocolError, match="does not match"):
-        contract.validate_interruption(
-            {
-                "call_id": "edit",
-                "tool_name": "renamed",
-                "values": {"target": "notes.txt", "flag": 1},
-            },
-        )
+    event = pause(edit_index=index)
+    with pytest.raises(InteractiveProtocolError):
+        contract.record_pause(event)
 
 
 def test_interrupted_record_cannot_diverge_from_its_saved_or_provider_content():
@@ -770,19 +707,14 @@ def test_interrupted_record_cannot_diverge_from_its_saved_or_provider_content():
     "outcome", ["rejected", "cancelled", "expired", "failed", "steered"]
 )
 def test_interrupted_stream_reports_final_usage_once(tmp_path, monkeypatch, outcome):
-    def edit(path: str, old_text: str, new_text: str):
+    def edit(edits: str):
         pytest.fail("Interrupted calls must never execute")
 
     tool = Tool(
         edit,
         name="edit-file",
         background_enabled=False,
-        interactive=InteractiveDefinition(
-            "edit_file.v1",
-            {"resource": "path", "selection": "old_text", "replacement": "new_text"},
-            ("path",),
-            {},
-        ),
+        interactive=InteractiveDefinition("edit_file.v2", {"document": "edits"}),
     )
     events = []
 
@@ -814,11 +746,7 @@ def test_interrupted_stream_reports_final_usage_once(tmp_path, monkeypatch, outc
             (
                 "edit",
                 "edit-file",
-                {
-                    "path": "notes.txt",
-                    "old_text": FILE_EDITING.all_marker,
-                    "new_text": "new",
-                },
+                edit_arguments("notes.txt", "<all/>", "new"),
             ),
             continuation="cont-edit",
         )
@@ -827,7 +755,7 @@ def test_interrupted_stream_reports_final_usage_once(tmp_path, monkeypatch, outc
             return complete
         return {
             "type": f"interactive.{outcome}",
-            "version": 1,
+            "version": 2,
             "continuation_id": "cont-edit",
             "call_id": "edit",
             "tool_name": "edit-file",
@@ -836,6 +764,8 @@ def test_interrupted_stream_reports_final_usage_once(tmp_path, monkeypatch, outc
             "message": outcome,
             "output": [],
             "usage": complete["usage"],
+            "edit_index": 1,
+            "exchange_id": "exchange-edit",
         }
 
     server = ScriptedServer([pause(), terminal], streaming=True)

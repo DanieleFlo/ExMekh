@@ -63,38 +63,42 @@ new scope; the error remains recoverable from the saved transcript/output.
 
 Use the harness execution and output tools for background work or saved reports.
 
-Use `edit-file(path, old_text, new_text)` for all text modifications. Inspect and
-then read an existing file first, including empty files. Keep both complete,
-successful results visible in this skill, with the same current content. Reads
-may select relevant ranges; an intervening unrelated tool is allowed. Cache IDs,
-summaries, filtered outputs and results removed by skill exit do not authorize
-edits. Missing inspection rejects the interrupted edit and triggers inspection;
-missing reading requires an explicit new read. Then make a new edit call.
+Use `edit-file(edits)` for all text modifications. Supply one exact XML document:
+`<edit path="file.txt"><old_text>old</old_text><new_text>new</new_text></edit>`.
+Append consecutive edit fragments for multiple files or selections. Inspect and then
+read each existing file first, including empty files. Keep both successful, complete
+results visible with unchanged content. Cache IDs, summaries, filtered outputs and
+results removed by skill exit do not authorize edits. Missing inspection rejects the
+whole call and triggers inspection; missing reading requires an explicit read and a
+new edit call. Missing files need no inspect/read; their parent must exist.
 
-Literal `old_text` must be nonempty, start at a physical line boundary (including
-indentation), and occur exactly once in the whole file, counting overlapping and
-mid-line occurrences. It may span lines and end mid-line. Supply exact characters
-and newline sequences; choose a larger block to disambiguate. `new_text` may be
-longer or empty; empty replacement removes the selected text, keeping the file.
+Literal old_text must be nonempty, start at a physical line boundary including
+indentation, and occur exactly once globally, counting overlapping and mid-line
+matches. Preserve exact CR/LF, spaces and intended newlines. Empty new_text removes
+selected text but keeps the file.
 
-Use the entire `old_text="{{config.FILE_EDITING.line_example}}"` to insert before line N. Valid lines
-are 1..L+1; L+1 appends, and an empty file permits only 1. Supply any required
-newlines yourself. Use `old_text="{{config.FILE_EDITING.all_marker}}"` to rewrite the whole content.
+Use `<all/>` as the sole old_text body to rewrite/create. Use
+`<line number="N"/>` as the sole old_text body to insert before physical line N
+(1..L+1; L+1 appends; an empty file permits 1). Include your own newlines.
 To delete an existing inspected/read file, use exactly
-`old_text="{{config.FILE_EDITING.all_marker}}", new_text="{{config.FILE_EDITING.delete_marker}}"`.
-Use the entire exact value: no space or newline before or after either marker, including
-framing newlines in native tool parameters. Empty replacement keeps the file.
-For a missing path, no inspection/read is needed: use
-`{{config.FILE_EDITING.all_marker}}` or `{{config.FILE_EDITING.first_line_marker}}` to create,
-even with empty new_text; the parent directory must already exist.
+`<edit path="file.txt"><old_text><all/></old_text><new_text><delete/></new_text></edit>`.
+For extremely long selections only, an empty
+`<old_text start_line="N" end_line="M"></old_text>` selects inclusive physical lines.
 
-The entire `{{config.FILE_EDITING.reserved_prefix}}` family, including its incomplete
-stem `{{config.FILE_EDITING.marker_prefix}}`, is reserved: no surrounding whitespace, embedded,
-unknown, repeated or wrong-field markers, including markers in ordinary source
-text. There is no implicit escaping. Existing encoding/BOM and untouched newline
-sequences are preserved; new files use exact UTF-8 without an added newline.
-The server authorizes path before generating old/new. Local checks after hooks
-reject changed paths, changed snapshots and invalid arguments without writes.
-Finish with the relevant findings, file paths, line ranges and recoverable output
-IDs. Forward full reports only when the caller needs their contents immediately;
-otherwise preserve the IDs to avoid filling the parent context.
+Use XML entities or CDATA for literal markup. Escaped/CDATA command tags are
+ordinary file content. The final `</new_text>` before each
+`</edit>` closes its replacement; earlier bare `</new_text>` is literal. A literal
+`</new_text></edit>` pair requires entities or CDATA.
+There is no automatic repair, stripping, escaping or newline normalization.
+
+Repeated paths and aliases refer to the same initial snapshot. Do not overlap
+replacements, insert inside a replacement or insert twice at the same position.
+Whole-file rewrite/deletion must be that file's only edit. The server pauses before
+the `>` after each path and controls generation. The client checks the complete
+post-hook document, permissions, evidence, ranges, conflicts and concurrent changes
+before writing. Each canonical file is committed once, preserving encoding/BOM.
+Distinct files have no transactional rollback guarantee; inspect partial results.
+New files use exact UTF-8 without an added newline.
+
+Finish with relevant findings, paths, ranges and recoverable output IDs. Forward
+full reports only when the caller needs their contents immediately.

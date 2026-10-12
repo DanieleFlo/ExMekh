@@ -151,7 +151,7 @@ class LocalProvider(Provider):
             if self._has_interactive_tools(request):
                 if self._api != "responses":
                     raise ProviderRequestRejectedError(
-                        "Interactive tools require the DS4 Responses v1 API"
+                        "Interactive tools require the DS4 Responses v2 API"
                     )
                 api_adapter = InteractiveResponseOpenAI(
                     client=self.client,

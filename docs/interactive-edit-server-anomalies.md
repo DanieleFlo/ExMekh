@@ -294,3 +294,25 @@ The [review](../../docs/architecture/clean-code-review-20261012.md) and
 [test report](../../docs/performance/interactive-edit-clean-review-20261012.json)
 record the results and retained failures. Client protocol migration and
 filesystem policy remain separate responsibilities.
+
+## Client XML v2 follow-up — 12 October
+
+The client now implements the code-free XML v2 contract: one document argument,
+per-edit authorization and shared initial snapshots, post-hook document validation,
+canonical aliases, numeric ranges/conflicts and filesystem commits. Legacy marker
+commands and sanitation have been removed. They no longer appear in model-facing
+tool/skill instructions or live generation tests.
+
+Target-only client qualification initially recorded 7 passes and 7 failures. After
+explicit application instructions and deterministic sampling it recorded 11 passes
+and 3 failures, including the now-retired legacy-string case. The remaining deletion
+and empty-file failures concern generated operation intent: valid rewrites or
+recovery loops rather than a client parser/masking escape. The report keeps both
+attempts, calls and exact file bytes. Final results and qualification limits are in
+the [client review](../../docs/architecture/client-xml-edit-v2-20261012.md).
+
+Final code-free client run: 11 passed, 2 failed out of 13 current cases; legacy
+marker generation is absent. Deletion and empty-file intent remain failing.
+MTP creation/alias/rejection qualification passes all four cases, with 15 actual
+MTP cycles and five accepted draft tokens. Offline client tests pass 2,588 cases
+with 100% statement/branch coverage; the frontend passes 938 tests including Playwright.

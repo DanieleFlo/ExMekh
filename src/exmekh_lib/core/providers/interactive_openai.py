@@ -1,4 +1,4 @@
-"""DS4 v1 transport using the configured OpenAI SDK's custom JSON/SSE API."""
+"""DS4 v2 transport using the configured OpenAI SDK's custom JSON/SSE API."""
 
 from copy import deepcopy
 from time import monotonic, sleep
@@ -59,7 +59,6 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
         scope = extra.get("agentic", {})
         tools = request.get_tools()
         definitions: dict[str, dict[str, Any]] = {}
-        schemas: dict[str, dict[str, Any]] = {}
         for wire_tool in payload.get("tools", []):
             tool = tools.get_tool(wire_tool["name"]) if tools is not None else None
             if (
@@ -67,9 +66,8 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
                 and tool.interactive is not None
                 and tool.name in scope.get("allowed_tools", [])
             ):
-                schemas[tool.name] = wire_tool["parameters"]
                 definitions[tool.name] = tool.interactive.configuration(
-                    tool.name, schemas[tool.name]
+                    tool.name, wire_tool["parameters"]
                 )
         if not definitions:
             return super().call(request)
@@ -82,13 +80,13 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
         body["agentic"] = {
             **scope,
             "interactive": {
-                "version": 1,
+                "version": 2,
                 "operation": "configure",
                 "request_id": uuid4().hex,
                 "tools": list(definitions.values()),
             },
         }
-        contract = InteractiveContract(definitions, schemas)
+        contract = InteractiveContract(definitions)
         return self._logical_call(request, body, scope, contract, snapshot_limit)
 
     def _negotiate(self) -> int:
@@ -106,14 +104,14 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
             raise InteractiveProtocolError("Malformed interactive capability lists")
         if (
             type(interactive.get("version")) is not int
-            or interactive["version"] != 1
+            or interactive["version"] != 2
             or interactive.get("model_supported") is not True
             or interactive.get("model_syntax") not in interactive.get("syntaxes", [])
             or "responses" not in interactive.get("apis", [])
-            or "edit_file.v1" not in interactive.get("behaviors", [])
+            or "edit_file.v2" not in interactive.get("behaviors", [])
         ):
             raise InteractiveProtocolError(
-                "Server/model does not support interactive Responses v1; no ordinary-call fallback is permitted"
+                "Server/model does not support interactive Responses v2; no ordinary-call fallback is permitted"
             )
         limits = interactive.get("limits", {})
         if not isinstance(limits, dict):
@@ -239,6 +237,13 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
         mapped = self._map_output(output, request, result)
         if rejected:
             contract.validate_rejected_calls(mapped.get_tool_calls() or [])
+            if (
+                mapped.get_tool_calls()
+                and not request.require_interactive_handler().cancellation_requested()
+            ):
+                request.require_interactive_handler().validate_completed(
+                    mapped.get_tool_calls() or []
+                )
         else:
             contract.validate_calls(mapped.get_tool_calls() or [])
         record = {
@@ -281,7 +286,7 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
     ) -> ProviderResponse:
         record = {
             "type": "interactive.cancelled",
-            "version": 1,
+            "version": 2,
             "continuation_id": continuation_id,
             "code": "steered",
             "message": "Steering invalidated this inference before dispatch",
@@ -315,7 +320,7 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
         scope: dict[str, Any], operation: str, continuation_id: str, **values: Any
     ) -> dict[str, Any]:
         control = {
-            "version": 1,
+            "version": 2,
             "operation": operation,
             "continuation_id": continuation_id,
             **values,
@@ -361,7 +366,8 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
         deadline: float,
         scope: dict[str, Any],
     ) -> dict[str, Any]:
-        for attempt in range(3):
+        attempt = 0
+        while True:
             remaining = deadline - monotonic()
             if remaining <= 0:
                 raise InteractiveProtocolError("Interactive logical-call timeout")
@@ -379,11 +385,11 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
                     receipt, request, contract, max(0, deadline - monotonic())
                 )
             except (openai.APIConnectionError, openai.APITimeoutError):
-                if attempt == 2:
+                attempt += 1
+                if attempt >= 3:
                     raise
                 # Retry the identical configure/resume request_id and payload. The
                 # server's receipt prevents regeneration even if the reply was lost.
-        raise AssertionError("unreachable")
 
     def _post(
         self,

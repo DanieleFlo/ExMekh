@@ -91,6 +91,39 @@ def _open_parent_directory(work_root: Path, target: Path) -> int:
         raise
 
 
+def validate_edit_target(
+    work_root: Path,
+    original_path: str,
+    target: Path,
+    snapshot: FileSnapshot | None,
+    content: bytes | None,
+) -> None:
+    """Recheck canonical path, initial bytes, identity and platform permissions."""
+    if resolve_edit_target(work_root, original_path) != target:
+        raise FileInspectionError(FILE_EDITING.changed)
+    if snapshot is None:
+        try:
+            target.lstat()
+        except FileNotFoundError:
+            pass
+        else:
+            raise FileInspectionError(FILE_EDITING.changed)
+    elif not snapshot.matches(edit_snapshot(work_root, original_path)):
+        raise FileInspectionError(FILE_EDITING.changed)
+    if not {os.open, os.unlink, os.link, os.rename}.issubset(os.supports_dir_fd):
+        raise FileInspectionError(
+            "This platform lacks descriptor-relative atomic edit operations; use a supported filesystem/runtime."
+        )
+    if snapshot is not None and content is not None and not os.access(target, os.W_OK):
+        raise FileInspectionError(
+            "File is not writable; check permissions before retrying."
+        )
+    if not os.access(target.parent, os.W_OK | os.X_OK):
+        raise FileInspectionError(
+            "Parent directory is not writable/searchable; check permissions before retrying."
+        )
+
+
 def commit_edit(
     work_root: Path,
     original_path: str,
@@ -101,27 +134,9 @@ def commit_edit(
     """Commit after an exact-byte and identity check. External writers must cooperate."""
 
     def check_current() -> None:
-        if resolve_edit_target(work_root, original_path) != target:
-            raise FileInspectionError(FILE_EDITING.changed)
-        if snapshot is None:
-            try:
-                target.lstat()
-            except FileNotFoundError:
-                return
-            raise FileInspectionError(FILE_EDITING.changed)
-        current = edit_snapshot(work_root, original_path)
-        if not snapshot.matches(current):
-            raise FileInspectionError(FILE_EDITING.changed)
+        validate_edit_target(work_root, original_path, target, snapshot, content)
 
     check_current()
-    if not {os.open, os.unlink, os.link, os.rename}.issubset(os.supports_dir_fd):
-        raise FileInspectionError(
-            "This platform lacks descriptor-relative atomic edit operations; use a supported filesystem/runtime."
-        )
-    if snapshot is not None and content is not None and not os.access(target, os.W_OK):
-        raise FileInspectionError(
-            "File is not writable; check permissions before retrying."
-        )
     parent_fd = _open_parent_directory(work_root, target)
     parent_identity = os.fstat(parent_fd)
 
