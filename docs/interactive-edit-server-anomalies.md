@@ -163,3 +163,134 @@ and both isolated deletion-marker checks fail as described in S4. The
 these observations from a manual server restart, unsupported native attachments
 and the macro workflow's context-window failure. No marker anomaly is cleared
 by passing deterministic client guards.
+
+## Server redesign audit: coded edit documents v2 (2026-10-11)
+
+The server redesign is separate from the client implementation described above.
+Before the change, a temporary C probe using the actual server recognizers
+confirmed acceptance of all three truncated S2 replacement strings and the
+ordinary S4 literal. For the diagnostic enum, a leading newline was accepted
+as a prefix while the resulting framed value could not close. This establishes
+a prefix/closure inconsistency, not the complete root cause of the recorded
+budget failure.
+
+V2 replaces markers with a single document string. Each edit path pauses before
+its server-generated six-digit code attribute. The server prefills that attribute
+after the snapshot reply, and the new_text closing delimiter must carry the
+same code. This is an XML-inspired dialect, not standard XML. A bare
+`</new_text>` in new_text is literal; CDATA can contain even the exact coded
+delimiter. Unknown or truncated command tags cannot become ordinary commands.
+Finite enum/const document schemas are rejected before generation because they
+cannot describe the server-owned random attribute. The emitted normal Responses
+metadata is also checked against the actual installed SDK.
+
+Deterministic server regressions cover code ownership/matching, truncated
+commands, newlines, native delimiter and UTF-8 fragmentation, CDATA/entities,
+global selection ambiguity, sampling frontiers, repeated paths, rejection at
+the second element, retries, cancellation and final frozen-resource validation.
+The XML suite, ordinary server suite and ASan/UBSan passed. A server-produced
+Response passed OpenAI SDK validation.
+
+S1/S4 remain intent-fulfillment diagnostics: valid literal rewriting instead of
+deletion is not a masking bypass. V2 does not infer deletion from similar text,
+repair delimiters or promise to prevent every model choice. Numeric range
+semantics, filesystem evidence, aliases, overlapping edits and writes remain
+client responsibilities, even when invalid ranges pass server generation.
+
+Live CUDA/Qwen27 testing found an additional server prefix defect: partial
+all/line commands were pruned for empty/create snapshots even though their
+complete forms passed. This forced the model toward range syntax. The server
+now accepts those prefixes byte by byte, with permanent regressions. A later
+MTP run reached a no-valid-token failure; review identified impossible native
+escape continuations in structural/coded delimiters and at snapshot EOF, plus
+old_text entity prefixes that could not match the next source scalar. These
+are now rejected before commitment. Invalid UTF-8 and completed non-XML scalar
+prefixes are rejected in paths and bodies, including CDATA.
+
+The recorded v2 HTTP matrix runs 13 tests with two failing deletion subcases
+(existing empty and nonempty files), no errors and no skips. All other cases
+pass, including creation, streaming with a literal bare new_text close, line
+insertion, deliberately invalid client-owned ranges, multiple elements,
+repeated snapshots, rejection, retries and cancellation. The bounded attack
+checks two completed constrained calls across three attempts; its one timeout
+at the experiment deadline is recorded separately and is not a successful call.
+The final scalar-hardening build repeats creation, streaming/collision and
+multiple elements successfully.
+
+Full-vocabulary optimized-mask/oracle comparisons report 486 checks with zero
+divergences in the matrix and another 128 with zero divergences in the final
+smoke run. MTP is active (50 accepted drafts in the matrix). These are mask
+comparisons, not proof of target/MTP numerical inference equivalence.
+
+Deletion still produces valid Python replacement text instead of the command.
+At the first new_text frontier the unmasked argmax is token 198 (newline),
+which is already allowed; a delete operation probe is also allowed. The
+mask therefore does not exclude delete or force a different first token in
+this observation. This does not identify the complete model/KV root cause.
+Keep the live deletion assertions failing and do not rewrite the result.
+
+The [v2 wire contract](../../docs/agentic/interactive-calls.md),
+[qualification with profiling](../../docs/performance/interactive-edit-xml-v2-qualification-20261011.json)
+and [actual synthetic request/response bodies](../../docs/performance/interactive-edit-xml-v2-wire-20261011.json)
+record the server evidence. The temporary v2 instance was stopped and its
+continuations/checkpoints released. Configurations and interruption replay
+accept v2 only. The client migration remains pending; these server-only tests
+do not qualify filesystem dispatch or end-to-end deletion.
+
+The [complete test report](../../docs/performance/interactive-edit-xml-v2-full-tests-20261011.md)
+adds all locally available library/agent live suites and target/MTP/batch XML
+repetitions. Failures and skips are retained in the linked JSON, including
+resource-limited and incorrectly configured MTP attempts.
+
+The batch stream found a server prefix-viability defect: unfinished XML markup
+followed by a partial native tool-delimiter escape could leave the decoder
+with no valid token. The server now rejects that fallback before commitment,
+including unfinished entities and UTF-8 scalars; native regressions cover the
+actual DSML prefix as well as Qwen transport. ASan/UBSan and make test pass.
+
+The library live run records 30 passes, 16 failures and one skip. Nine failures
+request the obsolete v1 negotiation contract, six send native file content
+instead of text/images, and one exceeds server context capacity. These belong
+to client protocol migration, document conversion and history sizing. The
+skipped browser bootstrap was run separately and passed. Agent live semantic
+recovery checks still have three missing-feedback failures; malformed saved
+output IDs/placeholders depend on client state and are not XML mask checks.
+The portable typed SDK matrix passed all 20 cases on Qwen27; the actual Flash
+model remains unverified.
+
+Deletion and exact-coded-close CDATA intent assertions remain live failures
+when the model chooses valid alternative content. A vision resident-cache
+fixture also failed at a text continuation before its forced eviction checks;
+server cache routing/replay remains unqualified by that run. The positive
+image-conditioned tool-result 409/reuse test passed. None of these failures
+is silently converted to a pass or excluded from the evidence.
+
+After the prefix correction, the streaming/restore/collision case passes in
+target, active MTP and four-session batch. Each full 16-method XML run retains
+three failed intent assertions (CDATA and two deletion subcases). MTP also
+records a 300-second creation timeout while repeating bare new_text closes as
+literal content. The three phase profiles have 601/919/598 mask comparisons
+respectively, zero divergences and no no-valid-token errors; MTP accepts 58
+constrained drafts. Those facts do not turn the intent failures into passes.
+
+On 12 October the default v2 framing removes code and its server prefill.
+The model resumes after authorization by emitting >. Each edit ends with
+the final </new_text> immediately preceding </edit>; earlier bare new_text
+closes remain literal content. A literal complete </new_text></edit> sequence
+still needs CDATA or XML entities. The client parser must use this rule per
+element, preserving resource authorization and filesystem validation. Reports
+dated 11 October describe the former coded framing and are historical evidence.
+
+The 12 October clean-code review moves snapshot ownership into the document
+and keeps suffix-index details behind matching APIs. The runtime consumes one
+sampling policy and no longer carries the obsolete edit prefill callback.
+Its complete live run exposed another server prefix defect: on a snapshot
+containing aaa, the decoder admitted aa<![CDATA[]]>]] and then had no valid
+token. Pending ]/]] bytes outside CDATA were omitted from logical old_text
+matching. They are now checked against the snapshot before commitment;
+native regressions also retain valid literal bracket selections.
+
+The [review](../../docs/architecture/clean-code-review-20261012.md) and
+[test report](../../docs/performance/interactive-edit-clean-review-20261012.json)
+record the results and retained failures. Client protocol migration and
+filesystem policy remain separate responsibilities.

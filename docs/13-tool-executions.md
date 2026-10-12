@@ -98,9 +98,11 @@ Per disattivare esplicitamente la gestione in un tool applicativo:
 from exmekh_lib.core.agents.tools import deep_tool
 from exmekh_lib.core.models.tool import Tool
 
+
 @deep_tool(description="Perform an operation inline", background_enabled=False)
 def operation(work_root, value: str) -> str:
     return value
+
 
 inline_tool = Tool(lambda value: value, name="inline", background_enabled=False)
 ```

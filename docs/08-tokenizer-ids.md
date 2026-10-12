@@ -94,13 +94,11 @@ class OtherTokenizer(SequentialTokenizer):
     def _load_vocabulary_tokens(self) -> Iterable[str]:
         return ["house", "yellow", "green"]  # Load the real vocabulary here.
 
-    def count_tokens(self, text: str) -> int:
-        ...  # Use this model's text tokenizer.
+    def count_tokens(self, text: str) -> int: ...  # Use this model's text tokenizer.
 
     def truncate_text(
         self, text: str, start_tokens: int, end_tokens: int = 0
-    ) -> str:
-        ...  # Preserve the requested portions of the original text.
+    ) -> str: ...  # Preserve the requested portions of the original text.
 ```
 
 Implement `Tokenizer` directly only when providing your own ID allocation logic.

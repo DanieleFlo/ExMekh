@@ -117,7 +117,12 @@ To customize only the hooks of a selected bundled tool, pass `tool_hooks`.
 from typing import Any
 
 from exmekh_lib.core.agents.node import DefaultCapabilities, ToolHooks
-from exmekh_lib.interfaces.tool_hook import AfterTool, BeforeTool, ToolArguments, ToolContext
+from exmekh_lib.interfaces.tool_hook import (
+    AfterTool,
+    BeforeTool,
+    ToolArguments,
+    ToolContext,
+)
 
 
 class NormalizeCommand(BeforeTool):

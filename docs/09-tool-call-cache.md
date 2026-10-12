@@ -33,19 +33,23 @@ blocco `with`.
 ```python
 from pathlib import Path
 
-from exmekh_lib.capabilities.tools.search_tool_outputs.tool_call_search import ToolCallSearch
+from exmekh_lib.capabilities.tools.search_tool_outputs.tool_call_search import (
+    ToolCallSearch,
+)
 from exmekh_lib.core.cache import SessionCache, ToolCallRecord
 
 with SessionCache(Path(".exmekh_lib/examples")) as session:
     cache = session.node("analysis")
-    cache.store(ToolCallRecord(
-        name="read_file",
-        id="output-001",
-        tool_call_id="call-001",
-        args={"path": "README.md"},
-        result={"text": "Project documentation"},
-        skill_path="/review",
-    ))
+    cache.store(
+        ToolCallRecord(
+            name="read_file",
+            id="output-001",
+            tool_call_id="call-001",
+            args={"path": "README.md"},
+            result={"text": "Project documentation"},
+            skill_path="/review",
+        )
+    )
 
     record = cache.get("output-001")
     assert record is not None

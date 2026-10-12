@@ -100,9 +100,13 @@ content = [
     "Inspect this screenshot.",
     ImagesUserMessage([image]),
     TextsUserMessage(["Compare it with the attached notes.", "Keep this order."]),
-    FilesUserMessage([
-        DocumentUserMessage(Path("notes.txt").read_bytes(), "notes", "txt", "text/plain"),
-    ]),
+    FilesUserMessage(
+        [
+            DocumentUserMessage(
+                Path("notes.txt").read_bytes(), "notes", "txt", "text/plain"
+            ),
+        ]
+    ),
     "Explain any differences.",
 ]
 response = client.call(ClientRequest(UserMessage(content)))
@@ -151,7 +155,9 @@ except ProviderRequestRejectedError as error:
     print(str(error))
 
 # The rejected document is no longer in this client's history.
-response = client.call(ClientRequest(UserMessage("Continue with the previous context.")))
+response = client.call(
+    ClientRequest(UserMessage("Continue with the previous context."))
+)
 ```
 
 ### 2. Continuing After Tool Execution
@@ -199,7 +205,10 @@ When streaming is enabled in `ClientRequest` or provider calls, a `ProviderEvent
 - `ERROR`: Emitted if an error occurs during streaming.
 
 ```python
-from exmekh_lib.core.models.provider_stream_event import ProviderStreamEvent, ProviderStreamEventType
+from exmekh_lib.core.models.provider_stream_event import (
+    ProviderStreamEvent,
+    ProviderStreamEventType,
+)
 from exmekh_lib.interfaces.event_handler import ProviderEventHandler
 
 
@@ -211,11 +220,13 @@ class PrintProviderEvents(ProviderEventHandler):
             print(event.content, end="", flush=True)
 
 
-response = client.call(ClientRequest(
-    UserMessage("Explain general relativity"),
-    streaming=True,
-    on_event=PrintProviderEvents(),
-))
+response = client.call(
+    ClientRequest(
+        UserMessage("Explain general relativity"),
+        streaming=True,
+        on_event=PrintProviderEvents(),
+    )
+)
 ```
 
 ### Reasoning override for one request

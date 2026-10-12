@@ -103,21 +103,31 @@ calls and are kept out of the model's tool schema.
 from pathlib import Path
 from typing import Any
 from exmekh_lib.interfaces.tool_hook import (
-    AfterTool, BeforeTool, ToolArguments, ToolContext, ToolResponse,
+    AfterTool,
+    BeforeTool,
+    ToolArguments,
+    ToolContext,
+    ToolResponse,
 )
+
 
 class NormalizeInput(BeforeTool):
     def handle(self, context: ToolContext) -> ToolArguments | ToolResponse | None:
         # context also contains work_root and the conversation history so far.
-        return ToolArguments({**context.arguments, "query": context.arguments["query"].strip()})
+        return ToolArguments(
+            {**context.arguments, "query": context.arguments["query"].strip()}
+        )
+
 
 class FormatOutput(AfterTool):
     def handle(self, context: ToolContext, result: Any) -> Any:
         return {"answer": result}
 
-@deep_tool(description="Search the project", before=NormalizeInput(), after=FormatOutput())
-def search(work_root: Path, query: str) -> str:
-    ...
+
+@deep_tool(
+    description="Search the project", before=NormalizeInput(), after=FormatOutput()
+)
+def search(work_root: Path, query: str) -> str: ...
 ```
 
 `BeforeTool.handle` returns `None` to continue unchanged, `ToolArguments` to
@@ -164,7 +174,9 @@ available when an explicit serialized representation is needed.
 When an LLM requests a tool call, `exmekh_lib` handles argument extraction and type conversion through `OpenAIChatCompletionToolMapper` and `OpenAIChatCompletionValueCoercer`:
 
 ```python
-from exmekh_lib.core.providers.openai_chat_completion_tool_mapper import OpenAIToolMapper
+from exmekh_lib.core.providers.openai_chat_completion_tool_mapper import (
+    OpenAIToolMapper,
+)
 
 # Resolve matching tool from model response payload
 tool_call = assistant_message.get_tool_calls()[0]
