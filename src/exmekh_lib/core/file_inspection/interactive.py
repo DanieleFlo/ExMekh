@@ -54,8 +54,11 @@ class FileInteractiveCalls:
     def cancellation_requested(self) -> bool:
         return self._cancelled() or (
             self._history_snapshot is not None
-            and self._history_snapshot
-            != [message.message_dump() for message in self._history()]
+            and (
+                self._scope_ids() != self._scope_snapshot
+                or self._history_snapshot
+                != [message.message_dump() for message in self._history()]
+            )
         )
 
     def set_cancellation_check(self, cancelled: Callable[[], bool]) -> None:

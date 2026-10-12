@@ -374,6 +374,15 @@ class Tool:
         copied.background_enabled = False
         return copied
 
+    def with_execution_policy_of(self, original: Tool) -> Self:
+        """Copy with the original's interactive contract and synchronous requirements."""
+        copied = copy(self)
+        if not original.background_enabled or original.interactive is not None:
+            copied.background_enabled = False
+        if original.interactive is not None:
+            copied.interactive = original.interactive
+        return copied
+
     def with_description_suffix(self, suffix: str) -> Self:
         description = " ".join(part for part in (self.description, suffix) if part)
         return self.with_description(description)

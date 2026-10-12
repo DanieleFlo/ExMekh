@@ -56,6 +56,12 @@ class EditApproval:
             "line_count": len(physical_lines(self.text)),
         }
 
+    def require_evidence(self, evidence: tuple[InspectionEvidence, ...]) -> None:
+        """Existing snapshots require current, visible inspect/read authorization."""
+        if self.snapshot is not None:
+            assert self.snapshot.content is not None
+            require_edit_evidence(self.target, self.snapshot.content, evidence)
+
 
 class EditPrerequisiteError(FileInspectionError):
     def __init__(self, code: str, message: str) -> None:
@@ -155,6 +161,31 @@ class _PreparedEdit:
     resources: tuple[str, ...]
     content: bytes | None
 
+    @property
+    def resource(self) -> str:
+        return self.approval.resource
+
+    def validate(self, work_root: Path) -> None:
+        """Preflight every alias before any canonical file is changed."""
+        for resource in self.resources:
+            validate_edit_target(
+                work_root,
+                resource,
+                self.approval.target,
+                self.approval.snapshot,
+                self.content,
+            )
+
+    def commit(self, work_root: Path, evidence: tuple[InspectionEvidence, ...]) -> None:
+        self.approval.require_evidence(evidence)
+        commit_edit(
+            work_root,
+            self.resource,
+            self.approval.target,
+            self.approval.snapshot,
+            self.content,
+        )
+
     def result(self, work_root: Path) -> dict[str, object]:
         return {
             "path": self.approval.target.relative_to(work_root.resolve()).as_posix(),
@@ -191,9 +222,7 @@ def _prepare_edits(
         ):
             raise FileInspectionError("Aliases must share the same initial snapshot.")
         snapshot = approval.snapshot
-        if snapshot is not None:
-            assert snapshot.content is not None
-            require_edit_evidence(approval.target, snapshot.content, evidence)
+        approval.require_evidence(evidence)
         replacement = select_replacements(
             approval.text,
             tuple(element for element, _ in group),
@@ -237,33 +266,14 @@ def edit_files(work_root: Path, edits: str) -> dict[str, object]:
         prepared = _prepare_edits(document, approvals, evidence)
         # Validate all resources before the first write, then recheck each commit.
         for item in prepared:
-            for resource in item.resources:
-                validate_edit_target(
-                    work_root,
-                    resource,
-                    item.approval.target,
-                    item.approval.snapshot,
-                    item.content,
-                )
+            item.validate(work_root)
         for item in prepared:
             try:
                 # Steering can arrive while waiting on locks or between commits.
-                if callable(evidence_source):
-                    current_evidence = evidence_source()
-                    if item.approval.snapshot is not None:
-                        assert item.approval.snapshot.content is not None
-                        require_edit_evidence(
-                            item.approval.target,
-                            item.approval.snapshot.content,
-                            current_evidence,
-                        )
-                commit_edit(
-                    work_root,
-                    item.approval.resource,
-                    item.approval.target,
-                    item.approval.snapshot,
-                    item.content,
+                current_evidence = (
+                    evidence_source() if callable(evidence_source) else evidence_source
                 )
+                item.commit(work_root, current_evidence)
             except (FileInspectionError, OSError, UnicodeError, ValueError) as error:
                 if not committed:
                     raise
@@ -271,7 +281,7 @@ def edit_files(work_root: Path, edits: str) -> dict[str, object]:
                     "ok": False,
                     "error_kind": "partial_file_edit",
                     "error": str(error),
-                    "failed_path": item.approval.resource,
+                    "failed_path": item.resource,
                     "files": committed,
                 }
             committed.append(item.result(work_root))

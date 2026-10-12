@@ -12,6 +12,8 @@ from pydantic import BaseModel
 
 from exmekh_lib.config.file_editing import FILE_EDITING
 from exmekh_lib.core.cache.user_message_codec import deserialize_user_message
+from exmekh_lib.core.file_inspection.interactive import FileInteractiveCalls
+from exmekh_lib.core.file_inspection.runtime import FileToolRuntime
 from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
 from exmekh_lib.core.models.interactive import (
     InteractiveDefinition,
@@ -80,6 +82,28 @@ def test_no_implicit_acceptance_and_no_exchange_reuse():
         state.record_pause(pause(edit_index=2))
     with pytest.raises(InteractiveProtocolError, match="omitted"):
         state.validate_completed_calls([])
+
+
+def test_duplicate_exchange_does_not_change_authorized_paths_or_indices():
+    state = contract()
+    state.record_pause(pause("first.txt"))
+    with pytest.raises(InteractiveProtocolError, match="exchange"):
+        state.record_pause(pause("unapproved.txt", edit_index=2))
+    state.record_pause(pause("second.txt", edit_index=2, exchange="second-exchange"))
+    state.validate_completed_calls(
+        [
+            ToolCall(
+                "edit",
+                FunctionCall(
+                    "edit-file",
+                    {
+                        "edits": edit_arguments("first.txt", "<all/>", "A")["edits"]
+                        + edit_arguments("second.txt", "<all/>", "B")["edits"]
+                    },
+                ),
+            )
+        ]
+    )
 
 
 @pytest.mark.parametrize(
@@ -528,6 +552,74 @@ def test_raw_transport_objects_and_final_sse_lines_are_bounded_and_closed(
         else:
             list(transport.events({}, 1))
     finally:
+        server.client.close()
+
+
+@pytest.mark.parametrize(
+    "wire,content_type",
+    [
+        (b"{", "application/json"),
+        (b"\xff", "application/json"),
+        (b"data: {\n\n", "text/event-stream"),
+        (b"data: \xff\n\n", "text/event-stream"),
+        (b"data: \xe2", "text/event-stream"),
+    ],
+)
+def test_malformed_http_and_sse_are_protocol_errors_without_inference_retry(
+    tmp_path, monkeypatch, wire, content_type
+):
+    malformed = httpx.Response(
+        200, content=wire, headers={"content-type": content_type}
+    )
+    provider, server, request = make_provider(
+        tmp_path, monkeypatch, [pause(), malformed, terminal()]
+    )
+    try:
+        with pytest.raises(InteractiveProtocolError, match="Malformed"):
+            provider.call(request)
+        assert [
+            body["agentic"]["interactive"]["operation"] for body in server.requests
+        ] == ["configure", "resume", "cancel"]
+        assert malformed.is_closed
+    finally:
+        provider.get_session().close()
+        server.client.close()
+
+
+@pytest.mark.parametrize("streaming", [False, True])
+def test_scope_changed_at_a_pause_cancels_before_sending_a_snapshot(
+    tmp_path, monkeypatch, streaming
+):
+    scope = ("node", "first-opening")
+
+    def change_scope(body):
+        nonlocal scope
+        scope = ("node", "reopened-skill")
+        return pause()
+
+    handler = FileInteractiveCalls(
+        FileToolRuntime(), tmp_path, lambda: (), lambda: False, lambda: scope
+    )
+    provider, server, request = make_provider(
+        tmp_path,
+        monkeypatch,
+        [change_scope, terminal()],
+        handler=handler,
+        streaming=streaming,
+    )
+    server.streaming = streaming
+    try:
+        result = provider.call(request)
+        assert not result.get_tool_calls()
+        assert [
+            body["agentic"]["interactive"]["operation"] for body in server.requests
+        ] == ["configure", "cancel"]
+        assert all(
+            "reply" not in body["agentic"]["interactive"] for body in server.requests
+        )
+        assert not (tmp_path / "notes.txt").exists()
+    finally:
+        provider.get_session().close()
         server.client.close()
 
 

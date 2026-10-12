@@ -8,6 +8,7 @@ from exmekh_lib.core.models.assistant_message import (
     FunctionCall,
     ToolCall,
 )
+from exmekh_lib.core.models.interactive import InteractiveDefinition
 from exmekh_lib.core.models.tool import (
     AttachedToolResult,
     CalledTool,
@@ -67,6 +68,47 @@ def test_tool_creates_copy_with_description_suffix() -> None:
     described_tool = tool.with_description_suffix("Available in every skill.")
 
     assert described_tool.description == "Search docs. Available in every skill."
+
+
+@pytest.mark.parametrize("original_mode", ["background", "synchronous", "interactive"])
+@pytest.mark.parametrize("replacement_background", [False, True])
+def test_execution_policy_copies_keep_contracts_without_enabling_background(
+    original_mode, replacement_background
+):
+    class SpecializedTool(Tool):
+        pass
+
+    definition = (
+        InteractiveDefinition("edit_file.v2", {"document": "query"})
+        if original_mode == "interactive"
+        else None
+    )
+    original = Tool(
+        documented_tool,
+        background_enabled=original_mode == "background",
+        interactive=definition,
+    )
+    replacement = SpecializedTool(
+        documented_tool,
+        name="replacement",
+        description="Replacement",
+        background_enabled=replacement_background,
+        cache_result=False,
+    )
+    composed = replacement.with_execution_policy_of(original)
+    assert isinstance(composed, SpecializedTool)
+    assert composed is not replacement
+    assert composed.get_name() == "replacement"
+    assert composed.get_description() == "Replacement"
+    assert composed.execute(query="value") == "value"
+    assert not composed.cache_result
+    assert composed.interactive is definition
+    assert composed.background_enabled == (
+        original_mode == "background" and replacement_background
+    )
+    assert replacement.background_enabled == replacement_background
+    assert replacement.interactive is None
+    assert original.background_enabled == (original_mode == "background")
 
 
 @pytest.mark.parametrize("name", ["", "contains spaces", "x" * 65])

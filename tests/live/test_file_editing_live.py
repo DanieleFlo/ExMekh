@@ -21,11 +21,16 @@ from exmekh_lib.core.file_inspection.runtime import FileToolRuntime
 from exmekh_lib.core.models.edit_document import EditDocument
 from exmekh_lib.core.models.interactive import InteractiveProtocolError
 from exmekh_lib.core.models.provider_request import ProviderRequest
+from exmekh_lib.core.models.provider_stream_event import (
+    ProviderStreamEvent,
+    ProviderStreamEventType,
+)
 from exmekh_lib.core.models.reasoning_effort import ReasoningEffortLMH
 from exmekh_lib.core.models.system_message import SystemMessage
 from exmekh_lib.core.models.tools import Tools
 from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.core.providers import interactive_openai
+from exmekh_lib.interfaces.event_handler import ProviderEventHandler
 from exmekh_lib.providers.local import LocalProvider
 from tests.interactive_support import edit_fragment
 from tests.live.model_support import CacheTestTokenizer, LiveModelProvider
@@ -449,3 +454,74 @@ def test_live_rejection_of_second_edit_prevents_entire_call(
     assert (tmp_path / "existing.txt").read_bytes() == b"KEEP"
     assert not (tmp_path / "new.txt").exists()
     assert len(handler.pending_inspections()) == 1
+
+
+@pytest.mark.parametrize("streaming", [False, True])
+def test_live_scope_change_at_pause_cancels_without_authorizing_a_resource(
+    tmp_path, edit_provider, streaming, record_property
+):
+    _, loaded = editing_node(edit_provider, tmp_path)
+    edit = next(tool for tool in loaded.tools if tool.name == "edit-file")
+    scope = ("node", "first-opening")
+    pauses = []
+
+    class ChangeScope(ProviderEventHandler):
+        def handle(self, event: ProviderStreamEvent) -> None:
+            nonlocal scope
+            if (
+                event.type == ProviderStreamEventType.INTERACTIVE
+                and event.interactive is not None
+                and event.interactive.get("type") == "interactive.await_input"
+            ):
+                pauses.append(event.interactive)
+                scope = ("node", "reopened-skill")
+
+    arguments = {"edits": edit_fragment("notes.txt", "<all/>", "BAD")}
+    history = [
+        SystemMessage("Return only the exact requested edit-file call."),
+        UserMessage(
+            "Create notes.txt using this exact argument: " + json.dumps(arguments)
+        ),
+    ]
+    handler = FileInteractiveCalls(
+        FileToolRuntime(), tmp_path, lambda: history, lambda: False, lambda: scope
+    )
+    exchanges = []
+    request = ProviderRequest(
+        history,
+        tools=Tools([edit]),
+        tool_choice="required",
+        stream=streaming,
+        on_event=ChangeScope(),
+        extra={
+            "agentic": {
+                "agent_context_id": f"xml-scope-{uuid4().hex}",
+                "allowed_tools": ["edit-file"],
+                "allowed_skills": [],
+            },
+            "max_output_tokens": 512,
+            "temperature": 0,
+        },
+    )
+    request.interactive_handler = RecordingHandler(handler, exchanges)
+    result = LocalProvider.call(edit_provider, request)
+    records = [message.record for message in result.interruptions]
+    (tmp_path / "live-scope-cancellation.json").write_text(
+        json.dumps(
+            {
+                "requested": arguments,
+                "pauses": pauses,
+                "exchanges": exchanges,
+                "interruptions": records,
+            },
+            ensure_ascii=True,
+            indent=2,
+        )
+    )
+    assert len(pauses) == 1
+    assert not exchanges
+    assert not result.get_tool_calls()
+    assert any(record["type"] == "interactive.cancelled" for record in records)
+    assert handler.cancellation_requested()
+    assert not (tmp_path / "notes.txt").exists()
+    record_property("cancelled_pauses", len(pauses))

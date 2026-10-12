@@ -57,6 +57,10 @@ class InteractiveTransport:
                             yield value
                 elif line.startswith("data:"):
                     data.append(line[5:].lstrip(" "))
+        except (json.JSONDecodeError, UnicodeError) as error:
+            raise InteractiveProtocolError(
+                "Malformed interactive response encoding or JSON"
+            ) from error
         except httpx2.TimeoutException as error:
             raise APITimeoutError(request=response.http_request) from error
         except httpx2.TransportError as error:

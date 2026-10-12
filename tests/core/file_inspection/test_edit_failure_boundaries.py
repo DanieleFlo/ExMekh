@@ -205,6 +205,20 @@ def test_runtime_rejects_unknown_behavior_duplicate_indices_invalid_resources_an
         handler.validate_completed([])
 
 
+def test_changed_scope_invalidates_a_pause_even_with_unchanged_history(tmp_path):
+    scope = ("node", "first-opening")
+    handler = FileInteractiveCalls(
+        FileToolRuntime(), tmp_path, lambda: (), lambda: False, lambda: scope
+    )
+    assert not handler.cancellation_requested()
+    handler.begin()
+    assert not handler.cancellation_requested()
+    scope = ("node", "reopened-skill")
+    assert handler.cancellation_requested()
+    with pytest.raises(InteractiveProtocolError, match="steering"):
+        handler.validate_completed([])
+
+
 def test_missing_file_alias_reuses_creation_snapshot_until_a_file_appears(tmp_path):
     handler = FileInteractiveCalls(
         FileToolRuntime(), tmp_path, lambda: (), lambda: False, lambda: ()

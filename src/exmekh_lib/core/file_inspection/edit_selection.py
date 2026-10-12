@@ -1,25 +1,12 @@
 """Plan non-overlapping XML edits against one immutable physical-text snapshot."""
 
-import re
 from dataclasses import dataclass
 
 from exmekh_lib.config.file_editing import FILE_EDITING
 from exmekh_lib.core.models.edit_document import EditElement
 
 from .errors import FileInspectionError
-
-
-def line_starts(text: str) -> list[int]:
-    if not text:
-        return []
-    return [
-        0,
-        *(
-            match.end()
-            for match in re.finditer(r"\r\n|\r|\n", text)
-            if match.end() < len(text)
-        ),
-    ]
+from .lines import SourceLines
 
 
 def _line_number(digits: str, maximum: int) -> int:
@@ -39,7 +26,7 @@ class _Replacement:
     text: str
 
 
-def _selection(text: str, element: EditElement, starts: list[int]) -> _Replacement:
+def _selection(text: str, element: EditElement, lines: SourceLines) -> _Replacement:
     selection = element.selection
     replacement = element.replacement
     assert replacement is not None
@@ -48,22 +35,27 @@ def _selection(text: str, element: EditElement, starts: list[int]) -> _Replaceme
     if selection.kind == "line":
         if selection.start_line.startswith("0"):
             raise FileInspectionError(FILE_EDITING.range_error)
-        line = _line_number(selection.start_line, len(starts) + 1)
-        offset = starts[line - 1] if line <= len(starts) else len(text)
+        line = _line_number(selection.start_line, lines.physical_count + 1)
+        offset = lines.start_offset(line)
         return _Replacement(offset, offset, replacement)
     if selection.kind == "range":
-        start = _line_number(selection.start_line, len(starts))
-        end = _line_number(selection.end_line, len(starts))
+        start = _line_number(selection.start_line, lines.physical_count)
+        end = _line_number(selection.end_line, lines.physical_count)
         if start > end:
             raise FileInspectionError(FILE_EDITING.range_error)
         return _Replacement(
-            starts[start - 1],
-            starts[end] if end < len(starts) else len(text),
+            lines.start_offset(start),
+            lines.start_offset(end + 1),
             replacement,
         )
     old = selection.text
     offset = text.find(old)
-    if not old or offset < 0 or text.find(old, offset + 1) >= 0 or offset not in starts:
+    if (
+        not old
+        or offset < 0
+        or text.find(old, offset + 1) >= 0
+        or not lines.is_line_start(offset)
+    ):
         raise FileInspectionError(FILE_EDITING.selection_error)
     return _Replacement(offset, offset + len(old), replacement)
 
@@ -105,8 +97,8 @@ def select_replacements(
             if not exists or element.selection.kind != "all":
                 raise FileInspectionError(FILE_EDITING.creation_required)
             return None
-    starts = line_starts(text)
-    replacements = [_selection(text, element, starts) for element in elements]
+    lines = SourceLines(text)
+    replacements = [_selection(text, element, lines) for element in elements]
     for index, replacement in enumerate(replacements):
         if any(_conflict(replacement, other) for other in replacements[:index]):
             raise FileInspectionError(FILE_EDITING.conflict_error)

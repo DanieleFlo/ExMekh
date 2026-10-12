@@ -126,11 +126,7 @@ class _DefaultCapabilitiesComposer:
             elif isinstance(replacement, ExitTool):
                 exit_tools.append(replacement)
             elif isinstance(replacement, Tool):
-                tools.append(
-                    self._tool_composer.preserve_execution_policy(
-                        original_tools[name], replacement
-                    )
-                )
+                tools.append(replacement.with_execution_policy_of(original_tools[name]))
             else:
                 raise TypeError(
                     f"Override for '{name}' must be resolved before composition"

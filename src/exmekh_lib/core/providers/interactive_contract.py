@@ -3,6 +3,7 @@
 import json
 from collections.abc import Mapping
 from copy import deepcopy
+from dataclasses import dataclass, replace
 from typing import Any
 
 from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
@@ -19,6 +20,36 @@ def decode_object_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
+@dataclass(frozen=True, slots=True)
+class _AuthorizedEditCall:
+    tool_name: str
+    paths: tuple[str, ...] = ()
+    exchange_id: str = ""
+
+    def with_pause(
+        self, name: str, path: str, index: int, exchange_id: str
+    ) -> "_AuthorizedEditCall":
+        if self.tool_name != name or index != len(self.paths) + 1:
+            raise InteractiveProtocolError(
+                "Edit indices must be consecutive within the same call"
+            )
+        return replace(self, paths=(*self.paths, path), exchange_id=exchange_id)
+
+    def matches_call(self, name: str, document: EditDocument) -> bool:
+        return self.tool_name == name and self.paths == tuple(
+            element.path for element in document.elements
+        )
+
+    def matches_interruption(self, result: dict[str, Any]) -> bool:
+        return (
+            self.tool_name == result.get("tool_name")
+            and result.get("values") == {"path": self.paths[-1]}
+            and type(result.get("edit_index")) is int
+            and result["edit_index"] == len(self.paths)
+            and result.get("exchange_id") == self.exchange_id
+        )
+
+
 class InteractiveContract:
     """Own the authorization state of one logical call, independently of HTTP."""
 
@@ -28,8 +59,7 @@ class InteractiveContract:
     ) -> None:
         self._definitions = deepcopy(definitions)
         self._continuation_id: str | None = None
-        self._frozen: dict[str, tuple[str, list[str]]] = {}
-        self._last_exchange: dict[str, str] = {}
+        self._frozen: dict[str, _AuthorizedEditCall] = {}
         self._exchanges: set[str] = set()
         self._rejected_call_id: str | None = None
 
@@ -109,32 +139,19 @@ class InteractiveContract:
             raise InteractiveProtocolError(
                 "Pause requires a path and positive edit_index"
             )
-        previous = self._frozen.get(event["call_id"])
-        if previous is None:
-            previous = (name, [])
-        if previous[0] != name or index != len(previous[1]) + 1:
-            raise InteractiveProtocolError(
-                "Edit indices must be consecutive within the same call"
-            )
+        previous = self._frozen.get(event["call_id"], _AuthorizedEditCall(name))
+        authorized = previous.with_pause(
+            name, values["path"], index, event["exchange_id"]
+        )
         if event["exchange_id"] in self._exchanges:
             raise InteractiveProtocolError("Duplicate/consumed interactive exchange")
         self._exchanges.add(event["exchange_id"])
-        previous[1].append(values["path"])
-        self._frozen[event["call_id"]] = previous
-        self._last_exchange[event["call_id"]] = event["exchange_id"]
+        self._frozen[event["call_id"]] = authorized
 
     def validate_interruption(self, result: dict[str, Any]) -> None:
         identifier = result.get("call_id")
         previous = self._frozen.get(identifier) if isinstance(identifier, str) else None
-        if (
-            not isinstance(identifier, str)
-            or previous is None
-            or previous[0] != result.get("tool_name")
-            or result.get("values") != {"path": previous[1][-1]}
-            or type(result.get("edit_index")) is not int
-            or result["edit_index"] != len(previous[1])
-            or result.get("exchange_id") != self._last_exchange[identifier]
-        ):
+        if previous is None or not previous.matches_interruption(result):
             raise InteractiveProtocolError(
                 "Rejected call does not match the suspended edit"
             )
@@ -212,12 +229,7 @@ class InteractiveContract:
                 raise InteractiveProtocolError(
                     f"Invalid interactive document: {error}"
                 ) from error
-            if (
-                prior is None
-                or prior[0] != call.get_name()
-                or tuple(element.path for element in document.elements)
-                != tuple(prior[1])
-            ):
+            if prior is None or not prior.matches_call(call.get_name(), document):
                 raise InteractiveProtocolError(
                     "Complete interactive call has no matching frozen authorizations"
                 )
