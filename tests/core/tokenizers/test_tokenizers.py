@@ -87,6 +87,16 @@ def test_cache_reused_without_source_and_session_shared(tmp_path):
     assert first.generate_id() == "2_2_a"
 
 
+def test_id_vocabulary_is_filtered_reused_and_does_not_reserve_ids(tmp_path):
+    tokenizer = SampleTokenizer(tmp_path, ("a", "B", "2", "a", " a", "a_b"))
+    vocabulary = tokenizer.get_id_vocabulary()
+    assert vocabulary == ("2", "B", "a")
+    assert tokenizer.get_id_vocabulary() is vocabulary
+    assert tokenizer.loads == 1
+    assert not list(tmp_path.glob(f"*/{CACHE_FORMAT.temporary_folder}"))
+    assert tokenizer.generate_id() == "2_2_2"
+
+
 def test_concurrent_instances_do_not_repeat_ids(tmp_path):
     instances = [SampleTokenizer(tmp_path, tuple("abcdef")) for _ in range(8)]
     with ThreadPoolExecutor(max_workers=8) as pool:

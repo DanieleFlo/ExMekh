@@ -64,6 +64,13 @@ class SequentialTokenizer(Tokenizer):
                 ).hexdigest()
                 self._tokens = tokens
 
+    def get_id_vocabulary(self) -> tuple[str, ...]:
+        """Return immutable ID tokens without opening a session or reserving IDs."""
+        if self._tokens is None:
+            self.initialize()
+        assert self._tokens is not None
+        return self._tokens
+
     def get_session(self) -> SessionCache:
         """Access or create the shared runtime SessionCache for this tokenizer."""
         if self._tokens is None:
