@@ -5,17 +5,13 @@ from typing import Literal
 
 from exmekh_lib.config.reasoning import MATH
 from exmekh_lib.core.agents.tools.decorator import deep_tool
-from exmekh_lib.core.reasoning_tools.math import MathInputError
+from exmekh_lib.core.reasoning_tools.math import MathInputError, calculate
 from exmekh_lib.utils.tool_errors import missing_dependency
 
 
 @deep_tool(
     name="calculate",
-    description=(
-        "Compute bounded symbolic or numerical expressions: simplify, evaluate, "
-        "solve, differentiate, integrate, determinant, inverse, or eigenvalues. "
-        "Expressions use arithmetic and common named functions only."
-    ),
+    description=(MATH.description),
 )
 def run(
     work_root: Path,
@@ -38,8 +34,6 @@ def run(
 ) -> dict[str, object]:
     del work_root
     try:
-        from exmekh_lib.core.reasoning_tools.math import calculate
-
         return calculate(
             operation,
             expression,

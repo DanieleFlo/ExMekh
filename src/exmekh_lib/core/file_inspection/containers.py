@@ -11,6 +11,8 @@ from pathlib import PurePosixPath, PureWindowsPath
 
 from PIL import Image
 
+from exmekh_lib.config.file_inspection import FILE_INSPECTION_TEXT
+
 from .models import Analysis, RegionIndex
 
 
@@ -30,9 +32,7 @@ def analyze_zip(raw: bytes, index: RegionIndex) -> Analysis:
         if len(members) > index.settings.max_archive_entries:
             index.mark_truncated()
         if expanded > index.settings.max_expanded_bytes:
-            result.warnings.append(
-                "Declared expanded size exceeds the configured limit; no members were extracted."
-            )
+            result.warnings.append(FILE_INSPECTION_TEXT.archive_declared_size_warning)
     return result
 
 
@@ -44,9 +44,7 @@ def analyze_tar(raw: bytes, index: RegionIndex) -> Analysis:
     if content is None:
         result.status = "skipped_limit"
         index.mark_truncated()
-        result.warnings.append(
-            "Decompressed archive exceeds the configured byte limit; scan skipped."
-        )
+        result.warnings.append(FILE_INSPECTION_TEXT.archive_decompression_warning)
         return result
     with tarfile.open(fileobj=io.BytesIO(content), mode="r|") as archive:
         for member in archive:
@@ -71,9 +69,7 @@ def analyze_tar(raw: bytes, index: RegionIndex) -> Analysis:
 def _mark_partial_archive(result: Analysis) -> None:
     result.index.mark_truncated()
     result.status = "skipped_limit"
-    result.warnings.append(
-        "Archive scan stopped at its entry or expanded-size limit; totals are partial."
-    )
+    result.warnings.append(FILE_INSPECTION_TEXT.archive_partial_warning)
 
 
 def unsafe_member_name(name: str) -> bool:
@@ -97,9 +93,7 @@ def analyze_image(raw: bytes, index: RegionIndex) -> Analysis:
             # Header-only inspection: no pixel decoding, frame scan, EXIF, or OCR.
             if image.width * image.height > index.settings.max_image_pixels:
                 result.status = "skipped_limit"
-                result.warnings.append(
-                    "Image dimensions exceed the configured pixel limit."
-                )
+                result.warnings.append(FILE_INSPECTION_TEXT.image_dimensions_warning)
             else:
                 result.details["animated"] = bool(getattr(image, "is_animated", False))
     return result
@@ -119,5 +113,5 @@ def _tar_content(raw: bytes, maximum: int) -> bytes | None:
         with decompressor:
             content = decompressor.read(maximum + 1)
     except lzma.LZMAError as error:
-        raise ValueError("Invalid XZ archive data.") from error
+        raise ValueError(FILE_INSPECTION_TEXT.invalid_xz) from error
     return content if len(content) <= maximum else None

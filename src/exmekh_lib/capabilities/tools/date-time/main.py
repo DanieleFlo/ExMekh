@@ -14,14 +14,7 @@ from exmekh_lib.core.reasoning_tools.date_time import (
 
 @deep_tool(
     name="date-time",
-    description=(
-        "Read the current time (now), convert ISO 8601 dates/datetimes to an IANA "
-        "timezone (convert), add a signed elapsed duration (add), or calculate "
-        f"other minus value (difference). timezone defaults to {DATE_TIME.default_timezone} and also "
-        "interprets inputs without an offset; date-only inputs mean midnight. "
-        "Use explicit offsets for ambiguous local times. amount and unit control "
-        "addition; unit controls the difference result. A day is 24 elapsed hours."
-    ),
+    description=(DATE_TIME.description),
 )
 def run(
     work_root: Path,
@@ -42,7 +35,7 @@ def run(
             "ok": False,
             "error_kind": "missing_dependency",
             "error": str(error),
-            "hint": "Install the ExMekh-Lib wheel with its declared tzdata dependency in this environment.",
+            "hint": DATE_TIME.dependency_hint,
         }
     except DateTimeInputError as error:
         return {"ok": False, "error_kind": "invalid_date_time", "error": str(error)}

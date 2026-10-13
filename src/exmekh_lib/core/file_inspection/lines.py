@@ -3,6 +3,8 @@
 import re
 from bisect import bisect_right
 
+from exmekh_lib.config.file_inspection import FILE_INSPECTION_TEXT
+
 
 class SourceLines:
     """Own physical line positions, including the insertion point at EOF."""
@@ -19,7 +21,7 @@ class SourceLines:
     def start_offset(self, line: int) -> int:
         """Return a physical line start, or EOF for physical_count + 1."""
         if not 1 <= line <= self.physical_count + 1:
-            raise ValueError("Physical line is outside the source")
+            raise ValueError(FILE_INSPECTION_TEXT.physical_line_outside_source)
         return self._starts[line - 1] if line <= self.physical_count else self._length
 
     def is_line_start(self, character_offset: int) -> bool:

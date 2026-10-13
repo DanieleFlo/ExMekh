@@ -10,7 +10,10 @@ import pytest
 from exmekh_lib.config.file_editing import FILE_EDITING
 from exmekh_lib.core.agents.node import DefaultCapabilities, Node
 from exmekh_lib.core.file_inspection import editing
-from exmekh_lib.core.file_inspection.edit_filesystem import resolve_edit_target
+from exmekh_lib.core.file_inspection.edit_filesystem import (
+    new_file,
+    resolve_edit_target,
+)
 from exmekh_lib.core.file_inspection.edit_selection import select_replacements
 from exmekh_lib.core.file_inspection.editing import (
     approve_edit,
@@ -57,12 +60,11 @@ def test_document_element_limit_has_no_truncation(monkeypatch):
 
 def test_empty_selections_and_missing_interactive_context_cannot_write(tmp_path):
     with pytest.raises(FileInspectionError):
-        select_replacements("", (), exists=False)
+        select_replacements("", ())
     with pytest.raises(FileInspectionError, match="snapshot exchange"):
         edit_files(tmp_path, edit_fragment("x", "<all/>", "BAD"))
-    document = EditDocument.parse(edit_fragment("x", "literal", "BAD"))
-    with pytest.raises(FileInspectionError, match="Creation"):
-        select_replacements("", document.elements, exists=False)
+    with pytest.raises(FileInspectionError, match="existing file"):
+        approve_edit(tmp_path, "missing.txt", ())
 
 
 def test_unsupported_root_formats_and_decoded_text_are_not_creation(
@@ -109,45 +111,44 @@ def test_decoded_utf8_size_and_result_encoding_limits_are_distinct(
         file_edit_context((approval,), evidence),
         pytest.raises(FileInspectionError, match="Result"),
     ):
-        edit_files(tmp_path, edit_fragment(path.name, "<all/>", "LONG"))
+        edit_files(tmp_path, edit_fragment(path.name, approval.text, "LONG"))
 
 
 def test_inconsistent_alias_authorizations_cannot_be_combined(tmp_path):
-    approval = approve_edit(tmp_path, "new.txt", ())
+    (tmp_path / "new.txt").write_text("KEEP")
+    evidence = evidence_for(tmp_path, "new.txt")
+    approval = approve_edit(tmp_path, "new.txt", evidence)
     different = replace(approval, text="unapproved")
     with (
-        file_edit_context((approval, different), ()),
+        file_edit_context((approval, different), evidence),
         pytest.raises(FileInspectionError, match="Aliases"),
     ):
         edit_files(
             tmp_path,
-            edit_fragment("new.txt", '<line number="1"/>', "A")
-            + edit_fragment("new.txt", '<line number="1"/>', "B"),
+            edit_fragment("new.txt", "KEEP", "A")
+            + edit_fragment("new.txt", "KEEP", "B"),
         )
-    assert not (tmp_path / "new.txt").exists()
+    assert (tmp_path / "new.txt").read_text() == "KEEP"
 
 
 @pytest.mark.parametrize("kind", ["platform", "parent_permissions"])
 def test_preflight_rejects_platform_and_directory_permissions(
     tmp_path, monkeypatch, kind
 ):
-    approval = approve_edit(tmp_path, "new.txt", ())
     if kind == "platform":
         monkeypatch.setattr(os, "supports_dir_fd", set())
     else:
         monkeypatch.setattr(os, "access", lambda *_: False)
-    with file_edit_context((approval,), ()), pytest.raises(FileInspectionError):
-        edit_files(tmp_path, edit_fragment("new.txt", "<all/>", "BAD"))
+    with pytest.raises(FileInspectionError):
+        new_file(tmp_path, "new.txt", "BAD")
     assert not (tmp_path / "new.txt").exists()
 
 
 def test_nested_directory_creation_uses_directory_descriptors(tmp_path):
     (tmp_path / "nested" / "folder").mkdir(parents=True)
-    approval = approve_edit(tmp_path, "nested/folder/new.txt", ())
-    with file_edit_context((approval,), ()):
-        result = edit_files(tmp_path, edit_fragment(approval.resource, "<all/>", "NEW"))
+    result = new_file(tmp_path, "nested/folder/new.txt", "NEW")
     assert result["ok"]
-    assert (tmp_path / approval.resource).read_bytes() == b"NEW"
+    assert (tmp_path / "nested/folder/new.txt").read_bytes() == b"NEW"
 
 
 def test_disappearing_parent_is_rejected_during_resolution(tmp_path, monkeypatch):
@@ -165,7 +166,6 @@ def test_disappearing_parent_is_rejected_during_resolution(tmp_path, monkeypatch
 def test_parent_identity_is_rechecked_before_publication(tmp_path, monkeypatch):
     parent = tmp_path / "parent"
     parent.mkdir()
-    approval = approve_edit(tmp_path, "parent/new.txt", ())
     fsync = os.fsync
 
     def move_parent(descriptor):
@@ -175,10 +175,9 @@ def test_parent_identity_is_rechecked_before_publication(tmp_path, monkeypatch):
 
     monkeypatch.setattr(os, "fsync", move_parent)
     with (
-        file_edit_context((approval,), ()),
         pytest.raises(FileInspectionError, match="changed"),
     ):
-        edit_files(tmp_path, edit_fragment("parent/new.txt", "<all/>", "BAD"))
+        new_file(tmp_path, "parent/new.txt", "BAD")
     assert not (parent / "new.txt").exists()
     assert not (tmp_path / "original-parent" / "new.txt").exists()
     assert not list((tmp_path / "original-parent").iterdir())
@@ -195,9 +194,9 @@ def test_runtime_rejects_unknown_behavior_duplicate_indices_invalid_resources_an
     with pytest.raises(InteractiveProtocolError):
         handler.prepare(pause(), {"behavior": "unknown"})
     with pytest.raises(InteractiveProtocolError):
-        handler.prepare(pause(edit_index=2), {"behavior": "edit_file.v2"})
+        handler.prepare(pause(edit_index=2), {"behavior": "edit_file.v3"})
     assert (
-        handler.prepare(pause("../outside.txt"), {"behavior": "edit_file.v2"})["status"]
+        handler.prepare(pause("../outside.txt"), {"behavior": "edit_file.v3"})["status"]
         == "reject"
     )
     cancelled = True
@@ -219,25 +218,16 @@ def test_changed_scope_invalidates_a_pause_even_with_unchanged_history(tmp_path)
         handler.validate_completed([])
 
 
-def test_missing_file_alias_reuses_creation_snapshot_until_a_file_appears(tmp_path):
+def test_edit_rejects_missing_file_without_creating_or_inspecting_it(tmp_path):
     handler = FileInteractiveCalls(
         FileToolRuntime(), tmp_path, lambda: (), lambda: False, lambda: ()
     )
     handler.begin()
-    definition = {"behavior": "edit_file.v2"}
-    assert handler.prepare(pause("new.txt"), definition) == {"status": "create"}
-    assert handler.prepare(pause("./new.txt", edit_index=2), definition) == {
-        "status": "create"
-    }
-    (tmp_path / "new.txt").write_text("CONCURRENT")
-    reply = handler.prepare(pause("new.txt", edit_index=3), definition)
+    reply = handler.prepare(pause("new.txt"), {"behavior": "edit_file.v3"})
     assert reply["status"] == "reject"
-    with (
-        handler.execution_context("edit"),
-        pytest.raises(FileInspectionError, match="snapshot exchange"),
-    ):
-        edit_files(tmp_path, edit_fragment("new.txt", "<all/>", "BAD"))
-    assert (tmp_path / "new.txt").read_text() == "CONCURRENT"
+    assert reply["code"] == "invalid_resource"
+    assert handler.pending_inspections() == ()
+    assert not (tmp_path / "new.txt").exists()
 
 
 def test_runtime_tool_override_keeps_xml_behavior_and_synchronous_execution(tmp_path):
@@ -260,6 +250,8 @@ def test_runtime_tool_override_keeps_xml_behavior_and_synchronous_execution(tmp_
                 "inspect-file",
                 "read-file",
                 "edit-file",
+                "new-file",
+                "delete-file",
                 "exit_agent",
             },
             overrides={"edit-file": Tool(replacement, name="edit-file")},
@@ -268,4 +260,4 @@ def test_runtime_tool_override_keeps_xml_behavior_and_synchronous_execution(tmp_
     loaded = node.load_capabilities(work_root=tmp_path)
     tool = next(tool for tool in loaded.tools if tool.name == "edit-file")
     assert not tool.background_enabled
-    assert tool.interactive.behavior == "edit_file.v2"
+    assert tool.interactive.behavior == "edit_file.v3"

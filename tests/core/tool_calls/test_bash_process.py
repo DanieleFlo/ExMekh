@@ -6,13 +6,13 @@ import psutil
 import pytest
 
 from exmekh_lib.capabilities.tools.bash import bash_process
-from exmekh_lib.capabilities.tools.bash.bash_process import _BashProcess
+from exmekh_lib.capabilities.tools.bash.bash_process import BashProcess
 
 
 def test_cancellation_before_launch_prevents_process_creation(tmp_path, monkeypatch):
     launch = MagicMock()
     monkeypatch.setattr(bash_process.subprocess, "Popen", launch)
-    process = _BashProcess("printf never", tmp_path, "bash")
+    process = BashProcess("printf never", tmp_path, "bash")
 
     assert process.cancel() is True
     with pytest.raises(RuntimeError, match="cancelled before launch"):
@@ -23,7 +23,7 @@ def test_cancellation_before_launch_prevents_process_creation(tmp_path, monkeypa
 def test_missing_process_pipes_fail_explicitly(tmp_path, monkeypatch):
     child = SimpleNamespace(stdout=None, stderr=None, poll=lambda: 0)
     monkeypatch.setattr(bash_process.subprocess, "Popen", lambda *args, **kw: child)
-    process = _BashProcess("printf test", tmp_path, "bash")
+    process = BashProcess("printf test", tmp_path, "bash")
 
     with pytest.raises(RuntimeError, match="did not provide stdout and stderr"):
         process.run()
@@ -34,7 +34,7 @@ def test_pipe_read_failure_is_reported_after_process_exit(tmp_path, monkeypatch)
     stderr = io.BytesIO()
     child = SimpleNamespace(stdout=stdout, stderr=stderr, wait=lambda: 0)
     monkeypatch.setattr(bash_process.subprocess, "Popen", lambda *args, **kw: child)
-    process = _BashProcess("printf test", tmp_path, "bash")
+    process = BashProcess("printf test", tmp_path, "bash")
 
     with pytest.raises(OSError):
         process.run()
@@ -42,7 +42,7 @@ def test_pipe_read_failure_is_reported_after_process_exit(tmp_path, monkeypatch)
 
 
 def test_cancellation_returns_false_when_process_has_exited(tmp_path):
-    process = _BashProcess("printf test", tmp_path, "bash")
+    process = BashProcess("printf test", tmp_path, "bash")
     process._process = SimpleNamespace(poll=lambda: 0)
 
     assert process.cancel() is False
@@ -54,7 +54,7 @@ def test_windows_cancellation_waits_only_after_confirmed_kill(
 ):
     monkeypatch.setattr(bash_process, "os", SimpleNamespace(name="nt"))
     wait = MagicMock()
-    process = _BashProcess("printf test", tmp_path, "bash")
+    process = BashProcess("printf test", tmp_path, "bash")
     process._process = SimpleNamespace(poll=lambda: None, wait=wait)
     monkeypatch.setattr(process, "_kill_windows_tree", lambda child: killed)
 
@@ -78,9 +78,9 @@ def test_windows_tree_disappearance_is_handled(
 
     if alive_after_lookup:
         with pytest.raises(psutil.NoSuchProcess):
-            _BashProcess._kill_windows_tree(child)
+            BashProcess._kill_windows_tree(child)
     else:
-        assert _BashProcess._kill_windows_tree(child) is False
+        assert BashProcess._kill_windows_tree(child) is False
 
 
 def test_windows_tree_cancellation_tolerates_exited_descendants(monkeypatch):
@@ -91,7 +91,7 @@ def test_windows_tree_cancellation_tolerates_exited_descendants(monkeypatch):
     parent.kill.side_effect = psutil.NoSuchProcess(123)
     monkeypatch.setattr(bash_process.psutil, "Process", lambda pid: parent)
 
-    assert _BashProcess._kill_windows_tree(SimpleNamespace(pid=123)) is True
+    assert BashProcess._kill_windows_tree(SimpleNamespace(pid=123)) is True
     parent.children.assert_called_once_with(recursive=True)
 
 
@@ -111,7 +111,7 @@ def test_unix_cancellation_handles_process_lookup_race(
     child = MagicMock()
     child.pid = 123
     child.poll.side_effect = [None, 0 if process_exited else None]
-    process = _BashProcess("sleep 1", tmp_path, "bash")
+    process = BashProcess("sleep 1", tmp_path, "bash")
     process._process = child
 
     if process_exited:
@@ -128,7 +128,7 @@ def test_unix_cancellation_waits_for_killed_process(tmp_path, monkeypatch):
     child = MagicMock()
     child.pid = 123
     child.poll.return_value = None
-    process = _BashProcess("sleep 1", tmp_path, "bash")
+    process = BashProcess("sleep 1", tmp_path, "bash")
     process._process = child
 
     assert process.cancel() is True
@@ -143,7 +143,7 @@ def test_posix_cancellation_kills_group_and_waits_for_process(tmp_path, monkeypa
     monkeypatch.setattr(
         bash_process, "os", SimpleNamespace(name="posix", killpg=kill_group)
     )
-    process = _BashProcess("printf test", tmp_path, "bash")
+    process = BashProcess("printf test", tmp_path, "bash")
     process._process = child
     assert process.cancel() is True
     kill_group.assert_called_once_with(child.pid, bash_process.signal.SIGKILL)

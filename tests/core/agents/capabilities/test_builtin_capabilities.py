@@ -107,6 +107,8 @@ def test_loads_builtin_assistant_capabilities(tmp_path: Path) -> None:
         "inspect-file",
         "read-file",
         "edit-file",
+        "new-file",
+        "delete-file",
         "interact-web-page",
         "mock-sub-tool",
         "mock-tool",
@@ -164,6 +166,8 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
         "inspect-file": "Available in skill 'file-processing'.",
         "read-file": "Available in skill 'file-processing'.",
         "edit-file": "Available in skill 'file-processing'.",
+        "new-file": "Available in skill 'file-processing'.",
+        "delete-file": "Available in skill 'file-processing'.",
         "deep-thinking": (
             "Investigates difficult questions with web evidence, "
             "mathematical and date/time computation, and formal Z3 reasoning."

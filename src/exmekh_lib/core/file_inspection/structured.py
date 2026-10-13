@@ -11,6 +11,8 @@ from xml.parsers import expat
 import yaml
 from yaml.nodes import MappingNode, Node, ScalarNode, SequenceNode
 
+from exmekh_lib.config.file_inspection import FILE_INSPECTION_TEXT
+
 from .lines import SourceLines
 from .models import Analysis, Region
 
@@ -32,7 +34,7 @@ def analyze_mapping(text: str, result: Analysis) -> None:
             return
         counts[getattr(node, "id", "unknown")] += 1
         if id(node) in ancestors:
-            warning = "Recursive YAML alias omitted from navigation."
+            warning = FILE_INSPECTION_TEXT.recursive_yaml_warning
             if warning not in result.warnings:
                 result.warnings.append(warning)
             return
@@ -44,7 +46,11 @@ def analyze_mapping(text: str, result: Analysis) -> None:
             for key, value in node.value:
                 if visited > result.index.settings.max_structure_nodes:
                     break
-                label = key.value if isinstance(key, ScalarNode) else "<complex key>"
+                label = (
+                    key.value
+                    if isinstance(key, ScalarNode)
+                    else FILE_INSPECTION_TEXT.complex_key_label
+                )
                 child_name = f"{name}/{label}"
                 start = lines.line_number(key.start_mark.index)
                 end = max(start, lines.line_number(value.end_mark.index - 1))
@@ -93,7 +99,7 @@ def analyze_xml(text: str, result: Analysis) -> None:
     element_count = 0
 
     def reject_doctype(*args: object) -> None:
-        raise ValueError("XML document types and entities are not supported.")
+        raise ValueError(FILE_INSPECTION_TEXT.xml_entities_forbidden)
 
     def start(name: str, attributes: dict[str, str]) -> None:
         nonlocal element_count

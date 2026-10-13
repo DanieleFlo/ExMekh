@@ -11,11 +11,7 @@ from exmekh_lib.utils.tool_errors import missing_dependency
 
 @deep_tool(
     name="search-web",
-    description=(
-        "Search public web pages. Results are unverified discovery leads; read a "
-        "page before citing it. image_path optionally reranks results against a "
-        "local image inside the work root."
-    ),
+    description=(WEB_NAVIGATION.search_web_description),
 )
 def run(
     work_root: Path,

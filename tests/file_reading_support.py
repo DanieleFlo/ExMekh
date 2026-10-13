@@ -22,7 +22,11 @@ class ReadFixture:
     prompt: str
 
     def arguments(self):
-        return {"path": self.path.name, "start_line": self.start, "end_line": self.end}
+        return {
+            "path": self.path.name,
+            "start_index": self.start,
+            "end_index": self.end,
+        }
 
 
 def make_read_fixture(directory: Path, kind: str) -> ReadFixture:
@@ -82,7 +86,7 @@ def make_read_fixture(directory: Path, kind: str) -> ReadFixture:
         end,
         answer,
         f"Enter file-processing and read {path.name!r} with read-file, "
-        f"start_line={start}, end_line={end}. {inspection} "
+        f"start_index={start}, end_index={end}. {inspection} "
         f"{instruction} Call exit_agent with text set to that exact answer and items=[]. "
         "Return the answer itself, not output IDs or references. After the skill returns, "
         "repeat the answer as your final response and do not reopen the skill. "
@@ -111,6 +115,8 @@ def initialize_reading_node(provider, directory: Path) -> Node:
                 "inspect-file",
                 "read-file",
                 "edit-file",
+                "new-file",
+                "delete-file",
                 "exit_agent",
             },
         ),

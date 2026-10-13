@@ -9,7 +9,7 @@ from exmekh_lib.core.agents.tools.decorator import deep_tool
 
 @deep_tool(
     name=RUNTIME.sub_agent_tool_name,
-    description="Send a user message to one direct sub-agent and return its final response.",
+    description=RUNTIME.call_sub_agent_description,
     background_enabled=False,
 )
 def run(

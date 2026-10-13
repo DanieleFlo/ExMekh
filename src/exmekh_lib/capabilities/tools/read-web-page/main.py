@@ -12,10 +12,7 @@ from exmekh_lib.utils.tool_errors import missing_dependency
 
 @deep_tool(
     name="read-web-page",
-    description=(
-        "Read one public URL as Markdown, semantic AST, or both. Returns the final "
-        "URL, retrieval time, page dates, and bounded untrusted page content."
-    ),
+    description=(WEB_NAVIGATION.read_web_page_description),
 )
 def run(
     work_root: Path,

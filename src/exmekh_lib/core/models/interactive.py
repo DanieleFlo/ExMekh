@@ -6,6 +6,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from exmekh_lib.config.file_editing import FILE_EDIT_FORMAT, FILE_EDITING
 from exmekh_lib.core.models.assistant_message import ToolCall
 from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.utils.xml import stringify_tool_result
@@ -25,15 +26,13 @@ class InteractiveDefinition:
         required = schema.get("required", [])
         field = self.fields.get("document")
         if (
-            self.behavior != "edit_file.v2"
+            self.behavior != FILE_EDIT_FORMAT.behavior
             or set(self.fields) != {"document"}
             or set(properties) != {field}
             or set(required) != {field}
             or properties.get(field, {}).get("type") != "string"
         ):
-            raise InteractiveProtocolError(
-                "XML edit behavior requires exactly one required document string"
-            )
+            raise InteractiveProtocolError(FILE_EDITING.definition_required)
         return {"name": name, "behavior": self.behavior, "fields": dict(self.fields)}
 
 

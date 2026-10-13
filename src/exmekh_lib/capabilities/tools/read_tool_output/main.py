@@ -13,14 +13,7 @@ from exmekh_lib.core.models.tool import PreformattedToolResult
 
 @deep_tool(
     name=RUNTIME.read_tool_name,
-    description=(
-        "Read the current status and available output of a tool by "
-        "output ID. Use an optional cursor to read only new output; "
-        "omit it to read the complete output. Includes the final "
-        "result when available. Also reads saved user steering and restores its attachments. "
-        "summary_mode defaults to 'none'; 'brief' gives 3 to 5 bullet points, "
-        f"'detailed' preserves essential details. Outputs below {RUNTIME.tool_output_summary_min_tokens} tokens stay complete."
-    ),
+    description=(RUNTIME.read_tool_output_description),
     background_enabled=False,
 )
 def run(

@@ -10,11 +10,7 @@ from exmekh_lib.core.agents.tools.decorator import deep_tool
 
 @deep_tool(
     name=RUNTIME.execution_tool_name,
-    description=(
-        "Wait for a tool execution by its original tool_call_id, or request "
-        "cancellation. Waiting returns as soon as the work finishes or "
-        "the wait limit expires; read its output with read_tool_output."
-    ),
+    description=(RUNTIME.control_tool_execution_description),
     background_enabled=False,
 )
 def run(

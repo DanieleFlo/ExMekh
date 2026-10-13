@@ -16,11 +16,7 @@ type SearchOutputs = Callable[
 
 @deep_tool(
     name=RUNTIME.search_tool_name,
-    description=(
-        "Search this node's saved and runtime tool outputs, including "
-        "background work and user steering saved inside skills. Return paginated XML previews with status "
-        "and output IDs. All filters are optional."
-    ),
+    description=(RUNTIME.search_tool_outputs_description),
     background_enabled=False,
 )
 def run(

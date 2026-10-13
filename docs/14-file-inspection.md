@@ -118,9 +118,9 @@ followed by a saved XML read from the parent scope. They do not contact a model 
 ## Explicit reading and prerequisites
 
 `read-file` accepts exactly three required business arguments: `path`,
-`start_line`, and `end_line`. For text, both indices must be positive integers; booleans,
+`start_index`, and `end_index`. For text, both indices must be positive integers; booleans,
 strings, floats and null are rejected. Ranges use physical CR/LF lines, are
-1-based and inclusive, and must satisfy `start_line <= end_line <= total_lines`.
+1-based and inclusive, and must satisfy `start_index <= end_index <= total_lines`.
 The tool never supplies implicit indices, clamps an interval or defaults to
 the whole file. Results contain `ok`, `path`, `encoding`, the requested indices,
 `total_lines`, and `lines` entries with `line` and `text`. Missing/invalid
@@ -132,7 +132,7 @@ Invalid path values, indices and line ranges use `invalid_file_read`. NUL paths
 are rejected before recovery. An unavailable or non-directory workroot is an
 explicit inspection error. The inspection byte budget applies to reading too.
 
-An inspected empty text file accepts the explicit range `start_line=0, end_line=0`
+An inspected empty text file accepts the explicit range `start_index=0, end_index=0`
 and returns `lines=[]`. This successful read authorizes editing an existing empty
 file; other ranges on empty files remain errors.
 
@@ -181,7 +181,7 @@ tool's synchronous policy, just like runtime overrides.
 ```text
 assistant: inspect-file({"path":"notes.md"})
 tool:      analysis with total_lines=12
-assistant: read-file({"path":"notes.md","start_line":3,"end_line":5})
+assistant: read-file({"path":"notes.md","start_index":3,"end_index":5})
 tool:      XML with numbered lines 3, 4, 5
 ```
 
@@ -191,7 +191,7 @@ inspection is repeated and no hash-check messages are added.
 ### Image reads
 
 For a filename with a supported image extension, `read-file` delivers the actual
-image without requiring inspection. Supply `start_line=0` and `end_line=0`; their
+image without requiring inspection. Supply `start_index=0` and `end_index=0`; their
 values are ignored, including nonzero, negative or inverted intervals. The three
 arguments remain required. The shared `FILE_INSPECTION.image_extensions` config
 controls image dispatch for both reading and inspection: `.png`, `.jpg`, `.jpeg`,
@@ -201,12 +201,12 @@ PDF filenames use inspected page ranges as described below; other filenames
 retain the text-read prerequisite and validation.
 
 ```text
-assistant: read-file({"path":"photo.jpg","start_line":0,"end_line":0})
+assistant: read-file({"path":"photo.jpg","start_index":0,"end_index":0})
 tool:      XML metadata plus an image attachment
            [next inference receives the image]
 ```
 
-The XML result contains path, image format, width, height, frame `1`, and zero line
+The XML result contains path, image format, width, height, frame `1`, and zero range
 indices. The first frame/page is decoded, EXIF orientation is applied, and pixels
 are normalized to RGBA for transport and caching. The source file is closed before
 delivery. Both provider APIs receive the multimodal companion through the existing
@@ -224,7 +224,7 @@ shared XML renderer and cache, while image attachments are stored separately.
 For `.pdf` filenames (case-insensitive), `read-file` requires a complete, visible
 inspection of the unchanged file so the model knows its page count. The existing
 hash, history and automatic-inspection recovery apply. The required arguments
-`start_line` and `end_line` select inclusive **page numbers**, starting at 1,
+`start_index` and `end_index` select inclusive **page numbers**, starting at 1,
 rather than text lines. Zero, invalid types, inverted ranges and pages outside
 the actual document return `invalid_file_read`. Reading more than 5 pages in
 one call also returns an error; no range is truncated or clamped.
@@ -232,7 +232,7 @@ one call also returns an error; no range is truncated or clamped.
 ```text
 assistant: inspect-file({"path":"report.pdf"})
 tool:      metadata with page_count=12
-assistant: read-file({"path":"report.pdf","start_line":4,"end_line":8})
+assistant: read-file({"path":"report.pdf","start_index":4,"end_index":8})
 tool:      XML metadata plus five ordered page images, labelled 4 through 8
 ```
 
@@ -251,7 +251,7 @@ inspection or automatic prerequisite recovery. DPI and rendering page limits
 must be positive integers; booleans, strings and nonfinite/fractional values
 are rejected before renderer loading.
 
-Results include `start_page`, `end_page`, `total_pages`, `rendered_pages`, `dpi`
+Results include `start_index`, `end_index`, `total_pages`, `rendered_pages`, `dpi`
 and page dimensions, with a label and image per selected page. Images reach both
 provider APIs and saved-output rereads through the same attachment/cache path.
 Invalid, empty, password-protected or unrenderable documents return descriptive
@@ -279,12 +279,12 @@ uv run pytest -n 0 --run-live tests/live/test_file_reading_live.py
 ### Missing or invalidated analysis
 
 ```text
-assistant: read-file({"path":"notes.md","start_line":3,"end_line":5})
+assistant: read-file({"path":"notes.md","start_index":3,"end_index":5})
 tool:      XML error_kind=file_inspection_required
 assistant: inspect-file({"path":"notes.md"})       [synthetic, new ID]
 tool:      real XML analysis of current content
            [next inference]
-assistant: read-file({"path":"notes.md","start_line":7,"end_line":9})
+assistant: read-file({"path":"notes.md","start_index":7,"end_index":9})
 tool:      XML with lines chosen by the model from the new analysis
 ```
 
@@ -311,7 +311,7 @@ file are deduplicated. Valid reads and unrelated operations are not rerun.
 ### Automatic inspection failure
 
 ```text
-assistant: read-file({"path":"missing.txt","start_line":1,"end_line":2})
+assistant: read-file({"path":"missing.txt","start_index":1,"end_index":2})
 tool:      XML prerequisite error
 assistant: inspect-file({"path":"missing.txt"})   [synthetic, new ID]
 tool:      XML path/permission/inspection error

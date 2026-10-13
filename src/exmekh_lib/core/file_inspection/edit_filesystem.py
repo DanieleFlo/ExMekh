@@ -3,7 +3,7 @@
 import codecs
 import os
 import stat
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
@@ -12,10 +12,10 @@ from uuid import uuid4
 from weakref import WeakValueDictionary
 
 from exmekh_lib.config.file_editing import FILE_EDITING
-from exmekh_lib.config.file_inspection import FILE_INSPECTION
+from exmekh_lib.config.file_inspection import FILE_INSPECTION, FILE_INSPECTION_TEXT
 
 from .errors import FileInspectionError
-from .workspace import FileSnapshot, read_snapshot, validate_file_path
+from .workspace import FileIdentity, FileSnapshot, read_snapshot, validate_file_path
 
 _locks: WeakValueDictionary[str, RLock] = WeakValueDictionary()
 _registry_lock = Lock()
@@ -33,7 +33,7 @@ def resolve_edit_target(work_root: Path, path: str) -> Path:
     validate_file_path(path)
     root = work_root.resolve(strict=True)
     if not root.is_dir():
-        raise FileInspectionError("workroot must be a directory.")
+        raise FileInspectionError(FILE_INSPECTION_TEXT.root_not_directory)
     candidate = root / path
     # A dangling symlink is a resource error, not authorization to create.
     try:
@@ -44,9 +44,9 @@ def resolve_edit_target(work_root: Path, path: str) -> Path:
     else:
         target = candidate.resolve(strict=True)
     if not target.is_relative_to(root):
-        raise FileInspectionError("path must remain inside the workroot.")
+        raise FileInspectionError(FILE_INSPECTION_TEXT.path_outside_root)
     if not target.parent.is_dir():
-        raise FileInspectionError("The parent directory must already exist.")
+        raise FileInspectionError(FILE_EDITING.parent_required)
     return target
 
 
@@ -57,9 +57,7 @@ def edit_snapshot(work_root: Path, path: str) -> FileSnapshot:
         replace(FILE_INSPECTION, max_file_bytes=FILE_EDITING.max_snapshot_bytes),
     )
     if snapshot.content is None:
-        raise FileInspectionError(
-            "File exceeds the edit snapshot byte limit; no truncated snapshot is allowed."
-        )
+        raise FileInspectionError(FILE_EDITING.snapshot_byte_limit)
     return snapshot
 
 
@@ -73,6 +71,72 @@ def encode_replacement(text: str, original: bytes, encoding: str) -> bytes:
         if original.startswith(bom):
             return bom + text.encode(codec)
     return text.encode(encoding)
+
+
+def new_file(work_root: Path, path: str, content: str) -> dict[str, object]:
+    """Publish a complete new file exclusively, without inspection evidence."""
+    if (
+        not isinstance(content, str)
+        or len(content) < FILE_EDITING.min_new_file_characters
+    ):
+        raise FileInspectionError(
+            FILE_EDITING.minimum_content.format(
+                minimum=FILE_EDITING.min_new_file_characters
+            )
+        )
+    if "\x00" in content:
+        raise FileInspectionError(FILE_EDITING.content_nul)
+    encoded = content.encode("utf-8")
+    if len(encoded) > FILE_EDITING.max_snapshot_bytes:
+        raise FileInspectionError(FILE_EDITING.creation_byte_limit)
+    target = resolve_edit_target(work_root, path)
+    with resource_lock(target):
+        if os.path.lexists(work_root.resolve() / path):
+            raise FileInspectionError(FILE_EDITING.path_exists)
+        commit_edit(work_root, path, target, None, encoded)
+    return {
+        "ok": True,
+        "path": target.relative_to(work_root.resolve()).as_posix(),
+        "operation": "create",
+        "size_bytes": len(encoded),
+    }
+
+
+def delete_file(work_root: Path, path: str) -> dict[str, object]:
+    """Remove an existing regular file using metadata, never text decoding."""
+    require_descriptor_operations(os.open, os.stat, os.unlink)
+    target = resolve_edit_target(work_root, path)
+    with resource_lock(target):
+        initial = target.stat()
+        if not stat.S_ISREG(initial.st_mode):
+            raise FileInspectionError(FILE_EDITING.deletion_regular_file)
+        descriptor = _open_parent_directory(work_root, target)
+        try:
+            current = os.stat(target.name, dir_fd=descriptor, follow_symlinks=False)
+            parent = target.parent.stat()
+            opened_parent = os.fstat(descriptor)
+            if (
+                resolve_edit_target(work_root, path) != target
+                or FileIdentity.from_stat(initial) != FileIdentity.from_stat(current)
+                or not stat.S_ISREG(current.st_mode)
+                or (parent.st_dev, parent.st_ino)
+                != (opened_parent.st_dev, opened_parent.st_ino)
+            ):
+                raise FileInspectionError(FILE_EDITING.changed_before_deletion)
+            os.unlink(target.name, dir_fd=descriptor)
+        finally:
+            os.close(descriptor)
+    return {
+        "ok": True,
+        "path": target.relative_to(work_root.resolve()).as_posix(),
+        "operation": "remove",
+        "size_bytes": 0,
+    }
+
+
+def require_descriptor_operations(*operations: Callable[..., object]) -> None:
+    if not set(operations).issubset(os.supports_dir_fd):
+        raise FileInspectionError(FILE_EDITING.unsupported_platform)
 
 
 def _open_parent_directory(work_root: Path, target: Path) -> int:
@@ -96,7 +160,6 @@ def validate_edit_target(
     original_path: str,
     target: Path,
     snapshot: FileSnapshot | None,
-    content: bytes | None,
 ) -> None:
     """Recheck canonical path, initial bytes, identity and platform permissions."""
     if resolve_edit_target(work_root, original_path) != target:
@@ -110,18 +173,11 @@ def validate_edit_target(
             raise FileInspectionError(FILE_EDITING.changed)
     elif not snapshot.matches(edit_snapshot(work_root, original_path)):
         raise FileInspectionError(FILE_EDITING.changed)
-    if not {os.open, os.unlink, os.link, os.rename}.issubset(os.supports_dir_fd):
-        raise FileInspectionError(
-            "This platform lacks descriptor-relative atomic edit operations; use a supported filesystem/runtime."
-        )
-    if snapshot is not None and content is not None and not os.access(target, os.W_OK):
-        raise FileInspectionError(
-            "File is not writable; check permissions before retrying."
-        )
+    require_descriptor_operations(os.open, os.unlink, os.link, os.rename)
+    if snapshot is not None and not os.access(target, os.W_OK):
+        raise FileInspectionError(FILE_EDITING.file_not_writable)
     if not os.access(target.parent, os.W_OK | os.X_OK):
-        raise FileInspectionError(
-            "Parent directory is not writable/searchable; check permissions before retrying."
-        )
+        raise FileInspectionError(FILE_EDITING.parent_not_writable)
 
 
 def commit_edit(
@@ -129,12 +185,12 @@ def commit_edit(
     original_path: str,
     target: Path,
     snapshot: FileSnapshot | None,
-    content: bytes | None,
+    content: bytes,
 ) -> None:
     """Commit after an exact-byte and identity check. External writers must cooperate."""
 
     def check_current() -> None:
-        validate_edit_target(work_root, original_path, target, snapshot, content)
+        validate_edit_target(work_root, original_path, target, snapshot)
 
     check_current()
     parent_fd = _open_parent_directory(work_root, target)
@@ -150,11 +206,6 @@ def commit_edit(
 
     temporary: str | None = None
     try:
-        if content is None:
-            check_current()
-            check_parent()
-            os.unlink(target.name, dir_fd=parent_fd)
-            return
         temporary = f".exmekh-edit-{uuid4().hex}"
         descriptor = os.open(
             temporary,

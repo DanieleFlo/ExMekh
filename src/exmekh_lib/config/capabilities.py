@@ -41,5 +41,19 @@ class CapabilityText:
         "Finishes the current skill and returns its result to the caller."
     )
 
+    mock_sub_tool_description: str = (
+        "Returns a result available only in the mock skill."
+    )
+
+    mock_tool_description: str = "Returns the received text as a demonstration result."
+
+    nested_sub_tool_description: str = (
+        "Returns a result available only in the nested skill."
+    )
+
+    shared_tool_description: str = (
+        "Returns a result shared by the mock and nested skills."
+    )
+
 
 CAPABILITY_TEXT = CapabilityText()

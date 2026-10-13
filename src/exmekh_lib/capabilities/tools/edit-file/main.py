@@ -1,9 +1,9 @@
-"""Expose synchronous XML file editing through the standard tool lifecycle."""
+"""Expose synchronous literal file editing through the standard tool lifecycle."""
 
 from pathlib import Path
 from typing import Annotated
 
-from exmekh_lib.config.file_editing import FILE_EDITING
+from exmekh_lib.config.file_editing import FILE_EDIT_FORMAT, FILE_EDITING
 from exmekh_lib.core.agents.tools.decorator import deep_tool
 from exmekh_lib.core.file_inspection.editing import edit_files
 from exmekh_lib.core.file_inspection.errors import FileInspectionError
@@ -14,8 +14,8 @@ from exmekh_lib.core.models.interactive import InteractiveDefinition
     name="edit-file",
     description=FILE_EDITING.description,
     background_enabled=False,
-    argument_guidance="Supply one exact edits XML document. Inspect and read existing files first.",
-    interactive=InteractiveDefinition("edit_file.v2", {"document": "edits"}),
+    argument_guidance=FILE_EDITING.argument_guidance,
+    interactive=InteractiveDefinition(FILE_EDIT_FORMAT.behavior, {"document": "edits"}),
 )
 def run(
     work_root: Path,

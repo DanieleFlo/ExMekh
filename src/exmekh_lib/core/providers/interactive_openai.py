@@ -9,7 +9,7 @@ import openai
 from openai import OpenAI
 from openai.types.responses import Response
 
-from exmekh_lib.config.file_editing import FILE_EDITING
+from exmekh_lib.config.file_editing import FILE_EDIT_FORMAT, FILE_EDITING
 from exmekh_lib.core.models.assistant_message import (
     AssistantMessage,
 )
@@ -108,7 +108,7 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
             or interactive.get("model_supported") is not True
             or interactive.get("model_syntax") not in interactive.get("syntaxes", [])
             or "responses" not in interactive.get("apis", [])
-            or "edit_file.v2" not in interactive.get("behaviors", [])
+            or FILE_EDIT_FORMAT.behavior not in interactive.get("behaviors", [])
         ):
             raise InteractiveProtocolError(
                 "Server/model does not support interactive Responses v2; no ordinary-call fallback is permitted"

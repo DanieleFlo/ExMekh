@@ -14,8 +14,10 @@ from typing import IO, Any
 
 import psutil
 
+from exmekh_lib.config.runtime import RUNTIME
 
-class _BashProcess:
+
+class BashProcess:
     def __init__(self, command: str, work_root: Path, executable: str | None) -> None:
         self._command = command
         self._work_root = work_root
@@ -32,14 +34,11 @@ class _BashProcess:
     def run(self) -> dict[str, Any]:
         executable = self._executable or shutil.which("bash")
         if executable is None:
-            raise FileNotFoundError(
-                "Bash is unavailable: install Bash and add it to PATH. "
-                "No other shell is used."
-            )
+            raise FileNotFoundError(RUNTIME.bash_unavailable)
         started_at = datetime.now(timezone.utc)
         with self._lock:
             if self._cancel_requested:
-                raise RuntimeError("Bash command was cancelled before launch")
+                raise RuntimeError(RUNTIME.bash_cancelled_before_launch)
             self._process = subprocess.Popen(
                 [executable, "-c", self._command],
                 cwd=self._work_root,
@@ -56,7 +55,7 @@ class _BashProcess:
         stderr = process.stderr
         if stdout is None or stderr is None:
             self.cancel()
-            raise RuntimeError("Bash process did not provide stdout and stderr pipes")
+            raise RuntimeError(RUNTIME.bash_pipes_required)
         readers = (
             Thread(target=self._drain, args=(stdout, self._stdout, "stdout")),
             Thread(target=self._drain, args=(stderr, self._stderr, "stderr")),

@@ -49,9 +49,9 @@ def batch(*calls):
     return AssistantMessage(None, tool_calls=list(calls))
 
 
-def read_call(call_id="read", path="notes.txt", start_line=1, end_line=1):
+def read_call(call_id="read", path="notes.txt", start_index=1, end_index=1):
     return call(
-        "read-file", call_id, path=path, start_line=start_line, end_line=end_line
+        "read-file", call_id, path=path, start_index=start_index, end_index=end_index
     )
 
 
@@ -129,7 +129,8 @@ def test_physical_lines_match_inspection(tmp_path, raw, filename, expected):
     report = inspect_file(tmp_path, filename)
     assert isinstance(report, InspectionReport)
     with file_read_context((report.evidence,)):
-        result = read_file(tmp_path, filename, 1, len(expected))
+        result = read_file(tmp_path, filename, start_index=1, end_index=len(expected))
+    assert (result["start_index"], result["end_index"]) == (1, len(expected))
     assert result["total_lines"] == report["total_lines"] == len(expected)
     assert result["lines"] == [
         {"line": number, "text": text} for number, text in enumerate(expected, 1)
@@ -140,16 +141,16 @@ def test_physical_lines_match_inspection(tmp_path, raw, filename, expected):
 @pytest.mark.parametrize(
     "start,end,parameter",
     [
-        (0, 1, "start_line"),
-        (-1, 1, "start_line"),
-        (True, 1, "start_line"),
-        (1.0, 1, "start_line"),
-        ("1", 1, "start_line"),
-        (None, 1, "start_line"),
-        (1, 0, "end_line"),
-        (1, False, "end_line"),
-        (1, "2", "end_line"),
-        (3, 2, "start_line"),
+        (0, 1, "start_index"),
+        (-1, 1, "start_index"),
+        (True, 1, "start_index"),
+        (1.0, 1, "start_index"),
+        ("1", 1, "start_index"),
+        (None, 1, "start_index"),
+        (1, 0, "end_index"),
+        (1, False, "end_index"),
+        (1, "2", "end_index"),
+        (3, 2, "start_index"),
     ],
 )
 def test_invalid_indices_fail_without_file_access(
@@ -205,9 +206,10 @@ def test_read_schema_requires_all_indices_and_describes_prerequisite(tmp_path):
     )
     for strict in (False, True):
         schema = mapper.map(tool, strict=strict).get_parameters()
-        assert set(schema["properties"]) == {"path", "start_line", "end_line"}
-        assert set(schema["required"]) == {"path", "start_line", "end_line"}
-        assert schema["properties"]["start_line"]["type"] == "integer"
+        assert set(schema["properties"]) == {"path", "start_index", "end_index"}
+        assert set(schema["required"]) == {"path", "start_index", "end_index"}
+        assert schema["properties"]["start_index"]["type"] == "integer"
+        assert schema["properties"]["end_index"]["type"] == "integer"
     assert "inspect-file first" in tool.description
     assert "visible history" in tool.description
     assert "no inspection is required" in tool.description
@@ -222,7 +224,7 @@ def test_successful_visible_analysis_is_reused_without_synthetic_calls(
         [
             open_files(),
             batch(call("inspect-file", "inspect", path=text_file.name)),
-            batch(read_call("first", start_line=2, end_line=3), read_call("second")),
+            batch(read_call("first", start_index=2, end_index=3), read_call("second")),
             AssistantMessage("done"),
         ],
     )
@@ -254,7 +256,7 @@ def test_missing_analysis_appends_error_and_real_inspection_before_new_indices(
         [
             open_files(),
             batch(read_call()),
-            batch(read_call("retry", start_line=3, end_line=3)),
+            batch(read_call("retry", start_index=3, end_index=3)),
             AssistantMessage("done"),
         ],
     )
@@ -392,11 +394,11 @@ def test_unexpected_automatic_inspection_failure_is_a_real_xml_reply(tmp_path):
     assert_paired(provider.requests[-1].get_messages())
 
 
-@pytest.mark.parametrize("missing", ["path", "start_line", "end_line"])
+@pytest.mark.parametrize("missing", ["path", "start_index", "end_index"])
 def test_missing_argument_returns_descriptive_xml_without_auto_inspection(
     tmp_path, missing
 ):
-    args = {"path": "notes.txt", "start_line": 1, "end_line": 1}
+    args = {"path": "notes.txt", "start_index": 1, "end_index": 1}
     args.pop(missing)
     node, provider = make_node(
         tmp_path,
@@ -645,7 +647,7 @@ def test_unseen_sibling_inspection_does_not_authorize_indices(tmp_path, text_fil
         [
             open_files(),
             batch(call("inspect-file", "inspect", path=text_file.name), read_call()),
-            batch(read_call("retry", start_line=2, end_line=2)),
+            batch(read_call("retry", start_index=2, end_index=2)),
             AssistantMessage("done"),
         ],
     )

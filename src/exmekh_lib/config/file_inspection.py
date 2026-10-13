@@ -37,3 +37,161 @@ class FileInspectionSettings:
 
 
 FILE_INSPECTION = FileInspectionSettings()
+
+
+@dataclass(frozen=True, slots=True)
+class FileInspectionText:
+    """Descriptions and diagnostics for workspace file tools."""
+
+    no_readable_lines: str = (
+        "This format has no readable physical text lines; use inspect-file metadata."
+    )
+    inspection_required: str = (
+        "inspect-file(path) and its successful result are missing from the "
+        "visible context, or the file has changed. Inspect the current file, "
+        "then choose start_index and end_index as {indices} again from that analysis "
+        "and make a new read-file call. This read was not performed."
+    )
+    image_attachment_label: str = "Image read from {path}"
+    pdf_attachment_label: str = "PDF {path}, page {page}"
+    metadata_only_warning: str = (
+        "File exceeds the configured byte limit; only metadata is available."
+    )
+    analysis_failed_warning: str = "Format analysis failed: {error_type}."
+    invalid_text_warning: str = "Invalid {format_name}: {error_type}."
+
+    path_required: str = "path must contain non-space text inside the workroot."
+    path_nul: str = "path must not contain NUL characters."
+    root_not_directory: str = "workroot must identify a directory."
+    root_unavailable: str = (
+        "workroot does not exist or cannot be resolved; restore it before retrying."
+    )
+    path_outside_root: str = "path must remain inside the workroot."
+    path_unavailable: str = "path does not exist or cannot be resolved."
+    regular_file_required: str = "path must identify a regular file."
+    file_changed: str = "File changed during inspection; retry."
+    file_unreadable: str = "File could not be read; check permissions and retry."
+    positive_index: str = (
+        "{name} must be a positive integer (1-based); choose it from inspect-file."
+    )
+    ordered_indices: str = (
+        "start_index must be <= end_index; supply an inclusive interval from "
+        "inspect-file."
+    )
+    empty_file_range: str = (
+        "File is empty; use start_index=0 and end_index=0 to read it."
+    )
+    line_range_outside_file: str = (
+        "start_index/end_index are outside the file (1..{total_lines}); choose both "
+        "inclusive indices from inspect-file."
+    )
+    positive_page_index: str = "{name} must be a positive PDF page number (1-based)."
+    ordered_page_indices: str = (
+        "start_index must be <= end_index for the inclusive PDF page range."
+    )
+    positive_setting: str = "{name} must be a positive integer."
+    page_limit: str = (
+        "PDF reads allow at most {max_pdf_render_pages} pages per call; choose a "
+        "smaller start_index/end_index interval."
+    )
+    pdf_byte_limit: str = (
+        "PDF exceeds the configured file byte limit; use a smaller PDF."
+    )
+    empty_pdf: str = "PDF is empty; no pages can be read."
+    page_range_outside_pdf: str = (
+        "start_index/end_index are outside the PDF page range (1..{page_count})."
+    )
+    pdf_render_failed: str = (
+        "PDF could not be read or rendered ({error_type}: {error}); check the file, "
+        "encryption and render settings, then retry."
+    )
+    pdf_pixel_limit: str = (
+        "PDF pages exceed the configured total pixel limit; read fewer pages or lower "
+        "the configured DPI."
+    )
+    image_byte_limit: str = (
+        "Image exceeds the configured file byte limit; use a smaller image."
+    )
+    image_pixel_limit: str = (
+        "Image dimensions exceed the configured pixel limit; use a smaller image."
+    )
+    image_decode_failed: str = (
+        "Image could not be read or decoded ({error_type}); check the file and its "
+        "format, then retry."
+    )
+    detailed_boolean: str = "detailed must be a boolean."
+    max_items_range: str = "max_items must be an integer between 1 and {max_items}."
+    offset_nonnegative: str = "offset must be a nonnegative integer."
+    query_required: str = (
+        "query must contain searchable words and at most {max_query_chars} characters."
+    )
+
+    archive_declared_size_warning: str = "Declared expanded size exceeds the configured limit; no members were extracted."
+    archive_decompression_warning: str = (
+        "Decompressed archive exceeds the configured byte limit; scan skipped."
+    )
+    archive_partial_warning: str = (
+        "Archive scan stopped at its entry or expanded-size limit; totals are partial."
+    )
+    image_dimensions_warning: str = (
+        "Image dimensions exceed the configured pixel limit."
+    )
+    invalid_xz: str = "Invalid XZ archive data."
+    recursive_yaml_warning: str = "Recursive YAML alias omitted from navigation."
+    xml_entities_forbidden: str = "XML document types and entities are not supported."
+    unsupported_binary_warning: str = (
+        "No text analyzer is available for this binary or non-Unicode file."
+    )
+    parser_depth_warning: str = "Parser nesting limit exceeded."
+    encrypted_pdf_warning: str = (
+        "Encrypted PDF: page count and document properties are unavailable."
+    )
+    invalid_pdf_tree: str = "Invalid PDF page tree."
+    invalid_pdf_count: str = "Invalid PDF page count."
+    pdf_traversal_warning: str = (
+        "Declared page count exceeds the configured limit; page traversal was skipped."
+    )
+    physical_line_outside_source: str = "Physical line is outside the source"
+    content_region_label: str = "file content"
+    complex_key_label: str = "<complex key>"
+    page_indices_label: str = "page indices"
+    line_indices_label: str = "line indices"
+
+    @property
+    def inspect_description(self) -> str:
+        return (
+            "Inspect one regular file inside the workroot before reading it. Returns "
+            "metadata, physical line counts for decoded text, and bounded navigation "
+            "regions with inclusive 1-based line ranges, without full file content. "
+            "Supports Python symbols, Markdown sections/fences, structured data, CSV/TSV, "
+            "archive indexes, PDF metadata and image headers. Other Unicode files get text statistics; "
+            f"unsupported formats and limits are explicit. max_items defaults to {FILE_INSPECTION.default_max_items}; "
+            "use offset to paginate or query to rank the bounded index lexically. "
+            "detailed adds technical metadata and applied limits. No extraction, OCR "
+            "or model downloads. Standard background execution and output retrieval apply."
+        )
+
+    @property
+    def read_description(self) -> str:
+        return (
+            "Read workspace text lines, PDF pages or supported images. "
+            "Required start_index/end_index are inclusive, 1-based line or page numbers. "
+            "For text/PDF, call inspect-file first; reuse its complete result in "
+            "visible history only while content is unchanged. Missing/stale inspection "
+            "returns an error and automatic inspection; choose indices and read again. "
+            f"PDF: at most {FILE_INSPECTION.max_pdf_render_pages} pages per call, returned as labelled images. "
+            "For images, no inspection is required: use 0/0; indices are ignored even "
+            "when nonzero, and only the first frame is returned. Empty text also uses "
+            "0/0. Invalid ranges and unsupported formats return errors without clamping."
+        )
+
+    @property
+    def read_guidance(self) -> str:
+        return (
+            "Supply path, start_index and end_index. Use 0/0 for images or empty text; "
+            "otherwise choose inclusive 1-based line or page indices from inspect-file "
+            f"(at most {FILE_INSPECTION.max_pdf_render_pages} pages for PDF)."
+        )
+
+
+FILE_INSPECTION_TEXT = FileInspectionText()

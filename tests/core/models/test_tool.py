@@ -79,7 +79,7 @@ def test_execution_policy_copies_keep_contracts_without_enabling_background(
         pass
 
     definition = (
-        InteractiveDefinition("edit_file.v2", {"document": "query"})
+        InteractiveDefinition("edit_file.v3", {"document": "query"})
         if original_mode == "interactive"
         else None
     )

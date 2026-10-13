@@ -5,12 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.agents.tools.deep_tool import DeepTool
 from exmekh_lib.core.models.tool import ToolExecutionOperation
 from exmekh_lib.interfaces.message import Message
 from exmekh_lib.interfaces.tool_hook import AfterTool, BeforeTool
 
-from .bash_process import _BashProcess
+from .bash_process import BashProcess
 from .main import run
 
 
@@ -47,6 +48,6 @@ class BashTool(DeepTool):
         del call_id, history
         command = arguments["command"]
         if not isinstance(command, str):
-            raise TypeError("command must be a string")
-        process = _BashProcess(command, work_root, self._executable)
+            raise TypeError(RUNTIME.bash_command_required)
+        process = BashProcess(command, work_root, self._executable)
         return ToolExecutionOperation(process.run, process.cancel, process.read_partial)

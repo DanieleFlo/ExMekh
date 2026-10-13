@@ -7,6 +7,7 @@ from exmekh_lib.capabilities.tools.read_tool_output.summary import (
     SummaryMode,
     ToolOutputSummarizer,
 )
+from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.cache.node_cache import NodeCache
 from exmekh_lib.core.models.tool import PreformattedToolResult
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
@@ -36,10 +37,10 @@ class ToolOutputReader:
     ) -> PreformattedToolResult:
         """Read output; a successful final read acknowledges automatic delivery."""
         if cursor is not None and (type(cursor) is not int or cursor < 0):
-            raise ValueError("cursor must be a non-negative integer or None")
+            raise ValueError(RUNTIME.invalid_output_cursor)
         ToolOutputSummarizer.validate_mode(summary_mode)
         if summary_mode != "none" and self._summarizer is None:
-            raise ValueError("Output summaries require a configured provider")
+            raise ValueError(RUNTIME.summary_provider_required)
         result = self._read_output(output_id, cursor)
         return (
             self._summarizer.summarize(result, summary_mode)
@@ -82,7 +83,7 @@ class ToolOutputReader:
                 partial_error = str(error)
             else:
                 if cursor is not None and partial is None:
-                    raise ValueError("This tool output does not support cursors")
+                    raise ValueError(RUNTIME.output_cursor_unsupported)
 
         content = ToolOutputFormatter.format_execution_output(
             output_id, snapshot, partial, partial_error=partial_error

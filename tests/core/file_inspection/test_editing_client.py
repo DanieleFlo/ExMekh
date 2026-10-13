@@ -2,7 +2,6 @@
 
 import pytest
 
-from exmekh_lib.core.models.interactive import InteractiveProtocolError
 from exmekh_lib.core.models.tool_hooks import ToolHooks
 from exmekh_lib.interfaces.tool_hook import AfterTool, BeforeTool, ToolArguments
 from tests.interactive_support import (
@@ -19,7 +18,7 @@ from tests.tool_result_support import parse_tool_result
 
 
 @pytest.mark.parametrize("streaming", [False, True])
-@pytest.mark.parametrize("operation", ["edit", "new", "remove", "empty"])
+@pytest.mark.parametrize("operation", ["edit", "empty"])
 def test_sdk_client_authorizes_and_executes_exactly_once(
     tmp_path, monkeypatch, operation, streaming
 ):
@@ -39,7 +38,7 @@ def test_sdk_client_authorizes_and_executes_exactly_once(
             after_calls.append(result)
             return result
 
-    old = "  old" if operation == "edit" else "<all/>"
+    old = "  old" if operation == "edit" else ""
     new = None if operation == "remove" else "LONGER new\r\n"
 
     def resume(body):
@@ -104,7 +103,6 @@ def test_sdk_client_authorizes_and_executes_exactly_once(
         "hook_path",
         "hook_selection",
         "changed",
-        "appeared",
         "symlink",
         "filtered_read",
     ],
@@ -179,11 +177,6 @@ def test_mock_server_and_hooks_cannot_force_an_unsafe_file_mutation(
     )
     node, server, provider = make_sdk_node(tmp_path, monkeypatch, steps, hooks=hooks)
     try:
-        if attack == "malformed_xml":
-            with pytest.raises(InteractiveProtocolError):
-                node.run("attack")
-            assert path.read_bytes() == original
-            return
         result = node.run("attack")
         assert path.read_bytes() == (
             b"CONCURRENT"

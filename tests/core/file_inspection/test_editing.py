@@ -16,18 +16,17 @@ from tests.interactive_support import edit_fragment
     [
         ("  indented\r\nend", "  indented", "longer", "longer\r\nend"),
         ("one\r\ntwo\rthree\n", "one\r\ntwo", "", "\rthree\n"),
-        ("one\ntwo", '<line number="2"/>', "insert\n", "one\ninsert\ntwo"),
-        ("one\ntwo", '<line number="3"/>', "APPEND", "one\ntwoAPPEND"),
-        ("one\n", '<line number="2"/>', "tail", "one\ntail"),
-        ("", '<line number="1"/>', "", ""),
-        ("one", "<all/>", "", ""),
-        ("one", "<all/>", None, None),
+        ("one\ntwo", "two", "insert\ntwo", "one\ninsert\ntwo"),
+        ("one\ntwo", "two", "twoAPPEND", "one\ntwoAPPEND"),
+        ("one\n", "one\n", "one\ntail", "one\ntail"),
+        ("", "", "", ""),
+        ("one", "one", "", ""),
         ("@ex_meckh_all", "@ex_meckh_all", "@ex_meckh_delete", "@ex_meckh_delete"),
     ],
 )
 def test_selection_preserves_exact_text(text, old, new, expected):
     document = EditDocument.parse(edit_fragment("file.txt", old, new))
-    assert select_replacements(text, document.elements, exists=True) == expected
+    assert select_replacements(text, document.elements) == expected
 
 
 @pytest.mark.parametrize(
@@ -47,16 +46,7 @@ def test_selection_preserves_exact_text(text, old, new, expected):
 def test_selection_rejects_ambiguity_midline_empty_and_invalid_lines(text, old):
     document = EditDocument.parse(edit_fragment("file.txt", old, "new"))
     with pytest.raises(FileInspectionError):
-        select_replacements(text, document.elements, exists=True)
-
-
-@pytest.mark.parametrize("old", ["<all/>", '<line number="1"/>'])
-def test_creation_requires_whole_file_or_first_line(old):
-    document = EditDocument.parse(edit_fragment("file.txt", old, "created"))
-    assert select_replacements("", document.elements, exists=False) == "created"
-    deletion = EditDocument.parse(edit_fragment("file.txt", old, None))
-    with pytest.raises(FileInspectionError):
-        select_replacements("", deletion.elements, exists=False)
+        select_replacements(text, document.elements)
 
 
 @pytest.mark.parametrize(

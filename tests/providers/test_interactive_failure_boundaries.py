@@ -49,7 +49,7 @@ from tests.live.model_support import CacheTestTokenizer
 
 def contract():
     return InteractiveContract(
-        {"edit-file": {"behavior": "edit_file.v2", "fields": {"document": "edits"}}}
+        {"edit-file": {"behavior": "edit_file.v3", "fields": {"document": "edits"}}}
     )
 
 
@@ -233,7 +233,7 @@ def make_provider(
         edit,
         name="edit-file",
         background_enabled=False,
-        interactive=InteractiveDefinition("edit_file.v2", {"document": "edits"}),
+        interactive=InteractiveDefinition("edit_file.v3", {"document": "edits"}),
     )
     request = ProviderRequest(
         [SystemMessage("edit"), UserMessage("create")],

@@ -40,8 +40,10 @@ from tests.interactive_support import (
     edit_fragment,
     enter,
     exit_skill,
+    inspect,
     make_sdk_node,
     pause,
+    read,
     response,
 )
 from tests.live.model_support import CacheTestTokenizer
@@ -69,7 +71,7 @@ def test_invalid_interactive_metadata_is_rejected_at_definition_time(definition_
 
 @pytest.mark.parametrize("definition_kind", ["tool", "decorator"])
 def test_interactive_background_policy_is_rejected_at_definition_time(definition_kind):
-    interactive = InteractiveDefinition("edit_file.v2", {"document": "edits"})
+    interactive = InteractiveDefinition("edit_file.v3", {"document": "edits"})
     with pytest.raises(
         ValueError, match="Interactive tools must execute synchronously"
     ):
@@ -228,6 +230,7 @@ def test_rejected_uninspected_call_is_replayed_without_orphan_outputs_and_recove
 def test_disconnect_retries_exact_resume_payload_without_duplicating_the_edit(
     tmp_path, monkeypatch, disconnect
 ):
+    (tmp_path / "notes.txt").write_text("")
     resume_bodies = []
     closed = []
 
@@ -256,7 +259,7 @@ def test_disconnect_retries_exact_resume_payload_without_duplicating_the_edit(
             (
                 "edit",
                 "edit-file",
-                edit_arguments("notes.txt", "<all/>", "ONCE"),
+                edit_arguments("notes.txt", "", "ONCE"),
             ),
             continuation="cont-edit",
         )
@@ -264,7 +267,16 @@ def test_disconnect_retries_exact_resume_payload_without_duplicating_the_edit(
     node, server, provider = make_sdk_node(
         tmp_path,
         monkeypatch,
-        [enter(), pause(), lost_reply, receipt, exit_skill(), response(text="done")],
+        [
+            enter(),
+            inspect(),
+            read(0, 0),
+            pause(),
+            lost_reply,
+            receipt,
+            exit_skill(),
+            response(text="done"),
+        ],
         streaming=disconnect == "stream",
     )
     try:
@@ -281,7 +293,7 @@ def test_disconnect_retries_exact_resume_payload_without_duplicating_the_edit(
                     == "configure"
                 ]
             )
-            == 2
+            == 4
         )
     finally:
         provider.get_session().close()
@@ -327,7 +339,7 @@ def test_renamed_document_field_preserves_scope_return_and_exact_paths(
         edit,
         name="renamed-edit",
         background_enabled=False,
-        interactive=InteractiveDefinition("edit_file.v2", {"document": "document"}),
+        interactive=InteractiveDefinition("edit_file.v3", {"document": "document"}),
     )
     path = 'quoted"\\\\name'
     document = edit_fragment(path, "<all/>", "new")
@@ -355,7 +367,7 @@ def test_renamed_document_field_preserves_scope_return_and_exact_paths(
         def prepare(self, event, definition):
             assert definition == {
                 "name": "renamed-edit",
-                "behavior": "edit_file.v2",
+                "behavior": "edit_file.v3",
                 "fields": {"document": "document"},
             }
             assert event["request"]["edit_index"] == 1
@@ -394,11 +406,12 @@ def test_renamed_document_field_preserves_scope_return_and_exact_paths(
 def test_consumed_continuation_recovers_a_terminal_status_receipt(
     tmp_path, monkeypatch
 ):
+    (tmp_path / "notes.txt").write_text("")
     final = response(
         (
             "edit",
             "edit-file",
-            edit_arguments("notes.txt", "<all/>", "ONCE"),
+            edit_arguments("notes.txt", "", "ONCE"),
         ),
         continuation="cont-edit",
     )
@@ -420,7 +433,16 @@ def test_consumed_continuation_recovers_a_terminal_status_receipt(
     node, server, provider = make_sdk_node(
         tmp_path,
         monkeypatch,
-        [enter(), pause(), conflict, status, exit_skill(), response(text="done")],
+        [
+            enter(),
+            inspect(),
+            read(0, 0),
+            pause(),
+            conflict,
+            status,
+            exit_skill(),
+            response(text="done"),
+        ],
     )
     try:
         node.run("create")
@@ -468,6 +490,7 @@ def test_steering_at_rejection_discards_earlier_complete_edits_and_recovery(
     tmp_path, monkeypatch
 ):
     (tmp_path / "notes.txt").write_text("KEEP")
+    (tmp_path / "new.txt").write_text("")
 
     def reject_and_steer(body):
         assert body["agentic"]["interactive"]["reply"]["status"] == "reject"
@@ -485,7 +508,7 @@ def test_steering_at_rejection_discards_earlier_complete_edits_and_recovery(
                 (
                     "edit",
                     "edit-file",
-                    edit_arguments("new.txt", "<all/>", "BAD"),
+                    edit_arguments("new.txt", "", "BAD"),
                 )
             )["output"],
             "edit_index": 1,
@@ -497,6 +520,18 @@ def test_steering_at_rejection_discards_earlier_complete_edits_and_recovery(
         monkeypatch,
         [
             enter(),
+            response(
+                ("inspect", "inspect-file", {"path": "new.txt"}),
+                continuation="cont-inspect",
+            ),
+            response(
+                (
+                    "read",
+                    "read-file",
+                    {"path": "new.txt", "start_index": 0, "end_index": 0},
+                ),
+                continuation="cont-read",
+            ),
             pause(path="new.txt"),
             pause(call_id="reject", exchange="next-exchange"),
             reject_and_steer,
@@ -506,7 +541,7 @@ def test_steering_at_rejection_discards_earlier_complete_edits_and_recovery(
     )
     try:
         result = node.run("create and edit")
-        assert not (tmp_path / "new.txt").exists()
+        assert (tmp_path / "new.txt").read_bytes() == b""
         assert (tmp_path / "notes.txt").read_text() == "KEEP"
         assert any(
             isinstance(message, InterruptedMessage)
@@ -514,7 +549,7 @@ def test_steering_at_rejection_discards_earlier_complete_edits_and_recovery(
             for message in result.skill_executions[0].history
         )
         assert not any(
-            item.get("name") == "inspect-file"
+            item.get("name") == "inspect-file" and "notes.txt" in str(item)
             for body in server.requests
             for item in body.get("input", [])
         )
@@ -636,6 +671,7 @@ def test_fragmented_sse_utf8_and_escaped_json_resume_the_same_call(
     tmp_path, monkeypatch
 ):
     filename = 'quoted"\\name-\u00e8.txt'
+    (tmp_path / filename).write_text("")
     text = 'emoji \U0001f60a\r\n"quotes"\\backslash'
 
     class Chunks(httpx.SyncByteStream):
@@ -651,7 +687,7 @@ def test_fragmented_sse_utf8_and_escaped_json_resume_the_same_call(
             (
                 "edit",
                 "edit-file",
-                edit_arguments(filename, "<all/>", text),
+                edit_arguments(filename, "", text),
             ),
             continuation="cont-edit",
         )
@@ -666,7 +702,25 @@ def test_fragmented_sse_utf8_and_escaped_json_resume_the_same_call(
     node, server, provider = make_sdk_node(
         tmp_path,
         monkeypatch,
-        [enter(), pause(path=filename), resume, exit_skill(), response(text="done")],
+        [
+            enter(),
+            response(
+                ("inspect", "inspect-file", {"path": filename}),
+                continuation="cont-inspect",
+            ),
+            response(
+                (
+                    "read",
+                    "read-file",
+                    {"path": filename, "start_index": 0, "end_index": 0},
+                ),
+                continuation="cont-read",
+            ),
+            pause(path=filename),
+            resume,
+            exit_skill(),
+            response(text="done"),
+        ],
         streaming=True,
     )
     try:
@@ -680,7 +734,7 @@ def test_fragmented_sse_utf8_and_escaped_json_resume_the_same_call(
 @pytest.mark.parametrize("index", [True, 1.0, "1", 0, -1, 2])
 def test_pause_edit_index_has_strict_type_and_order(index):
     contract = InteractiveContract(
-        {"edit-file": {"behavior": "edit_file.v2", "fields": {"document": "edits"}}}
+        {"edit-file": {"behavior": "edit_file.v3", "fields": {"document": "edits"}}}
     )
     event = pause(edit_index=index)
     with pytest.raises(InteractiveProtocolError):
@@ -714,7 +768,7 @@ def test_interrupted_stream_reports_final_usage_once(tmp_path, monkeypatch, outc
         edit,
         name="edit-file",
         background_enabled=False,
-        interactive=InteractiveDefinition("edit_file.v2", {"document": "edits"}),
+        interactive=InteractiveDefinition("edit_file.v3", {"document": "edits"}),
     )
     events = []
 

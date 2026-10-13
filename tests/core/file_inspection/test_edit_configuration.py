@@ -1,4 +1,4 @@
-"""XML grammar is fixed; semantic limits and diagnostics are shared configuration."""
+"""Two-marker framing is fixed; limits and diagnostics are shared configuration."""
 
 from dataclasses import replace
 
@@ -16,12 +16,12 @@ from tests.interactive_support import edit_fragment
 
 
 @pytest.mark.parametrize("field", ["edits", "renamed_document"])
-def test_v2_definition_requires_only_one_document_string(field):
-    definition = InteractiveDefinition("edit_file.v2", {"document": field})
+def test_literal_definition_requires_only_one_document_string(field):
+    definition = InteractiveDefinition("edit_file.v3", {"document": field})
     schema = {"properties": {field: {"type": "string"}}, "required": [field]}
     assert definition.configuration("edit", schema) == {
         "name": "edit",
-        "behavior": "edit_file.v2",
+        "behavior": "edit_file.v3",
         "fields": {"document": field},
     }
     for invalid in (
@@ -40,7 +40,7 @@ def test_no_v1_or_role_mapping_fallback():
     for behavior, fields in (
         ("edit_file.v1", {"document": "edits"}),
         (
-            "edit_file.v2",
+            "edit_file.v3",
             {"resource": "path", "selection": "old_text", "replacement": "new_text"},
         ),
     ):
@@ -54,14 +54,10 @@ def test_no_v1_or_role_mapping_fallback():
 def test_semantic_error_messages_use_configuration(monkeypatch):
     settings = replace(
         FILE_EDITING,
-        range_error="configured range error",
         selection_error="configured selection error",
     )
     monkeypatch.setattr(edit_selection, "FILE_EDITING", settings)
-    for old, error in (
-        ('<line number="0"/>', settings.range_error),
-        ("missing", settings.selection_error),
-    ):
+    for old, error in (("missing", settings.selection_error),):
         document = EditDocument.parse(edit_fragment("file.txt", old, "new"))
         with pytest.raises(FileInspectionError, match=error):
-            edit_selection.select_replacements("one", document.elements, exists=True)
+            edit_selection.select_replacements("one", document.elements)

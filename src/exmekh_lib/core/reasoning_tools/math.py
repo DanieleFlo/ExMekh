@@ -8,6 +8,8 @@ import operator
 from collections.abc import Callable
 from typing import Any
 
+import sympy as sp
+
 from exmekh_lib.config.reasoning import MATH
 
 
@@ -24,8 +26,6 @@ def calculate(
     matrix: list[list[float]] | None = None,
     precision: int = MATH.default_precision,
 ) -> dict[str, object]:
-    import sympy as sp
-
     if (
         type(precision) is not int
         or not MATH.min_precision <= precision <= MATH.max_precision

@@ -1,12 +1,14 @@
 """Shared results for invocation failures and unavailable tool dependencies."""
 
+from exmekh_lib.config.runtime import RUNTIME
+
 
 def missing_dependency(error: ModuleNotFoundError) -> dict[str, object]:
     return {
         "ok": False,
         "error_kind": "missing_dependency",
-        "error": f"Missing exmekh_lib runtime module: {error.name}.",
-        "hint": "Install the ExMekh-Lib wheel with its declared dependencies in this environment.",
+        "error": RUNTIME.missing_dependency_message.format(module=error.name),
+        "hint": RUNTIME.missing_dependency_hint,
     }
 
 
@@ -22,5 +24,7 @@ def tool_failure_result(error: BaseException) -> dict[str, object]:
             if isinstance(error, ToolArgumentError)
             else "tool_execution_failed"
         ),
-        "error": f"{type(error).__name__}: {error}",
+        "error": RUNTIME.failure_message.format(
+            error_type=type(error).__name__, error=error
+        ),
     }

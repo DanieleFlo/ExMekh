@@ -6,6 +6,8 @@ from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 from pypdf.generic import DictionaryObject
 
+from exmekh_lib.config.file_inspection import FILE_INSPECTION_TEXT
+
 from .models import Analysis, RegionIndex
 
 
@@ -14,22 +16,18 @@ def analyze_pdf(raw: bytes, index: RegionIndex) -> Analysis:
     reader = PdfReader(io.BytesIO(raw), strict=True)
     result.details["encrypted"] = reader.is_encrypted
     if reader.is_encrypted:
-        result.warnings.append(
-            "Encrypted PDF: page count and document properties are unavailable."
-        )
+        result.warnings.append(FILE_INSPECTION_TEXT.encrypted_pdf_warning)
         return result
     pages = reader.root_object["/Pages"]
     if not isinstance(pages, DictionaryObject):
-        raise PdfReadError("Invalid PDF page tree.")
+        raise PdfReadError(FILE_INSPECTION_TEXT.invalid_pdf_tree)
     declared_count = pages.get("/Count")
     if not isinstance(declared_count, int) or declared_count < 0:
-        raise PdfReadError("Invalid PDF page count.")
+        raise PdfReadError(FILE_INSPECTION_TEXT.invalid_pdf_count)
     result.details["page_count"] = declared_count
     if declared_count > index.settings.max_pdf_pages:
         result.status = "skipped_limit"
-        result.warnings.append(
-            "Declared page count exceeds the configured limit; page traversal was skipped."
-        )
+        result.warnings.append(FILE_INSPECTION_TEXT.pdf_traversal_warning)
     else:
         result.details["page_count"] = len(reader.pages)
         if reader.pages:

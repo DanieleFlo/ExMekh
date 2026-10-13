@@ -50,11 +50,11 @@ def attached_image(result):
 def test_configured_images_are_decoded_without_inspection(tmp_path, extension):
     path = tmp_path / f"picture{extension}"
     Image.new("RGB", (32, 32), (20, 40, 60)).save(path)
-    result = read_file(tmp_path, path.name, 0, 0)
+    result = read_file(tmp_path, path.name, start_index=0, end_index=0)
     assert isinstance(result, AttachedToolResult)
     assert result["ok"] and result["family"] == "image"
     assert result["width"] == result["height"] == 32
-    assert result["start_line"] == result["end_line"] == 0
+    assert result["start_index"] == result["end_index"] == 0
     image = attached_image(result)
     assert image.mode == "RGBA"
     assert image.size == (32, 32)
@@ -69,7 +69,7 @@ def test_image_indices_are_ignored_even_when_invalid_for_text(tmp_path, start, e
     path = tmp_path / "picture.PNG"
     Image.new("RGBA", (2, 3), (10, 20, 30, 40)).save(path)
     result = read_file(tmp_path, path.name, start, end)
-    assert result["start_line"] == result["end_line"] == 0
+    assert result["start_index"] == result["end_index"] == 0
     assert attached_image(result).getpixel((0, 0)) == (10, 20, 30, 40)
 
 
@@ -150,7 +150,7 @@ def test_failed_image_reads_return_errors_without_automatic_inspection(tmp_path,
         tmp_path,
         [
             open_files(),
-            batch(read_call(path="broken.png", start_line=0, end_line=0)),
+            batch(read_call(path="broken.png", start_index=0, end_index=0)),
             AssistantMessage("done"),
         ],
     )
@@ -191,7 +191,7 @@ def test_image_attachments_reach_both_providers_and_cached_rereads(tmp_path):
         tmp_path,
         [
             open_files(),
-            batch(read_call(path=path.name, start_line=0, end_line=0)),
+            batch(read_call(path=path.name, start_index=0, end_index=0)),
             AssistantMessage("done"),
         ],
         hooks={"read-file": ToolHooks(before=Before(), after=After())},

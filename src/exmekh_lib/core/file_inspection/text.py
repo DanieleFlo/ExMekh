@@ -5,6 +5,8 @@ from xml.parsers.expat import ExpatError
 
 import yaml
 
+from exmekh_lib.config.file_inspection import FILE_INSPECTION_TEXT
+
 from .decoding import decode_text
 from .lines import physical_lines
 from .models import Analysis, RegionIndex
@@ -20,9 +22,7 @@ def analyze_text(raw: bytes, extension: str, index: RegionIndex) -> Analysis:
             "binary",
             index,
             status="unsupported",
-            warnings=[
-                "No text analyzer is available for this binary or non-Unicode file."
-            ],
+            warnings=[FILE_INSPECTION_TEXT.unsupported_binary_warning],
         )
     text, encoding = decoded
     format_name = {
@@ -71,12 +71,17 @@ def analyze_text(raw: bytes, extension: str, index: RegionIndex) -> Analysis:
             analyze_table(text, result)
     except (ValueError, SyntaxError, csv.Error, yaml.YAMLError, ExpatError) as error:
         result.status = "invalid_format"
-        result.warnings.append(f"Invalid {format_name}: {type(error).__name__}.")
+        result.warnings.append(
+            FILE_INSPECTION_TEXT.invalid_text_warning.format(
+                format_name=format_name,
+                error_type=type(error).__name__,
+            )
+        )
         if isinstance(error, SyntaxError):
             result.details.update(syntax_valid=False, error_line=error.lineno)
     except RecursionError:
         result.status = "skipped_limit"
-        result.warnings.append("Parser nesting limit exceeded.")
+        result.warnings.append(FILE_INSPECTION_TEXT.parser_depth_warning)
     if index.is_empty() and lines:
-        index.add("content", "file content", 1, len(lines))
+        index.add("content", FILE_INSPECTION_TEXT.content_region_label, 1, len(lines))
     return result

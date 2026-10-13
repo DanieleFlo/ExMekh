@@ -274,10 +274,10 @@ class Tool:
                     self.validate_arguments(context.arguments)
                 except (TypeError, ValueError) as error:
                     guidance = self.argument_guidance or (
-                        f"Correct the arguments and call {self.name} again."
+                        RUNTIME.argument_correction.format(tool_name=self.get_name())
                     )
                     raise ToolArgumentError(
-                        f"Invalid arguments: {error}. {guidance}"
+                        RUNTIME.invalid_arguments.format(error=error, guidance=guidance)
                     ) from error
                 work = self.create_execution(
                     context.arguments,
@@ -338,11 +338,11 @@ class Tool:
         if self.background_enabled:
             hints["execution_mode"] = Annotated[
                 Literal["wait", "background"],
-                "Wait up to wait_seconds, or return immediately while the tool continues.",
+                RUNTIME.execution_mode_guidance,
             ]
             hints["wait_seconds"] = Annotated[
                 float,
-                "Maximum initial wait in seconds; the tool continues after this time.",
+                RUNTIME.initial_wait_guidance,
             ]
         return hints
 

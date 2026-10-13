@@ -12,7 +12,7 @@ from exmekh_lib.core.agents.tools.decorator import deep_tool
 
 @deep_tool(
     name=RUNTIME.search_tool_name,
-    description="Search saved and running tool outputs as structured records.",
+    description=RUNTIME.raw_output_search_description,
     background_enabled=False,
 )
 def run(

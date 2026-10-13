@@ -9,9 +9,33 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from exmekh_lib.config.file_inspection import FileInspectionSettings
+from exmekh_lib.config.file_inspection import (
+    FILE_INSPECTION_TEXT,
+    FileInspectionSettings,
+)
 
 from .errors import FileInspectionError
+
+
+@dataclass(frozen=True, slots=True)
+class FileIdentity:
+    """Filesystem identity and version, independent of access time and aliases."""
+
+    device: int
+    inode: int
+    size: int
+    modified_ns: int
+    changed_ns: int
+
+    @classmethod
+    def from_stat(cls, value: os.stat_result) -> FileIdentity:
+        return cls(
+            value.st_dev,
+            value.st_ino,
+            value.st_size,
+            value.st_mtime_ns,
+            value.st_ctime_ns,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,7 +53,7 @@ class FileSnapshot:
             and other.content is not None
             and self.path == other.path
             and self.content == other.content
-            and _identity(self.stat) == _identity(other.stat)
+            and FileIdentity.from_stat(self.stat) == FileIdentity.from_stat(other.stat)
         )
 
     def metadata(self) -> dict[str, object]:
@@ -53,11 +77,9 @@ class FileSnapshot:
 
 def validate_file_path(path: str) -> None:
     if not isinstance(path, str) or not path.strip():
-        raise FileInspectionError(
-            "path must contain non-space text inside the workroot."
-        )
+        raise FileInspectionError(FILE_INSPECTION_TEXT.path_required)
     if "\x00" in path:
-        raise FileInspectionError("path must not contain NUL characters.")
+        raise FileInspectionError(FILE_INSPECTION_TEXT.path_nul)
 
 
 def read_snapshot(
@@ -67,22 +89,18 @@ def read_snapshot(
     try:
         root = work_root.resolve(strict=True)
         if not root.is_dir():
-            raise FileInspectionError("workroot must identify a directory.")
+            raise FileInspectionError(FILE_INSPECTION_TEXT.root_not_directory)
     except (OSError, RuntimeError) as error:
-        raise FileInspectionError(
-            "workroot does not exist or cannot be resolved; restore it before retrying."
-        ) from error
+        raise FileInspectionError(FILE_INSPECTION_TEXT.root_unavailable) from error
     # Whitespace can be part of a filename; only use strip for blank validation.
     candidate = root / path
     try:
         target = candidate.resolve(strict=True)
         relative = target.relative_to(root).as_posix()
     except ValueError as error:
-        raise FileInspectionError("path must remain inside the workroot.") from error
+        raise FileInspectionError(FILE_INSPECTION_TEXT.path_outside_root) from error
     except (OSError, RuntimeError) as error:
-        raise FileInspectionError(
-            "path does not exist or cannot be resolved."
-        ) from error
+        raise FileInspectionError(FILE_INSPECTION_TEXT.path_unavailable) from error
 
     try:
         flags = (
@@ -90,11 +108,11 @@ def read_snapshot(
         )
         # Check before opening a special file, then check again on the descriptor.
         if not stat.S_ISREG(target.stat().st_mode):
-            raise FileInspectionError("path must identify a regular file.")
+            raise FileInspectionError(FILE_INSPECTION_TEXT.regular_file_required)
         with os.fdopen(os.open(target, flags), "rb") as stream:
             initial = os.fstat(stream.fileno())
             if not stat.S_ISREG(initial.st_mode):
-                raise FileInspectionError("path must identify a regular file.")
+                raise FileInspectionError(FILE_INSPECTION_TEXT.regular_file_required)
             content = (
                 stream.read(settings.max_file_bytes + 1)
                 if initial.st_size <= settings.max_file_bytes
@@ -102,22 +120,12 @@ def read_snapshot(
             )
             if content is not None and len(content) > settings.max_file_bytes:
                 content = None
-            if _identity(initial) != _identity(os.fstat(stream.fileno())):
-                raise FileInspectionError("File changed during inspection; retry.")
-        if _identity(initial) != _identity(target.stat()):
-            raise FileInspectionError("File changed during inspection; retry.")
+            if FileIdentity.from_stat(initial) != FileIdentity.from_stat(
+                os.fstat(stream.fileno())
+            ):
+                raise FileInspectionError(FILE_INSPECTION_TEXT.file_changed)
+        if FileIdentity.from_stat(initial) != FileIdentity.from_stat(target.stat()):
+            raise FileInspectionError(FILE_INSPECTION_TEXT.file_changed)
     except OSError as error:
-        raise FileInspectionError(
-            "File could not be read; check permissions and retry."
-        ) from error
+        raise FileInspectionError(FILE_INSPECTION_TEXT.file_unreadable) from error
     return FileSnapshot(target, relative, initial, content, candidate.is_symlink())
-
-
-def _identity(value: os.stat_result) -> tuple[int, int, int, int, int]:
-    return (
-        value.st_dev,
-        value.st_ino,
-        value.st_size,
-        value.st_mtime_ns,
-        value.st_ctime_ns,
-    )

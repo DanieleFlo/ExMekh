@@ -5,6 +5,7 @@ from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import Any
 
+from exmekh_lib.config.file_editing import FILE_EDIT_FORMAT, FILE_EDITING
 from exmekh_lib.core.models.assistant_message import ToolCall
 from exmekh_lib.core.models.interactive import InteractiveProtocolError
 from exmekh_lib.interfaces.message import Message
@@ -37,7 +38,7 @@ class FileInteractiveCalls:
         self._scope_ids = scope_ids
         self._evidence: tuple[InspectionEvidence, ...] = ()
         self._approvals: dict[str, list[EditApproval]] = {}
-        self._preparers = {"edit_file.v2": self._prepare_edit}
+        self._preparers = {FILE_EDIT_FORMAT.behavior: self._prepare_edit}
         self._pending_inspections: FileInspectionRequests | None = None
         self._history_snapshot: list[dict[str, str]] | None = None
         self._scope_snapshot: tuple[str, ...] = ()
@@ -69,9 +70,7 @@ class FileInteractiveCalls:
     ) -> dict[str, object]:
         prepare = self._preparers.get(definition["behavior"])
         if prepare is None:
-            raise InteractiveProtocolError(
-                "Interactive behavior has no registered runtime handler"
-            )
+            raise InteractiveProtocolError(FILE_EDITING.runtime_handler_required)
         return prepare(event, definition)
 
     def _prepare_edit(
@@ -82,9 +81,7 @@ class FileInteractiveCalls:
         approvals = self._approvals.setdefault(call_id, [])
         try:
             if event["request"]["edit_index"] != len(approvals) + 1:
-                raise InteractiveProtocolError(
-                    "Missing or duplicate edit authorization"
-                )
+                raise InteractiveProtocolError(FILE_EDITING.authorization_sequence)
             target = resolve_edit_target(self._work_root, resource)
             previous = next((item for item in approvals if item.target == target), None)
             if previous is None:
@@ -111,9 +108,7 @@ class FileInteractiveCalls:
         # Wire validation freezes each path/index. The execution service checks bytes
         # again after hooks and immediately before committing the mutation.
         if self.cancellation_requested():
-            raise InteractiveProtocolError(
-                "Interactive call invalidated by steering before dispatch"
-            )
+            raise InteractiveProtocolError(FILE_EDITING.cancelled_before_dispatch)
 
     def execution_context(self, call_id: str) -> AbstractContextManager[None]:
         return file_edit_context(
@@ -123,9 +118,7 @@ class FileInteractiveCalls:
 
     def _execution_evidence(self) -> tuple[InspectionEvidence, ...]:
         if self._cancelled() or self._scope_ids() != self._scope_snapshot:
-            raise FileInspectionError(
-                "Interactive edit invalidated by cancellation or scope change before writing."
-            )
+            raise FileInspectionError(FILE_EDITING.cancelled_before_write)
         return self._runtime.visible_evidence(self._history())
 
     def pending_inspections(self) -> tuple[ToolCall, ...]:

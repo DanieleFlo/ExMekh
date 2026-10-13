@@ -5,7 +5,10 @@ from io import BytesIO
 
 from PIL import Image, ImageOps
 
-from exmekh_lib.config.file_inspection import FileInspectionSettings
+from exmekh_lib.config.file_inspection import (
+    FILE_INSPECTION_TEXT,
+    FileInspectionSettings,
+)
 from exmekh_lib.core.models.tool import AttachedToolResult
 from exmekh_lib.core.models.user_message import ImagesUserMessage, UserMessage
 
@@ -17,18 +20,13 @@ def read_image(
     snapshot: FileSnapshot, settings: FileInspectionSettings
 ) -> AttachedToolResult:
     if snapshot.content is None:
-        raise FileInspectionError(
-            "Image exceeds the configured file byte limit; use a smaller image."
-        )
+        raise FileInspectionError(FILE_INSPECTION_TEXT.image_byte_limit)
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
             with Image.open(BytesIO(snapshot.content)) as source:
                 if source.width * source.height > settings.max_image_pixels:
-                    raise FileInspectionError(
-                        "Image dimensions exceed the configured pixel limit; "
-                        "use a smaller image."
-                    )
+                    raise FileInspectionError(FILE_INSPECTION_TEXT.image_pixel_limit)
                 image_format = (source.format or "image").casefold()
                 # Decode while the snapshot stream is open; deliver only frame 1.
                 image = ImageOps.exif_transpose(source).convert("RGBA")
@@ -42,8 +40,9 @@ def read_image(
         Image.DecompressionBombWarning,
     ) as error:
         raise FileInspectionError(
-            f"Image could not be read or decoded ({type(error).__name__}); "
-            "check the file and its format, then retry."
+            FILE_INSPECTION_TEXT.image_decode_failed.format(
+                error_type=type(error).__name__
+            )
         ) from error
     return AttachedToolResult(
         {
@@ -54,10 +53,15 @@ def read_image(
             "width": image.width,
             "height": image.height,
             "frame": 1,
-            "start_line": 0,
-            "end_line": 0,
+            "start_index": 0,
+            "end_index": 0,
         },
         UserMessage(
-            [f"Image read from {snapshot.relative_path}", ImagesUserMessage([image])]
+            [
+                FILE_INSPECTION_TEXT.image_attachment_label.format(
+                    path=snapshot.relative_path
+                ),
+                ImagesUserMessage([image]),
+            ]
         ),
     )

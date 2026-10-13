@@ -40,6 +40,6 @@ class ExecutionControlTool(DeepTool):
                 "cancelled": cancelled,
             }
             if not supported:
-                result["message"] = "This tool does not support cancellation."
+                result["message"] = RUNTIME.cancellation_unsupported
             return result
-        raise ValueError("action must be 'wait' or 'cancel'")
+        raise ValueError(RUNTIME.invalid_control_action)

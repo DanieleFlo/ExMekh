@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path
 
-from exmekh_lib.config.file_inspection import FILE_INSPECTION
+from exmekh_lib.config.file_inspection import FILE_INSPECTION, FILE_INSPECTION_TEXT
 
 from .decoding import decode_text
 from .errors import FileInspectionError
@@ -14,10 +14,6 @@ from .image_reading import read_image
 from .lines import physical_lines
 from .pdf_reading import read_pdf, validate_pdf_read_arguments
 from .workspace import FileSnapshot, read_snapshot, validate_file_path
-
-_NO_READABLE_LINES = (
-    "This format has no readable physical text lines; use inspect-file metadata."
-)
 
 
 class FileReadContext:
@@ -63,35 +59,30 @@ def require_inspection(path: str) -> dict[str, object]:
     if context is not None:
         context.request_inspection(path)
     indices = (
-        "page indices" if Path(path).suffix.casefold() == ".pdf" else "line indices"
+        FILE_INSPECTION_TEXT.page_indices_label
+        if Path(path).suffix.casefold() == ".pdf"
+        else FILE_INSPECTION_TEXT.line_indices_label
     )
     return {
         "ok": False,
         "error_kind": "file_inspection_required",
-        "error": (
-            "inspect-file(path) and its successful result are missing from the "
-            "visible context, or the file has changed. Inspect the current file, "
-            f"then choose start_line and end_line as {indices} again from that analysis and "
-            "make a new read-file call. This read was not performed."
-        ),
+        "error": FILE_INSPECTION_TEXT.inspection_required.format(indices=indices),
     }
 
 
-def validate_read_arguments(path: str, start_line: int, end_line: int) -> None:
+def validate_read_arguments(path: str, start_index: int, end_index: int) -> None:
     validate_file_path(path)
-    for name, value in (("start_line", start_line), ("end_line", end_line)):
-        if type(value) is not int or (value < 1 and (start_line, end_line) != (0, 0)):
+    for name, value in (("start_index", start_index), ("end_index", end_index)):
+        if type(value) is not int or (value < 1 and (start_index, end_index) != (0, 0)):
             raise FileInspectionError(
-                f"{name} must be a positive integer (1-based); choose it from inspect-file."
+                FILE_INSPECTION_TEXT.positive_index.format(name=name)
             )
-    if start_line > end_line:
-        raise FileInspectionError(
-            "start_line must be <= end_line; supply an inclusive interval from inspect-file."
-        )
+    if start_index > end_index:
+        raise FileInspectionError(FILE_INSPECTION_TEXT.ordered_indices)
 
 
 def read_file(
-    work_root: Path, path: str, start_line: int, end_line: int
+    work_root: Path, path: str, start_index: int, end_index: int
 ) -> dict[str, object]:
     validate_file_path(path)
     is_pdf = Path(path).suffix.casefold() == ".pdf"
@@ -100,9 +91,9 @@ def read_file(
             read_snapshot(work_root, path, FILE_INSPECTION), FILE_INSPECTION
         )
     if is_pdf:
-        validate_pdf_read_arguments(start_line, end_line, FILE_INSPECTION)
+        validate_pdf_read_arguments(start_index, end_index, FILE_INSPECTION)
     else:
-        validate_read_arguments(path, start_line, end_line)
+        validate_read_arguments(path, start_index, end_index)
     # No content is decoded or selected before the prerequisite is satisfied.
     context = _read_context.get()
     evidence = context.visible_inspections() if context is not None else ()
@@ -116,8 +107,8 @@ def read_file(
     if inspection is None:
         return require_inspection(path)
     if is_pdf:
-        return read_pdf(snapshot, start_line, end_line, FILE_INSPECTION)
-    return _read_line_range(snapshot, inspection, start_line, end_line)
+        return read_pdf(snapshot, start_index, end_index, FILE_INSPECTION)
+    return _read_line_range(snapshot, inspection, start_index, end_index)
 
 
 def _find_matching_inspection(
@@ -143,38 +134,35 @@ def _find_matching_inspection(
 def _read_line_range(
     snapshot: FileSnapshot,
     inspection: InspectionEvidence,
-    start_line: int,
-    end_line: int,
+    start_index: int,
+    end_index: int,
 ) -> dict[str, object]:
     if not inspection.readable:
-        raise FileInspectionError(_NO_READABLE_LINES)
+        raise FileInspectionError(FILE_INSPECTION_TEXT.no_readable_lines)
     assert snapshot.content is not None
     decoded = decode_text(snapshot.content, snapshot.path.suffix.casefold())
     if decoded is None:
-        raise FileInspectionError(_NO_READABLE_LINES)
+        raise FileInspectionError(FILE_INSPECTION_TEXT.no_readable_lines)
     text, encoding = decoded
     lines = physical_lines(text)
     if not lines:
-        if (start_line, end_line) != (0, 0):
-            raise FileInspectionError(
-                "File is empty; use start_line=0 and end_line=0 to read it."
-            )
-    elif start_line < 1 or end_line > len(lines):
+        if (start_index, end_index) != (0, 0):
+            raise FileInspectionError(FILE_INSPECTION_TEXT.empty_file_range)
+    elif start_index < 1 or end_index > len(lines):
         raise FileInspectionError(
-            f"start_line/end_line are outside the file (1..{len(lines)}); "
-            "choose both inclusive indices from inspect-file."
+            FILE_INSPECTION_TEXT.line_range_outside_file.format(total_lines=len(lines))
         )
     return ReadReport(
         {
             "ok": True,
             "path": snapshot.relative_path,
             "encoding": encoding,
-            "start_line": start_line,
-            "end_line": end_line,
+            "start_index": start_index,
+            "end_index": end_index,
             "total_lines": len(lines),
             "lines": [
                 {"line": number, "text": lines[number - 1]}
-                for number in range(start_line, end_line + 1)
+                for number in range(start_index, end_index + 1)
             ]
             if lines
             else [],

@@ -6,6 +6,11 @@ class WebNavigationSettings:
     """Shared defaults and resource budgets for web tools."""
 
     default_timeout_seconds: int = 30
+    action_guidance: str = (
+        "Ordered actions. Each requires kind. click requires selector; fill/select require "
+        "selector and value; navigate requires url; wait requires selector or milliseconds; "
+        "scroll accepts selector and delta_y; back needs no other fields."
+    )
     max_timeout_seconds: int = 120
     default_search_results: int = 5
     max_search_results: int = 10
@@ -40,6 +45,25 @@ class WebNavigationSettings:
     max_robots_bytes: int = 256 * 1024
     image_fetch_timeout_seconds: int = 10
     download_chunk_bytes: int = 64 * 1024
+
+    @property
+    def interact_web_page_description(self) -> str:
+        return (
+            f"Perform 1-{self.max_actions} typed browser actions on a previously inspected public "
+            "page. Navigation stays on the initial origin and observed effects are "
+            "reported for every action."
+        )
+
+    read_web_page_description: str = (
+        "Read one public URL as Markdown, semantic AST, or both. Returns the final "
+        "URL, retrieval time, page dates, and bounded untrusted page content."
+    )
+
+    search_web_description: str = (
+        "Search public web pages. Results are unverified discovery leads; read a page "
+        "before citing it. image_path optionally reranks results against a local image "
+        "inside the work root."
+    )
 
 
 @dataclass(frozen=True, slots=True)

@@ -59,7 +59,7 @@ def images(result):
 def inspected_read(path, start, end):
     report = inspect_file(path.parent, path.name)
     with file_read_context((report.evidence,)):
-        return read_file(path.parent, path.name, start, end)
+        return read_file(path.parent, path.name, start_index=start, end_index=end)
 
 
 def test_pdf_reads_only_requested_pages_at_configured_dpi(tmp_path, monkeypatch):
@@ -74,7 +74,7 @@ def test_pdf_reads_only_requested_pages_at_configured_dpi(tmp_path, monkeypatch)
     monkeypatch.setattr(pdfium.PdfPage, "render", render)
     result = inspected_read(path, 2, 6)
     assert isinstance(result, AttachedToolResult)
-    assert result["start_page"] == 2 and result["end_page"] == 6
+    assert result["start_index"] == 2 and result["end_index"] == 6
     assert result["total_pages"] == 7 and result["rendered_pages"] == 5
     assert result["dpi"] == 120
     assert rendered == [120 / 72] * 5
@@ -117,7 +117,7 @@ def test_invalid_pdf_intervals_fail_before_reading_or_rendering(
     monkeypatch.setattr(
         reading, "read_snapshot", lambda *a: pytest.fail("early file read")
     )
-    with pytest.raises(FileInspectionError, match="start_line|end_line|at most 5"):
+    with pytest.raises(FileInspectionError, match="start_index|end_index|at most 5"):
         read_file(tmp_path, "report.pdf", start, end)
 
 
@@ -212,7 +212,7 @@ def test_pdf_render_failure_returns_one_error_without_attachments(
         [
             open_files(),
             batch(call("inspect-file", "inspect", path=path.name)),
-            batch(read_call(path=path.name, start_line=1, end_line=2)),
+            batch(read_call(path=path.name, start_index=1, end_index=2)),
             AssistantMessage("done"),
         ],
     )
@@ -231,8 +231,8 @@ def test_pdf_automatic_inspection_then_retry_delivers_ordered_cached_pages(tmp_p
         tmp_path,
         [
             open_files(),
-            batch(read_call(path=path.name, start_line=1, end_line=2)),
-            batch(read_call("retry", path=path.name, start_line=2, end_line=3)),
+            batch(read_call(path=path.name, start_index=1, end_index=2)),
+            batch(read_call("retry", path=path.name, start_index=2, end_index=3)),
             AssistantMessage("done"),
         ],
     )
@@ -280,7 +280,7 @@ def test_missing_native_renderer_does_not_block_pdf_prerequisite_recovery(
         responses.append(batch(call("inspect-file", "inspect", path=path.name)))
     responses.extend(
         [
-            batch(read_call(path=path.name, start_line=1, end_line=2)),
+            batch(read_call(path=path.name, start_index=1, end_index=2)),
             AssistantMessage("done"),
         ]
     )

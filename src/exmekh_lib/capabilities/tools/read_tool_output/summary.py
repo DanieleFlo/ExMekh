@@ -25,7 +25,7 @@ class ToolOutputSummarizer:
     @staticmethod
     def validate_mode(mode: SummaryMode) -> None:
         if mode not in ("none", "brief", "detailed"):
-            raise ValueError("summary_mode must be none, brief or detailed")
+            raise ValueError(RUNTIME.invalid_summary_mode)
 
     def summarize(
         self, result: PreformattedToolResult, mode: SummaryMode

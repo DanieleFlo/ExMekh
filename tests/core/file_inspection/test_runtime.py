@@ -73,8 +73,8 @@ def test_inspection_requests_are_deduplicated_and_tied_to_the_exact_scope(tmp_pa
 def test_read_override_preserves_synchronous_prerequisite_recovery(tmp_path):
     (tmp_path / "notes.txt").write_text("content")
 
-    def replacement(path: str, start_line: int, end_line: int):
-        return read_file(tmp_path, path, start_line, end_line)
+    def replacement(path: str, start_index: int, end_index: int):
+        return read_file(tmp_path, path, start_index, end_index)
 
     override = Tool(replacement, name="read-file")
     assert override.background_enabled

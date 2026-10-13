@@ -10,13 +10,7 @@ from exmekh_lib.core.reasoning_tools.formal_logic import logic_tool_result
 
 @deep_tool(
     name="logic-check",
-    description=(
-        "Use Z3 to check whether a formal Boolean or linear-arithmetic conclusion "
-        "follows from formal premises. Supply the JSON formula DSL and declared "
-        "Bool, Int, or Real variables. Returns valid, invalid with a model, "
-        "inconsistent_premises, unknown, or timeout. This does not establish "
-        "that premises are factually true or that a natural-language translation is correct."
-    ),
+    description=(FORMAL_LOGIC.check_description),
 )
 def run(
     work_root: Path,

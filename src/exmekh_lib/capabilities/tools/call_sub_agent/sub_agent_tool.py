@@ -24,13 +24,13 @@ class SubAgentTool(DeepTool):
     def __init__(self, children: Sequence[Node], work_root: Path | None = None) -> None:
         child_names = tuple(child.name_hds for child in children)
         if not child_names:
-            raise ValueError("SubAgentTool requires at least one child")
+            raise ValueError(RUNTIME.sub_agent_children_required)
         if len(child_names) != len(set(child_names)):
             duplicates = sorted(
                 name for name in set(child_names) if child_names.count(name) > 1
             )
             raise ValueError(
-                "Direct child HDS names must be unique: " + ", ".join(duplicates)
+                RUNTIME.sub_agent_duplicate_names.format(names=", ".join(duplicates))
             )
 
         self._children = dict(zip(child_names, children, strict=True))
@@ -52,10 +52,10 @@ class SubAgentTool(DeepTool):
             append_text_element(agent, "name", name)
             append_text_element(agent, "description", descriptions.get(name, ""))
         xml = render_xml(agents)
-        return (
-            "Send a user message to one direct sub-agent and return its final "
-            f"response. Available sub-agents: {', '.join(self._child_names)}.\n"
-            f"{xml}"
+        return RUNTIME.sub_agent_catalog_description.format(
+            description=RUNTIME.call_sub_agent_description,
+            names=", ".join(self._child_names),
+            catalog=xml,
         )
 
     @property
@@ -66,12 +66,14 @@ class SubAgentTool(DeepTool):
         return {
             "sub_agent": Annotated[
                 str,
-                f"Name of the direct sub-agent that should receive the message. Available: {', '.join(self._child_names)}.",
+                RUNTIME.sub_agent_name_guidance.format(
+                    names=", ".join(self._child_names)
+                ),
                 {"enum": list(self._child_names)},
             ],
             "text": Annotated[
                 str,
-                "Non-empty user message to send to the selected sub-agent.",
+                RUNTIME.sub_agent_text_guidance,
                 {"minLength": 1, "pattern": r"\S"},
             ],
             "return": str,
@@ -80,9 +82,9 @@ class SubAgentTool(DeepTool):
     def execute(self, **arguments: Any) -> str:
         unexpected = sorted(set(arguments).difference(self._ARGUMENT_NAMES))
         if unexpected:
-            return (
-                "Error: call_sub_agent accepts only the arguments sub_agent and "
-                f"text. Unexpected: {', '.join(unexpected)}."
+            return RUNTIME.sub_agent_argument_error.format(
+                tool_name=self.get_name(),
+                unexpected=", ".join(unexpected),
             )
 
         sub_agent = arguments.get("sub_agent")
@@ -91,7 +93,7 @@ class SubAgentTool(DeepTool):
 
         text = arguments.get("text")
         if not isinstance(text, str) or not text.strip():
-            return "Error: text must be a non-empty string."
+            return RUNTIME.sub_agent_text_error
 
         return super().execute(**arguments)
 
@@ -99,10 +101,10 @@ class SubAgentTool(DeepTool):
         response = self._children[sub_agent].run(text)
         content = response.get_message()
         if not isinstance(content, str) or not content.strip():
-            raise RuntimeError(
-                f"Sub-agent '{sub_agent}' returned no final response text"
-            )
+            raise RuntimeError(RUNTIME.sub_agent_empty_response.format(name=sub_agent))
         return content
 
     def _invalid_sub_agent_message(self) -> str:
-        return "Error: sub_agent must be one of: " + ", ".join(self._child_names) + "."
+        return RUNTIME.sub_agent_selector_error.format(
+            names=", ".join(self._child_names)
+        )

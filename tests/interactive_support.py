@@ -83,7 +83,7 @@ def pause(
         "exchange_id": exchange,
         "call_id": call_id,
         "tool_name": name,
-        "behavior": "edit_file.v2",
+        "behavior": "edit_file.v3",
         "request": {
             "kind": "file_snapshot",
             "edit_index": edit_index,
@@ -97,7 +97,7 @@ CAPABILITIES = {
     "interactive": {
         "version": 2,
         "apis": ["responses"],
-        "behaviors": ["edit_file.v2"],
+        "behaviors": ["edit_file.v3"],
         "model_syntax": "qwen27",
         "syntaxes": ["qwen27"],
         "model_supported": True,
@@ -191,6 +191,8 @@ def make_sdk_node(tmp_path, monkeypatch, steps, *, streaming=False, hooks=None):
                 "inspect-file",
                 "read-file",
                 "edit-file",
+                "new-file",
+                "delete-file",
                 "exit_agent",
             },
             tool_hooks=hooks,
@@ -223,7 +225,7 @@ def read(start=1, end=1):
         (
             "read",
             "read-file",
-            {"path": "notes.txt", "start_line": start, "end_line": end},
+            {"path": "notes.txt", "start_index": start, "end_index": end},
         ),
         continuation="cont-read",
     )
@@ -235,20 +237,9 @@ def exit_skill():
     )
 
 
-def line_tag(number):
-    return f'<line number="{number}"/>'
-
-
-def edit_fragment(path, old, new):
-    old_body = (
-        old
-        if isinstance(old, str) and old.startswith("<")
-        else escape(old)
-        if isinstance(old, str)
-        else str(old)
-    )
-    new_body = "<delete/>" if new is None else escape(new)
-    return f'<edit path="{escape(path, quote=True)}"><old_text>{old_body}</old_text><new_text>{new_body}</new_text></edit>'
+def edit_fragment(path, old, new, identifier=None):
+    tag = "" if identifier is None else f' id="{identifier}"'
+    return f'<exmekh_edit path="{escape(path, quote=True)}"{tag} />{old}<exmekh_new_text{tag}/>{new}'
 
 
 def edit_arguments(path, old, new):

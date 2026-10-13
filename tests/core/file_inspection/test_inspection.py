@@ -568,7 +568,13 @@ def test_file_processing_skill_inspects_exits_and_rereads_saved_xml(tmp_path):
     skill = next(
         skill for skill in loaded.deep_skills if skill.name == "file-processing"
     )
-    assert skill.get_sub_tool_names() == ("inspect-file", "read-file", "edit-file")
+    assert skill.get_sub_tool_names() == (
+        "inspect-file",
+        "read-file",
+        "edit-file",
+        "new-file",
+        "delete-file",
+    )
     assert not skill.inherits_parent_tools()
     assert node.run("inspect").get_message() == "done"
     root_tools = set(provider.requests[0].get_extra()["agentic"]["allowed_tools"])
@@ -579,6 +585,8 @@ def test_file_processing_skill_inspects_exits_and_rereads_saved_xml(tmp_path):
         "inspect-file",
         "read-file",
         "edit-file",
+        "new-file",
+        "delete-file",
         "exit_agent",
     }
     result = next(
@@ -625,7 +633,14 @@ def test_file_processing_skill_can_be_selected_without_other_harness_skills(tmp_
         None,
         default_capabilities=DefaultCapabilities(
             harness=False,
-            include={"file-processing", "inspect-file", "read-file", "edit-file"},
+            include={
+                "file-processing",
+                "inspect-file",
+                "read-file",
+                "edit-file",
+                "new-file",
+                "delete-file",
+            },
         ),
     ).load(work_root=tmp_path)
     assert {skill.name for skill in loaded.deep_skills} == {"file-processing"}
@@ -633,6 +648,8 @@ def test_file_processing_skill_can_be_selected_without_other_harness_skills(tmp_
         "inspect-file",
         "read-file",
         "edit-file",
+        "new-file",
+        "delete-file",
     }
 
 

@@ -8,17 +8,12 @@ from typing import Any
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.agents.tools.decorator import deep_tool
 
-from .bash_process import _BashProcess
+from .bash_process import BashProcess
 
 
 @deep_tool(
     name=RUNTIME.bash_tool_name,
-    description=(
-        "Run a command in Bash from the node workroot. Each call starts an "
-        "independent process. Read incremental stdout/stderr with "
-        "read_tool_output(output_id, cursor); wait or cancel with "
-        "control_tool_execution(tool_call_id). Requires Bash on PATH."
-    ),
+    description=(RUNTIME.bash_description),
 )
 def run(work_root: Path, executable: str | None, command: str) -> dict[str, Any]:
-    return _BashProcess(command, work_root, executable).run()
+    return BashProcess(command, work_root, executable).run()

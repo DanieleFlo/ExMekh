@@ -10,12 +10,7 @@ from exmekh_lib.core.reasoning_tools.formal_logic import logic_tool_result
 
 @deep_tool(
     name="logic-counterexample",
-    description=(
-        "Use Z3 to search for a model where every formal premise is true and "
-        "the formal conclusion is false. Supply the JSON formula DSL and "
-        "declared Bool, Int, or Real variables. A found model refutes the "
-        "formal implication; not_found means no model was found in the supported theory."
-    ),
+    description=(FORMAL_LOGIC.counterexample_description),
 )
 def run(
     work_root: Path,

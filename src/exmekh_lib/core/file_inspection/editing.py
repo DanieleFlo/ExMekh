@@ -31,24 +31,40 @@ from .workspace import FileSnapshot
 class EditApproval:
     resource: str
     target: Path
-    snapshot: FileSnapshot | None
+    snapshot: FileSnapshot
     text: str
     encoding: str
 
     def authorize_alias(self, work_root: Path, resource: str) -> Self:
         """Reuse the initial snapshot only while the alias resolves to its target."""
-        validate_edit_target(
-            work_root,
-            resource,
-            self.target,
-            self.snapshot,
-            self.snapshot.content if self.snapshot else b"",
-        )
+        self.validate_target(work_root, resource)
         return replace(self, resource=resource)
 
+    def validate_target(self, work_root: Path, resource: str) -> None:
+        validate_edit_target(work_root, resource, self.target, self.snapshot)
+
+    def shares_snapshot(self, other: Self) -> bool:
+        return (
+            self.snapshot.matches(other.snapshot)
+            and self.text == other.text
+            and self.encoding == other.encoding
+        )
+
+    def prepare_replacement(self, elements: tuple[EditElement, ...]) -> bytes:
+        replacement = select_replacements(self.text, elements)
+        assert self.snapshot.content is not None
+        encoded = encode_replacement(replacement, self.snapshot.content, self.encoding)
+        if len(encoded) > FILE_EDITING.max_snapshot_bytes:
+            raise FileInspectionError(FILE_EDITING.replacement_byte_limit)
+        return encoded
+
+    def commit_replacement(
+        self, work_root: Path, content: bytes, evidence: tuple[InspectionEvidence, ...]
+    ) -> None:
+        self.require_evidence(evidence)
+        commit_edit(work_root, self.resource, self.target, self.snapshot, content)
+
     def reply(self) -> dict[str, object]:
-        if self.snapshot is None:
-            return {"status": "create"}
         return {
             "status": "provide",
             "text": self.text,
@@ -58,9 +74,8 @@ class EditApproval:
 
     def require_evidence(self, evidence: tuple[InspectionEvidence, ...]) -> None:
         """Existing snapshots require current, visible inspect/read authorization."""
-        if self.snapshot is not None:
-            assert self.snapshot.content is not None
-            require_edit_evidence(self.target, self.snapshot.content, evidence)
+        assert self.snapshot.content is not None
+        require_edit_evidence(self.target, self.snapshot.content, evidence)
 
 
 class EditPrerequisiteError(FileInspectionError):
@@ -82,9 +97,7 @@ def require_edit_evidence(
             and item.successful
             and not item.readable
         ):
-            raise FileInspectionError(
-                "Inspection identifies a format without editable physical text."
-            )
+            raise FileInspectionError(FILE_EDITING.noneditable_inspection)
         if (
             item.path != target
             or item.digest != digest
@@ -111,27 +124,21 @@ def approve_edit(
         *FILE_INSPECTION.zip_extensions,
         ".pdf",
     }:
-        raise FileInspectionError(
-            "This file format is not supported by the text edit tool."
-        )
+        raise FileInspectionError(FILE_EDITING.unsupported_text_format)
     with resource_lock(target):
         try:
             target.lstat()
-        except FileNotFoundError:
-            return EditApproval(resource, target, None, "", "utf-8")
+        except FileNotFoundError as error:
+            raise FileInspectionError(FILE_EDITING.existing_file_required) from error
         snapshot = edit_snapshot(work_root, resource)
         assert snapshot.content is not None
         require_edit_evidence(target, snapshot.content, evidence)
         decoded = decode_text(snapshot.content, target.suffix.casefold())
         if decoded is None or "\x00" in decoded[0]:
-            raise FileInspectionError(
-                "Only supported Unicode text without NUL can be edited."
-            )
+            raise FileInspectionError(FILE_EDITING.unicode_text_required)
         text, encoding = decoded
         if len(text.encode("utf-8")) > FILE_EDITING.max_snapshot_bytes:
-            raise FileInspectionError(
-                "Decoded snapshot exceeds the UTF-8 control byte limit."
-            )
+            raise FileInspectionError(FILE_EDITING.decoded_snapshot_limit)
         return EditApproval(resource, target, snapshot, text, encoding)
 
 
@@ -159,7 +166,7 @@ def file_edit_context(
 class _PreparedEdit:
     approval: EditApproval
     resources: tuple[str, ...]
-    content: bytes | None
+    content: bytes
 
     @property
     def resource(self) -> str:
@@ -168,33 +175,16 @@ class _PreparedEdit:
     def validate(self, work_root: Path) -> None:
         """Preflight every alias before any canonical file is changed."""
         for resource in self.resources:
-            validate_edit_target(
-                work_root,
-                resource,
-                self.approval.target,
-                self.approval.snapshot,
-                self.content,
-            )
+            self.approval.validate_target(work_root, resource)
 
     def commit(self, work_root: Path, evidence: tuple[InspectionEvidence, ...]) -> None:
-        self.approval.require_evidence(evidence)
-        commit_edit(
-            work_root,
-            self.resource,
-            self.approval.target,
-            self.approval.snapshot,
-            self.content,
-        )
+        self.approval.commit_replacement(work_root, self.content, evidence)
 
     def result(self, work_root: Path) -> dict[str, object]:
         return {
             "path": self.approval.target.relative_to(work_root.resolve()).as_posix(),
-            "operation": "remove"
-            if self.content is None
-            else "create"
-            if self.approval.snapshot is None
-            else "edit",
-            "size_bytes": len(self.content) if self.content is not None else 0,
+            "operation": "edit",
+            "size_bytes": len(self.content),
         }
 
 
@@ -207,40 +197,17 @@ def _prepare_edits(
         element.path != approval.resource
         for element, approval in zip(document.elements, approvals, strict=True)
     ):
-        raise FileInspectionError(
-            "Every path and edit index must match its authorization, including after Before hooks."
-        )
+        raise FileInspectionError(FILE_EDITING.authorization_mismatch)
     groups: dict[Path, list[tuple[EditElement, EditApproval]]] = {}
     for element, approval in zip(document.elements, approvals, strict=True):
         groups.setdefault(approval.target, []).append((element, approval))
     prepared: list[_PreparedEdit] = []
     for group in groups.values():
         approval = group[0][1]
-        if any(
-            other.snapshot != approval.snapshot or other.text != approval.text
-            for _, other in group
-        ):
-            raise FileInspectionError("Aliases must share the same initial snapshot.")
-        snapshot = approval.snapshot
+        if any(not approval.shares_snapshot(other) for _, other in group):
+            raise FileInspectionError(FILE_EDITING.alias_snapshot_mismatch)
         approval.require_evidence(evidence)
-        replacement = select_replacements(
-            approval.text,
-            tuple(element for element, _ in group),
-            exists=snapshot is not None,
-        )
-        encoded = (
-            None
-            if replacement is None
-            else encode_replacement(
-                replacement,
-                snapshot.content if snapshot and snapshot.content is not None else b"",
-                approval.encoding,
-            )
-        )
-        if encoded is not None and len(encoded) > FILE_EDITING.max_snapshot_bytes:
-            raise FileInspectionError(
-                "Result exceeds the configured file byte limit; no edit was applied."
-            )
+        encoded = approval.prepare_replacement(tuple(element for element, _ in group))
         prepared.append(
             _PreparedEdit(
                 approval, tuple(element.path for element, _ in group), encoded
@@ -253,11 +220,11 @@ def edit_files(work_root: Path, edits: str) -> dict[str, object]:
     """Validate the entire post-hook document, then commit each canonical file once."""
     context = _approval.get()
     if context is None or not context[0]:
-        raise FileInspectionError(
-            "An accepted interactive snapshot exchange is required; ordinary tool-call fallback is forbidden."
-        )
-    document = EditDocument.parse(edits)
+        raise FileInspectionError(FILE_EDITING.interactive_exchange_required)
     approvals, evidence_source = context
+    document = EditDocument.parse(
+        edits, snapshots=tuple(item.text for item in approvals)
+    )
     committed: list[dict[str, object]] = []
     with ExitStack() as locks:
         for target in sorted({approval.target for approval in approvals}):

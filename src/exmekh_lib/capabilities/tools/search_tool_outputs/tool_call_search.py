@@ -63,20 +63,22 @@ class ToolCallSearch:
     ) -> tuple[list[ToolCallRecord], int, int | None]:
         """Return matching records and pagination metadata."""
         if not isinstance(query, str):
-            raise TypeError("query must be a string")
+            raise TypeError(RUNTIME.output_query_required)
         if tool_name is not None and (
             not isinstance(tool_name, str) or not tool_name.strip()
         ):
-            raise ValueError("tool_name must be a non-empty string or None")
+            raise ValueError(RUNTIME.output_tool_name_required)
         if skill_path is not None and (
             not isinstance(skill_path, str) or not skill_path.startswith("/")
         ):
-            raise ValueError("skill_path must be an absolute skill path")
+            raise ValueError(RUNTIME.output_skill_path_required)
         if type(offset) is not int or offset < 0:
-            raise ValueError("offset must be a non-negative integer")
+            raise ValueError(RUNTIME.output_offset_required)
         if type(limit) is not int or not 1 <= limit <= RUNTIME.memory_max_page_limit:
             raise ValueError(
-                f"limit must be between 1 and {RUNTIME.memory_max_page_limit}"
+                RUNTIME.output_limit_required.format(
+                    limit=RUNTIME.memory_max_page_limit
+                )
             )
         needle = query.casefold()
         matches = [

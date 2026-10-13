@@ -9,7 +9,11 @@ from pathlib import Path
 from PIL import Image, UnidentifiedImageError
 from pypdf.errors import PdfReadError
 
-from exmekh_lib.config.file_inspection import FILE_INSPECTION, FileInspectionSettings
+from exmekh_lib.config.file_inspection import (
+    FILE_INSPECTION,
+    FILE_INSPECTION_TEXT,
+    FileInspectionSettings,
+)
 
 from .containers import analyze_image, analyze_tar, analyze_zip
 from .evidence import InspectionReport
@@ -72,9 +76,7 @@ def _analyze(snapshot: FileSnapshot, settings: FileInspectionSettings) -> Analys
             "unknown",
             index,
             status="skipped_limit",
-            warnings=[
-                "File exceeds the configured byte limit; only metadata is available."
-            ],
+            warnings=[FILE_INSPECTION_TEXT.metadata_only_warning],
         )
     try:
         if raw.startswith(b"PK\x03\x04") or extension in settings.zip_extensions:
@@ -106,5 +108,9 @@ def _analyze(snapshot: FileSnapshot, settings: FileInspectionSettings) -> Analys
             "unknown",
             index,
             status="invalid_format",
-            warnings=[f"Format analysis failed: {type(error).__name__}."],
+            warnings=[
+                FILE_INSPECTION_TEXT.analysis_failed_warning.format(
+                    error_type=type(error).__name__
+                )
+            ],
         )

@@ -25,6 +25,10 @@ class _AuthorizedEditCall:
     tool_name: str
     paths: tuple[str, ...] = ()
     exchange_id: str = ""
+    snapshots: tuple[str, ...] = ()
+
+    def with_snapshot(self, text: str) -> "_AuthorizedEditCall":
+        return replace(self, snapshots=(*self.snapshots, text))
 
     def with_pause(
         self, name: str, path: str, index: int, exchange_id: str
@@ -77,8 +81,12 @@ class InteractiveContract:
         return deepcopy(self._definitions[tool_name])
 
     def record_reply(self, event: dict[str, Any], reply: Mapping[str, object]) -> None:
+        text = reply.get("text")
         if reply.get("status") == "reject":
             self._rejected_call_id = event["call_id"]
+        elif reply.get("status") == "provide" and isinstance(text, str):
+            prior = self._frozen[event["call_id"]]
+            self._frozen[event["call_id"]] = prior.with_snapshot(text)
 
     def validate_next_result(self, result: dict[str, Any]) -> None:
         if (
@@ -224,7 +232,9 @@ class InteractiveContract:
             try:
                 if set(arguments) != {field}:
                     raise ValueError("Unexpected interactive arguments")
-                document = EditDocument.parse(arguments[field])
+                document = EditDocument.parse(
+                    arguments[field], snapshots=prior.snapshots if prior else ()
+                )
             except (ValueError, KeyError, TypeError) as error:
                 raise InteractiveProtocolError(
                     f"Invalid interactive document: {error}"

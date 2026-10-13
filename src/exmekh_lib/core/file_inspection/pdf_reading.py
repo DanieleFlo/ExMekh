@@ -10,7 +10,10 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import pypdfium2 as pdfium
 
-from exmekh_lib.config.file_inspection import FileInspectionSettings
+from exmekh_lib.config.file_inspection import (
+    FILE_INSPECTION_TEXT,
+    FileInspectionSettings,
+)
 from exmekh_lib.core.models.tool import AttachedToolResult
 from exmekh_lib.core.models.user_message import (
     ImagesUserMessage,
@@ -28,25 +31,26 @@ _PDFIUM_LOCK = Lock()
 def validate_pdf_read_arguments(
     start_page: int, end_page: int, settings: FileInspectionSettings
 ) -> None:
-    for name, value in (("start_line", start_page), ("end_line", end_page)):
+    for name, value in (("start_index", start_page), ("end_index", end_page)):
         if type(value) is not int or value < 1:
             raise FileInspectionError(
-                f"{name} must be a positive PDF page number (1-based)."
+                FILE_INSPECTION_TEXT.positive_page_index.format(name=name)
             )
     if start_page > end_page:
-        raise FileInspectionError(
-            "start_line must be <= end_line for the inclusive PDF page range."
-        )
+        raise FileInspectionError(FILE_INSPECTION_TEXT.ordered_page_indices)
     for name, value in (
         ("pdf_render_dpi", settings.pdf_render_dpi),
         ("max_pdf_render_pages", settings.max_pdf_render_pages),
     ):
         if type(value) is not int or value <= 0:
-            raise FileInspectionError(f"{name} must be a positive integer.")
+            raise FileInspectionError(
+                FILE_INSPECTION_TEXT.positive_setting.format(name=name)
+            )
     if end_page - start_page + 1 > settings.max_pdf_render_pages:
         raise FileInspectionError(
-            f"PDF reads allow at most {settings.max_pdf_render_pages} pages per call; "
-            "choose a smaller start_line/end_line interval."
+            FILE_INSPECTION_TEXT.page_limit.format(
+                max_pdf_render_pages=settings.max_pdf_render_pages
+            )
         )
 
 
@@ -58,9 +62,7 @@ def read_pdf(
 ) -> AttachedToolResult:
     validate_pdf_read_arguments(start_page, end_page, settings)
     if snapshot.content is None:
-        raise FileInspectionError(
-            "PDF exceeds the configured file byte limit; use a smaller PDF."
-        )
+        raise FileInspectionError(FILE_INSPECTION_TEXT.pdf_byte_limit)
     # Validation and prerequisite checks must not need the native renderer.
     import pypdfium2 as pdfium
 
@@ -68,10 +70,12 @@ def read_pdf(
         with _PDFIUM_LOCK, pdfium.PdfDocument(snapshot.content) as document:
             page_count = len(document)
             if page_count == 0:
-                raise FileInspectionError("PDF is empty; no pages can be read.")
+                raise FileInspectionError(FILE_INSPECTION_TEXT.empty_pdf)
             if end_page > page_count:
                 raise FileInspectionError(
-                    f"start_line/end_line are outside the PDF page range (1..{page_count})."
+                    FILE_INSPECTION_TEXT.page_range_outside_pdf.format(
+                        page_count=page_count
+                    )
                 )
             pages, parts = _render_pages(
                 document, start_page, end_page, snapshot.relative_path, settings
@@ -80,8 +84,9 @@ def read_pdf(
         raise
     except (pdfium.PdfiumError, OSError, ValueError, OverflowError) as error:
         raise FileInspectionError(
-            f"PDF could not be read or rendered ({type(error).__name__}: {error}); "
-            "check the file, encryption and render settings, then retry."
+            FILE_INSPECTION_TEXT.pdf_render_failed.format(
+                error_type=type(error).__name__, error=error
+            )
         ) from error
     return AttachedToolResult(
         {
@@ -89,8 +94,8 @@ def read_pdf(
             "path": snapshot.relative_path,
             "family": "document",
             "format": "pdf",
-            "start_page": start_page,
-            "end_page": end_page,
+            "start_index": start_page,
+            "end_index": end_page,
             "total_pages": page_count,
             "rendered_pages": len(pages),
             "dpi": settings.pdf_render_dpi,
@@ -116,15 +121,19 @@ def _render_pages(
             width, height = page.get_size()
             total_pixels += ceil(width * scale) * ceil(height * scale)
             if total_pixels > settings.max_image_pixels:
-                raise FileInspectionError(
-                    "PDF pages exceed the configured total pixel limit; "
-                    "read fewer pages or lower the configured DPI."
-                )
+                raise FileInspectionError(FILE_INSPECTION_TEXT.pdf_pixel_limit)
             # PDFium supports fractional scale; its untyped default is inferred as int.
             with closing(
                 page.render(scale=scale, rev_byteorder=True)  # pyright: ignore[reportArgumentType]
             ) as bitmap:
                 image = bitmap.to_pil().copy()
             pages.append({"page": number, "width": image.width, "height": image.height})
-            parts.extend([f"PDF {path}, page {number}", ImagesUserMessage([image])])
+            parts.extend(
+                [
+                    FILE_INSPECTION_TEXT.pdf_attachment_label.format(
+                        path=path, page=number
+                    ),
+                    ImagesUserMessage([image]),
+                ]
+            )
     return pages, parts

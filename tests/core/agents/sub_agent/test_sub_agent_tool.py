@@ -125,6 +125,13 @@ def test_returns_error_for_unexpected_arguments(tmp_path: Path) -> None:
     )
 
 
+def test_unexpected_argument_error_uses_registered_tool_name(tmp_path: Path) -> None:
+    tool = SubAgentTool([_child(tmp_path, "writer")]).with_name("delegate_child")
+    result = tool.execute(sub_agent="writer", text="hi", extra=True)
+    assert "delegate_child accepts" in result
+    assert "call_sub_agent" not in result
+
+
 def test_requires_at_least_one_child() -> None:
     with pytest.raises(ValueError, match="requires at least one child"):
         SubAgentTool([])

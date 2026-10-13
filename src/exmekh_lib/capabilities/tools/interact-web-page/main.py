@@ -13,11 +13,7 @@ from exmekh_lib.utils.tool_errors import missing_dependency
 
 @deep_tool(
     name="interact-web-page",
-    description=(
-        f"Perform 1-{WEB_NAVIGATION.max_actions} typed browser actions on a previously inspected public "
-        "page. Navigation stays on the initial origin and observed effects are "
-        "reported for every action."
-    ),
+    description=(WEB_NAVIGATION.interact_web_page_description),
 )
 def run(
     work_root: Path,
@@ -25,9 +21,7 @@ def run(
     actions: Annotated[
         list[BrowserAction],
         {"minItems": 1, "maxItems": WEB_NAVIGATION.max_actions},
-        "Ordered actions. Each requires kind. click requires selector; fill/select require "
-        "selector and value; navigate requires url; wait requires selector or milliseconds; "
-        "scroll accepts selector and delta_y; back needs no other fields.",
+        WEB_NAVIGATION.action_guidance,
     ],
     output_mode: Literal["markdown", "ast", "hybrid"] = "ast",
     timeout_seconds: int = WEB_NAVIGATION.default_timeout_seconds,

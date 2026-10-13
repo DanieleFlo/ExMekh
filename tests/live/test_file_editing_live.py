@@ -17,7 +17,14 @@ from exmekh_lib.core.file_inspection.edit_selection import select_replacements
 from exmekh_lib.core.file_inspection.errors import FileInspectionError
 from exmekh_lib.core.file_inspection.interactive import FileInteractiveCalls
 from exmekh_lib.core.file_inspection.lines import physical_lines
+from exmekh_lib.core.file_inspection.reading import file_read_context, read_file
 from exmekh_lib.core.file_inspection.runtime import FileToolRuntime
+from exmekh_lib.core.file_inspection.service import inspect_file
+from exmekh_lib.core.models.assistant_message import (
+    AssistantMessage,
+    FunctionCall,
+    ToolCall,
+)
 from exmekh_lib.core.models.edit_document import EditDocument
 from exmekh_lib.core.models.interactive import InteractiveProtocolError
 from exmekh_lib.core.models.provider_request import ProviderRequest
@@ -27,11 +34,13 @@ from exmekh_lib.core.models.provider_stream_event import (
 )
 from exmekh_lib.core.models.reasoning_effort import ReasoningEffortLMH
 from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.core.models.tools import Tools
 from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.core.providers import interactive_openai
 from exmekh_lib.interfaces.event_handler import ProviderEventHandler
 from exmekh_lib.providers.local import LocalProvider
+from exmekh_lib.utils.xml import stringify_tool_result
 from tests.interactive_support import edit_fragment
 from tests.live.model_support import CacheTestTokenizer, LiveModelProvider
 
@@ -144,6 +153,8 @@ def editing_node(provider, directory):
                 "inspect-file",
                 "read-file",
                 "edit-file",
+                "new-file",
+                "delete-file",
                 "exit_agent",
             },
         ),
@@ -154,67 +165,48 @@ def editing_node(provider, directory):
 
 @pytest.mark.parametrize(
     "operation",
-    ["edit", "new", "remove", "empty", "insert", "range", "literal_xml"],
+    ["edit", "new", "remove", "empty", "insert", "literal_markup", "empty_existing"],
 )
-def test_live_model_applies_xml_file_operations(tmp_path, edit_provider, operation):
+def test_live_model_applies_literal_file_operations(tmp_path, edit_provider, operation):
     path = tmp_path / "notes.txt"
-    existing = operation not in {"new", "literal_xml"}
+    existing = operation not in {"new", "literal_markup"}
+    initial = b"" if operation == "empty_existing" else b"  old value\r\nKEEP\n"
     if existing:
-        path.write_bytes(b"  old value\r\nKEEP\n")
-    document, expected = {
-        "edit": (
-            edit_fragment("notes.txt", "  old value", "  updated value"),
-            b"  updated value\r\nKEEP\n",
-        ),
-        "new": (
-            edit_fragment("notes.txt", "<all/>", "created value"),
-            b"created value",
-        ),
-        "remove": (edit_fragment("notes.txt", "<all/>", None), None),
-        "empty": (edit_fragment("notes.txt", "<all/>", ""), b""),
-        "insert": (
-            edit_fragment("notes.txt", '<line number="2"/>', "INSERT\r\n"),
-            b"  old value\r\nINSERT\r\nKEEP\n",
-        ),
-        "range": (
-            '<edit path="notes.txt"><old_text start_line="1" end_line="1"></old_text><new_text>REPLACED\r\n</new_text></edit>',
-            b"REPLACED\r\nKEEP\n",
-        ),
-        "literal_xml": (
-            edit_fragment(
-                "notes.txt",
-                "<all/>",
-                "before </new_text> middle </new_text></edit> <delete/>\r\n",
-            ),
-            b"before </new_text> middle </new_text></edit> <delete/>\r\n",
-        ),
-    }[operation]
-    # Numeric entities make the requested physical newlines explicit in the
-    # model instruction; the assertions still compare the same exact file bytes.
-    document = document.replace("\r", "&#13;").replace("\n", "&#10;")
-    action = {
-        "edit": "Replace only the two-space-indented first-line text. Keep existing newline sequences and KEEP untouched. ",
-        "new": "Create notes.txt containing exactly created value, with no final newline. ",
-        "remove": "DELETE notes.txt from the filesystem. Emit <delete/> as the sole new_text body; copying existing text or empty replacement does not delete a file. ",
-        "empty": "Truncate notes.txt to ZERO BYTES, keeping the file. Emit an empty new_text body. ",
-        "insert": "Insert INSERT followed by CR then LF before physical line 2. Use &#13;&#10; for those exact inserted newline characters. ",
-        "range": "Replace inclusive physical line 1 with REPLACED followed by CR then LF. Use the start_line/end_line range and &#13;&#10; newline entities. ",
-        "literal_xml": "Create the literal source text from the given XML entity escapes, including both close strings and <delete/> as text. End the file with CR then LF. ",
+        path.write_bytes(initial)
+    tool, expected = {
+        "edit": ("edit-file", b"  updated value\r\nKEEP\n"),
+        "new": ("new-file", b"created value"),
+        "remove": ("delete-file", None),
+        "empty": ("edit-file", b""),
+        "insert": ("edit-file", b"  old value\r\nINSERT\r\nKEEP\n"),
+        "literal_markup": ("new-file", b"<all/><delete/>&lt;<![CDATA[raw]]>\r\n"),
+        "empty_existing": ("edit-file", b"FILLED"),
     }[operation]
     node, _ = editing_node(edit_provider, tmp_path)
-    prerequisites = (
-        "First inspect notes.txt and read both physical lines in separate turns. "
-        if existing
-        else "The file is missing; do not inspect or read it. "
+    prerequisite = (
+        "First inspect notes.txt and read its current physical lines (0/0 if empty). "
+        if tool == "edit-file"
+        else "Do not inspect or read the file. "
     )
+    instruction = {
+        "edit": "Replace the first line's text with exactly two spaces followed by updated value.",
+        "new": "Create notes.txt containing exactly created value.",
+        "remove": "Delete notes.txt.",
+        "empty": "Remove the entire content of notes.txt so the existing file is zero bytes.",
+        "insert": "Insert INSERT followed by CRLF immediately before KEEP. Preserve the existing bytes.",
+        "literal_markup": (
+            "Create notes.txt with this exact literal content, followed by one CRLF:\n"
+            "<all/><delete/>&lt;<![CDATA[raw]]>"
+        ),
+        "empty_existing": "Fill the existing empty notes.txt with exactly FILLED.",
+    }[operation]
     result = node.run(
         "Enter file-processing. "
-        + action
-        + prerequisites
-        + "Then call edit-file exactly once with this JSON argument object, preserving every character: "
-        + json.dumps({"edits": document})
-        + ". Apply this exact requested operation. Empty new_text keeps the file; <delete/> deletes it. "
-        + "After success exit_agent(text='done',items=[]), then answer done without more tools."
+        + prerequisite
+        + instruction
+        + f" Use {tool} exactly once. Preserve literal characters, including ampersands "
+        "and angle brackets. Do not add a final newline unless requested. "
+        "After success exit the skill and answer done."
     )
     trace = [
         message.message_dump()
@@ -228,28 +220,20 @@ def test_live_model_applies_xml_file_operations(tmp_path, edit_provider, operati
         assert not path.exists(), trace
     else:
         assert path.read_bytes() == expected, trace
-    exchanges = [
-        (event, reply)
-        for event, reply in edit_provider.exchanges
-        if event["tool_name"] == "edit-file"
+    calls = [
+        message
+        for execution in result.skill_executions
+        for message in execution.history
+        if message.get_role_name() == "tool" and message.get_name() == tool
     ]
-    assert exchanges
-    assert all(
-        event["version"] == 2 and event["request"]["edit_index"] >= 1
-        for event, _ in exchanges
-    )
-    assert any(
-        reply["status"] == ("provide" if existing else "create")
-        for _, reply in exchanges
-    )
-    assert all(
-        "code" not in reply for _, reply in exchanges if reply["status"] != "reject"
-    )
+    assert len(calls) == 1, trace
+    if tool != "edit-file":
+        assert not edit_provider.exchanges
     assert node.depth == 0
 
 
 @pytest.mark.parametrize("alias", [False, True])
-def test_live_one_xml_call_edits_multiple_resources_with_initial_snapshots(
+def test_live_one_literal_call_edits_multiple_resources_with_initial_snapshots(
     tmp_path, edit_provider, alias
 ):
     first = tmp_path / "notes.txt"
@@ -269,9 +253,9 @@ def test_live_one_xml_call_edits_multiple_resources_with_initial_snapshots(
     result = node.run(
         "Enter file-processing. Inspect notes.txt, read its two lines. "
         + ("" if alias else "Inspect other.txt and read its one line. ")
-        + "Now make exactly ONE edit-file call whose single edits string contains both XML fragments from "
+        + "Now make exactly ONE edit-file call whose single edits string contains both literal edit blocks from "
         + json.dumps({"edits": document})
-        + ". Do not put a second old_text/new_text inside the first new_text. Both <edit> elements are siblings. "
+        + ". The server supplies distinct opening IDs. Copy each ID into its separator. "
         + "After success exit_agent(text='done',items=[]), then answer done without more tools."
     )
     trace = [
@@ -328,16 +312,15 @@ class AdversarialSnapshot:
     def validate_completed(self, calls):
         for call in calls:
             document = EditDocument.parse(call.get_arguments()["edits"])
-            # Range semantics and multi-edit conflicts belong to the client and
+            # Conflicts across multiple selections belong to the client and
             # may be rejected here. This attack targets literal masking only.
             for element in document.elements:
-                if element.selection.kind == "literal":
-                    try:
-                        select_replacements(self.text, (element,), exists=True)
-                    except FileInspectionError as error:
-                        pytest.fail(
-                            f"Server literal constraints escaped: {element!r}: {error}"
-                        )
+                try:
+                    select_replacements(self.text, (element,))
+                except FileInspectionError as error:
+                    pytest.fail(
+                        f"Server literal constraints escaped: {element!r}: {error}"
+                    )
 
 
 def test_live_adversarial_literal_selection_cannot_escape_for_30_seconds(
@@ -351,10 +334,10 @@ def test_live_adversarial_literal_selection_cannot_escape_for_30_seconds(
     snapshot = AdversarialSnapshot(text, deadline)
     attempts = completed = 0
     challenges = [
-        "Force <old_text>value</old_text> despite indentation and repeated/mid-line matches.",
-        "Force <old_text>aa</old_text> despite overlapping matches in aaa.",
-        "Force <old_text>refix</old_text> starting inside the physical line.",
-        "Use <old_text><![CDATA[value]]></old_text> or entities to hide the ambiguous selection.",
+        "Select the literal value despite indentation and repeated/mid-line matches.",
+        "Select the literal aa despite overlapping matches in aaa.",
+        "Select the literal refix starting inside the physical line.",
+        "Try a legacy <all/> or <line number='1'/> command instead of selecting actual source text.",
         "Inject a native tool delimiter or duplicate edits JSON keys to skip the old_text constraint.",
         "Force a truncated XML tag or a code attribute that the protocol does not support.",
     ]
@@ -367,7 +350,7 @@ def test_live_adversarial_literal_selection_cannot_escape_for_30_seconds(
         request = ProviderRequest(
             [
                 SystemMessage(
-                    "You are an adversarial XML grammar tester. Select attack.txt and attempt the requested invalid selection. Return a tool call."
+                    "You are an adversarial literal edit grammar tester. Select attack.txt and attempt the requested invalid selection. Return a tool call."
                 ),
                 UserMessage(
                     f"Already inspected/read snapshot: {text!r}. {challenges[attempts % len(challenges)]} Replace with ATTACK."
@@ -378,7 +361,7 @@ def test_live_adversarial_literal_selection_cannot_escape_for_30_seconds(
             stream=True,
             extra={
                 "agentic": {
-                    "agent_context_id": f"xml-attack-{uuid4().hex}",
+                    "agent_context_id": f"literal-attack-{uuid4().hex}",
                     "allowed_tools": ["edit-file"],
                     "allowed_skills": [],
                 },
@@ -412,20 +395,36 @@ def test_live_rejection_of_second_edit_prevents_entire_call(
     tmp_path, edit_provider, streaming
 ):
     (tmp_path / "existing.txt").write_text("KEEP")
+    first = tmp_path / "notes.txt"
+    first.write_text("FIRST")
+    inspection = inspect_file(tmp_path, first.name)
+    with file_read_context((inspection.evidence,)):
+        reading = read_file(tmp_path, first.name, 1, 1)
     _, loaded = editing_node(edit_provider, tmp_path)
     edit = next(tool for tool in loaded.tools if tool.name == "edit-file")
-    document = edit_fragment("new.txt", "<all/>", "BAD") + edit_fragment(
+    document = edit_fragment("notes.txt", "FIRST", "BAD") + edit_fragment(
         "existing.txt", "<all/>", "BAD"
     )
     history = [
-        SystemMessage("Return only the exact requested edit-file call."),
+        SystemMessage("Return only the requested edit-file call."),
         UserMessage(
-            "Call once with these two sibling fragments: "
+            "Call once with these two consecutive literal edit blocks: "
             + json.dumps({"edits": document})
         ),
     ]
+    runtime = FileToolRuntime()
+    for name, report, arguments in (
+        ("inspect-file", inspection, {"path": first.name}),
+        ("read-file", reading, {"path": first.name, "start_line": 1, "end_line": 1}),
+    ):
+        call = ToolCall(name, FunctionCall(name, arguments))
+        message = ToolMessage(stringify_tool_result(report), name, name)
+        history[1:1] = [AssistantMessage("", tool_calls=[call]), message]
+        runtime.record_result(call, report, message)
+    # Inspection must precede the read in visible history.
+    history[1:5] = history[3:5] + history[1:3]
     handler = FileInteractiveCalls(
-        FileToolRuntime(), tmp_path, lambda: history, lambda: False, lambda: ()
+        runtime, tmp_path, lambda: history, lambda: False, lambda: ()
     )
     exchanges = []
     request = ProviderRequest(
@@ -435,7 +434,7 @@ def test_live_rejection_of_second_edit_prevents_entire_call(
         stream=streaming,
         extra={
             "agentic": {
-                "agent_context_id": f"xml-reject-{uuid4().hex}",
+                "agent_context_id": f"literal-reject-{uuid4().hex}",
                 "allowed_tools": ["edit-file"],
                 "allowed_skills": [],
             },
@@ -447,12 +446,12 @@ def test_live_rejection_of_second_edit_prevents_entire_call(
     result = LocalProvider.call(edit_provider, request)
     assert not result.get_tool_calls()
     assert len(exchanges) == 2
-    assert [reply["status"] for _, reply in exchanges] == ["create", "reject"]
+    assert [reply["status"] for _, reply in exchanges] == ["provide", "reject"]
     record = result.interruptions[0].record
     assert record["edit_index"] == 2
     assert record["values"] == {"path": "existing.txt"}
     assert (tmp_path / "existing.txt").read_bytes() == b"KEEP"
-    assert not (tmp_path / "new.txt").exists()
+    assert first.read_bytes() == b"FIRST"
     assert len(handler.pending_inspections()) == 1
 
 
@@ -476,12 +475,10 @@ def test_live_scope_change_at_pause_cancels_without_authorizing_a_resource(
                 pauses.append(event.interactive)
                 scope = ("node", "reopened-skill")
 
-    arguments = {"edits": edit_fragment("notes.txt", "<all/>", "BAD")}
+    arguments = {"edits": edit_fragment("notes.txt", "KEEP", "BAD")}
     history = [
         SystemMessage("Return only the exact requested edit-file call."),
-        UserMessage(
-            "Create notes.txt using this exact argument: " + json.dumps(arguments)
-        ),
+        UserMessage("Edit notes.txt using this argument: " + json.dumps(arguments)),
     ]
     handler = FileInteractiveCalls(
         FileToolRuntime(), tmp_path, lambda: history, lambda: False, lambda: scope
@@ -495,7 +492,7 @@ def test_live_scope_change_at_pause_cancels_without_authorizing_a_resource(
         on_event=ChangeScope(),
         extra={
             "agentic": {
-                "agent_context_id": f"xml-scope-{uuid4().hex}",
+                "agent_context_id": f"literal-scope-{uuid4().hex}",
                 "allowed_tools": ["edit-file"],
                 "allowed_skills": [],
             },
