@@ -5,6 +5,7 @@ from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 
+from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.core.models.assistant_message import AssistantMessage, ToolCall
 from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.interfaces.message import Message
@@ -29,11 +30,11 @@ class MessageHistory:
 
     def check_history(self) -> None:
         if not self._history:
-            raise ValueError("History cannot be empty")
+            raise ValueError(MODEL_TEXT.history_cannot_be_empty)
         if not all(isinstance(message, Message) for message in self._history):
-            raise TypeError("Item must be an instance of Message")
+            raise TypeError(MODEL_TEXT.item_must_be_an_instance_of_message)
         if self._history[0].get_role_name() != "system":
-            raise TypeError("First item in history must have the system role")
+            raise TypeError(MODEL_TEXT.first_item_in_history_must_have_the_system_role)
 
         for previous, current in zip(
             self._history,
@@ -42,8 +43,10 @@ class MessageHistory:
         ):
             if not self._is_valid_transition(previous, current):
                 logger.warning(
-                    "Wrong message sequence: "
-                    f"{previous.get_role_name()} -> {current.get_role_name()}"
+                    MODEL_TEXT.wrong_message_sequence.format(
+                        previous_get_role_name=previous.get_role_name(),
+                        current_get_role_name=current.get_role_name(),
+                    )
                 )
 
     def _is_valid_transition(
@@ -78,9 +81,7 @@ class MessageHistory:
         ):
             return self._add_multiple_messages(message)
         else:
-            raise TypeError(
-                "Item must be an instance of Message or a list of Message instances"
-            )
+            raise TypeError(MODEL_TEXT.item_must_be_an_instance_of_message_or_a)
 
     def _add_single_message(self, message: HistoryMessage) -> MessageHistory:
         candidate = MessageHistory([*self._history, message])
@@ -103,14 +104,14 @@ class MessageHistory:
     def get_tool_continuation_messages(self) -> list[HistoryMessage]:
         """Return history only after a tool reply has completed the transition."""
         if not self._history or not isinstance(self._history[-1], ToolMessage):
-            raise TypeError("The last message must be a tool response")
+            raise TypeError(MODEL_TEXT.the_last_message_must_be_a_tool_response)
         return self.get_history()
 
     def get_latest_tool_batch(self) -> ToolBatchHistory:
         """Locate the current batch and its already recorded sibling replies."""
         opening_index, opening = self._latest_assistant_message()
         if not opening.get_tool_calls():
-            raise ValueError("The latest assistant message has no tool calls")
+            raise ValueError(MODEL_TEXT.the_latest_assistant_message_has_no_tool_calls)
         return ToolBatchHistory(
             opening_index=opening_index,
             preceding_responses=tuple(
@@ -125,7 +126,7 @@ class MessageHistory:
 
     def replace_latest_tool_calls(self, tool_calls: Sequence[ToolCall]) -> None:
         if not self._history or not isinstance(self._history[-1], AssistantMessage):
-            raise TypeError("The last message must be an assistant message")
+            raise TypeError(MODEL_TEXT.the_last_message_must_be_an_assistant_message)
         self.replace_from(
             len(self._history) - 1,
             [self._history[-1].with_tool_calls(tool_calls)],
@@ -156,14 +157,16 @@ class MessageHistory:
 
     def _extend_tool_batch(self, call: ToolCall, batch_call_id: str) -> ToolMessage:
         if not self._history or not isinstance(self._history[-1], ToolMessage):
-            raise TypeError("The last message must be a tool response")
+            raise TypeError(MODEL_TEXT.the_last_message_must_be_a_tool_response)
         final_reply = self._history[-1]
         if final_reply.get_tool_call_id() != batch_call_id:
-            raise ValueError("The final tool response does not belong to this batch")
+            raise ValueError(MODEL_TEXT.the_final_tool_response_does_not_belong_to_this)
         opening_index, opening = self._latest_assistant_message()
         calls = opening.get_tool_calls() or ()
         if not any(item.get_id() == batch_call_id for item in calls):
-            raise ValueError("The assistant message does not contain the batch call")
+            raise ValueError(
+                MODEL_TEXT.the_assistant_message_does_not_contain_the_batch_call
+            )
         self.replace_from(
             opening_index,
             [
@@ -178,23 +181,22 @@ class MessageHistory:
             message = self._history[index]
             if isinstance(message, AssistantMessage):
                 return index, message
-        raise ValueError("The tool batch has no assistant message")
+        raise ValueError(MODEL_TEXT.the_tool_batch_has_no_assistant_message)
 
     def replace_from(
         self, start_index: int, messages: Sequence[HistoryMessage]
     ) -> None:
         if not isinstance(start_index, int) or isinstance(start_index, bool):
-            raise TypeError("start_index must be an integer")
+            raise TypeError(MODEL_TEXT.start_index_must_be_an_integer)
         if start_index < 0 or start_index > len(self._history):
-            raise IndexError("start_index is outside the history")
+            raise IndexError(MODEL_TEXT.start_index_is_outside_the_history)
 
         previous_size = len(self._history)
         candidate = MessageHistory([*self._history[:start_index], *messages])
         candidate.check_history()
         self._history = candidate.get_history()
         logger.info(
-            "Compacted message history: start_index=%d previous_size=%d "
-            "replacement_size=%d new_size=%d",
+            MODEL_TEXT.compacted_message_history_start_index_previous_size_replacement_size,
             start_index,
             previous_size,
             len(messages),

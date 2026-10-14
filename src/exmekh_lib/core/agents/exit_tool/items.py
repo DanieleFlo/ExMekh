@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.config.validation import VALIDATION_PATTERNS
 from exmekh_lib.core.cache.node_cache import NodeCache
 from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
@@ -50,8 +51,9 @@ class ExitItemResolver:
             record = self._resolve(identifier, skill_path, opening_position, cache)
             if record.id not in selected:
                 raise ExitItemError(
-                    f"Placeholder {{{{{identifier}}}}} is not listed in items. "
-                    f'Use items=["{identifier}"] or remove the placeholder.'
+                    AGENT_TEXT.placeholder_is_not_listed_in_items_use_items_or.format(
+                        identifier=identifier, identifier_2=identifier
+                    )
                 )
             placed.add(record.id)
             return ToolOutputView(record).format_embedded()
@@ -69,8 +71,7 @@ class ExitItemResolver:
         remaining = _PLACEHOLDER.sub("", text)
         if "{{" in remaining or "}}" in remaining:
             raise ExitItemError(
-                'Incomplete placeholder. Use text="… {{<id-output>}} …" '
-                'and items=["<id-output>"], or remove the double braces.'
+                AGENT_TEXT.incomplete_placeholder_use_text_and_items_id_output_or
             )
 
     def _require_items_for_placeholders(self, text: str) -> None:
@@ -79,8 +80,9 @@ class ExitItemResolver:
             return
         identifier = self._placeholder_identifier(match)
         raise ExitItemError(
-            f"Placeholder {{{{{identifier}}}}} requires its ID in items. "
-            f'Use items=["{identifier}"] or remove the placeholder.'
+            AGENT_TEXT.placeholder_requires_its_id_in_items_use_items_or.format(
+                identifier=identifier, identifier_2=identifier
+            )
         )
 
     @staticmethod
@@ -88,8 +90,7 @@ class ExitItemResolver:
         identifier = match.group(1).strip()
         if not identifier:
             raise ExitItemError(
-                'Empty placeholder. Use text="… {{<id-output>}} …" '
-                'and items=["<id-output>"].'
+                AGENT_TEXT.empty_placeholder_use_text_and_items_id_output
             )
         return identifier
 
@@ -106,8 +107,9 @@ class ExitItemResolver:
             record = self._resolve(item, skill_path, opening_position, cache)
             if record.id in selected:
                 raise ExitItemError(
-                    f"Output {record.id!r} appears more than once in items. "
-                    'Use only one entry: items=["<id-output>"].'
+                    AGENT_TEXT.output_appears_more_than_once_in_items_use_only.format(
+                        record_id=record.id
+                    )
                 )
             selected[record.id] = record
             ordered.append(record)
@@ -136,27 +138,28 @@ class ExitItemResolver:
         if len(eligible) > 1:
             ids = ", ".join(sorted(eligible))
             raise ExitItemError(
-                f"Call ID {identifier!r} identifies multiple outputs: {ids}. "
-                'Use a specific output ID in items=["<id-output>"].'
+                AGENT_TEXT.call_id_identifies_multiple_outputs_use_a_specific_output.format(
+                    identifier=identifier, ids=ids
+                )
             )
         if eligible:
             return next(iter(eligible.values()))
         if saw_out_of_scope:
             raise ExitItemError(
-                f"Output {identifier!r} belongs to another skill or invocation. "
-                "Find an output from the current skill or a descendant "
-                'and use items=["<id-output>"].'
+                AGENT_TEXT.output_belongs_to_another_skill_or_invocation_find_an.format(
+                    identifier=identifier
+                )
             )
         if matching_entries:
             raise ExitItemError(
-                f"ID {identifier!r} has no saved, retrievable output. "
-                "Use get_execution_history to find a saved-output-id, "
-                'then items=["<id-output>"].'
+                AGENT_TEXT.id_has_no_saved_retrievable_output_use_get_execution.format(
+                    identifier=identifier
+                )
             )
         raise ExitItemError(
-            f"ID {identifier!r} is not present in this node's history. "
-            "Use get_execution_history to find a saved-output-id, "
-            'then items=["<id-output>"].'
+            AGENT_TEXT.id_is_not_present_in_this_node_s_history.format(
+                identifier=identifier
+            )
         )
 
     @staticmethod

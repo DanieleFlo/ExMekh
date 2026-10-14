@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
+from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.models.assistant_message import ToolCall
 from exmekh_lib.core.models.client_request import ClientRequest
@@ -44,7 +45,7 @@ class Client:
         tools: Tools | None = None,
     ) -> None:
         if not isinstance(system_message, SystemMessage):
-            raise TypeError("Expected a SystemMessage instance")
+            raise TypeError(MODEL_TEXT.expected_a_systemmessage_instance)
 
         self._history = MessageHistory(history=[system_message])
         self._history.check_history()
@@ -52,13 +53,13 @@ class Client:
         self._validate_provider()
 
         if tools is not None and not isinstance(tools, Tools):
-            raise TypeError("Tools must be a Tools instance")
+            raise TypeError(MODEL_TEXT.tools_must_be_a_tools_instance)
         self.tools = tools
         self.interactive_handler: InteractiveHandler | None = None
 
     def _validate_provider(self) -> None:
         if not isinstance(self._provider, Provider):
-            raise TypeError("Expected a Provider instance")
+            raise TypeError(MODEL_TEXT.expected_a_provider_instance)
 
     def get_tokenizer(self) -> Tokenizer:
         return self._provider.get_tokenizer()
@@ -109,16 +110,14 @@ class Client:
 
     def _call_provider(self, request: ProviderRequest) -> ProviderResponse:
         logger.info(
-            "Calling provider: messages=%d tool_choice=%s",
+            MODEL_TEXT.calling_provider_messages_tool_choice,
             len(request.get_messages()),
             request.get_tool_choice(),
         )
         request.interactive_handler = self.interactive_handler
         response = self._provider.call(request)
         if not isinstance(response, ProviderResponse):
-            raise TypeError(
-                "Item must be an instance of Message or a list of Message instances"
-            )
+            raise TypeError(MODEL_TEXT.item_must_be_an_instance_of_message_or_a)
         if (
             response.get_message() is not None
             or response.get_tool_calls()
@@ -126,7 +125,7 @@ class Client:
         ):
             self._history.add(response)
         logger.info(
-            "Provider response recorded: tool_calls=%d history_size=%d",
+            MODEL_TEXT.provider_response_recorded_tool_calls_history_size,
             len(response.get_tool_calls() or ()),
             len(self._history.get_history()),
         )
@@ -186,7 +185,7 @@ class Client:
         """
         messages = tuple(messages)
         if initial_message is not None and not isinstance(initial_message, UserMessage):
-            raise TypeError("Initial message must be a UserMessage")
+            raise TypeError(MODEL_TEXT.initial_message_must_be_a_usermessage)
         if (not messages and initial_message is None) or not all(
             isinstance(message, UserMessage) for message in messages
         ):
@@ -272,10 +271,10 @@ class Client:
 
     def add_tool_response(self, tool_response: ToolMessage) -> None:
         if not isinstance(tool_response, ToolMessage):
-            raise TypeError("Expected a ToolMessage instance")
+            raise TypeError(MODEL_TEXT.expected_a_toolmessage_instance)
         self._history.add(tool_response)
         logger.debug(
-            "Tool response recorded: name=%s call_id=%s history_size=%d",
+            MODEL_TEXT.tool_response_recorded_name_call_id_history_size,
             tool_response.get_name(),
             tool_response.get_tool_call_id(),
             len(self._history.get_history()),
@@ -283,12 +282,12 @@ class Client:
 
     def add_user_message(self, message: HistoryMessage) -> None:
         if message.get_role_name() != "user":
-            raise TypeError("Expected a user message")
+            raise TypeError(MODEL_TEXT.expected_a_user_message)
         self._history.add(message)
 
     def _prepare_request(self, request: ClientRequest) -> ProviderRequest:
         if not isinstance(request, ClientRequest):
-            raise TypeError("Expected a ClientRequest instance")
+            raise TypeError(MODEL_TEXT.expected_a_clientrequest_instance)
 
         provider_request = ProviderRequest(
             messages=[*self._history.get_history(), request.message],
@@ -310,14 +309,15 @@ class Client:
         strict: bool,
     ) -> StructuredProviderRequest[ResponseModel]:
         if not isinstance(request, ClientRequest):
-            raise TypeError("Expected a ClientRequest instance")
+            raise TypeError(MODEL_TEXT.expected_a_clientrequest_instance)
 
         if not isinstance(response_model, type) or not issubclass(
             response_model, BaseModel
         ):
             raise TypeError(
-                f"response_model must be a subclass of BaseModel, "
-                f"got {response_model!r}"
+                MODEL_TEXT.response_model_must_be_a_subclass_of_basemodel_got.format(
+                    response_model=response_model
+                )
             )
 
         provider_request = StructuredProviderRequest(

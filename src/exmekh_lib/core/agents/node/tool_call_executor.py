@@ -3,11 +3,13 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from contextlib import AbstractContextManager
+from dataclasses import replace
 from pathlib import Path
 from time import monotonic
 from typing import Any
 
 from exmekh_lib.config.runtime import RUNTIME
+from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.agents.deep_skill.deep_skill import CalledDeepSkill
 from exmekh_lib.core.agents.deep_skill.execution import (
     DeepSkillExecution,
@@ -15,23 +17,39 @@ from exmekh_lib.core.agents.deep_skill.execution import (
 )
 from exmekh_lib.core.agents.exit_tool.exit_tool import CalledExitTool, ExitTool
 from exmekh_lib.core.agents.exit_tool.items import ExitItemError
+from exmekh_lib.core.file_inspection.evidence import ReadReport
 from exmekh_lib.core.file_inspection.interactive import FileInteractiveCalls
+from exmekh_lib.core.file_inspection.output_access import output_file_access
 from exmekh_lib.core.file_inspection.runtime import FileToolRuntime
 from exmekh_lib.core.models.assistant_message import ToolCall
 from exmekh_lib.core.models.client import Client
-from exmekh_lib.core.models.tool import CalledTool
+from exmekh_lib.core.models.tool import CalledTool, PreformattedToolResult
 from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.tool_output_presentation import ToolOutputPresentation
+from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
 from exmekh_lib.core.models.tool_result import ToolResult
+from exmekh_lib.core.models.xml_header import XmlHeader
 from exmekh_lib.core.tool_calls.execution_manager import (
+    ExecutionLaunch,
     ExecutionSnapshot,
     ToolExecutionManager,
 )
 from exmekh_lib.core.tool_calls.output_formatter import ToolOutputFormatter
+from exmekh_lib.core.tool_calls.output_preparer import ToolOutputPreparer
+from exmekh_lib.core.tool_calls.output_runtime import (
+    ToolOutputDelivery,
+    ToolOutputRuntime,
+)
 from exmekh_lib.utils.tool_errors import ToolArgumentError, tool_failure_result
 
 from .agentic_scope import AgenticScope
 from .tool_call_resolver import ResolvedToolCall
-from .types import CacheIdentity, NodeExecutionSnapshot, ToolExecutionResult
+from .types import (
+    CacheIdentity,
+    NodeExecutionSnapshot,
+    ToolCallOutcome,
+    ToolExecutionResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,9 +69,11 @@ class ToolCallExecutor:
         work_root: Path | None = None,
         execution_manager: ToolExecutionManager | None = None,
         scope_prefix: str = "",
+        output_preparer: ToolOutputPreparer | None = None,
     ) -> None:
         self._client = client
         self._output_formatter = ToolOutputFormatter(client)
+        self._output_preparer = output_preparer
         self._exit_tool = exit_tool
         self._depth = initial_depth
         self._agentic_scope = agentic_scope
@@ -61,6 +81,11 @@ class ToolCallExecutor:
         self._work_root = work_root if work_root is not None else Path.cwd()
         self._skill_executions = DeepSkillExecutionTracker()
         self._execution_manager = execution_manager
+        self._output_runtime = (
+            ToolOutputRuntime(execution_manager, output_preparer)
+            if execution_manager is not None
+            else None
+        )
         self._scope_prefix = scope_prefix
         self._file_tools = FileToolRuntime(execution_manager)
         self._interactive_calls = FileInteractiveCalls(
@@ -120,7 +145,7 @@ class ToolCallExecutor:
             self._depth,
         )
         logger.info(
-            "Agentic scope: path=%s depth=%d scope=%s",
+            RUNTIME_TEXT.agentic_scope_path_depth_scope,
             self.skill_path,
             self.depth,
             extra["agentic"],
@@ -163,14 +188,18 @@ class ToolCallExecutor:
     ) -> ToolExecutionResult:
         supported_types = (CalledDeepSkill, CalledExitTool, CalledTool)
         if not isinstance(tool_call, supported_types):
-            raise TypeError("Node supports only deep skills, exit tools, and tools")
+            raise TypeError(
+                RUNTIME_TEXT.node_supports_only_deep_skills_exit_tools_and_tools
+            )
 
         if isinstance(tool_call, CalledExitTool):
-            return self._run_exit_tool(
-                tool_call,
-                thinking=thinking,
-                close_scope=close_scope,
-                thinking_annotation_provider=thinking_annotation_provider,
+            return self._prepare_result(
+                self._run_exit_tool(
+                    tool_call,
+                    thinking=thinking,
+                    close_scope=close_scope,
+                    thinking_annotation_provider=thinking_annotation_provider,
+                )
             )
         if isinstance(tool_call, CalledDeepSkill):
             return self._run_deep_skill(
@@ -210,7 +239,7 @@ class ToolCallExecutor:
         thinking_annotation_provider: Callable[[], str | None] | None = None,
     ) -> ToolExecutionResult:
         logger.info(
-            "Executing tool: name=%s call_id=%s depth=%d",
+            RUNTIME_TEXT.executing_tool_name_call_id_depth,
             called_tool.name,
             called_tool.call_id,
             self._depth,
@@ -227,6 +256,11 @@ class ToolCallExecutor:
                 )
             else:
                 with (
+                    output_file_access(
+                        self._output_preparer.files
+                        if self._output_preparer is not None
+                        else None
+                    ),
                     self._file_tools.read_context(
                         self._client.get_history()
                     ) as context,
@@ -246,12 +280,14 @@ class ToolCallExecutor:
             elapsed_seconds = monotonic() - started_clock
         return self._format_tool_result(
             called_tool,
-            result,
-            snapshot=snapshot,
+            ToolCallOutcome(
+                value=result,
+                execution=snapshot,
+                elapsed_seconds=elapsed_seconds,
+                inspection_path=inspection_path,
+                failed=failed,
+            ),
             thinking_annotation_provider=thinking_annotation_provider,
-            elapsed_seconds=elapsed_seconds,
-            inspection_path=inspection_path,
-            failed=failed,
         )
 
     def _run_managed_tool(
@@ -265,19 +301,28 @@ class ToolCallExecutor:
         operation.add_run_context(
             self._file_tools.read_context(self._client.get_history())
         )
+        operation.add_run_context(
+            output_file_access(
+                self._output_preparer.files
+                if self._output_preparer is not None
+                else None
+            )
+        )
         try:
-            snapshot = manager.start(
-                called_tool.call_id,
-                called_tool.name,
-                called_tool.arguments,
-                operation,
-                self.skill_scope_ids,
-                called_tool.execution_options,
-                output_id=output_id,
-                skill_path=self.skill_path,
+            snapshot = manager.launch(
+                ExecutionLaunch(
+                    call=called_tool.tool_call,
+                    operation=operation,
+                    owner_scope=self.skill_scope_ids,
+                    options=called_tool.execution_options,
+                    output_id=output_id,
+                    skill_path=self.skill_path,
+                )
             )
         except (TypeError, ValueError) as error:
-            raise ToolArgumentError(f"Invalid arguments: {error}") from error
+            raise ToolArgumentError(
+                RUNTIME_TEXT.invalid_arguments.format(error=error)
+            ) from error
         result = snapshot.output_result()
         if snapshot.is_finished:
             return result, snapshot
@@ -296,22 +341,20 @@ class ToolCallExecutor:
     def _format_tool_result(
         self,
         called_tool: CalledTool,
-        result: Any,
+        outcome: ToolCallOutcome,
         *,
-        snapshot: ExecutionSnapshot | None,
         thinking_annotation_provider: Callable[[], str | None] | None,
-        elapsed_seconds: float | None,
-        inspection_path: str | None = None,
-        failed: bool = False,
     ) -> ToolExecutionResult:
+        result = outcome.value
+        snapshot = outcome.execution
         output = ToolResult(result)
         content, output_id = self._output_formatter.format_tool_result(
             called_tool.name,
             result,
             annotation_provider=thinking_annotation_provider,
             execution=snapshot,
-            elapsed_seconds=elapsed_seconds,
-            failed=failed,
+            elapsed_seconds=outcome.elapsed_seconds,
+            failed=outcome.delivery_failed,
         )
         tool_response = ToolMessage(
             content=content,
@@ -319,10 +362,9 @@ class ToolCallExecutor:
             name=called_tool.name,
             attachments=output.attachments(),
         )
-        self._file_tools.record_result(called_tool.tool_call, result, tool_response)
-        return ToolExecutionResult(
+        execution_result = ToolExecutionResult(
             response=tool_response,
-            raw_result=output.value(),
+            raw_result=output.storage_value(),
             executed_arguments=(
                 snapshot.output_arguments()
                 if snapshot is not None
@@ -331,9 +373,62 @@ class ToolCallExecutor:
             save_result=called_tool.cache_result,
             output_id=output_id,
             execution=snapshot,
-            elapsed_seconds=elapsed_seconds,
-            inspection_path=inspection_path,
-            failed=failed,
+            elapsed_seconds=outcome.elapsed_seconds,
+            inspection_path=outcome.inspection_path,
+            failed=outcome.delivery_failed,
+            external_output=output.external_output(),
+        )
+        # File reads measure selected text, excluding XML line labels and framing.
+        budget_text = result.selected_text() if isinstance(result, ReadReport) else None
+        execution_result = self._prepare_result(
+            execution_result, budget_text=budget_text
+        )
+        self._file_tools.record_result(
+            called_tool.tool_call, result, execution_result.response
+        )
+        return execution_result
+
+    def _prepare_result(
+        self, result: ToolExecutionResult, *, budget_text: str | None = None
+    ) -> ToolExecutionResult:
+        message = result.response
+        output_id = result.output_id or message.get_tool_call_id()
+        presentation = ToolOutputPresentation(
+            ToolOutputReference(message.get_name(), output_id),
+            PreformattedToolResult(
+                message.get_message(),
+                attachments=message.get_attachments(),
+                external_output=result.external_output,
+                delivery_failed=result.failed,
+            ),
+            budget_text=budget_text,
+        )
+        if (
+            result.execution is not None
+            and result.execution.is_finished
+            and self._output_runtime is not None
+        ):
+            delivery = self._output_runtime.publish_final(
+                result.execution, presentation
+            )
+            if (
+                delivery.final_execution is not None
+                and self._execution_manager is not None
+            ):
+                self._execution_manager.acknowledge_output(delivery.final_execution)
+            return result.with_delivery(delivery, output_id)
+        if self._output_preparer is None or result.external_output is not None:
+            return result
+        prepared = self._output_preparer.prepare(presentation)
+        if not prepared.changed:
+            return result
+        output_id = result.output_id or self._output_formatter.generate_output_id()
+        content = prepared.content
+        if result.output_id is None:
+            content = XmlHeader.add_field_to_content(content, "id", output_id)
+        response = replace(prepared.as_result(presentation.result), content=content)
+        return result.with_delivery(
+            ToolOutputDelivery(response, failure=prepared.failure), output_id
         )
 
     def _running_tool_outputs(self) -> tuple[ExecutionSnapshot, ...]:
@@ -350,7 +445,7 @@ class ToolCallExecutor:
         thinking_annotation_provider: Callable[[], str | None] | None = None,
     ) -> ToolExecutionResult:
         logger.info(
-            "Executing exit tool: name=%s call_id=%s active_skills=%d depth=%d",
+            RUNTIME_TEXT.executing_exit_tool_name_call_id_active_skills_depth,
             called_exit_tool.name,
             called_exit_tool.call_id,
             self._skill_executions.depth,
@@ -366,14 +461,13 @@ class ToolCallExecutor:
             diagnostic = (
                 str(error)
                 if isinstance(error, ToolArgumentError)
-                else f"Invalid arguments: {error}"
+                else RUNTIME_TEXT.invalid_arguments.format(error=error)
             )
             return self._recoverable_error(
                 called_exit_tool,
-                f"{diagnostic} "
-                f'Use {tool_name}(text="<result>", items=[]) or '
-                f'{tool_name}(text="… {{{{<id-output>}}}} …", '
-                'items=["<id-output>"].',
+                RUNTIME_TEXT.use_text_result_items_or_text_items_id_output.format(
+                    diagnostic=diagnostic, tool_name=tool_name, tool_name_2=tool_name
+                ),
             )
         content = result["text"]
         items = result["items"]
@@ -410,11 +504,22 @@ class ToolCallExecutor:
                 used_tools=self._skill_executions.current.used_tools,
                 elapsed_seconds=elapsed_seconds,
             )
-            return self._close_deep_skill(content, result, output_id, elapsed_seconds)
+            return self._close_deep_skill(
+                ToolExecutionResult(
+                    response=ToolMessage(
+                        content,
+                        self._skill_executions.current.opening_tool_call_id,
+                        self._skill_executions.current.name,
+                    ),
+                    raw_result=result,
+                    output_id=output_id,
+                    elapsed_seconds=elapsed_seconds,
+                )
+            )
 
         self._depth = max(0, self._depth - 1)
         logger.warning(
-            "Exit tool executed without an active deep skill: call_id=%s depth=%d",
+            RUNTIME_TEXT.exit_tool_executed_without_an_active_deep_skill_call,
             called_exit_tool.call_id,
             self._depth,
         )
@@ -434,8 +539,11 @@ class ToolCallExecutor:
             "ok": False,
             "error_kind": "invalid_tool_arguments",
             "error": (
-                f"Error {called_tool.name}: {message} "
-                f"Correct the error and call {called_tool.name} again."
+                RUNTIME_TEXT.error_correct_the_error_and_call_again.format(
+                    called_tool_name=called_tool.name,
+                    message=message,
+                    called_tool_name_2=called_tool.name,
+                )
             ),
         }
         content, output_id = self._output_formatter.format_tool_result(
@@ -470,16 +578,16 @@ class ToolCallExecutor:
         )
         self._depth += 1
         logger.info(
-            "Opened deep skill: name=%s call_id=%s start_index=%d depth=%d",
+            RUNTIME_TEXT.opened_deep_skill_name_call_id_start_index_depth,
             called_deep_skill.name,
             called_deep_skill.call_id,
             batch.opening_index,
             self._depth,
         )
 
-    def _close_deep_skill(
-        self, output: str, result: Any, output_id: str | None, elapsed_seconds: float
-    ) -> ToolExecutionResult:
+    def _close_deep_skill(self, result: ToolExecutionResult) -> ToolExecutionResult:
+        prepared_result = self._prepare_result(result)
+        output = prepared_result.response.get_message()
         history = self._client.copy_history()
         start_index = self._skill_executions.get_current_start_index()
         execution = self._skill_executions.close(
@@ -495,8 +603,7 @@ class ToolCallExecutor:
         self._depth = max(0, self._depth - 1)
         self._agentic_scope.register_skill_return(execution.opening_tool_call_id)
         logger.info(
-            "Closed deep skill: name=%s opening_call_id=%s start_index=%d "
-            "end_index=%d transcript_messages=%d depth=%d",
+            RUNTIME_TEXT.closed_deep_skill_name_opening_call_id_start_index,
             execution.name,
             execution.opening_tool_call_id,
             execution.start_index,
@@ -506,13 +613,15 @@ class ToolCallExecutor:
         )
         return ToolExecutionResult(
             response=response,
-            raw_result=result,
+            raw_result=prepared_result.raw_result,
             save_result=True,
             replace_history_from=execution.start_index + 1,
             preserved_responses=execution.preceding_tool_responses,
-            output_id=output_id,
+            output_id=prepared_result.output_id,
             used_tools=execution.used_tools,
-            elapsed_seconds=elapsed_seconds,
+            external_output=prepared_result.external_output,
+            failed=prepared_result.failed,
+            elapsed_seconds=prepared_result.elapsed_seconds,
             cache_identity=CacheIdentity(
                 name=execution.name,
                 source="DeepSkill",

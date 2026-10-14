@@ -5,12 +5,15 @@ from dataclasses import replace
 from uuid import uuid4
 
 from exmekh_lib.config.runtime import RUNTIME
+from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.cache.node_cache import NodeCache
 from exmekh_lib.core.cache.tool_call_record import CalledToolMetadata, ToolCallRecord
 from exmekh_lib.core.cache.user_message_codec import serialize_user_message
 from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.core.tool_calls.execution_history import ExecutionHistory
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
+from exmekh_lib.core.tool_calls.output_preparer import ToolOutputPreparer
+from exmekh_lib.core.tool_calls.output_runtime import ToolOutputRuntime
 from exmekh_lib.utils.json import to_json_value
 
 from .types import CacheIdentity, ToolExecutionResult
@@ -24,10 +27,12 @@ class ToolResultRecorder:
         history: ExecutionHistory,
         cache_provider: Callable[[], NodeCache],
         execution_manager: ToolExecutionManager,
+        output_preparer: ToolOutputPreparer | None = None,
     ) -> None:
         self._history = history
         self._cache_provider = cache_provider
         self._execution_manager = execution_manager
+        self._output_runtime = ToolOutputRuntime(execution_manager, output_preparer)
 
     def record_call(
         self, call: CalledToolMetadata, thinking: str | None
@@ -49,7 +54,9 @@ class ToolResultRecorder:
         skill_path: str,
     ) -> None:
         if result.execution is not None and result.output_id is None:
-            raise RuntimeError("Managed tool execution is missing its output ID")
+            raise RuntimeError(
+                RUNTIME_TEXT.managed_tool_execution_is_missing_its_output_id
+            )
         record = None
         if result.save_result:
             identity = result.cache_identity or identity
@@ -72,6 +79,7 @@ class ToolResultRecorder:
                     else None
                 ),
                 execution=result.execution_metadata(),
+                external_output=result.external_output,
             )
             cache = self._cache_provider()
             cache.store(record)
@@ -108,18 +116,26 @@ class ToolResultRecorder:
 
     def sync_completed(self) -> None:
         for snapshot, record in self._execution_manager.completed_to_persist():
-            attachments = snapshot.output_attachments()
-            self._cache_provider().store(
-                replace(
-                    record,
-                    args=snapshot.output_arguments(),
-                    result=snapshot.record_result(),
-                    execution=snapshot.status_info(),
-                    user_message=(
-                        serialize_user_message(attachments)
-                        if attachments is not None
-                        else None
-                    ),
-                )
+            published = self._output_runtime.publish_final(snapshot)
+            assert published.execution is not None
+            snapshot = published.execution
+            attachments = published.result.attachments
+            updated = replace(
+                record,
+                args=snapshot.output_arguments(),
+                result=snapshot.record_result(),
+                external_output=snapshot.external_output,
+                execution={
+                    **snapshot.status_info(),
+                    "response_type": snapshot.response_type,
+                },
+                user_message=(
+                    serialize_user_message(attachments)
+                    if attachments is not None
+                    else None
+                ),
             )
-            self._execution_manager.mark_persisted(record.id)
+            if published.failure is not None:
+                updated = updated.with_delivery_failure(published.failure)
+            self._cache_provider().store(updated)
+            self._execution_manager.mark_persisted_output(snapshot)

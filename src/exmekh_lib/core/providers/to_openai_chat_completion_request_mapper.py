@@ -4,6 +4,7 @@ from typing import Any
 
 from openai.types.chat import ChatCompletionMessageParam
 
+from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.assistant_message import AssistantMessage
 from exmekh_lib.core.models.function_message import FunctionMessage
 from exmekh_lib.core.models.provider_request import ProviderRequest
@@ -33,7 +34,7 @@ class ToOpenAIChatCompletionRequestMapper:
         reasoning_effort: ReasoningEffort | None = None,
     ) -> dict[str, Any]:
         if not isinstance(request, ProviderRequest):
-            raise TypeError("Expected a ProviderRequest instance")
+            raise TypeError(PROVIDER_TEXT.expected_a_providerrequest_instance)
 
         payload: dict[str, Any] = {
             "model": model,
@@ -72,9 +73,7 @@ class ToOpenAIChatCompletionRequestMapper:
             return reasoning_effort
         if isinstance(reasoning_effort, ReasoningEffort):
             return reasoning_effort.value
-        raise TypeError(
-            "Reasoning effort must be a string or an instance of ReasoningEffort"
-        )
+        raise TypeError(PROVIDER_TEXT.reasoning_effort_must_be_a_string_or_an_instance)
 
     @classmethod
     def _map_messages(
@@ -99,4 +98,6 @@ class ToOpenAIChatCompletionRequestMapper:
             return ToOpenAIChatCompletionMapper.map_tool_message(message)
         if isinstance(message, FunctionMessage):
             return ToOpenAIChatCompletionMapper.map_function_message(message)
-        raise TypeError(f"Unsupported message type: {type(message)}")
+        raise TypeError(
+            PROVIDER_TEXT.unsupported_message_type.format(message_type=type(message))
+        )

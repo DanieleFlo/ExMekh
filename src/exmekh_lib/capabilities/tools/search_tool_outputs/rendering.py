@@ -3,28 +3,20 @@ from __future__ import annotations
 from xml.etree import ElementTree as ET
 
 from exmekh_lib.config.runtime import RUNTIME
-from exmekh_lib.core.cache.node_cache import NodeCache
 from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
 from exmekh_lib.core.models.tool import PreformattedToolResult
-from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
 from exmekh_lib.core.tool_calls.output_view import ToolOutputView
 from exmekh_lib.utils.xml import append_text_element, render_xml
 
+from .query import ToolOutputQuery
 from .tool_call_search import ToolCallSearch
 
 
 def render_search_results(
-    cache: NodeCache,
-    execution_manager: ToolExecutionManager | None,
-    query: str = "",
-    tool_name: str | None = None,
-    skill_path: str | None = None,
-    offset: int = 0,
-    limit: int = RUNTIME.memory_default_page_limit,
+    search: ToolCallSearch,
+    query: ToolOutputQuery,
 ) -> PreformattedToolResult:
-    records, total, next_offset = ToolCallSearch(
-        cache, execution_manager
-    ).search_records(query, tool_name, skill_path, offset, limit)
+    records, total, next_offset = search.find(query)
     root = ET.Element("tool-outputs")
     append_text_element(root, "total", str(total))
     if next_offset is not None:

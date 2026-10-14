@@ -10,6 +10,7 @@ from openai import OpenAI
 from openai.types.responses import Response
 
 from exmekh_lib.config.file_editing import FILE_EDIT_FORMAT, FILE_EDITING
+from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.assistant_message import (
     AssistantMessage,
 )
@@ -92,16 +93,20 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
     def _negotiate(self) -> int:
         capabilities = self._client.get("/agentic/capabilities", cast_to=dict[str, Any])
         if not isinstance(capabilities, dict):
-            raise InteractiveProtocolError("Malformed server capabilities")
+            raise InteractiveProtocolError(PROVIDER_TEXT.malformed_server_capabilities)
         interactive = capabilities.get("interactive", {})
         if not isinstance(interactive, dict):
-            raise InteractiveProtocolError("Malformed interactive capabilities")
+            raise InteractiveProtocolError(
+                PROVIDER_TEXT.malformed_interactive_capabilities
+            )
         if any(
             not isinstance(interactive.get(field), list)
             or not all(isinstance(value, str) for value in interactive[field])
             for field in ("syntaxes", "apis", "behaviors")
         ):
-            raise InteractiveProtocolError("Malformed interactive capability lists")
+            raise InteractiveProtocolError(
+                PROVIDER_TEXT.malformed_interactive_capability_lists
+            )
         if (
             type(interactive.get("version")) is not int
             or interactive["version"] != 2
@@ -111,14 +116,16 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
             or FILE_EDIT_FORMAT.behavior not in interactive.get("behaviors", [])
         ):
             raise InteractiveProtocolError(
-                "Server/model does not support interactive Responses v2; no ordinary-call fallback is permitted"
+                PROVIDER_TEXT.server_model_does_not_support_interactive_responses_v2_no
             )
         limits = interactive.get("limits", {})
         if not isinstance(limits, dict):
-            raise InteractiveProtocolError("Malformed interactive limits")
+            raise InteractiveProtocolError(PROVIDER_TEXT.malformed_interactive_limits)
         snapshot_limit = limits.get("snapshot_bytes", FILE_EDITING.max_snapshot_bytes)
         if type(snapshot_limit) is not int or snapshot_limit < 1:
-            raise InteractiveProtocolError("Invalid server snapshot byte limit")
+            raise InteractiveProtocolError(
+                PROVIDER_TEXT.invalid_server_snapshot_byte_limit
+            )
         return min(snapshot_limit, FILE_EDITING.max_snapshot_bytes)
 
     def _logical_call(
@@ -151,7 +158,9 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
                 if kind in _TERMINAL_TYPES:
                     return self._interrupted_result(result, request, contract)
                 return self._completed_result(result, request, contract)
-            raise InteractiveProtocolError("Interactive exchange budget exhausted")
+            raise InteractiveProtocolError(
+                PROVIDER_TEXT.interactive_exchange_budget_exhausted
+            )
         except BaseException as error:
             if contract.is_accepted:
                 # Cleanup is a separate idempotent operation. Failure remains visible;
@@ -168,7 +177,11 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
                     InteractiveProtocolError,
                     ValueError,
                 ) as cleanup_error:
-                    error.add_note(f"Cancellation was not confirmed: {cleanup_error}")
+                    error.add_note(
+                        PROVIDER_TEXT.cancellation_was_not_confirmed.format(
+                            cleanup_error=cleanup_error
+                        )
+                    )
             raise
         finally:
             if streaming:
@@ -210,13 +223,15 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
             return reply
         text = reply.get("text")
         if not isinstance(text, str):
-            raise InteractiveProtocolError("Provide requires exact Unicode text")
+            raise InteractiveProtocolError(
+                PROVIDER_TEXT.provide_requires_exact_unicode_text
+            )
         if len(text.encode("utf-8")) <= snapshot_limit:
             return reply
         return {
             "status": "reject",
             "code": "snapshot_limit",
-            "message": "Snapshot exceeds the negotiated byte limit",
+            "message": PROVIDER_TEXT.snapshot_exceeds_the_negotiated_byte_limit,
         }
 
     def _interrupted_result(
@@ -289,7 +304,7 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
             "version": 2,
             "continuation_id": continuation_id,
             "code": "steered",
-            "message": "Steering invalidated this inference before dispatch",
+            "message": PROVIDER_TEXT.steering_invalidated_this_inference_before_dispatch,
         }
         return ProviderResponse(
             AssistantMessage(None),
@@ -344,7 +359,9 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
                 else event
             )
         if not isinstance(result, dict):
-            raise InteractiveProtocolError("Control operation returned no receipt")
+            raise InteractiveProtocolError(
+                PROVIDER_TEXT.control_operation_returned_no_receipt
+            )
         return result
 
     def status(
@@ -370,7 +387,9 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
         while True:
             remaining = deadline - monotonic()
             if remaining <= 0:
-                raise InteractiveProtocolError("Interactive logical-call timeout")
+                raise InteractiveProtocolError(
+                    PROVIDER_TEXT.interactive_logical_call_timeout
+                )
             try:
                 return self._post(body, request, contract, remaining)
             except openai.ConflictError:
@@ -443,7 +462,7 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
                 )
             else:
                 raise InteractiveProtocolError(
-                    "Stream ended without acceptance or a confirmed result"
+                    PROVIDER_TEXT.stream_ended_without_acceptance_or_a_confirmed_result
                 )
         return self._unwrap_status(
             terminal, request, contract, max(0, deadline - monotonic())
@@ -463,12 +482,12 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
                 return result["result"]
             if monotonic() >= deadline:
                 raise InteractiveProtocolError(
-                    "No terminal receipt before the logical-call timeout"
+                    PROVIDER_TEXT.no_terminal_receipt_before_the_logical_call_timeout
                 )
             sleep(min(0.1, max(0, deadline - monotonic())))
             scope = (request.get_extra() or {}).get("agentic", {})
             if not isinstance(scope, dict):
-                raise InteractiveProtocolError("Invalid agentic scope")
+                raise InteractiveProtocolError(PROVIDER_TEXT.invalid_agentic_scope)
             result = self.status(
                 self._control_scope(scope),
                 contract.continuation_id,

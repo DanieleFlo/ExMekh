@@ -18,6 +18,7 @@ from exmekh_lib.core.models.system_message import SystemMessage
 from exmekh_lib.core.models.tool import Tool
 from exmekh_lib.core.models.tools import Tools
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
+from exmekh_lib.core.tool_calls.output_preparer import ToolOutputPreparer
 from exmekh_lib.interfaces.event_handler import DeepAgentEventHandler
 from exmekh_lib.interfaces.provider import Provider
 
@@ -76,6 +77,7 @@ class NodeRuntimeConfig:
         exit_content_resolver: ExitContentResolver,
         execution_manager: ToolExecutionManager | None = None,
         scope_prefix: str = "",
+        output_preparer: ToolOutputPreparer | None = None,
     ) -> ToolCallExecutor:
         agentic_scope = AgenticScope(
             hds=self.hds,
@@ -92,6 +94,7 @@ class NodeRuntimeConfig:
             work_root=self.work_root,
             execution_manager=execution_manager,
             scope_prefix=scope_prefix,
+            output_preparer=output_preparer,
         )
 
     def get_hds_name(self) -> str:

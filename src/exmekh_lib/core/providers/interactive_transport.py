@@ -11,6 +11,7 @@ import httpx2
 from openai import APIConnectionError, APIResponse, APITimeoutError, OpenAI
 
 from exmekh_lib.config.file_editing import FILE_EDITING
+from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.interactive import InteractiveProtocolError
 from exmekh_lib.core.providers.interactive_contract import decode_object_pairs
 
@@ -36,7 +37,7 @@ class InteractiveTransport:
                 value = json.loads(raw, object_pairs_hook=decode_object_pairs)
                 if not isinstance(value, dict):
                     raise InteractiveProtocolError(
-                        "Interactive response must be a JSON object"
+                        PROVIDER_TEXT.interactive_response_must_be_a_json_object
                     )
                 yield value
                 return
@@ -52,14 +53,14 @@ class InteractiveTransport:
                             )
                             if not isinstance(value, dict):
                                 raise InteractiveProtocolError(
-                                    "SSE data must be a JSON object"
+                                    PROVIDER_TEXT.sse_data_must_be_a_json_object
                                 )
                             yield value
                 elif line.startswith("data:"):
                     data.append(line[5:].lstrip(" "))
         except (json.JSONDecodeError, UnicodeError) as error:
             raise InteractiveProtocolError(
-                "Malformed interactive response encoding or JSON"
+                PROVIDER_TEXT.malformed_interactive_response_encoding_or_json
             ) from error
         except httpx2.TimeoutException as error:
             raise APITimeoutError(request=response.http_request) from error
@@ -78,11 +79,11 @@ class InteractiveTransport:
             size += len(chunk)
             if size > FILE_EDITING.max_response_bytes:
                 raise InteractiveProtocolError(
-                    "Interactive HTTP output exceeds the byte budget"
+                    PROVIDER_TEXT.interactive_http_output_exceeds_the_byte_budget
                 )
             if monotonic() >= deadline:
                 raise InteractiveProtocolError(
-                    "Interactive logical-call timeout while reading HTTP output"
+                    PROVIDER_TEXT.interactive_logical_call_timeout_while_reading_http_output
                 )
             yield chunk
 

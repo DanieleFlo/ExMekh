@@ -4,6 +4,7 @@ from dataclasses import replace
 from typing import Any
 
 from exmekh_lib.config.runtime import RUNTIME
+from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
 from exmekh_lib.core.cache.user_message_codec import deserialize_user_message
 from exmekh_lib.core.models.user_message import UserMessage
@@ -27,6 +28,8 @@ class ToolOutputView:
     def content(self) -> str:
         """Render a result, preserving the text of a completed skill."""
         record = self._record
+        if record.external_output is not None:
+            return record.external_output.render()
         if (
             record.source == "DeepSkill"
             and isinstance(record.result, dict)
@@ -50,9 +53,12 @@ class ToolOutputView:
     def preview(self, limit: int) -> str:
         """Show useful progress or diagnostics before truncating a preview."""
         if type(limit) is not int or limit < 1:
-            raise ValueError("preview limit must be a positive integer")
+            raise ValueError(RUNTIME_TEXT.preview_limit_must_be_a_positive_integer)
         preview = " ".join(self._preview_content().split())
-        return preview if len(preview) <= limit else preview[: limit - 1] + "…"
+        if len(preview) <= limit:
+            return preview
+        suffix = RUNTIME.preview_truncation_suffix[:limit]
+        return preview[: limit - len(suffix)] + suffix
 
     def format_embedded(self) -> str:
         """Render a selected output with the shared XML escaping rules."""
@@ -97,6 +103,14 @@ class ToolOutputView:
             ),
             "status": execution.get("status", "completed"),
             "storage": execution.get("storage", "saved"),
+            **(
+                {
+                    "content-storage": "files",
+                    "file-count": len(record.external_output.files),
+                }
+                if record.external_output is not None
+                else {}
+            ),
             "tool-call-id": record.tool_call_id,
             **self._detail_fields(execution, self._TIMING_FIELDS),
         }
@@ -109,7 +123,7 @@ class ToolOutputView:
         execution = self._saved_execution_info()
         result = (
             self._saved_content(execution)
-            if execution["status"] == "unavailable"
+            if execution["status"] == "unavailable" and record.external_output is None
             else record.result
         )
         return replace(record, result=result, execution=execution)
@@ -131,7 +145,7 @@ class ToolOutputView:
             )
             header.add_field("status", execution["status"])
         header.add_field("response-type", execution.get("response_type", "final"))
-        if cursor is not None:
+        if cursor is not None and record.external_output is None:
             header.add_field("next-cursor", max(cursor, len(self.content())))
         return header.prepend_to(self._saved_content(execution, cursor))
 
@@ -142,7 +156,11 @@ class ToolOutputView:
         status = execution.get("status", "completed")
         execution["status"] = "unavailable" if status == "running" else status
         current_status = execution["status"]
-        execution["response_type"] = self._response_type(current_status)
+        execution["response_type"] = (
+            "failed"
+            if current_status == "unavailable"
+            else execution.get("response_type", self._response_type(current_status))
+        )
         execution["storage"] = "saved"
         return execution
 
@@ -154,7 +172,7 @@ class ToolOutputView:
         self, execution: dict[str, Any], cursor: int | None = None
     ) -> str:
         content = self.content()
-        if cursor is not None:
+        if cursor is not None and self._record.external_output is None:
             content = content[cursor:]
         if execution.get("status") == "unavailable":
             content = RUNTIME.unavailable_execution_message + "\n" + content

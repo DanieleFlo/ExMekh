@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.config.capabilities import CAPABILITY_FORMAT
 from exmekh_lib.interfaces.tool_hook import AfterTool, BeforeTool, validate_tool_hooks
 
@@ -32,9 +33,9 @@ def exit_tool(
     after: AfterTool | None = None,
 ) -> Callable[[ExitToolFunction], ExitToolFunction]:
     if not isinstance(instructions_path, (str, Path)):
-        raise TypeError("instructions_path must be a string or Path")
+        raise TypeError(AGENT_TEXT.instructions_path_must_be_a_string_or_path)
     if isinstance(instructions_path, str) and not instructions_path.strip():
-        raise ValueError("instructions_path cannot be blank")
+        raise ValueError(AGENT_TEXT.instructions_path_cannot_be_blank)
     _validate_definition(name, description)
     validate_tool_hooks(before, after)
     definition = ExitToolDefinition(
@@ -47,10 +48,12 @@ def exit_tool(
 
     def decorate(function: ExitToolFunction) -> ExitToolFunction:
         if not inspect.isfunction(function):
-            raise TypeError("@exit_tool can decorate only functions")
+            raise TypeError(AGENT_TEXT.exit_tool_can_decorate_only_functions)
         if get_exit_tool_definition(function) is not None:
             raise ValueError(
-                f"Function '{function.__name__}' is already decorated with @exit_tool"
+                AGENT_TEXT.function_is_already_decorated_with_exit_tool.format(
+                    function_name=function.__name__
+                )
             )
 
         setattr(function, _EXIT_TOOL_ATTRIBUTE, definition)
@@ -61,11 +64,11 @@ def exit_tool(
 
 def _validate_definition(name: str | None, description: str | None) -> None:
     if name is not None and not isinstance(name, str):
-        raise TypeError("Tool name must be a string or None")
+        raise TypeError(AGENT_TEXT.tool_name_must_be_a_string_or_none)
     if description is not None and not isinstance(description, str):
-        raise TypeError("Tool description must be a string or None")
+        raise TypeError(AGENT_TEXT.tool_description_must_be_a_string_or_none)
     if description is not None and not description.strip():
-        raise ValueError("Tool description cannot be blank")
+        raise ValueError(AGENT_TEXT.tool_description_cannot_be_blank)
 
 
 def get_exit_tool_definition(function: Any) -> ExitToolDefinition | None:

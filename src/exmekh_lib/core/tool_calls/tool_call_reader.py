@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from exmekh_lib.config.cache import CACHE_FORMAT
+from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.cache.tool_call_store import ToolCallStore
 from exmekh_lib.core.tool_calls.directory import (
     TokenizerCacheIdentity,
@@ -47,7 +48,9 @@ class ToolCallReader:
         record = self.read(call_id)
         if record is None:
             raise FileNotFoundError(
-                f"No tool call recorded for ID '{call_id}' at {self._directory}"
+                RUNTIME_TEXT.no_tool_call_recorded_for_id_at.format(
+                    call_id=call_id, directory=self._directory
+                )
             )
         return record
 

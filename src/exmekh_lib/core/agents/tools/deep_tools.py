@@ -6,6 +6,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Final
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.config.capabilities import CAPABILITY_FORMAT
 from exmekh_lib.core.agents.tools.decorator import (
     ToolDefinition,
@@ -39,23 +40,23 @@ class DeepTools:
             tool_paths,
             Sequence,
         ):
-            raise TypeError("tool_paths must be a sequence of Path")
+            raise TypeError(AGENT_TEXT.tool_paths_must_be_a_sequence_of_path)
 
         paths = tuple(tool_paths)
 
         if not all(isinstance(path, Path) for path in paths):
-            raise TypeError("tool_paths must contain only Path instances")
+            raise TypeError(AGENT_TEXT.tool_paths_must_contain_only_path_instances)
 
         canonical_paths = tuple(path.resolve() for path in paths)
 
         if len(canonical_paths) != len(set(canonical_paths)):
-            raise ValueError("Duplicate tool path")
+            raise ValueError(AGENT_TEXT.duplicate_tool_path)
 
         return paths
 
     def load(self) -> tuple[Tool, ...]:
         if self._load_attempted:
-            raise RuntimeError("DeepTools can load only once")
+            raise RuntimeError(AGENT_TEXT.deeptools_can_load_only_once)
 
         self._load_attempted = True
         tools: list[Tool] = []
@@ -91,7 +92,9 @@ class DeepTools:
 
             if description is None:
                 raise ValueError(
-                    f"Tool entrypoint '{entrypoint_path}' must have a description"
+                    AGENT_TEXT.tool_entrypoint_must_have_a_description.format(
+                        entrypoint_path=entrypoint_path
+                    )
                 )
 
             return DeepTool(
@@ -103,28 +106,44 @@ class DeepTools:
 
     def _validate_tool_path(self, tool_path: Path) -> Path:
         if tool_path.is_symlink():
-            raise ValueError(f"Tool path must not be a symbolic link: {tool_path}")
+            raise ValueError(
+                AGENT_TEXT.tool_path_must_not_be_a_symbolic_link.format(
+                    tool_path=tool_path
+                )
+            )
 
         if not tool_path.exists():
-            raise FileNotFoundError(f"Tool path does not exist: {tool_path}")
+            raise FileNotFoundError(
+                AGENT_TEXT.tool_path_does_not_exist.format(tool_path=tool_path)
+            )
 
         if not tool_path.is_dir():
-            raise ValueError(f"Tool path must be a directory: {tool_path}")
+            raise ValueError(
+                AGENT_TEXT.tool_path_must_be_a_directory.format(tool_path=tool_path)
+            )
 
         entrypoint_path = tool_path / self.ENTRYPOINT_FILENAME
 
         if entrypoint_path.is_symlink():
             raise ValueError(
-                f"Tool entrypoint must not be a symbolic link: {entrypoint_path}"
+                AGENT_TEXT.tool_entrypoint_must_not_be_a_symbolic_link.format(
+                    entrypoint_path=entrypoint_path
+                )
             )
 
         if not entrypoint_path.exists():
             raise FileNotFoundError(
-                f"Tool entrypoint does not exist: {entrypoint_path}"
+                AGENT_TEXT.tool_entrypoint_does_not_exist.format(
+                    entrypoint_path=entrypoint_path
+                )
             )
 
         if not entrypoint_path.is_file():
-            raise ValueError(f"Tool entrypoint must be a file: {entrypoint_path}")
+            raise ValueError(
+                AGENT_TEXT.tool_entrypoint_must_be_a_file.format(
+                    entrypoint_path=entrypoint_path
+                )
+            )
 
         return entrypoint_path
 
@@ -146,8 +165,9 @@ class DeepTools:
 
         if len(entrypoints) != 1:
             raise ValueError(
-                f"Tool entrypoint '{entrypoint_path}' must define exactly "
-                "one @deep_tool entrypoint"
+                AGENT_TEXT.tool_entrypoint_must_define_exactly_one_deep_tool_entrypoint.format(
+                    entrypoint_path=entrypoint_path
+                )
             )
 
         return entrypoints[0]

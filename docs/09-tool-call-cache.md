@@ -23,6 +23,9 @@ la ricrea se la sessione viene chiusa. L'esecutore non accede allo storage.
 - `ToolCallStore` implementa un solo formato di lettura e scrittura atomica.
 - `ToolCallRecord` contiene metadati e una copia JSON dei dati ricevuti.
   `ToolCallData` è un alias di compatibilità dello stesso modello.
+  Per output testuali grandi, `external_output` contiene i riferimenti ai file e
+  `result` è `null`; il testo originale non viene duplicato nel record. Vedi
+  [Output testuali grandi](16-large-tool-outputs.md).
 
 ## Primo esempio: salvare, leggere e cercare
 

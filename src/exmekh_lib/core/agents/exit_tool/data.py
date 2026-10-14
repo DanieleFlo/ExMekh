@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TypedDict
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
+
 
 class ExitToolResult(TypedDict):
     text: str
@@ -16,20 +18,20 @@ class ExitToolData:
 
     def __post_init__(self) -> None:
         if not isinstance(self.text, str):
-            raise TypeError("text must be a string")
+            raise TypeError(AGENT_TEXT.text_must_be_a_string)
 
         text = self.text.strip()
         if not text:
-            raise ValueError("text cannot be blank")
+            raise ValueError(AGENT_TEXT.text_cannot_be_blank)
 
         if not isinstance(self.items, list):
-            raise TypeError("items must be a list")
+            raise TypeError(AGENT_TEXT.items_must_be_a_list)
         if not all(isinstance(item, str) for item in self.items):
-            raise TypeError("items must contain only strings")
+            raise TypeError(AGENT_TEXT.items_must_contain_only_strings)
 
         items = [item.strip() for item in self.items]
         if not all(items):
-            raise ValueError("items cannot contain blank strings")
+            raise ValueError(AGENT_TEXT.items_cannot_contain_blank_strings)
 
         object.__setattr__(self, "text", text)
         object.__setattr__(self, "items", items)

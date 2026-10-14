@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 from xml.etree import ElementTree as ET
 
+from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.config.validation import VALIDATION_PATTERNS
 from exmekh_lib.utils.json import to_json_value
@@ -25,35 +26,37 @@ class XmlHeader:
 
     def __post_init__(self) -> None:
         if not isinstance(self.source, str):
-            raise TypeError("source must be a string")
+            raise TypeError(MODEL_TEXT.source_must_be_a_string)
         if self.source not in ("Tool", "DeepSkill", "UserMessage"):
             raise ValueError(
-                f"source must be 'Tool', 'DeepSkill', or 'UserMessage', got '{self.source}'"
+                MODEL_TEXT.source_must_be_tool_deepskill_or_usermessage_got.format(
+                    source=self.source
+                )
             )
 
         if not isinstance(self.name, str):
-            raise TypeError("name must be a string")
+            raise TypeError(MODEL_TEXT.name_must_be_a_string)
         name = self.name.strip()
         if not name:
-            raise ValueError("name cannot be empty")
+            raise ValueError(MODEL_TEXT.name_cannot_be_empty)
         self.name = name
 
         if not isinstance(self.id, str):
-            raise TypeError("id must be a string")
+            raise TypeError(MODEL_TEXT.id_must_be_a_string)
         header_id = self.id.strip()
         if not header_id:
-            raise ValueError("id cannot be empty")
+            raise ValueError(MODEL_TEXT.id_cannot_be_empty)
         self.id = header_id
 
         if not isinstance(self.fields, dict):
-            raise TypeError("fields must be a dictionary")
+            raise TypeError(MODEL_TEXT.fields_must_be_a_dictionary)
         if not all(isinstance(key, str) for key in self.fields):
-            raise TypeError("all keys in fields must be strings")
+            raise TypeError(MODEL_TEXT.all_keys_in_fields_must_be_strings)
 
         if self.args is not None and not isinstance(self.args, dict):
-            raise TypeError("args must be a dictionary or None")
+            raise TypeError(MODEL_TEXT.args_must_be_a_dictionary_or_none)
         if self.args is not None and not all(isinstance(key, str) for key in self.args):
-            raise TypeError("all keys in args must be strings")
+            raise TypeError(MODEL_TEXT.all_keys_in_args_must_be_strings)
 
     def add_field(self, key: str, value: Any) -> XmlHeader:
         """Add or replace a custom metadata field."""

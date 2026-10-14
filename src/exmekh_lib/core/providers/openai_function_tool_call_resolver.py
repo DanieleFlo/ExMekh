@@ -4,6 +4,7 @@ import inspect
 import json
 from typing import Any
 
+from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.tool import Tool
 from exmekh_lib.core.models.tools import Tools
 from exmekh_lib.core.providers.openai_chat_completion_value_coercer import (
@@ -33,7 +34,7 @@ class OpenAIFunctionToolCallResolver:
     def _registered_tool(name: str, tools: Tools) -> Tool:
         tool = tools.get_tool(name)
         if tool is None:
-            raise LookupError(f"Tool '{name}' is not registered")
+            raise LookupError(PROVIDER_TEXT.tool_is_not_registered.format(name=name))
         return tool
 
     @staticmethod
@@ -42,11 +43,17 @@ class OpenAIFunctionToolCallResolver:
             arguments = json.loads(call.get_arguments())
         except json.JSONDecodeError as error:
             raise ValueError(
-                f"Tool '{call.get_name()}' arguments are not valid JSON"
+                PROVIDER_TEXT.tool_arguments_are_not_valid_json.format(
+                    call_get_name=call.get_name()
+                )
             ) from error
 
         if not isinstance(arguments, dict):
-            raise TypeError(f"Tool '{call.get_name()}' arguments must be a JSON object")
+            raise TypeError(
+                PROVIDER_TEXT.tool_arguments_must_be_a_json_object.format(
+                    call_get_name=call.get_name()
+                )
+            )
         return arguments
 
     @staticmethod
@@ -59,7 +66,9 @@ class OpenAIFunctionToolCallResolver:
             return signature.bind(**arguments)
         except TypeError as error:
             raise ValueError(
-                f"Invalid arguments for tool '{tool.get_name()}': {error}"
+                PROVIDER_TEXT.invalid_arguments_for_tool.format(
+                    tool_get_name=tool.get_name(), error=error
+                )
             ) from error
 
     def _coerce_arguments(

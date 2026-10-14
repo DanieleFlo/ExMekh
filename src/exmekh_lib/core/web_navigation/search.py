@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from exmekh_lib.config.web import WEB_NAVIGATION
+from exmekh_lib.config.web_text import WEB_TEXT
 
 from .errors import WebNavigationError
 
@@ -83,7 +84,7 @@ def search_web_multimodal(
             discovered_images=discovered_images,
         )
     except Exception as error:  # noqa: BLE001 - visual ranking is an optional signal.
-        _LOGGER.warning("SigLIP2 visual ranking unavailable: %s", error)
+        _LOGGER.warning(WEB_TEXT.siglip2_visual_ranking_unavailable, error)
         ranked = preliminary
     else:
         visual_ranking_applied = True
@@ -105,7 +106,7 @@ def _validate_search_arguments(
     normalized_query = query.strip() if isinstance(query, str) else ""
     if not normalized_query:
         raise WebNavigationError(
-            "Search query must be a non-empty string.", kind="invalid_query"
+            WEB_TEXT.search_query_must_be_a_non_empty_string, kind="invalid_query"
         )
     if (
         isinstance(max_results, bool)
@@ -113,7 +114,9 @@ def _validate_search_arguments(
         or not 1 <= max_results <= MAX_SEARCH_RESULTS
     ):
         raise WebNavigationError(
-            f"max_results must be between 1 and {MAX_SEARCH_RESULTS}.",
+            WEB_TEXT.max_results_must_be_between_and.format(
+                max_search_results=MAX_SEARCH_RESULTS
+            ),
             kind="invalid_max_results",
         )
     if (
@@ -122,7 +125,9 @@ def _validate_search_arguments(
         or not 1 <= timeout_seconds <= WEB_NAVIGATION.max_timeout_seconds
     ):
         raise WebNavigationError(
-            f"timeout_seconds must be between 1 and {WEB_NAVIGATION.max_timeout_seconds}.",
+            WEB_TEXT.timeout_seconds_must_be_between_and.format(
+                web_navigation_max_timeout_seconds=WEB_NAVIGATION.max_timeout_seconds
+            ),
             kind="invalid_timeout",
         )
     return normalized_query
@@ -143,7 +148,7 @@ def _retrieve_candidates(
         )
     except (DDGSException, OSError, TimeoutError) as error:
         raise WebNavigationError(
-            "Public web search failed across the available providers.",
+            WEB_TEXT.public_web_search_failed_across_the_available_providers,
             kind="search_failed",
         ) from error
 

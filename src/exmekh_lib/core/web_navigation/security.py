@@ -9,6 +9,7 @@ from collections.abc import Awaitable, Callable
 from urllib.parse import urljoin, urlparse
 
 from exmekh_lib.config.web import WEB_NAVIGATION
+from exmekh_lib.config.web_text import WEB_TEXT
 
 from .errors import WebNavigationError
 
@@ -20,7 +21,7 @@ def normalized_origin(url: str) -> tuple[str, str, int]:
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise WebNavigationError(
-            "Only absolute http and https URLs are supported.", kind="invalid_url"
+            WEB_TEXT.only_absolute_http_and_https_urls_are_supported, kind="invalid_url"
         )
     default_port = 443 if parsed.scheme == "https" else 80
     return parsed.scheme.lower(), parsed.hostname.lower(), parsed.port or default_port
@@ -33,7 +34,7 @@ class NavigationPolicy:
         self, *, initial_url: str, max_navigations: int = MAX_MAIN_FRAME_NAVIGATIONS
     ) -> None:
         if max_navigations < 0:
-            raise ValueError("max_navigations must not be negative.")
+            raise ValueError(WEB_TEXT.max_navigations_must_not_be_negative)
         self._initial_origin = normalized_origin(validate_public_url(initial_url))
         self._max_navigations = max_navigations
         self._navigation_count = 0
@@ -60,7 +61,9 @@ class NavigationPolicy:
             validate_public_url(url)
             if normalized_origin(url) != self.initial_origin:
                 raise WebNavigationError(
-                    f"Main-frame navigation left the initial origin: {url}.",
+                    WEB_TEXT.main_frame_navigation_left_the_initial_origin_2.format(
+                        url=url
+                    ),
                     kind="cross_origin_navigation",
                 )
             if not self._initial_request_seen:
@@ -69,7 +72,9 @@ class NavigationPolicy:
             self._navigation_count += 1
             if self._navigation_count > self._max_navigations:
                 raise WebNavigationError(
-                    f"Main-frame navigation exceeded {self._max_navigations} hops.",
+                    WEB_TEXT.main_frame_navigation_exceeded_hops.format(
+                        max_navigations=self._max_navigations
+                    ),
                     kind="redirect_limit_exceeded",
                 )
         except WebNavigationError as error:
@@ -82,7 +87,7 @@ class NavigationPolicy:
         value = validate_public_url(url)
         if normalized_origin(value) != self.initial_origin:
             raise WebNavigationError(
-                f"Navigation action left the initial origin: {value}.",
+                WEB_TEXT.navigation_action_left_the_initial_origin.format(value=value),
                 kind="cross_origin_navigation",
             )
         return value
@@ -101,15 +106,15 @@ def validate_public_url(url: str) -> str:
         port = parsed.port
     except ValueError as error:
         raise WebNavigationError(
-            "URL contains an invalid port.", kind="invalid_url"
+            WEB_TEXT.url_contains_an_invalid_port, kind="invalid_url"
         ) from error
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise WebNavigationError(
-            "Only absolute http and https URLs are supported.", kind="invalid_url"
+            WEB_TEXT.only_absolute_http_and_https_urls_are_supported, kind="invalid_url"
         )
     if parsed.username is not None or parsed.password is not None:
         raise WebNavigationError(
-            "Credentials in URLs are not supported.", kind="invalid_url"
+            WEB_TEXT.credentials_in_urls_are_not_supported, kind="invalid_url"
         )
     _validate_host(parsed.hostname, port)
     return value
@@ -130,12 +135,14 @@ def _validate_host(hostname: str, port: int | None) -> None:
             )
         except OSError as error:
             raise WebNavigationError(
-                f"Could not resolve URL hostname: {hostname}.", kind="dns_error"
+                WEB_TEXT.could_not_resolve_url_hostname_2.format(hostname=hostname),
+                kind="dns_error",
             ) from error
         addresses = {ipaddress.ip_address(item[4][0]) for item in resolved}
     if not addresses or any(not address.is_global for address in addresses):
         raise WebNavigationError(
-            f"URL hostname is not publicly routable: {hostname}.", kind="blocked_url"
+            WEB_TEXT.url_hostname_is_not_publicly_routable_2.format(hostname=hostname),
+            kind="blocked_url",
         )
 
 
@@ -197,7 +204,7 @@ async def _redirect_chain_is_allowed(
             if policy is not None:
                 policy.record_violation(
                     WebNavigationError(
-                        "Main-frame navigation exceeded the redirect budget.",
+                        WEB_TEXT.main_frame_navigation_exceeded_the_redirect_budget,
                         kind="redirect_limit_exceeded",
                     )
                 )

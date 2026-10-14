@@ -52,3 +52,13 @@ class ReadReport(InspectionReport):
         self._evidence = replace(
             self._evidence, source="read", readable=True, successful=True
         )
+
+    def selected_text(self) -> str | None:
+        """Text delivered by the read, without presentation metadata or line labels."""
+        lines = self.get("lines", [])
+        if not isinstance(lines, list) or any(
+            not isinstance(item, dict) or not isinstance(item.get("text"), str)
+            for item in lines
+        ):
+            return None
+        return "\n".join(item["text"] for item in lines)

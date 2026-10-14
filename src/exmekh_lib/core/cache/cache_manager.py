@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, ClassVar, Final, Literal
 
 from exmekh_lib.config.cache import CACHE_FORMAT
+from exmekh_lib.config.cache_text import CACHE_TEXT
 from exmekh_lib.config.storage import DEFAULT_STORAGE_SETTINGS, StorageSettings
 from exmekh_lib.config.tokenizer import QWEN_TOKENIZER
 from exmekh_lib.core.cache.node_cache import NodeCache
@@ -34,16 +35,16 @@ class CacheManager:
     def compute_namespace(identity: str) -> str:
         """Deterministically calculate the SHA-256 namespace from an identity string."""
         if not isinstance(identity, str):
-            raise TypeError("identity must be a string")
+            raise TypeError(CACHE_TEXT.identity_must_be_a_string)
         if not identity.strip():
-            raise ValueError("identity must be a non-empty string")
+            raise ValueError(CACHE_TEXT.identity_must_be_a_non_empty_string)
         return sha256(identity.encode("utf-8")).hexdigest()
 
     @classmethod
     def resolve_root(cls, cache_directory: Path | None = None) -> Path:
         """Resolve the root storage directory for caching."""
         if cache_directory is not None and not isinstance(cache_directory, Path):
-            raise TypeError("cache_directory must be a Path or None")
+            raise TypeError(CACHE_TEXT.cache_directory_must_be_a_path_or_none)
         return (
             cache_directory
             or StorageSettings.from_environment().tokenizer_cache_directory

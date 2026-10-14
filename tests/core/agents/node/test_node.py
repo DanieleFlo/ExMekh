@@ -549,6 +549,7 @@ def test_tool_descriptions_reflect_hds_and_skill_availability(
             "Use an optional cursor to read only new output; omit it to read the "
             "complete output. Includes the final result when available. "
             "Also reads saved user steering and restores its attachments. "
+            "Oversized output returns file references; use the file tools to read its text. "
             "summary_mode defaults to 'none'; 'brief' gives 3 to 5 bullet points, "
             "'detailed' preserves essential details. Outputs below 300 tokens stay complete."
         ),

@@ -19,6 +19,7 @@ from lxml import html
 from PIL import Image, UnidentifiedImageError
 
 from exmekh_lib.config.web import WEB_FORMAT, WEB_NAVIGATION
+from exmekh_lib.config.web_text import WEB_TEXT
 
 from .errors import WebNavigationError
 
@@ -58,12 +59,13 @@ class PublicResolver(AbstractResolver):
             )
         except OSError as error:
             raise WebNavigationError(
-                f"Could not resolve URL hostname: {host}.", kind="dns_error"
+                WEB_TEXT.could_not_resolve_url_hostname.format(host=host),
+                kind="dns_error",
             ) from error
         addresses = {ipaddress.ip_address(record[4][0]) for record in records}
         if not addresses or any(not address.is_global for address in addresses):
             raise WebNavigationError(
-                f"URL hostname is not publicly routable: {host}.",
+                WEB_TEXT.url_hostname_is_not_publicly_routable.format(host=host),
                 kind="blocked_url",
             )
         return [
@@ -86,13 +88,13 @@ def load_local_query_image(*, image_path: str, workroot: Path | None) -> Image.I
     """Resolve and validate one local query image strictly inside workroot."""
     if workroot is None:
         raise WebNavigationError(
-            "image_path requires an injected workroot.", kind="invalid_image_path"
+            WEB_TEXT.image_path_requires_an_injected_workroot, kind="invalid_image_path"
         )
     root = Path(workroot).resolve()
     raw_path = Path(str(image_path).strip())
     if not str(image_path).strip():
         raise WebNavigationError(
-            "image_path must be a non-empty path.", kind="invalid_image_path"
+            WEB_TEXT.image_path_must_be_a_non_empty_path, kind="invalid_image_path"
         )
     candidate = raw_path if raw_path.is_absolute() else root / raw_path
     try:
@@ -100,25 +102,29 @@ def load_local_query_image(*, image_path: str, workroot: Path | None) -> Image.I
         resolved.relative_to(root)
     except (OSError, ValueError) as error:
         raise WebNavigationError(
-            "image_path must resolve to a file inside workroot.",
+            WEB_TEXT.image_path_must_resolve_to_a_file_inside_workroot,
             kind="invalid_image_path",
         ) from error
     if not resolved.is_file() or resolved.stat().st_size > MAX_LOCAL_IMAGE_BYTES:
         raise WebNavigationError(
-            f"image_path must be an image file no larger than {MAX_LOCAL_IMAGE_BYTES / (1024 * 1024):g} MB.",
+            WEB_TEXT.image_path_must_be_an_image_file_no_larger.format(
+                max_local_image_bytes=MAX_LOCAL_IMAGE_BYTES / (1024 * 1024)
+            ),
             kind="invalid_image",
         )
     try:
         content = resolved.read_bytes()
         if len(content) > MAX_LOCAL_IMAGE_BYTES:
             raise WebNavigationError(
-                f"image_path must be an image file no larger than {MAX_LOCAL_IMAGE_BYTES / (1024 * 1024):g} MB.",
+                WEB_TEXT.image_path_must_be_an_image_file_no_larger.format(
+                    max_local_image_bytes=MAX_LOCAL_IMAGE_BYTES / (1024 * 1024)
+                ),
                 kind="invalid_image",
             )
         return decode_image(content)
     except OSError as error:
         raise WebNavigationError(
-            "The local image could not be read.", kind="invalid_image"
+            WEB_TEXT.the_local_image_could_not_be_read, kind="invalid_image"
         ) from error
 
 
@@ -128,17 +134,19 @@ def decode_image(content: bytes) -> Image.Image:
         with Image.open(BytesIO(content)) as image:
             if image.format not in ALLOWED_IMAGE_FORMATS:
                 raise WebNavigationError(
-                    "Only JPEG, PNG, and WebP images are supported.",
+                    WEB_TEXT.only_jpeg_png_and_webp_images_are_supported,
                     kind="invalid_image",
                 )
             if bool(getattr(image, "is_animated", False)):
                 raise WebNavigationError(
-                    "Animated images are not supported.", kind="invalid_image"
+                    WEB_TEXT.animated_images_are_not_supported, kind="invalid_image"
                 )
             width, height = image.size
             if width < 1 or height < 1 or width * height > MAX_IMAGE_PIXELS:
                 raise WebNavigationError(
-                    f"Image dimensions exceed the {MAX_IMAGE_PIXELS / 1_000_000:g} megapixel limit.",
+                    WEB_TEXT.image_dimensions_exceed_the_megapixel_limit.format(
+                        max_image_pixels=MAX_IMAGE_PIXELS / 1000000
+                    ),
                     kind="invalid_image",
                 )
             image.verify()
@@ -151,7 +159,7 @@ def decode_image(content: bytes) -> Image.Image:
         ValueError,
     ) as error:
         raise WebNavigationError(
-            "The file does not contain a valid supported image.",
+            WEB_TEXT.the_file_does_not_contain_a_valid_supported_image,
             kind="invalid_image",
         ) from error
 
@@ -261,13 +269,13 @@ async def _fetch_bytes(
                 if response.status in {301, 302, 303, 307, 308}:
                     if redirect_count >= MAX_REDIRECTS:
                         raise WebNavigationError(
-                            "Remote image discovery exceeded the redirect limit.",
+                            WEB_TEXT.remote_image_discovery_exceeded_the_redirect_limit,
                             kind="redirect_limit_exceeded",
                         )
                     location = response.headers.get("Location")
                     if not location:
                         raise WebNavigationError(
-                            "Remote redirect omitted its destination.",
+                            WEB_TEXT.remote_redirect_omitted_its_destination,
                             kind="image_discovery_failed",
                         )
                     current_url = _canonicalize_remote_url(
@@ -277,7 +285,9 @@ async def _fetch_bytes(
                     continue
                 if response.status < 200 or response.status >= 300:
                     raise WebNavigationError(
-                        f"Remote resource returned HTTP {response.status}.",
+                        WEB_TEXT.remote_resource_returned_http.format(
+                            response_status=response.status
+                        ),
                         kind="image_discovery_failed",
                     )
                 content_type = (
@@ -285,13 +295,15 @@ async def _fetch_bytes(
                 )
                 if content_type not in allowed_mime_types:
                     raise WebNavigationError(
-                        f"Unsupported remote content type: {content_type or 'missing'}.",
+                        WEB_TEXT.unsupported_remote_content_type.format(
+                            value=content_type or "missing"
+                        ),
                         kind="image_discovery_failed",
                     )
                 declared_length = response.content_length
                 if declared_length is not None and declared_length > max_bytes:
                     raise WebNavigationError(
-                        "Remote resource exceeds its size limit.",
+                        WEB_TEXT.remote_resource_exceeds_its_size_limit,
                         kind="image_discovery_failed",
                     )
                 chunks: list[bytes] = []
@@ -302,7 +314,7 @@ async def _fetch_bytes(
                     size += len(chunk)
                     if size > max_bytes:
                         raise WebNavigationError(
-                            "Remote resource exceeds its size limit.",
+                            WEB_TEXT.remote_resource_exceeds_its_size_limit,
                             kind="image_discovery_failed",
                         )
                     chunks.append(chunk)
@@ -391,7 +403,7 @@ def _canonicalize_remote_url(url: str) -> str:
         or parsed.password is not None
     ):
         raise WebNavigationError(
-            "Only credential-free absolute HTTP(S) URLs are supported.",
+            WEB_TEXT.only_credential_free_absolute_http_s_urls_are_supported,
             kind="invalid_url",
         )
     return urlunparse(parsed._replace(fragment=""))

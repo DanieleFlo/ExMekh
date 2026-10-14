@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
+from exmekh_lib.config.capabilities import CAPABILITY_FORMAT
 from exmekh_lib.core.agents.capability.references import parse_references
 from exmekh_lib.core.agents.exit_tool.data import ExitToolData, ExitToolResult
 from exmekh_lib.core.agents.exit_tool.decorator import ExitToolFunction
@@ -10,6 +12,7 @@ from exmekh_lib.core.models.assistant_message import ToolCall
 from exmekh_lib.core.models.tool import Tool
 from exmekh_lib.interfaces.message import Message
 from exmekh_lib.interfaces.tool_hook import AfterTool, BeforeTool, ToolContext
+from exmekh_lib.utils.xml import create_text_element, render_xml
 
 
 class ExitTool(Tool):
@@ -26,12 +29,14 @@ class ExitTool(Tool):
         after: AfterTool | None = None,
     ) -> None:
         if not isinstance(instructions_path, Path):
-            raise TypeError("instructions_path must be a Path")
+            raise TypeError(AGENT_TEXT.instructions_path_must_be_a_path)
         if not isinstance(instructions, str):
-            raise TypeError("instructions must be a string")
+            raise TypeError(AGENT_TEXT.instructions_must_be_a_string)
         if not instructions.strip():
             raise ValueError(
-                f"Exit-tool instructions cannot be blank: {instructions_path}"
+                AGENT_TEXT.exit_tool_instructions_cannot_be_blank.format(
+                    instructions_path=instructions_path
+                )
             )
         self.instructions_path = instructions_path
         self.instructions, self.references = parse_references(instructions.strip())
@@ -46,12 +51,16 @@ class ExitTool(Tool):
         )
 
     def render_prompt_section(self) -> str:
-        return f'<exit-tool name="{self.name}">{self.instructions}</exit-tool>'
+        return render_xml(
+            create_text_element(
+                "exit-tool", self.instructions, attributes={"name": self.name}
+            )
+        )
 
     def execute(self, *args: Any, **kwargs: Any) -> ExitToolResult:
         result = self.tool(*args, **kwargs)
         if not isinstance(result, ExitToolData):
-            raise TypeError("exit tool must return ExitToolData")
+            raise TypeError(AGENT_TEXT.exit_tool_must_return_exittooldata)
 
         return result.dump()
 
@@ -62,19 +71,24 @@ class ExitTool(Tool):
     def _finalize_result(self, context: ToolContext, result: Any) -> ExitToolResult:
         result = super()._finalize_result(context, result)
         if not isinstance(result, dict):
-            raise TypeError("Exit tool result must be a dictionary")
+            raise TypeError(AGENT_TEXT.exit_tool_result_must_be_a_dictionary)
         return ExitToolData(**result).dump()
 
     def __str__(self) -> str:
-        return f"Name: {self.name}\nType: ExitTool\nInstructions: {self.instructions[:50]}..."
+        return AGENT_TEXT.name_type_exittool_instructions.format(
+            name=self.name,
+            instructions=self.instructions[
+                : CAPABILITY_FORMAT.representation_preview_chars
+            ],
+        )
 
 
 class CalledExitTool:
     def __init__(self, exit_tool: ExitTool, tool_call: ToolCall) -> None:
         if not isinstance(exit_tool, ExitTool):
-            raise TypeError("exit_tool must be an ExitTool")
+            raise TypeError(AGENT_TEXT.exit_tool_must_be_an_exittool)
         if not isinstance(tool_call, ToolCall):
-            raise TypeError("tool_call must be a ToolCall")
+            raise TypeError(AGENT_TEXT.tool_call_must_be_a_toolcall)
 
         self._exit_tool = exit_tool
         self._tool_call = tool_call
@@ -84,7 +98,9 @@ class CalledExitTool:
         call_name = self._tool_call.get_name()
         if call_name != self.name:
             raise ValueError(
-                f"Tool call name '{call_name}' does not match exit tool name '{self.name}'"
+                AGENT_TEXT.tool_call_name_does_not_match_exit_tool_name.format(
+                    call_name=call_name, name=self.name
+                )
             )
 
     @property

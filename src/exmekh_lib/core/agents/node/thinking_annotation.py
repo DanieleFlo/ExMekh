@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from exmekh_lib.config.runtime import RUNTIME
+from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.models.text_summarizer import TextSummarizer
 from exmekh_lib.interfaces.provider import Provider
 
@@ -29,7 +30,7 @@ class ThinkingAnnotationResolver:
             try:
                 token_count = self._provider.get_tokenizer().count_tokens(thinking)
             except Exception:
-                logger.exception("Deep-thinking token count unavailable")
+                logger.exception(RUNTIME_TEXT.deep_thinking_token_count_unavailable)
                 self._annotations[thinking] = None
             else:
                 self._annotations[thinking] = (
@@ -45,5 +46,5 @@ class ThinkingAnnotationResolver:
                 thinking, RUNTIME.thinking_summary_prompt
             )
         except Exception:
-            logger.exception("Deep-thinking summary unavailable")
+            logger.exception(RUNTIME_TEXT.deep_thinking_summary_unavailable)
             return None

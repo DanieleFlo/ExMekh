@@ -522,15 +522,15 @@ def test_completed_tool_keeps_final_result_when_steering_is_accepted(
 ):
     provider = SequenceProvider([tool_reply(call()), AssistantMessage("updated")])
     agent = make_agent(provider, Tool(lambda: "completed output", name="mock-tool"))
-    original_start = ToolExecutionManager.start
+    original_launch = ToolExecutionManager.launch
 
-    def complete_before_return(manager, *args, **kwargs):
-        snapshot = original_start(manager, *args, **kwargs)
+    def complete_before_return(manager, request):
+        snapshot = original_launch(manager, request)
         assert snapshot.is_finished
         agent.steer("completion correction")
         return snapshot
 
-    monkeypatch.setattr(ToolExecutionManager, "start", complete_before_return)
+    monkeypatch.setattr(ToolExecutionManager, "launch", complete_before_return)
     assert agent.run("start").get_message() == "updated"
     outputs = [
         m for m in provider.requests[-1].get_messages() if isinstance(m, ToolMessage)

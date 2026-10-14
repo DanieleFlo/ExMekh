@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
+from exmekh_lib.config.capabilities import CAPABILITY_FORMAT
 from exmekh_lib.core.agents.capabilities.resource_type import ResourceType
 from exmekh_lib.core.agents.capability.markdown_capability import MarkdownCapability
 from exmekh_lib.core.agents.deep_skill.catalog import SkillCatalog
@@ -27,7 +29,7 @@ class DeepSkill(MarkdownCapability[DeepSkillMetadata]):
         references: tuple[str, ...],
     ) -> None:
         if not isinstance(metadata, DeepSkillMetadata):
-            raise TypeError("metadata must be DeepSkillMetadata")
+            raise TypeError(AGENT_TEXT.metadata_must_be_deepskillmetadata)
 
         self._catalog: SkillCatalog | None = None
         super().__init__(
@@ -59,23 +61,31 @@ class DeepSkill(MarkdownCapability[DeepSkillMetadata]):
 
     def attach_catalog(self, catalog: SkillCatalog) -> None:
         if not isinstance(catalog, SkillCatalog):
-            raise TypeError("catalog must be SkillCatalog")
+            raise TypeError(AGENT_TEXT.catalog_must_be_skillcatalog)
 
         if self._catalog is not None:
-            raise RuntimeError(f"Catalog already attached to deep skill '{self.name}'")
+            raise RuntimeError(
+                AGENT_TEXT.catalog_already_attached_to_deep_skill.format(name=self.name)
+            )
 
         self._catalog = catalog
 
     def __str__(self) -> str:
-        return f"Name: {self.name}\nType: DeepSkill\nBody: {self.body[:50]}...\nDescription: {self.description[:50]}..."
+        return AGENT_TEXT.name_type_deepskill_body_description.format(
+            name=self.name,
+            body=self.body[: CAPABILITY_FORMAT.representation_preview_chars],
+            description=self.description[
+                : CAPABILITY_FORMAT.representation_preview_chars
+            ],
+        )
 
 
 class CalledDeepSkill:
     def __init__(self, deep_skill: DeepSkill, tool_call: ToolCall) -> None:
         if not isinstance(deep_skill, DeepSkill):
-            raise TypeError("deep_skill must be DeepSkill")
+            raise TypeError(AGENT_TEXT.deep_skill_must_be_deepskill)
         if not isinstance(tool_call, ToolCall):
-            raise TypeError("tool_call must be ToolCall")
+            raise TypeError(AGENT_TEXT.tool_call_must_be_toolcall)
 
         self._deep_skill = deep_skill
         self._tool_call = tool_call
@@ -85,8 +95,10 @@ class CalledDeepSkill:
     def _validate_matching(self) -> None:
         if self._tool_call.get_name() != self._deep_skill.get_name():
             raise ValueError(
-                f"Tool call name '{self._tool_call.get_name()}' does not match "
-                f"deep skill name '{self._deep_skill.get_name()}'"
+                AGENT_TEXT.tool_call_name_does_not_match_deep_skill_name.format(
+                    tool_call_get_name=self._tool_call.get_name(),
+                    deep_skill_get_name=self._deep_skill.get_name(),
+                )
             )
 
     @property

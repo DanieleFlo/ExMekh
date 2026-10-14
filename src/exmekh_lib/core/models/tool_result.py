@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from exmekh_lib.core.models.external_tool_output import ExternalToolOutput
 from exmekh_lib.core.models.tool import AttachedToolResult, PreformattedToolResult
 from exmekh_lib.core.models.user_message import UserMessage
 
@@ -27,3 +28,19 @@ class ToolResult:
             if isinstance(self._result, (AttachedToolResult, PreformattedToolResult))
             else None
         )
+
+    def external_output(self) -> ExternalToolOutput | None:
+        return (
+            self._result.external_output
+            if isinstance(self._result, PreformattedToolResult)
+            else None
+        )
+
+    def delivery_failed(self) -> bool:
+        return (
+            isinstance(self._result, PreformattedToolResult)
+            and self._result.delivery_failed
+        )
+
+    def storage_value(self) -> Any:
+        return None if self.external_output() is not None else self.value()

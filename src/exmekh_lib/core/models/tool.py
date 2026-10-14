@@ -10,9 +10,12 @@ from functools import partial
 from pathlib import Path
 from typing import Annotated, Any, Literal, Self, get_type_hints
 
+from exmekh_lib.config.capabilities import CAPABILITY_FORMAT
+from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.config.validation import VALIDATION_PATTERNS
 from exmekh_lib.core.models.assistant_message import ToolCall
+from exmekh_lib.core.models.external_tool_output import ExternalToolOutput
 from exmekh_lib.core.models.interactive import (
     InteractiveDefinition,
     validate_interactive_tool,
@@ -37,15 +40,25 @@ class PreformattedToolResult:
 
     content: str
     attachments: UserMessage | None = None
+    external_output: ExternalToolOutput | None = None
+    delivery_failed: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.content, str):
-            raise TypeError("Preformatted tool content must be a string")
+            raise TypeError(MODEL_TEXT.preformatted_tool_content_must_be_a_string)
+        if self.external_output is not None and not isinstance(
+            self.external_output, ExternalToolOutput
+        ):
+            raise TypeError(
+                MODEL_TEXT.external_output_must_be_externaltooloutput_or_none
+            )
+        if not isinstance(self.delivery_failed, bool):
+            raise TypeError(MODEL_TEXT.delivery_failed_must_be_a_boolean)
         if self.attachments is not None and not isinstance(
             self.attachments, UserMessage
         ):
             raise TypeError(
-                "Preformatted tool attachments must be a UserMessage or None"
+                MODEL_TEXT.preformatted_tool_attachments_must_be_a_usermessage_or_none
             )
 
 
@@ -54,7 +67,7 @@ class AttachedToolResult(dict[str, object]):
 
     def __init__(self, result: dict[str, object], attachments: UserMessage) -> None:
         if not isinstance(attachments, UserMessage):
-            raise TypeError("Attached tool results require a UserMessage")
+            raise TypeError(MODEL_TEXT.attached_tool_results_require_a_usermessage)
         super().__init__(result)
         self._attachments = attachments
 
@@ -70,7 +83,7 @@ class ExecutionOptions:
 
     def __post_init__(self) -> None:
         if self.mode not in ("wait", "background"):
-            raise ValueError("execution_mode must be 'wait' or 'background'")
+            raise ValueError(MODEL_TEXT.execution_mode_must_be_wait_or_background)
         self.validate_wait_seconds(self.wait_seconds)
 
     @classmethod
@@ -86,10 +99,12 @@ class ExecutionOptions:
     @staticmethod
     def validate_wait_seconds(wait_seconds: float) -> float:
         if isinstance(wait_seconds, bool) or not isinstance(wait_seconds, (int, float)):
-            raise TypeError("wait_seconds must be a number")
+            raise TypeError(MODEL_TEXT.wait_seconds_must_be_a_number)
         if not 0 < wait_seconds <= RUNTIME.max_tool_wait_seconds:
             raise ValueError(
-                f"wait_seconds must be between 0 and {RUNTIME.max_tool_wait_seconds}"
+                MODEL_TEXT.wait_seconds_must_be_between_and.format(
+                    runtime_max_tool_wait_seconds=RUNTIME.max_tool_wait_seconds
+                )
             )
         return float(wait_seconds)
 
@@ -144,22 +159,24 @@ class Tool:
             (inspect.getdoc(tool) or "") if description is None else description
         )
         if not isinstance(cache_result, bool):
-            raise TypeError("cache_result must be a bool")
+            raise TypeError(MODEL_TEXT.cache_result_must_be_a_bool)
         self.cache_result = cache_result
         if not isinstance(background_enabled, bool):
-            raise TypeError("background_enabled must be a bool")
+            raise TypeError(MODEL_TEXT.background_enabled_must_be_a_bool)
         self.background_enabled = background_enabled
         if (
             background_enabled
             and RUNTIME.execution_argument_names
             & inspect.signature(tool).parameters.keys()
         ):
-            raise ValueError("Tool parameters cannot use reserved execution names")
+            raise ValueError(
+                MODEL_TEXT.tool_parameters_cannot_use_reserved_execution_names
+            )
         validate_tool_hooks(before, after)
         self.before = before
         self.after = after
         if not isinstance(argument_guidance, str):
-            raise TypeError("argument_guidance must be a string")
+            raise TypeError(MODEL_TEXT.argument_guidance_must_be_a_string)
         self.argument_guidance = argument_guidance
         validate_interactive_tool(interactive, background_enabled=background_enabled)
         self.interactive = interactive
@@ -169,17 +186,17 @@ class Tool:
         resolved_name = getattr(tool, "__name__", "") if name is None else name
         if not self.is_valid_tool_name(resolved_name):
             raise ValueError(
-                "Tool name must contain 1 to 64 letters, digits, underscores, or hyphens"
+                MODEL_TEXT.tool_name_must_contain_to_letters_digits_underscores_or
             )
         return resolved_name
 
     def _check_callable_tool(self) -> None:
         if not callable(self.tool):
-            raise TypeError("Tool must be callable")
+            raise TypeError(MODEL_TEXT.tool_must_be_callable)
 
     def _check_inputs(self):
         if not isinstance(self.description, str):
-            raise TypeError("Tool description must be a string")
+            raise TypeError(MODEL_TEXT.tool_description_must_be_a_string)
 
     def is_valid_tool_name(self, name: str) -> bool:
         _TOOL_NAME_PATTERN = re.compile(VALIDATION_PATTERNS.tool_name)
@@ -238,7 +255,7 @@ class Tool:
             return context, None
         if decision is not None and not isinstance(decision, ToolResponse):
             raise TypeError(
-                "BeforeTool.handle must return ToolArguments, ToolResponse, or None"
+                MODEL_TEXT.beforetool_handle_must_return_toolarguments_toolresponse_or_none
             )
         return context, decision
 
@@ -356,7 +373,7 @@ class Tool:
     def with_hooks(self, hooks: ToolHooks) -> Self:
         """Copy a tool with selected hooks replaced, preserving its behavior."""
         if not isinstance(hooks, ToolHooks):
-            raise TypeError("hooks must be a ToolHooks instance")
+            raise TypeError(MODEL_TEXT.hooks_must_be_a_toolhooks_instance)
         copied = copy(self)
         copied.before, copied.after = hooks.resolve(self.before, self.after)
         return copied
@@ -388,7 +405,12 @@ class Tool:
         return self.with_description(description)
 
     def __str__(self) -> str:
-        return f"Name: {self.name}\nType: Tool\nDescription: {self.description[:50]}..."
+        return MODEL_TEXT.name_type_tool_description.format(
+            name=self.name,
+            description=self.description[
+                : CAPABILITY_FORMAT.representation_preview_chars
+            ],
+        )
 
     def __repr__(self) -> str:
         return "\n---\n" + str(self)
@@ -397,9 +419,9 @@ class Tool:
 class CalledTool:
     def __init__(self, tool: Tool, tool_call: ToolCall) -> None:
         if not isinstance(tool, Tool):
-            raise TypeError("tool must be a Tool instance")
+            raise TypeError(MODEL_TEXT.tool_must_be_a_tool_instance)
         if not isinstance(tool_call, ToolCall):
-            raise TypeError("tool_call must be a ToolCall instance")
+            raise TypeError(MODEL_TEXT.tool_call_must_be_a_toolcall_instance)
 
         self._tool = tool
         self._tool_call = tool_call
@@ -479,5 +501,7 @@ class CalledTool:
         call_name = self._tool_call.get_name()
         if call_name != self.name:
             raise ValueError(
-                f"Tool call name '{call_name}' does not match tool name '{self.name}'"
+                MODEL_TEXT.tool_call_name_does_not_match_tool_name.format(
+                    call_name=call_name, name=self.name
+                )
             )

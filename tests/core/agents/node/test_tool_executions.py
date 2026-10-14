@@ -595,14 +595,14 @@ def test_initial_progress_failure_is_reported_without_stopping_the_worker(
     )
     node = make_node(provider, tool)
     manager = node._runtime._execution_manager
-    start = manager.start
+    launch = manager.launch
 
-    def start_after_progress_is_ready(*arguments, **options):
-        snapshot = start(*arguments, **options)
+    def launch_after_progress_is_ready(request):
+        snapshot = launch(request)
         assert tool.started.wait(1)
         return snapshot
 
-    monkeypatch.setattr(manager, "start", start_after_progress_is_ready)
+    monkeypatch.setattr(manager, "launch", launch_after_progress_is_ready)
     try:
         node.run("start")
         result = parse_tool_result(

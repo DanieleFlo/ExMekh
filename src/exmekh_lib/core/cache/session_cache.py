@@ -6,7 +6,9 @@ from threading import Lock
 from typing import Any, Self
 
 from exmekh_lib.config.cache import CACHE_FORMAT
+from exmekh_lib.config.cache_text import CACHE_TEXT
 from exmekh_lib.core.cache.node_cache import NodeCache
+from exmekh_lib.core.cache.output_file_store import OutputFileSession
 from exmekh_lib.core.cache.paths import cache_component
 from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
 from exmekh_lib.core.cache.tool_call_store import ToolCallStore
@@ -24,7 +26,7 @@ class SessionCache:
 
     def __init__(self, directory: Path) -> None:
         if not isinstance(directory, Path):
-            raise TypeError("directory must be a Path")
+            raise TypeError(CACHE_TEXT.directory_must_be_a_path)
         directory.mkdir(parents=True, exist_ok=True)
 
         self._temporary_directory = TemporaryDirectory(
@@ -41,6 +43,7 @@ class SessionCache:
         self._tool_calls_dir = self._session_root / CACHE_FORMAT.tool_calls_folder
         self._node_views: dict[str, NodeCache] = {}
         self._node_states: dict[str, dict[str, Any]] = {}
+        self._output_files: dict[Path, OutputFileSession] = {}
 
     @property
     def session_dir(self) -> Path:
@@ -132,10 +135,22 @@ class SessionCache:
         with self._lock:
             if self._closed:
                 return
+            for output_files in self._output_files.values():
+                output_files.close()
+            self._output_files.clear()
             self._temporary_directory.cleanup()
             self._node_states.clear()
             self._node_views.clear()
             self._closed = True
+
+    def output_files(self, root: Path) -> OutputFileSession:
+        """Own the output-file lifecycle even when tool-result caching is disabled."""
+        root = root.resolve()
+        with self._lock:
+            self._ensure_active()
+            if root not in self._output_files:
+                self._output_files[root] = OutputFileSession(root)
+            return self._output_files[root]
 
     def __enter__(self) -> Self:
         self._ensure_active()
@@ -151,15 +166,15 @@ class SessionCache:
 
     def _ensure_active(self) -> None:
         if self._closed:
-            raise RuntimeError("Session is closed")
+            raise RuntimeError(CACHE_TEXT.session_is_closed)
 
     def _validate_capacity(self, capacity: int) -> None:
         if isinstance(capacity, bool) or not isinstance(capacity, int):
-            raise TypeError("capacity must be an integer")
+            raise TypeError(CACHE_TEXT.capacity_must_be_an_integer)
         if capacity <= 0:
-            raise ValueError("capacity must be positive")
+            raise ValueError(CACHE_TEXT.capacity_must_be_positive)
         if self._next_index >= capacity:
-            raise RuntimeError("Tokenizer ID space exhausted for this session")
+            raise RuntimeError(CACHE_TEXT.tokenizer_id_space_exhausted_for_this_session)
 
     def _persist_counter(self, path: Path, payload: dict[str, Any]) -> None:
         write_json_atomically(path, payload)
@@ -172,12 +187,12 @@ class SessionCache:
         )
         if directory.resolve() != expected_directory:
             raise ValueError(
-                "node cache directory must not redirect to another location"
+                CACHE_TEXT.node_cache_directory_must_not_redirect_to_another_location
             )
         return ToolCallStore(directory)
 
     @staticmethod
     def _node_key(node_id: str) -> str:
         if not isinstance(node_id, str) or not node_id.strip():
-            raise ValueError("node_id must be a non-empty string")
+            raise ValueError(CACHE_TEXT.node_id_must_be_a_non_empty_string)
         return node_id.strip()

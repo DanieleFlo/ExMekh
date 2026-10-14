@@ -5,6 +5,7 @@ from typing import Any, Final, Protocol
 
 import yaml
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.config.validation import VALIDATION_PATTERNS
 from exmekh_lib.core.agents.capability.markdown import CapabilityMarkdown
 from exmekh_lib.core.agents.capability.metadata import (
@@ -35,7 +36,7 @@ class CapabilityMarkdownParser[
 
     def parse(self, markdown: str) -> MarkdownType:
         if not isinstance(markdown, str):
-            raise TypeError("markdown must be a string")
+            raise TypeError(AGENT_TEXT.markdown_must_be_a_string)
 
         head, body = self._split_markdown(markdown)
         metadata = self._parse_metadata(head)
@@ -52,8 +53,7 @@ class CapabilityMarkdownParser[
 
         if match is None:
             raise ValueError(
-                "Markdown must contain a valid YAML front matter "
-                "section delimited by '---'."
+                AGENT_TEXT.markdown_must_contain_a_valid_yaml_front_matter_section
             )
 
         return match.group("head"), match.group("body")
@@ -66,13 +66,15 @@ class CapabilityMarkdownParser[
         try:
             data = yaml.safe_load(head)
         except yaml.YAMLError as error:
-            raise ValueError(f"Invalid YAML metadata: {error}") from error
+            raise ValueError(
+                AGENT_TEXT.invalid_yaml_metadata.format(error=error)
+            ) from error
 
         if data is None:
-            raise ValueError("Metadata section cannot be empty.")
+            raise ValueError(AGENT_TEXT.metadata_section_cannot_be_empty)
 
         if not isinstance(data, dict):
-            raise TypeError("Metadata section must be a YAML mapping.")
+            raise TypeError(AGENT_TEXT.metadata_section_must_be_a_yaml_mapping)
 
         return data
 

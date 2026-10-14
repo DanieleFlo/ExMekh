@@ -10,4 +10,4 @@ from exmekh_lib.core.agents.tools.decorator import deep_tool
 )
 def run(work_root: Path, text: str) -> str:
     del work_root
-    return f"Shared tool result: {text}"
+    return CAPABILITY_TEXT.shared_tool_result.format(text=text)

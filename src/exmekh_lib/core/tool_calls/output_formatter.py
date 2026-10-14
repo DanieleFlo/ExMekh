@@ -5,6 +5,7 @@ from collections.abc import Callable, Sequence
 from typing import Any, Literal
 from uuid import uuid4
 
+from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.models.client import Client
 from exmekh_lib.core.models.tool import PreformattedToolResult
 from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
@@ -26,10 +27,10 @@ class ToolOutputFormatter:
         try:
             output_id = self._client.generate_id()
             if not isinstance(output_id, str) or not output_id.strip():
-                raise ValueError("Provider generated an invalid output ID")
+                raise ValueError(RUNTIME_TEXT.provider_generated_an_invalid_output_id)
             return output_id.strip()
         except Exception as error:
-            logger.warning("Output ID unavailable; using a UUID: %s", error)
+            logger.warning(RUNTIME_TEXT.output_id_unavailable_using_a_uuid, error)
             return uuid4().hex
 
     def format_tool_result(
@@ -179,5 +180,5 @@ class ToolOutputFormatter:
                 return None
             return annotation if annotation and annotation.strip() else None
         except Exception as error:
-            logger.warning("Thinking annotation unavailable: %s", error)
+            logger.warning(RUNTIME_TEXT.thinking_annotation_unavailable, error)
             return None

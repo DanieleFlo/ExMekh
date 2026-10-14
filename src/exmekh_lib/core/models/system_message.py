@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.interfaces.message import Message
 
 
@@ -12,11 +13,11 @@ class SystemMessage(Message[str]):
 
     def _check_inputs(self):
         if not isinstance(self._content, str):
-            raise TypeError("System content must be a string")
+            raise TypeError(MODEL_TEXT.system_content_must_be_a_string)
         if not isinstance(self._name, str):
-            raise TypeError("System name must be a string")
+            raise TypeError(MODEL_TEXT.system_name_must_be_a_string)
         if not self._content:
-            raise TypeError("The content must not be empty!")
+            raise TypeError(MODEL_TEXT.the_content_must_not_be_empty)
 
     def get_message(self) -> str:
         return self._content

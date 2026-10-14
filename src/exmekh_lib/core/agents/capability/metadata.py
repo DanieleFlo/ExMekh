@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.config.capabilities import CAPABILITY_FORMAT
 
 
@@ -61,10 +62,10 @@ class CapabilityMetadataParser:
     @staticmethod
     def _validate_input(data: dict[str, Any]) -> None:
         if not isinstance(data, dict):
-            raise TypeError("data must be a dictionary")
+            raise TypeError(AGENT_TEXT.data_must_be_a_dictionary)
 
         if not all(isinstance(key, str) for key in data):
-            raise ValueError("Metadata field names must be strings")
+            raise ValueError(AGENT_TEXT.metadata_field_names_must_be_strings)
 
     def _validate_fields(self, data: dict[str, Any]) -> None:
         allowed_fields = {field.key for field in self.field_specs}
@@ -72,14 +73,16 @@ class CapabilityMetadataParser:
 
         if unknown_fields:
             fields = ", ".join(sorted(unknown_fields))
-            raise ValueError(f"Unknown metadata fields: {fields}")
+            raise ValueError(AGENT_TEXT.unknown_metadata_fields.format(fields=fields))
 
         required_fields = {field.key for field in self.field_specs if field.required}
         missing_fields = required_fields - set(data)
 
         if missing_fields:
             fields = ", ".join(sorted(missing_fields))
-            raise ValueError(f"Missing required metadata fields: {fields}")
+            raise ValueError(
+                AGENT_TEXT.missing_required_metadata_fields.format(fields=fields)
+            )
 
     @staticmethod
     def _parse_string(
@@ -89,12 +92,16 @@ class CapabilityMetadataParser:
         value = data.get(field.key)
 
         if not isinstance(value, str):
-            raise TypeError(f"Metadata field '{field.key}' must be a string.")
+            raise TypeError(
+                AGENT_TEXT.metadata_field_must_be_a_string.format(field_key=field.key)
+            )
 
         value = value.strip()
 
         if not value:
-            raise ValueError(f"Metadata field '{field.key}' cannot be empty.")
+            raise ValueError(
+                AGENT_TEXT.metadata_field_cannot_be_empty.format(field_key=field.key)
+            )
 
         return value
 
@@ -108,11 +115,15 @@ class CapabilityMetadataParser:
 
         value = data.get(field.key)
         if not isinstance(value, str):
-            raise TypeError(f"Metadata field '{field.key}' must be a string.")
+            raise TypeError(
+                AGENT_TEXT.metadata_field_must_be_a_string.format(field_key=field.key)
+            )
 
         value = value.strip()
         if not value:
-            raise ValueError(f"Metadata field '{field.key}' cannot be empty.")
+            raise ValueError(
+                AGENT_TEXT.metadata_field_cannot_be_empty.format(field_key=field.key)
+            )
 
         return value
 
@@ -126,7 +137,9 @@ class CapabilityMetadataParser:
         value = data.get(field.key, default)
 
         if not isinstance(value, bool):
-            raise TypeError(f"Metadata field '{field.key}' must be a boolean.")
+            raise TypeError(
+                AGENT_TEXT.metadata_field_must_be_a_boolean.format(field_key=field.key)
+            )
 
         return value
 
@@ -147,7 +160,9 @@ class CapabilityMetadataParser:
             return self._normalize_string_collection(field, value)
 
         raise TypeError(
-            f"Metadata field '{field.key}' must be a string or a list of strings."
+            AGENT_TEXT.metadata_field_must_be_a_string_or_a_list.format(
+                field_key=field.key
+            )
         )
 
     def _normalize_string_collection(
@@ -161,7 +176,9 @@ class CapabilityMetadataParser:
 
         if len(normalized_values) != len(set(normalized_values)):
             raise ValueError(
-                f"Metadata field '{field.key}' cannot contain duplicate values."
+                AGENT_TEXT.metadata_field_cannot_contain_duplicate_values.format(
+                    field_key=field.key
+                )
             )
 
         return normalized_values
@@ -172,13 +189,19 @@ class CapabilityMetadataParser:
         value: Any,
     ) -> str:
         if not isinstance(value, str):
-            raise TypeError(f"Metadata field '{field.key}' must contain only strings.")
+            raise TypeError(
+                AGENT_TEXT.metadata_field_must_contain_only_strings.format(
+                    field_key=field.key
+                )
+            )
 
         value = value.strip()
 
         if not value:
             raise ValueError(
-                f"Metadata field '{field.key}' cannot contain empty values."
+                AGENT_TEXT.metadata_field_cannot_contain_empty_values.format(
+                    field_key=field.key
+                )
             )
 
         return value

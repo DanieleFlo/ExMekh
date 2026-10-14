@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from hashlib import sha256
 
+from exmekh_lib.config.cache_text import CACHE_TEXT
 from exmekh_lib.config.validation import VALIDATION_PATTERNS
 
 _PORTABLE_COMPONENT = re.compile(VALIDATION_PATTERNS.portable_cache_component)
@@ -16,7 +17,7 @@ def cache_component(identifier: str) -> str:
     from that alphabet, so encoded IDs cannot collide with readable IDs.
     """
     if not isinstance(identifier, str) or not identifier.strip():
-        raise ValueError("cache identifier must be a non-empty string")
+        raise ValueError(CACHE_TEXT.cache_identifier_must_be_a_non_empty_string)
     if _PORTABLE_COMPONENT.fullmatch(identifier) and not _WINDOWS_DEVICE.fullmatch(
         identifier
     ):

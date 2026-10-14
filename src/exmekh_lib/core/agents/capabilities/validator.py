@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Set as AbstractSet
 from typing import Any
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
+from exmekh_lib.config.capabilities import CAPABILITY_TEXT
 from exmekh_lib.core.agents.capabilities.index import CapabilitiesIndex
 from exmekh_lib.core.agents.capability.markdown_capability import MarkdownCapability
 from exmekh_lib.core.agents.hds.hds import HDS
@@ -15,7 +17,7 @@ class CapabilitiesValidator:
     def validate(self, resources: tuple[MarkdownCapability[Any], ...]) -> None:
         for tool in self._index.exit_tools.values():
             self._validate_reference_group(
-                f"Exit tool '{tool.get_name()}'",
+                CAPABILITY_TEXT.exit_tool_label.format(name=tool.get_name()),
                 tool.references,
                 self._index.reference_names,
                 "references",
@@ -63,4 +65,6 @@ class CapabilitiesValidator:
 
         if invalid_names:
             invalid = ", ".join(sorted(invalid_names))
-            raise ValueError(f"{label} has invalid {group}: {invalid}")
+            raise ValueError(
+                AGENT_TEXT.has_invalid.format(label=label, group=group, invalid=invalid)
+            )

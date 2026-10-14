@@ -9,18 +9,38 @@ from time import monotonic
 from typing import Any, Literal
 
 from exmekh_lib.config.runtime import RUNTIME
+from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
 from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
+from exmekh_lib.core.models.external_tool_output import ExternalToolOutput
 from exmekh_lib.core.models.tool import (
     ExecutionOptions,
+    PreformattedToolResult,
     ToolExecutionOperation,
 )
+from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
 from exmekh_lib.core.models.tool_result import ToolResult
 from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.utils.tool_errors import tool_failure_result
 from exmekh_lib.utils.xml import stringify_tool_result
 
 type ExecutionStatus = Literal["running", "completed", "failed", "cancelled"]
+
+
+@dataclass(frozen=True, slots=True)
+class ExecutionLaunch:
+    """Originating call, execution policy and ownership of one unit of work."""
+
+    call: ToolCall
+    operation: ToolExecutionOperation
+    owner_scope: tuple[str, ...]
+    options: ExecutionOptions = field(default_factory=ExecutionOptions)
+    output_id: str | None = None
+    skill_path: str = "/"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.skill_path, str) or not self.skill_path.startswith("/"):
+            raise ValueError(RUNTIME_TEXT.skill_path_must_be_an_absolute_skill_path)
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +57,29 @@ class ExecutionSnapshot:
     error: str | None = None
     skill_path: str = "/"
     executed_arguments: dict[str, Any] | None = None
+    external_output: ExternalToolOutput | None = None
+    external_attachments: UserMessage | None = None
+    delivery_failed: bool = False
+
+    def output_reference(self) -> ToolOutputReference:
+        if self.output_id is None:
+            raise ValueError(RUNTIME_TEXT.a_published_execution_must_have_an_output_id)
+        return ToolOutputReference(self.name, self.output_id)
+
+    def same_version(self, other: ExecutionSnapshot) -> bool:
+        return (
+            self.call_id,
+            self.output_id,
+            self.status,
+            self.started_at,
+            self.finished_at,
+        ) == (
+            other.call_id,
+            other.output_id,
+            other.status,
+            other.started_at,
+            other.finished_at,
+        )
 
     def output_arguments(self) -> dict[str, Any]:
         """Expose work inputs while tool_call() retains the provider's call."""
@@ -56,6 +99,8 @@ class ExecutionSnapshot:
 
     @property
     def response_type(self) -> str:
+        if self.delivery_failed:
+            return "failed"
         return "final" if self.status == "completed" else self.status
 
     def status_info(self) -> dict[str, Any]:
@@ -72,6 +117,13 @@ class ExecutionSnapshot:
         return result
 
     def output_result(self) -> Any:
+        if self.external_output is not None:
+            return PreformattedToolResult(
+                self.external_output.render(),
+                attachments=self.external_attachments,
+                external_output=self.external_output,
+                delivery_failed=self.delivery_failed,
+            )
         if self.status == "completed":
             return self.result
         if self.status == "failed":
@@ -95,7 +147,11 @@ class ExecutionSnapshot:
 
     def record_result(self) -> Any:
         """Return the result value to store, unwrapping preformatted content."""
-        return ToolResult(self.output_result()).value()
+        return (
+            None
+            if self.external_output is not None
+            else ToolResult(self.output_result()).storage_value()
+        )
 
     def output_attachments(self) -> UserMessage | None:
         """Expose the completed companion without requiring result introspection."""
@@ -103,16 +159,16 @@ class ExecutionSnapshot:
 
     def output_content(self) -> str:
         """Render the current result or diagnostic without exposing its representation."""
-        return stringify_tool_result(self.record_result())
+        return stringify_tool_result(ToolResult(self.output_result()).value())
 
     def _diagnostic_content(self) -> str:
         if self.error is not None:
             return self.error
         if self.status == "cancelled":
-            return "Tool execution was cancelled."
+            return RUNTIME_TEXT.tool_execution_was_cancelled
         if self.status == "failed":
-            return "Tool execution failed without a diagnostic."
-        return "Tool execution is still running."
+            return RUNTIME_TEXT.tool_execution_failed_without_a_diagnostic
+        return RUNTIME_TEXT.tool_execution_is_still_running
 
 
 @dataclass(slots=True)
@@ -137,6 +193,21 @@ class _Execution:
     initial_record: ToolCallRecord | None = None
     delivered: bool = False
     persisted: bool = False
+    external_output: ExternalToolOutput | None = None
+    external_attachments: UserMessage | None = None
+    delivery_failed: bool = False
+
+    @classmethod
+    def from_launch(cls, launch: ExecutionLaunch) -> _Execution:
+        return cls(
+            call_id=launch.call.get_id(),
+            name=launch.call.get_name(),
+            arguments=deepcopy(launch.call.get_arguments()),
+            operation=launch.operation,
+            owner_scope=launch.owner_scope,
+            skill_path=launch.skill_path,
+            output_id=launch.output_id,
+        )
 
     def snapshot(self) -> ExecutionSnapshot:
         return ExecutionSnapshot(
@@ -155,26 +226,62 @@ class _Execution:
             error=self.error,
             skill_path=self.skill_path,
             executed_arguments=self.operation.get_executed_arguments(),
+            external_output=self.external_output,
+            external_attachments=self.external_attachments,
+            delivery_failed=self.delivery_failed,
         )
 
     def complete(self, result: Any) -> None:
         if not self.finished.is_set():
-            self.result = result
+            output = ToolResult(result)
+            self.delivery_failed = output.delivery_failed()
+            self.external_output = output.external_output()
+            self.external_attachments = (
+                output.attachments() if self.external_output is not None else None
+            )
+            self.result = None if self.external_output is not None else result
             self._finish("completed")
 
     def fail(self, error: BaseException) -> None:
         if not self.finished.is_set():
             self.result = tool_failure_result(error)
-            self.error = f"{type(error).__name__}: {error}"
+            self.error = RUNTIME.failure_message.format(
+                error_type=type(error).__name__, error=error
+            )
             self._finish("failed")
 
     def cancel(self) -> None:
         # A confirmed cancellation wins even if terminating the process unblocked
         # its worker before the cancellation callback returned.
         self.result = None
+        self.external_output = None
+        self.external_attachments = None
+        self.delivery_failed = False
         self.error = None
         self.persisted = False
+        self.delivered = False
         self._finish("cancelled")
+
+    def publish_output(
+        self, expected: ExecutionSnapshot, reference: ExternalToolOutput | None
+    ) -> ExecutionSnapshot:
+        current = self.snapshot()
+        if not current.same_version(expected) or reference is None:
+            return current
+        if self.external_output != reference:
+            self.external_attachments = current.output_attachments()
+            self.external_output = reference
+            self.result = None
+            self.persisted = False
+        return self.snapshot()
+
+    def acknowledge_output(self, expected: ExecutionSnapshot) -> None:
+        if expected.is_finished and self.snapshot().same_version(expected):
+            self.delivered = True
+
+    def mark_persisted_output(self, expected: ExecutionSnapshot) -> None:
+        if expected.is_finished and self.snapshot().same_version(expected):
+            self.persisted = True
 
     def _finish(self, status: ExecutionStatus) -> None:
         self.status = status
@@ -240,37 +347,42 @@ class ToolExecutionManager:
         *,
         skill_path: str = "/",
     ) -> ExecutionSnapshot:
-        if not isinstance(skill_path, str) or not skill_path.startswith("/"):
-            raise ValueError("skill_path must be an absolute skill path")
-        execution = _Execution(
-            call_id,
-            name,
-            deepcopy(arguments),
-            operation,
-            owner_scope,
-            skill_path=skill_path,
+        """Compatibility entry point; new callers pass an ExecutionLaunch to launch()."""
+        return self.launch(
+            ExecutionLaunch(
+                call=ToolCall(call_id, FunctionCall(name, arguments)),
+                operation=operation,
+                owner_scope=owner_scope,
+                options=options,
+                output_id=output_id,
+                skill_path=skill_path,
+            )
         )
-        execution.output_id = output_id
+
+    def launch(self, request: ExecutionLaunch) -> ExecutionSnapshot:
+        execution = _Execution.from_launch(request)
         with self._lock:
             if any(
-                item.call_id == call_id and not item.finished.is_set()
+                item.call_id == execution.call_id and not item.finished.is_set()
                 for item in self._executions
             ):
-                raise ValueError(f"Tool call ID '{call_id}' already has active work")
+                raise ValueError(
+                    RUNTIME_TEXT.tool_call_id_already_has_active_work.format(
+                        call_id=execution.call_id
+                    )
+                )
             if sum(not item.finished.is_set() for item in self._executions) >= (
                 RUNTIME.max_active_tool_executions
             ):
-                raise ValueError("Too many active tool executions")
+                raise ValueError(RUNTIME_TEXT.too_many_active_tool_executions)
             self._executions.append(execution)
         try:
             Thread(target=self._run, args=(execution,), daemon=True).start()
         except RuntimeError as error:
             self._fail_execution(execution, error)
-        if options.mode == "wait":
-            self._wait_for_execution(execution, options.wait_seconds)
+        if request.options.mode == "wait":
+            self._wait_for_execution(execution, request.options.wait_seconds)
         with self._lock:
-            if execution.finished.is_set():
-                execution.delivered = True
             return execution.snapshot()
 
     def _run(self, execution: _Execution) -> None:
@@ -304,6 +416,32 @@ class ToolExecutionManager:
                 if execution.output_id == output_id:
                     return execution.snapshot()
         return None
+
+    def publish_output(
+        self, expected: ExecutionSnapshot, reference: ExternalToolOutput | None
+    ) -> ExecutionSnapshot:
+        """Check publication against a snapshot, including cancellation confirmed meanwhile."""
+        output_id = expected.output_reference().id
+        if not expected.is_finished:
+            raise ValueError(RUNTIME_TEXT.final_output_required)
+        with self._lock:
+            execution = self._by_output_id(output_id)
+            return execution.publish_output(expected, reference)
+
+    def acknowledge_output(self, expected: ExecutionSnapshot) -> None:
+        """Only acknowledge the final version actually returned by a successful read."""
+        if not expected.is_finished:
+            return
+        output_id = expected.output_reference().id
+        with self._lock:
+            execution = self._by_output_id(output_id)
+            execution.acknowledge_output(expected)
+
+    def _by_output_id(self, output_id: str) -> _Execution:
+        for execution in self._executions:
+            if execution.output_id == output_id:
+                return execution
+        raise ValueError(RUNTIME_TEXT.unknown_output_id.format(output_id=output_id))
 
     def output_snapshots(self) -> tuple[ExecutionSnapshot, ...]:
         """Inspect published outputs without acknowledging their delivery."""
@@ -342,7 +480,7 @@ class ToolExecutionManager:
         stored_records: Mapping[str, ToolCallRecord],
     ) -> ToolCallRecord:
         if snapshot.output_id is None:
-            raise ValueError("A published execution must have an output ID")
+            raise ValueError(RUNTIME_TEXT.a_published_execution_must_have_an_output_id)
         stored = stored_records.get(snapshot.output_id)
         result = snapshot.record_result()
         execution = {
@@ -358,12 +496,14 @@ class ToolExecutionManager:
                     execution["response_type"] = "partial"
             except Exception as error:
                 result = {**result, "partial_output_error": str(error)}
+        reference = snapshot.external_output
         if stored is not None:
             return replace(
                 stored,
                 args=snapshot.output_arguments(),
                 result=result,
                 execution=execution,
+                external_output=reference,
             )
         return ToolCallRecord(
             name=snapshot.name,
@@ -373,6 +513,7 @@ class ToolExecutionManager:
             skill_path=snapshot.skill_path,
             tool_call_id=snapshot.call_id,
             execution=execution,
+            external_output=reference,
         )
 
     def partial_output(self, output_id: str, cursor: int) -> tuple[str, int] | None:
@@ -390,7 +531,7 @@ class ToolExecutionManager:
             or next_cursor < cursor
         ):
             raise ValueError(
-                "Partial output must contain text and a non-decreasing integer cursor"
+                RUNTIME_TEXT.partial_output_must_contain_text_and_a_non_decreasing
             )
         return content, next_cursor
 
@@ -412,9 +553,11 @@ class ToolExecutionManager:
         try:
             cancelled = callback()
             if not isinstance(cancelled, bool):
-                raise TypeError("Cancellation callback must return a bool")
+                raise TypeError(RUNTIME_TEXT.cancellation_callback_must_return_a_bool)
         except Exception as error:
-            raise ValueError(f"Cancellation failed: {error}") from error
+            raise ValueError(
+                RUNTIME_TEXT.cancellation_failed.format(error=error)
+            ) from error
         with self._state_changed:
             if cancelled:
                 execution.cancel()
@@ -425,12 +568,14 @@ class ToolExecutionManager:
         with self._lock:
             matches = [item for item in self._executions if item.call_id == call_id]
         if not matches:
-            raise ValueError(f"Unknown tool call ID '{call_id}'")
+            raise ValueError(RUNTIME_TEXT.unknown_tool_call_id.format(call_id=call_id))
         active = [item for item in matches if not item.finished.is_set()]
         if len(active) == 1:
             return active[0]
         if len(matches) > 1:
-            raise ValueError(f"Ambiguous tool call ID '{call_id}'")
+            raise ValueError(
+                RUNTIME_TEXT.ambiguous_tool_call_id.format(call_id=call_id)
+            )
         return matches[0]
 
     def completed_to_persist(
@@ -449,8 +594,13 @@ class ToolExecutionManager:
         with self._lock:
             for execution in self._executions:
                 if execution.output_id == output_id:
-                    execution.persisted = True
+                    execution.mark_persisted_output(execution.snapshot())
                     return
+
+    def mark_persisted_output(self, expected: ExecutionSnapshot) -> None:
+        with self._lock:
+            execution = self._by_output_id(expected.output_reference().id)
+            execution.mark_persisted_output(expected)
 
     def next_delivery(self, owner_scope: tuple[str, ...]) -> ExecutionSnapshot | None:
         with self._lock:
@@ -468,5 +618,5 @@ class ToolExecutionManager:
         with self._lock:
             for execution in self._executions:
                 if execution.output_id == output_id:
-                    execution.delivered = True
+                    execution.acknowledge_output(execution.snapshot())
                     return

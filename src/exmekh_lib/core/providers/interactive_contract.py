@@ -6,6 +6,7 @@ from copy import deepcopy
 from dataclasses import dataclass, replace
 from typing import Any
 
+from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
 from exmekh_lib.core.models.edit_document import EditDocument
 from exmekh_lib.core.models.interactive import InteractiveProtocolError
@@ -15,7 +16,9 @@ def decode_object_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:
         if key in result:
-            raise InteractiveProtocolError(f"Duplicate JSON property: {key}")
+            raise InteractiveProtocolError(
+                PROVIDER_TEXT.duplicate_json_property.format(key=key)
+            )
         result[key] = value
     return result
 
@@ -35,7 +38,7 @@ class _AuthorizedEditCall:
     ) -> "_AuthorizedEditCall":
         if self.tool_name != name or index != len(self.paths) + 1:
             raise InteractiveProtocolError(
-                "Edit indices must be consecutive within the same call"
+                PROVIDER_TEXT.edit_indices_must_be_consecutive_within_the_same_call
             )
         return replace(self, paths=(*self.paths, path), exchange_id=exchange_id)
 
@@ -74,7 +77,9 @@ class InteractiveContract:
     @property
     def continuation_id(self) -> str:
         if self._continuation_id is None:
-            raise InteractiveProtocolError("No interactive continuation was accepted")
+            raise InteractiveProtocolError(
+                PROVIDER_TEXT.no_interactive_continuation_was_accepted
+            )
         return self._continuation_id
 
     def definition(self, tool_name: str) -> dict[str, Any]:
@@ -94,12 +99,14 @@ class InteractiveContract:
             and result.get("type") != "interactive.rejected"
         ):
             raise InteractiveProtocolError(
-                "Server continued a call after its resource was rejected"
+                PROVIDER_TEXT.server_continued_a_call_after_its_resource_was_rejected
             )
 
     def record_acceptance(self, value: dict[str, Any]) -> None:
         if not isinstance(value, dict):
-            raise InteractiveProtocolError("Missing interactive acceptance object")
+            raise InteractiveProtocolError(
+                PROVIDER_TEXT.missing_interactive_acceptance_object
+            )
         identifier = value.get("continuation_id")
         if (
             type(value.get("version")) is not int
@@ -107,10 +114,12 @@ class InteractiveContract:
             or not isinstance(identifier, str)
             or not identifier
         ):
-            raise InteractiveProtocolError("Missing or invalid interactive acceptance")
+            raise InteractiveProtocolError(
+                PROVIDER_TEXT.missing_or_invalid_interactive_acceptance
+            )
         if self.is_accepted and identifier != self.continuation_id:
             raise InteractiveProtocolError(
-                "Continuation ID changed during the logical call"
+                PROVIDER_TEXT.continuation_id_changed_during_the_logical_call
             )
         self._continuation_id = identifier
 
@@ -121,18 +130,22 @@ class InteractiveContract:
         self.record_acceptance(event)
         for field in ("exchange_id", "call_id", "tool_name"):
             if not isinstance(event.get(field), str) or not event[field]:
-                raise InteractiveProtocolError(f"Invalid pause {field}")
+                raise InteractiveProtocolError(
+                    PROVIDER_TEXT.invalid_pause.format(field=field)
+                )
         name = event["tool_name"]
         if (
             name not in self._definitions
             or event.get("behavior") != self._definitions[name]["behavior"]
         ):
             raise InteractiveProtocolError(
-                "Pause tool/behavior is outside the configured scope"
+                PROVIDER_TEXT.pause_tool_behavior_is_outside_the_configured_scope
             )
         request = event.get("request")
         if not isinstance(request, dict):
-            raise InteractiveProtocolError("Pause request must be a JSON object")
+            raise InteractiveProtocolError(
+                PROVIDER_TEXT.pause_request_must_be_a_json_object
+            )
         values = request.get("values")
         index = request.get("edit_index")
         if (
@@ -145,14 +158,16 @@ class InteractiveContract:
             or index < 1
         ):
             raise InteractiveProtocolError(
-                "Pause requires a path and positive edit_index"
+                PROVIDER_TEXT.pause_requires_a_path_and_positive_edit_index
             )
         previous = self._frozen.get(event["call_id"], _AuthorizedEditCall(name))
         authorized = previous.with_pause(
             name, values["path"], index, event["exchange_id"]
         )
         if event["exchange_id"] in self._exchanges:
-            raise InteractiveProtocolError("Duplicate/consumed interactive exchange")
+            raise InteractiveProtocolError(
+                PROVIDER_TEXT.duplicate_consumed_interactive_exchange
+            )
         self._exchanges.add(event["exchange_id"])
         self._frozen[event["call_id"]] = authorized
 
@@ -161,11 +176,11 @@ class InteractiveContract:
         previous = self._frozen.get(identifier) if isinstance(identifier, str) else None
         if previous is None or not previous.matches_interruption(result):
             raise InteractiveProtocolError(
-                "Rejected call does not match the suspended edit"
+                PROVIDER_TEXT.rejected_call_does_not_match_the_suspended_edit
             )
         if self._rejected_call_id != identifier:
             raise InteractiveProtocolError(
-                "Rejected result does not match the rejected exchange"
+                PROVIDER_TEXT.rejected_result_does_not_match_the_rejected_exchange
             )
 
     def validate_raw_calls(
@@ -176,7 +191,7 @@ class InteractiveContract:
             not isinstance(item, dict) for item in output
         ):
             raise InteractiveProtocolError(
-                "Interactive output must be a list of JSON objects"
+                PROVIDER_TEXT.interactive_output_must_be_a_list_of_json_objects
             )
         for item in output:
             if (
@@ -186,11 +201,11 @@ class InteractiveContract:
                 continue
             if not isinstance(item.get("call_id"), str) or not item["call_id"]:
                 raise InteractiveProtocolError(
-                    "Interactive call ID must be a nonempty string"
+                    PROVIDER_TEXT.interactive_call_id_must_be_a_nonempty_string
                 )
             if not isinstance(item.get("arguments"), str):
                 raise InteractiveProtocolError(
-                    "Interactive arguments must be encoded JSON"
+                    PROVIDER_TEXT.interactive_arguments_must_be_encoded_json
                 )
             try:
                 arguments = json.loads(
@@ -198,16 +213,16 @@ class InteractiveContract:
                 )
             except json.JSONDecodeError as error:
                 raise InteractiveProtocolError(
-                    "Malformed interactive argument JSON"
+                    PROVIDER_TEXT.malformed_interactive_argument_json
                 ) from error
             if not isinstance(arguments, dict):
                 raise InteractiveProtocolError(
-                    "Interactive arguments must be a JSON object"
+                    PROVIDER_TEXT.interactive_arguments_must_be_a_json_object
                 )
             field = self._definitions[item["name"]]["fields"]["document"]
             if set(arguments) != {field} or not isinstance(arguments[field], str):
                 raise InteractiveProtocolError(
-                    "Interactive document must be the only exact string argument"
+                    PROVIDER_TEXT.interactive_document_must_be_the_only_exact_string_argument
                 )
             self.validate_calls(
                 [ToolCall(item["call_id"], FunctionCall(item["name"], arguments))],
@@ -221,7 +236,7 @@ class InteractiveContract:
         for call in calls:
             if call.id in seen:
                 raise InteractiveProtocolError(
-                    "Duplicate call ID in interactive result"
+                    PROVIDER_TEXT.duplicate_call_id_in_interactive_result
                 )
             seen.add(call.id)
             if call.get_name() not in self._definitions:
@@ -231,31 +246,31 @@ class InteractiveContract:
             arguments = call.get_arguments()
             try:
                 if set(arguments) != {field}:
-                    raise ValueError("Unexpected interactive arguments")
+                    raise ValueError(PROVIDER_TEXT.unexpected_interactive_arguments)
                 document = EditDocument.parse(
                     arguments[field], snapshots=prior.snapshots if prior else ()
                 )
             except (ValueError, KeyError, TypeError) as error:
                 raise InteractiveProtocolError(
-                    f"Invalid interactive document: {error}"
+                    PROVIDER_TEXT.invalid_interactive_document.format(error=error)
                 ) from error
             if prior is None or not prior.matches_call(call.get_name(), document):
                 raise InteractiveProtocolError(
-                    "Complete interactive call has no matching frozen authorizations"
+                    PROVIDER_TEXT.complete_interactive_call_has_no_matching_frozen_authorizations
                 )
 
     def validate_completed_calls(self, calls: list[ToolCall]) -> None:
         self._validate_returned_calls(
             calls,
             set(self._frozen),
-            "Completed turn omitted a suspended interactive call",
+            PROVIDER_TEXT.completed_turn_omitted_a_suspended_interactive_call,
         )
 
     def validate_rejected_calls(self, calls: list[ToolCall]) -> None:
         self._validate_returned_calls(
             calls,
             set(self._frozen) - {self._rejected_call_id},
-            "Rejected turn omitted an earlier complete interactive call",
+            PROVIDER_TEXT.rejected_turn_omitted_an_earlier_complete_interactive_call,
         )
 
     def _validate_returned_calls(

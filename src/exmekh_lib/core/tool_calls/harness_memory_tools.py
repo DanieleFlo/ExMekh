@@ -19,11 +19,15 @@ from exmekh_lib.capabilities.tools.read_tool_output.tool import (
 from exmekh_lib.capabilities.tools.read_tool_output.tool_output_reader import (
     ToolOutputReader,
 )
+from exmekh_lib.capabilities.tools.search_tool_outputs.query import ToolOutputQuery
 from exmekh_lib.capabilities.tools.search_tool_outputs.rendering import (
     render_search_results,
 )
 from exmekh_lib.capabilities.tools.search_tool_outputs.tool import (
     create_tool as create_search_tool,
+)
+from exmekh_lib.capabilities.tools.search_tool_outputs.tool_call_search import (
+    ToolCallSearch,
 )
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.cache.node_cache import NodeCache
@@ -32,6 +36,7 @@ from exmekh_lib.interfaces.provider import Provider
 
 from .execution_history import ExecutionHistory
 from .execution_manager import ToolExecutionManager
+from .output_preparer import ToolOutputPreparer
 
 
 class HarnessMemoryTools:
@@ -48,15 +53,18 @@ class HarnessMemoryTools:
         execution_manager: ToolExecutionManager | None = None,
         work_root: Path | None = None,
         provider: Provider | None = None,
+        output_preparer: ToolOutputPreparer | None = None,
     ) -> None:
         resolved_work_root = work_root or Path.cwd()
         self._history = history
         self._cache_provider = cache_provider
         self._execution_manager = execution_manager
+        self._output_preparer = output_preparer
         self._output_reader = ToolOutputReader(
             cache_provider,
             execution_manager,
             ToolOutputSummarizer(provider) if provider is not None else None,
+            output_preparer,
         )
         self._tools = (
             create_history_tool(self.get_execution_history, resolved_work_root),
@@ -90,13 +98,16 @@ class HarnessMemoryTools:
         limit: int = RUNTIME.memory_default_page_limit,
     ) -> PreformattedToolResult:
         return render_search_results(
-            self._cache_provider(),
-            self._execution_manager,
-            query,
-            tool_name,
-            skill_path,
-            offset,
-            limit,
+            ToolCallSearch(
+                self._cache_provider(), self._execution_manager, self._output_preparer
+            ),
+            ToolOutputQuery(
+                query=query,
+                tool_name=tool_name,
+                skill_path=skill_path,
+                offset=offset,
+                limit=limit,
+            ),
         )
 
     def read_tool_output(

@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from exmekh_lib.config.reasoning import FORMAL_LOGIC
+from exmekh_lib.config.reasoning_text import REASONING_TEXT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,13 +51,17 @@ class _FormulaBuilder:
             self._nodes > FORMAL_LOGIC.max_formula_nodes
             or depth > FORMAL_LOGIC.max_formula_depth
         ):
-            raise FormalLogicError("Formula exceeds its size or depth limit.")
+            raise FormalLogicError(
+                REASONING_TEXT.formula_exceeds_its_size_or_depth_limit
+            )
         if not isinstance(node, dict):
-            raise FormalLogicError("Each formula node must be an object.")
+            raise FormalLogicError(REASONING_TEXT.each_formula_node_must_be_an_object)
         if set(node) == {"var"}:
             name = node["var"]
             if not isinstance(name, str) or name not in self._variables:
-                raise FormalLogicError(f"Undeclared variable: {name}.")
+                raise FormalLogicError(
+                    REASONING_TEXT.undeclared_variable.format(name=name)
+                )
             return _Term(self._variables[name], self._sorts[name])
         if set(node) == {"const"}:
             value = node["const"]
@@ -72,11 +77,13 @@ class _FormulaBuilder:
                 return _Term(
                     self._z3.RealVal(str(value), ctx=self._context), "Real", True
                 )
-            raise FormalLogicError("Constants must be bounded booleans or numbers.")
+            raise FormalLogicError(
+                REASONING_TEXT.constants_must_be_bounded_booleans_or_numbers
+            )
 
         op = node.get("op")
         if not isinstance(op, str):
-            raise FormalLogicError("Formula node needs an operator.")
+            raise FormalLogicError(REASONING_TEXT.formula_node_needs_an_operator)
         if op not in {
             "not",
             "neg",
@@ -97,7 +104,8 @@ class _FormulaBuilder:
             "/",
         }:
             raise FormalLogicError(
-                f"Unsupported operator: {op}.", kind="unsupported_operation"
+                REASONING_TEXT.unsupported_operator.format(op=op),
+                kind="unsupported_operation",
             )
         if op in {"not", "neg"}:
             return self._build_unary(node, op=op, depth=depth)
@@ -130,7 +138,9 @@ class _FormulaBuilder:
             or not 2 <= len(args) <= FORMAL_LOGIC.max_operands
         ):
             raise FormalLogicError(
-                f"{op} needs 2-{FORMAL_LOGIC.max_operands} operands."
+                REASONING_TEXT.needs_operands.format(
+                    op=op, formal_logic_max_operands=FORMAL_LOGIC.max_operands
+                )
             )
         terms = [self.build(item, depth=depth + 1) for item in args]
         for term in terms:
@@ -165,7 +175,8 @@ class _FormulaBuilder:
                 first, second, _ = self._numeric_pair(left, right)
             else:
                 raise FormalLogicError(
-                    "Equality operands have incompatible types.", kind="type_error"
+                    REASONING_TEXT.equality_operands_have_incompatible_types,
+                    kind="type_error",
                 )
             return _Term(first == second if op == "=" else first != second, "Bool")
         if op in {"<", "<=", ">", ">="}:
@@ -181,7 +192,7 @@ class _FormulaBuilder:
             first, second, sort = self._numeric_pair(left, right)
             if op == "*" and not (left.literal or right.literal):
                 raise FormalLogicError(
-                    "Nonlinear multiplication is unsupported.",
+                    REASONING_TEXT.nonlinear_multiplication_is_unsupported,
                     kind="unsupported_theory",
                 )
             if op == "/":
@@ -189,7 +200,7 @@ class _FormulaBuilder:
                     self._z3.simplify(second != 0)
                 ):
                     raise FormalLogicError(
-                        "Division requires a nonzero literal divisor.",
+                        REASONING_TEXT.division_requires_a_nonzero_literal_divisor,
                         kind="unsupported_theory",
                     )
                 first = self._z3.ToReal(first) if sort == "Int" else first
@@ -197,24 +208,31 @@ class _FormulaBuilder:
                 return _Term(first / second, "Real", left.literal and right.literal)
             value = {"+": first + second, "-": first - second, "*": first * second}[op]
             return _Term(value, sort, left.literal and right.literal)
-        raise AssertionError(f"Unhandled validated operator: {op}")
+        raise AssertionError(REASONING_TEXT.unhandled_validated_operator.format(op=op))
 
     @staticmethod
     def _keys(node: dict[str, object], expected: set[str]) -> None:
         if set(node) != expected:
-            raise FormalLogicError(f"Operator node must have keys {sorted(expected)}.")
+            raise FormalLogicError(
+                REASONING_TEXT.operator_node_must_have_keys.format(
+                    expected=sorted(expected)
+                )
+            )
 
     @staticmethod
     def _require(term: _Term, sort: str) -> None:
         if term.sort != sort:
             raise FormalLogicError(
-                f"Expected {sort}, received {term.sort}.", kind="type_error"
+                REASONING_TEXT.expected_received.format(sort=sort, term_sort=term.sort),
+                kind="type_error",
             )
 
     @staticmethod
     def _require_number(term: _Term) -> None:
         if term.sort not in {"Int", "Real"}:
-            raise FormalLogicError("Expected a numeric expression.", kind="type_error")
+            raise FormalLogicError(
+                REASONING_TEXT.expected_a_numeric_expression, kind="type_error"
+            )
 
     def _numeric_pair(self, left: _Term, right: _Term) -> tuple[Any, Any, str]:
         self._require_number(left)
@@ -317,7 +335,9 @@ def _validate_request(
         "consistency",
         "counterexample",
     }:
-        raise FormalLogicError("Unknown logic task.", kind="unsupported_operation")
+        raise FormalLogicError(
+            REASONING_TEXT.unknown_logic_task, kind="unsupported_operation"
+        )
     if (
         not isinstance(variables, dict)
         or len(variables) > FORMAL_LOGIC.max_variables
@@ -331,35 +351,45 @@ def _validate_request(
         )
     ):
         raise FormalLogicError(
-            f"Declare up to {FORMAL_LOGIC.max_variables} Bool, Int, or Real variables with simple names."
+            REASONING_TEXT.declare_up_to_bool_int_or_real_variables_with.format(
+                formal_logic_max_variables=FORMAL_LOGIC.max_variables
+            )
         )
     if not isinstance(premises, list) or len(premises) > FORMAL_LOGIC.max_premises:
         raise FormalLogicError(
-            f"premises must be a list of at most {FORMAL_LOGIC.max_premises} formulas."
+            REASONING_TEXT.premises_must_be_a_list_of_at_most_formulas.format(
+                formal_logic_max_premises=FORMAL_LOGIC.max_premises
+            )
         )
     if task != "consistency" and conclusion is None:
-        raise FormalLogicError("conclusion is required for this task.")
+        raise FormalLogicError(REASONING_TEXT.conclusion_is_required_for_this_task)
     if (
         type(timeout_seconds) is not int
         or not 1 <= timeout_seconds <= FORMAL_LOGIC.max_timeout_seconds
     ):
         raise FormalLogicError(
-            f"timeout_seconds must be between 1 and {FORMAL_LOGIC.max_timeout_seconds}."
+            REASONING_TEXT.timeout_seconds_must_be_between_and.format(
+                formal_logic_max_timeout_seconds=FORMAL_LOGIC.max_timeout_seconds
+            )
         )
     try:
         size = len(json.dumps([variables, premises, conclusion]))
     except (TypeError, ValueError, RecursionError) as error:
-        raise FormalLogicError("Formulas must be JSON serializable.") from error
+        raise FormalLogicError(
+            REASONING_TEXT.formulas_must_be_json_serializable
+        ) from error
     if size > FORMAL_LOGIC.max_request_chars:
         raise FormalLogicError(
-            f"Request exceeds the {FORMAL_LOGIC.max_request_chars} character limit."
+            REASONING_TEXT.request_exceeds_the_character_limit.format(
+                formal_logic_max_request_chars=FORMAL_LOGIC.max_request_chars
+            )
         )
 
 
 def _boolean(term: _Term) -> Any:
     if term.sort != "Bool":
         raise FormalLogicError(
-            "Premises and conclusions must be Boolean.", kind="type_error"
+            REASONING_TEXT.premises_and_conclusions_must_be_boolean, kind="type_error"
         )
     return term.value
 
@@ -393,7 +423,7 @@ def _deadline_exceeded(base: dict[str, object]) -> dict[str, object]:
     return base | {
         "status": "timeout",
         "solver_result": "unknown",
-        "reason": "request deadline exceeded",
+        "reason": REASONING_TEXT.request_deadline_exceeded,
     }
 
 
@@ -412,8 +442,10 @@ def logic_tool_result(
             "status": "error",
             "backend": "z3",
             "error_kind": "missing_dependency",
-            "error": f"Missing exmekh_lib runtime module: {error.name}.",
-            "hint": "Install the ExMekh-Lib wheel with its declared dependencies.",
+            "error": REASONING_TEXT.missing_exmekh_lib_runtime_module.format(
+                error_name=error.name
+            ),
+            "hint": REASONING_TEXT.install_the_exmekh_lib_wheel_with_its_declared_dependencies,
         }
     except FormalLogicError as error:
         return {
@@ -423,13 +455,13 @@ def logic_tool_result(
             "error": str(error),
         }
     except Exception as error:
-        _LOGGER.exception("Z3 logic tool failed")
+        _LOGGER.exception(REASONING_TEXT.z3_logic_tool_failed)
         exhausted_memory = "memory" in str(error).lower()
         return {
             "status": "resource_limit" if exhausted_memory else "error",
             "backend": "z3",
             "error_kind": "resource_limit" if exhausted_memory else "internal_error",
-            "error": "The Z3 memory limit was reached."
+            "error": REASONING_TEXT.the_z3_memory_limit_was_reached
             if exhausted_memory
-            else "The Z3 check failed unexpectedly.",
+            else REASONING_TEXT.the_z3_check_failed_unexpectedly,
         }

@@ -7,7 +7,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Self
 
-from exmekh_lib.config.file_editing import FILE_EDITING
+from exmekh_lib.config.file_editing import FILE_EDIT_FORMAT, FILE_EDITING
 from exmekh_lib.config.file_inspection import FILE_INSPECTION
 from exmekh_lib.core.models.edit_document import EditDocument, EditElement
 
@@ -110,8 +110,12 @@ def require_edit_evidence(
         elif item.source == "read" and inspected:
             return
     if not inspected:
-        raise EditPrerequisiteError("uninspected", FILE_EDITING.inspection_required)
-    raise EditPrerequisiteError("unread", FILE_EDITING.read_required)
+        raise EditPrerequisiteError(
+            FILE_EDIT_FORMAT.uninspected_error_code, FILE_EDITING.inspection_required
+        )
+    raise EditPrerequisiteError(
+        FILE_EDIT_FORMAT.unread_error_code, FILE_EDITING.read_required
+    )
 
 
 def approve_edit(

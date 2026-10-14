@@ -1,3 +1,4 @@
+from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.core.models.assistant_message import AssistantMessage
 from exmekh_lib.core.models.interactive import InterruptedMessage
 from exmekh_lib.core.models.model_thinking import ModelThinking
@@ -13,14 +14,14 @@ class ProviderResponse(AssistantMessage):
         interruptions: tuple[InterruptedMessage, ...] = (),
     ) -> None:
         if not isinstance(response, AssistantMessage):
-            raise TypeError("Response must be an AssistantMessage")
+            raise TypeError(MODEL_TEXT.response_must_be_an_assistantmessage)
 
         content = response.get_message()
         if usage is not None and not isinstance(usage, ModelUsage):
-            raise TypeError("Usage must be a ModelUsage instance")
+            raise TypeError(MODEL_TEXT.usage_must_be_a_modelusage_instance)
 
         if thinking is not None and not isinstance(thinking, ModelThinking):
-            raise TypeError("Thinking must be a ModelThinking instance")
+            raise TypeError(MODEL_TEXT.thinking_must_be_a_modelthinking_instance)
 
         super().__init__(
             content=content,

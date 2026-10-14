@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from time import monotonic
 from typing import Any
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.core.agents.deep_skill.deep_skill import DeepSkill
 from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
@@ -56,12 +57,12 @@ class DeepSkillExecution:
 
     def record_tool_output(self, reference: ToolOutputReference) -> None:
         if self.output is not None:
-            raise RuntimeError("Cannot record a tool output in a closed deep skill")
+            raise RuntimeError(AGENT_TEXT.cannot_record_a_tool_output_in_a_closed_deep)
         self._used_tools.append(reference)
 
     def add_child(self, execution: DeepSkillExecution) -> None:
         if self.output is not None:
-            raise RuntimeError("Cannot add a child to a closed deep skill")
+            raise RuntimeError(AGENT_TEXT.cannot_add_a_child_to_a_closed_deep_skill)
         self.children.append(execution)
 
     @classmethod
@@ -93,7 +94,7 @@ class DeepSkillExecution:
         history: list[Message[object]],
     ) -> None:
         if self.output is not None:
-            raise RuntimeError("Deep skill execution is already closed")
+            raise RuntimeError(AGENT_TEXT.deep_skill_execution_is_already_closed)
 
         self._finished_clock = monotonic()
         self.end_index = end_index
@@ -164,7 +165,7 @@ class DeepSkillExecutionTracker:
     @property
     def current(self) -> DeepSkillExecution:
         if not self._active:
-            raise RuntimeError("No deep skill execution is active")
+            raise RuntimeError(AGENT_TEXT.no_deep_skill_execution_is_active)
         return self._active[-1]
 
     def open(
@@ -194,7 +195,7 @@ class DeepSkillExecutionTracker:
             parent_name = None
         self._active.append(execution)
         logger.debug(
-            "Tracked deep skill opening: name=%s parent=%s active=%d roots=%d",
+            AGENT_TEXT.tracked_deep_skill_opening_name_parent_active_roots,
             skill.get_name(),
             parent_name,
             len(self._active),
@@ -210,13 +211,13 @@ class DeepSkillExecutionTracker:
         history: list[Message[object]],
     ) -> DeepSkillExecution:
         if not self._active:
-            raise RuntimeError("Cannot close a deep skill when none is active")
+            raise RuntimeError(AGENT_TEXT.cannot_close_a_deep_skill_when_none_is_active)
 
         execution = self.current
         execution.close(end_index=end_index, output=output, history=history)
         self._active.pop()
         logger.debug(
-            "Tracked deep skill closure: name=%s remaining_active=%d messages=%d",
+            AGENT_TEXT.tracked_deep_skill_closure_name_remaining_active_messages,
             execution.name,
             len(self._active),
             len(history),

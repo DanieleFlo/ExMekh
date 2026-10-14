@@ -7,6 +7,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Any, Final
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.config.capabilities import CAPABILITY_FORMAT
 from exmekh_lib.core.models.interactive import (
     InteractiveDefinition,
@@ -43,9 +44,9 @@ def deep_tool(
     _validate_definition(name, description)
     validate_tool_hooks(before, after)
     if not isinstance(background_enabled, bool):
-        raise TypeError("background_enabled must be a bool")
+        raise TypeError(AGENT_TEXT.background_enabled_must_be_a_bool)
     if not isinstance(argument_guidance, str):
-        raise TypeError("argument_guidance must be a string")
+        raise TypeError(AGENT_TEXT.argument_guidance_must_be_a_string)
     validate_interactive_tool(interactive, background_enabled=background_enabled)
 
     definition = ToolDefinition(
@@ -60,11 +61,13 @@ def deep_tool(
 
     def decorate(function: ToolFunction) -> ToolFunction:
         if not inspect.isfunction(function):
-            raise TypeError("@deep_tool can decorate only functions")
+            raise TypeError(AGENT_TEXT.deep_tool_can_decorate_only_functions)
 
         if get_tool_definition(function) is not None:
             raise ValueError(
-                f"Function '{function.__name__}' is already decorated with @deep_tool"
+                AGENT_TEXT.function_is_already_decorated_with_deep_tool.format(
+                    function_name=function.__name__
+                )
             )
 
         _validate_work_root_parameter(function)
@@ -84,13 +87,13 @@ def _validate_definition(
     description: str | None,
 ) -> None:
     if name is not None and not isinstance(name, str):
-        raise TypeError("Tool name must be a string or None")
+        raise TypeError(AGENT_TEXT.tool_name_must_be_a_string_or_none)
 
     if description is not None and not isinstance(description, str):
-        raise TypeError("Tool description must be a string or None")
+        raise TypeError(AGENT_TEXT.tool_description_must_be_a_string_or_none)
 
     if description is not None and not description.strip():
-        raise ValueError("Tool description cannot be blank")
+        raise ValueError(AGENT_TEXT.tool_description_cannot_be_blank)
 
 
 def _validate_work_root_parameter(function: ToolFunction) -> None:
@@ -105,10 +108,7 @@ def _validate_work_root_parameter(function: ToolFunction) -> None:
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
         )
     ):
-        raise TypeError(
-            "@deep_tool entrypoint must define work_root as its first "
-            "positional parameter"
-        )
+        raise TypeError(AGENT_TEXT.deep_tool_entrypoint_must_define_work_root_as_its)
 
 
 def get_tool_definition(

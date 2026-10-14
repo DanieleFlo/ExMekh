@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from threading import RLock
 
+from exmekh_lib.config.cache_text import CACHE_TEXT
 from exmekh_lib.core.cache.session_cache import SessionCache
 
 
@@ -66,7 +67,7 @@ class SessionPool:
         """Instantiate a new session and register it in the pool."""
         self.validate(key.identity, key.fingerprint, directory)
         if key != self.make_key(key.identity, key.fingerprint, directory):
-            raise ValueError("session key does not match directory or process")
+            raise ValueError(CACHE_TEXT.session_key_does_not_match_directory_or_process)
         with self._lock:
             existing = self._sessions.get(key)
             if existing is not None and not existing.is_closed:
@@ -84,8 +85,8 @@ class SessionPool:
     def validate(identity: str, fingerprint: str, directory: Path) -> None:
         """Validate input arguments for session retrieval."""
         if not isinstance(identity, str) or not identity.strip():
-            raise ValueError("identity must be a non-empty string")
+            raise ValueError(CACHE_TEXT.identity_must_be_a_non_empty_string)
         if not isinstance(fingerprint, str):
-            raise TypeError("fingerprint must be a string")
+            raise TypeError(CACHE_TEXT.fingerprint_must_be_a_string)
         if not isinstance(directory, Path):
-            raise TypeError("directory must be a Path")
+            raise TypeError(CACHE_TEXT.directory_must_be_a_path)

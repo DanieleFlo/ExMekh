@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.interfaces.message import Message
 
 
@@ -16,9 +17,9 @@ class FunctionMessage(Message[str | None]):
 
     def _check_inputs(self):
         if self._content is not None and not isinstance(self._content, str):
-            raise TypeError("Function content must be a string")
+            raise TypeError(MODEL_TEXT.function_content_must_be_a_string)
         if not isinstance(self._name, str):
-            raise TypeError("Function name must be a string")
+            raise TypeError(MODEL_TEXT.function_name_must_be_a_string)
 
     def get_message(self) -> str | None:
         return self._content

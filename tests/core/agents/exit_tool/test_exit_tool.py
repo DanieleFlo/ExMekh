@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import cast
+from xml.etree import ElementTree
 
 import pytest
 
@@ -22,6 +23,22 @@ def _exit_tool(tmp_path: Path) -> ExitTool:
         instructions="Finish now",
         folder_path=tmp_path,
     )
+
+
+def test_exit_prompt_preserves_instruction_text_as_valid_xml(tmp_path):
+    instructions = 'Finish <result> & preserve "quotes"\n\n# Markdown'
+    tool = ExitTool(
+        _function,
+        name="exit_agent",
+        description="Exit",
+        instructions_path=tmp_path / "instructions.md",
+        instructions=instructions,
+        folder_path=tmp_path,
+    )
+    root = ElementTree.fromstring(tool.render_prompt_section())
+    assert root.tag == "exit-tool"
+    assert root.attrib == {"name": "exit_agent"}
+    assert root.text == instructions
 
 
 @pytest.mark.parametrize(

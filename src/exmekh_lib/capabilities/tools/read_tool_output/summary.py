@@ -5,6 +5,7 @@ from dataclasses import replace
 from typing import Literal
 
 from exmekh_lib.config.runtime import RUNTIME
+from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.models.text_summarizer import TextSummarizer
 from exmekh_lib.core.models.tool import PreformattedToolResult
 from exmekh_lib.core.models.xml_header import XmlHeader
@@ -31,7 +32,11 @@ class ToolOutputSummarizer:
         self, result: PreformattedToolResult, mode: SummaryMode
     ) -> PreformattedToolResult:
         self.validate_mode(mode)
-        if mode == "none":
+        if (
+            mode == "none"
+            or result.external_output is not None
+            or result.delivery_failed
+        ):
             return result
         body = XmlHeader.body_from_content(result.content)
         if body is None:
@@ -49,7 +54,9 @@ class ToolOutputSummarizer:
             )
             summary = self._text_summarizer.summarize(body, prompt)
         except Exception:
-            logger.exception("Tool output summary unavailable; returning full output")
+            logger.exception(
+                RUNTIME_TEXT.tool_output_summary_unavailable_returning_full_output
+            )
             return result
         content = XmlHeader.add_field_to_content(
             XmlHeader.replace_body_in_content(result.content, summary),

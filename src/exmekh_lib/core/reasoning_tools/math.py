@@ -11,6 +11,7 @@ from typing import Any
 import sympy as sp
 
 from exmekh_lib.config.reasoning import MATH
+from exmekh_lib.config.reasoning_text import REASONING_TEXT
 
 
 class MathInputError(ValueError):
@@ -31,14 +32,17 @@ def calculate(
         or not MATH.min_precision <= precision <= MATH.max_precision
     ):
         raise MathInputError(
-            f"precision must be between {MATH.min_precision} and {MATH.max_precision}"
+            REASONING_TEXT.precision_must_be_between_and.format(
+                math_min_precision=MATH.min_precision,
+                math_max_precision=MATH.max_precision,
+            )
         )
     if (
         not isinstance(variable, str)
         or not variable.isidentifier()
         or variable.startswith("_")
     ):
-        raise MathInputError("variable must be a simple identifier")
+        raise MathInputError(REASONING_TEXT.variable_must_be_a_simple_identifier)
     if operation in {"determinant", "inverse", "eigenvalues"}:
         result = _calculate_matrix(sp, operation, matrix)
         return {"operation": operation, "result": str(result)}
@@ -50,9 +54,9 @@ def calculate(
         "differentiate",
         "integrate",
     }:
-        raise MathInputError("unsupported mathematical operation")
+        raise MathInputError(REASONING_TEXT.unsupported_mathematical_operation)
     if not isinstance(expression, str) or not expression.strip():
-        raise MathInputError("expression must be non-empty")
+        raise MathInputError(REASONING_TEXT.expression_must_be_non_empty)
     result = _calculate_expression(
         sp,
         operation=operation,
@@ -73,16 +77,19 @@ def _calculate_matrix(sp: Any, operation: str, matrix: list[list[float]] | None)
         or any(not isinstance(row, list) or len(row) != len(matrix) for row in matrix)
     ):
         raise MathInputError(
-            f"matrix must be square and at most {MATH.max_matrix_dimension} by {MATH.max_matrix_dimension}"
+            REASONING_TEXT.matrix_must_be_square_and_at_most_by.format(
+                math_max_matrix_dimension=MATH.max_matrix_dimension,
+                math_max_matrix_dimension_2=MATH.max_matrix_dimension,
+            )
         )
     if any(type(value) not in (int, float) for row in matrix for value in row):
-        raise MathInputError("matrix entries must be numbers")
+        raise MathInputError(REASONING_TEXT.matrix_entries_must_be_numbers)
     if any(
         isinstance(value, float) and not math.isfinite(value)
         for row in matrix
         for value in row
     ):
-        raise MathInputError("matrix entries must be finite")
+        raise MathInputError(REASONING_TEXT.matrix_entries_must_be_finite)
     value = sp.Matrix(matrix)
     if operation == "determinant":
         return value.det()
@@ -105,7 +112,7 @@ def _calculate_expression(
     if operation == "solve" and "=" in expression:
         left, separator, right = expression.partition("=")
         if not separator or "=" in right:
-            raise MathInputError("solve accepts at most one equality sign")
+            raise MathInputError(REASONING_TEXT.solve_accepts_at_most_one_equality_sign)
         value = _parse(left.strip()) - _parse(right.strip())
     else:
         value = _parse(expression)
@@ -113,7 +120,9 @@ def _calculate_expression(
         result = sp.simplify(value)
     elif operation == "evaluate":
         if value.free_symbols:
-            raise MathInputError("evaluate requires an expression without variables")
+            raise MathInputError(
+                REASONING_TEXT.evaluate_requires_an_expression_without_variables
+            )
         result = sp.N(value, precision)
     elif operation == "solve":
         result = sp.solve(value, symbol)
@@ -123,7 +132,9 @@ def _calculate_expression(
         if lower_bound is None and upper_bound is None:
             result = sp.integrate(value, symbol)
         elif lower_bound is None or upper_bound is None:
-            raise MathInputError("integrate requires both bounds or neither")
+            raise MathInputError(
+                REASONING_TEXT.integrate_requires_both_bounds_or_neither
+            )
         else:
             result = sp.integrate(
                 value, (symbol, _parse(lower_bound), _parse(upper_bound))
@@ -135,13 +146,13 @@ def _parse(expression: str) -> Any:
     import sympy as sp
 
     if len(expression) > MATH.max_expression_chars:
-        raise MathInputError("expression is too long")
+        raise MathInputError(REASONING_TEXT.expression_is_too_long)
     try:
         tree = ast.parse(expression, mode="eval")
     except SyntaxError as error:
-        raise MathInputError("invalid expression syntax") from error
+        raise MathInputError(REASONING_TEXT.invalid_expression_syntax) from error
     if sum(1 for _ in ast.walk(tree)) > MATH.max_expression_nodes:
-        raise MathInputError("expression is too complex")
+        raise MathInputError(REASONING_TEXT.expression_is_too_complex)
     functions = {
         "sin": sp.sin,
         "cos": sp.cos,
@@ -162,9 +173,9 @@ def _parse(expression: str) -> Any:
     def convert(node: ast.AST) -> Any:
         if isinstance(node, ast.Constant) and type(node.value) in (int, float):
             if len(str(node.value)) > MATH.max_number_chars:
-                raise MathInputError("number is too large")
+                raise MathInputError(REASONING_TEXT.number_is_too_large)
             if isinstance(node.value, float) and not math.isfinite(node.value):
-                raise MathInputError("numbers must be finite")
+                raise MathInputError(REASONING_TEXT.numbers_must_be_finite)
             return sp.sympify(node.value)
         if isinstance(node, ast.Name) and node.id in {"pi", "E"}:
             return {"pi": sp.pi, "E": sp.E}[node.id]
@@ -180,7 +191,9 @@ def _parse(expression: str) -> Any:
         if isinstance(node, ast.BinOp):
             operation = binary.get(type(node.op))
             if operation is None:
-                raise MathInputError("expression contains unsupported syntax")
+                raise MathInputError(
+                    REASONING_TEXT.expression_contains_unsupported_syntax
+                )
             if isinstance(node.op, ast.Pow):
                 if (
                     not isinstance(node.right, ast.Constant)
@@ -189,13 +202,15 @@ def _parse(expression: str) -> Any:
                     or abs(node.right.value) > MATH.max_exponent
                 ):
                     raise MathInputError(
-                        f"exponents must be numeric and at most {MATH.max_exponent}"
+                        REASONING_TEXT.exponents_must_be_numeric_and_at_most.format(
+                            math_max_exponent=MATH.max_exponent
+                        )
                     )
             return operation(convert(node.left), convert(node.right))
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
             function = functions.get(node.func.id)
             if function is not None and not node.keywords and 1 <= len(node.args) <= 2:
                 return function(*(convert(argument) for argument in node.args))
-        raise MathInputError("expression contains unsupported syntax")
+        raise MathInputError(REASONING_TEXT.expression_contains_unsupported_syntax)
 
     return convert(tree.body)

@@ -24,6 +24,7 @@ from typing import (
 )
 from uuid import UUID
 
+from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.utils.type_hints import typed_dict_required_keys
 
 
@@ -140,7 +141,11 @@ class OpenAIChatCompletionValueCoercer:
         if supertype is not None:
             return self.coerce(value, supertype, path)
 
-        raise TypeError(f"Unsupported type for argument '{path}': {annotation!r}")
+        raise TypeError(
+            PROVIDER_TEXT.unsupported_type_for_argument.format(
+                path=path, annotation=annotation
+            )
+        )
 
     def _coerce_union(
         self,
@@ -154,7 +159,9 @@ class OpenAIChatCompletionValueCoercer:
             except TypeError:
                 pass
 
-        raise TypeError(f"Argument '{path}' does not match any allowed type")
+        raise TypeError(
+            PROVIDER_TEXT.argument_does_not_match_any_allowed_type.format(path=path)
+        )
 
     @staticmethod
     def _coerce_literal(
@@ -165,40 +172,42 @@ class OpenAIChatCompletionValueCoercer:
         matches = any(value == item and type(value) is type(item) for item in allowed)
 
         if not matches:
-            raise TypeError(f"Argument '{path}' is not an allowed literal")
+            raise TypeError(
+                PROVIDER_TEXT.argument_is_not_an_allowed_literal.format(path=path)
+            )
 
         return value
 
     @staticmethod
     def _require_none(value: Any, path: str) -> None:
         if value is not None:
-            raise TypeError(f"Argument '{path}' must be null")
+            raise TypeError(PROVIDER_TEXT.argument_must_be_null.format(path=path))
 
     @staticmethod
     def _require_bool(value: Any, path: str) -> bool:
         if type(value) is not bool:
-            raise TypeError(f"Argument '{path}' must be a boolean")
+            raise TypeError(PROVIDER_TEXT.argument_must_be_a_boolean.format(path=path))
 
         return value
 
     @staticmethod
     def _require_int(value: Any, path: str) -> int:
         if type(value) is not int:
-            raise TypeError(f"Argument '{path}' must be an integer")
+            raise TypeError(PROVIDER_TEXT.argument_must_be_an_integer.format(path=path))
 
         return value
 
     @staticmethod
     def _require_float(value: Any, path: str) -> float:
         if type(value) not in {int, float}:
-            raise TypeError(f"Argument '{path}' must be a number")
+            raise TypeError(PROVIDER_TEXT.argument_must_be_a_number.format(path=path))
 
         return float(value)
 
     @staticmethod
     def _require_str(value: Any, path: str) -> str:
         if not isinstance(value, str):
-            raise TypeError(f"Argument '{path}' must be a string")
+            raise TypeError(PROVIDER_TEXT.argument_must_be_a_string.format(path=path))
 
         return value
 
@@ -211,7 +220,9 @@ class OpenAIChatCompletionValueCoercer:
         try:
             return annotation(value)
         except ValueError as error:
-            raise TypeError(f"Argument '{path}' is not a valid enum value") from error
+            raise TypeError(
+                PROVIDER_TEXT.argument_is_not_a_valid_enum_value.format(path=path)
+            ) from error
 
     @staticmethod
     def _coerce_scalar(
@@ -236,9 +247,13 @@ class OpenAIChatCompletionValueCoercer:
                 return Path(value)
 
         except (InvalidOperation, TypeError, ValueError) as error:
-            raise TypeError(f"Argument '{path}' has an invalid value") from error
+            raise TypeError(
+                PROVIDER_TEXT.argument_has_an_invalid_value.format(path=path)
+            ) from error
 
-        raise AssertionError("Unsupported scalar annotation")  # pragma: no cover
+        raise AssertionError(
+            PROVIDER_TEXT.unsupported_scalar_annotation
+        )  # pragma: no cover
 
     def _coerce_array(
         self,
@@ -290,7 +305,9 @@ class OpenAIChatCompletionValueCoercer:
             )
 
         if len(value) != len(arguments):
-            raise TypeError(f"Argument '{path}' has the wrong array length")
+            raise TypeError(
+                PROVIDER_TEXT.argument_has_the_wrong_array_length.format(path=path)
+            )
 
         return tuple(
             self.coerce(
@@ -389,7 +406,9 @@ class OpenAIChatCompletionValueCoercer:
         try:
             return annotation(**converted)
         except TypeError as error:
-            raise TypeError(f"Argument '{path}' is invalid") from error
+            raise TypeError(
+                PROVIDER_TEXT.argument_is_invalid.format(path=path)
+            ) from error
 
     @staticmethod
     def _ensure_known_fields(
@@ -401,7 +420,9 @@ class OpenAIChatCompletionValueCoercer:
 
         if unknown:
             names = ", ".join(sorted(unknown))
-            raise TypeError(f"Argument '{path}' has unknown fields: {names}")
+            raise TypeError(
+                PROVIDER_TEXT.argument_has_unknown_fields.format(path=path, names=names)
+            )
 
     @staticmethod
     def _ensure_required_fields(
@@ -413,17 +434,19 @@ class OpenAIChatCompletionValueCoercer:
 
         if missing:
             names = ", ".join(sorted(missing))
-            raise TypeError(f"Argument '{path}' is missing fields: {names}")
+            raise TypeError(
+                PROVIDER_TEXT.argument_is_missing_fields.format(path=path, names=names)
+            )
 
     @staticmethod
     def _require_array(value: Any, path: str) -> None:
         if not isinstance(value, list):
-            raise TypeError(f"Argument '{path}' must be an array")
+            raise TypeError(PROVIDER_TEXT.argument_must_be_an_array.format(path=path))
 
     @staticmethod
     def _require_object(value: Any, path: str) -> None:
         if not isinstance(value, dict):
-            raise TypeError(f"Argument '{path}' must be an object")
+            raise TypeError(PROVIDER_TEXT.argument_must_be_an_object.format(path=path))
 
     @staticmethod
     def _is_unrestricted(annotation: Any) -> bool:

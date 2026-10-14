@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Final
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.core.agents.capabilities.catalog_attacher import SkillCatalogAttacher
 from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
 from exmekh_lib.core.agents.capabilities.default_composer import (
@@ -32,7 +33,9 @@ class Capabilities:
         if default_capabilities is not None and not isinstance(
             default_capabilities, DefaultCapabilities
         ):
-            raise TypeError("default_capabilities must be DefaultCapabilities or None")
+            raise TypeError(
+                AGENT_TEXT.default_capabilities_must_be_defaultcapabilities_or_none
+            )
         self._default_capabilities = default_capabilities
         if default_capabilities is not None:
             default_path = default_capabilities.capabilities_path

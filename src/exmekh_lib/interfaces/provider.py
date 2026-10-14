@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
+from exmekh_lib.config.interface_text import INTERFACE_TEXT
 from exmekh_lib.core.models.provider_request import ProviderRequest
 from exmekh_lib.core.models.provider_response import ProviderResponse
 from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
@@ -25,7 +26,7 @@ class ProviderRequestRejectedError(RuntimeError):
 class Provider(ABC):
     def __init__(self, tokenizer: Tokenizer) -> None:
         if not isinstance(tokenizer, Tokenizer):
-            raise TypeError("Tokenizer must be a Tokenizer instance")
+            raise TypeError(INTERFACE_TEXT.tokenizer_must_be_a_tokenizer_instance)
         self._tokenizer = tokenizer
 
     def get_tokenizer(self) -> Tokenizer:
@@ -41,7 +42,7 @@ class Provider(ABC):
     def get_tools_text(self, tools: Tools | None) -> str:
         """Return the serialized tools request field, or empty text if omitted."""
         raise NotImplementedError(
-            "This provider does not implement tools request serialization"
+            INTERFACE_TEXT.this_provider_does_not_implement_tools_request_serialization
         )
 
     @abstractmethod

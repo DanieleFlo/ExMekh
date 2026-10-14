@@ -7,6 +7,7 @@ from typing import Any, Final, Literal
 from exmekh_lib.capabilities.tools.call_sub_agent.sub_agent_tool import SubAgentTool
 from exmekh_lib.capabilities.tools.read_tool_output.summary import SummaryMode
 from exmekh_lib.config.runtime import RUNTIME
+from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
 from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
 from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
@@ -95,7 +96,7 @@ class Node:
         on_stream: DeepAgentEventHandler | None = None,
     ) -> CapabilitiesData:
         if not isinstance(provider, Provider):
-            raise TypeError("provider must be a Provider")
+            raise TypeError(RUNTIME_TEXT.provider_must_be_a_provider)
         if on_stream is not None:
             DeepAgentEventHandler.validate_instance(on_stream)
 
@@ -133,7 +134,9 @@ class Node:
             if defaults is not None and defaults.customizes_tool(
                 RUNTIME.sub_agent_tool_name
             ):
-                raise ValueError("call_sub_agent requires at least one child node")
+                raise ValueError(
+                    RUNTIME_TEXT.call_sub_agent_requires_at_least_one_child_node
+                )
             return ()
         if defaults is not None and not defaults.includes(RUNTIME.sub_agent_tool_name):
             return ()
@@ -146,12 +149,16 @@ class Node:
 
     def get_hds(self) -> HDS:
         if self._hds is None:
-            raise RuntimeError("Node must be initialized before accessing its HDS")
+            raise RuntimeError(
+                RUNTIME_TEXT.node_must_be_initialized_before_accessing_its_hds
+            )
         return self._hds
 
     def update_sub_agent_tool_description(self) -> None:
         if self._runtime is None:
-            raise RuntimeError("Node must be initialized before updating sub-agents")
+            raise RuntimeError(
+                RUNTIME_TEXT.node_must_be_initialized_before_updating_sub_agents
+            )
         if self._sub_agent_tool is not None:
             child_hds = (child.get_hds() for child in self._children)
             self._sub_agent_tool.set_child_descriptions(
@@ -168,13 +175,15 @@ class Node:
 
     def run(self, user_message: NodeUserMessage) -> AgentResponse:
         if self._runtime is None:
-            raise RuntimeError("Node must be initialized before run")
+            raise RuntimeError(RUNTIME_TEXT.node_must_be_initialized_before_run)
         return self._runtime.run(user_message)
 
     def get_tools_text(self) -> str:
         """Return this node's serialized tools request field without inference."""
         if self._runtime is None:
-            raise RuntimeError("Node must be initialized before accessing tools")
+            raise RuntimeError(
+                RUNTIME_TEXT.node_must_be_initialized_before_accessing_tools
+            )
         return self._runtime.get_tools_text()
 
     def steer(self, user_message: NodeUserMessage) -> None:
@@ -191,7 +200,9 @@ class Node:
     ) -> dict[str, Any]:
         """Control node-local work without changing the conversation history."""
         if self._runtime is None:
-            raise RuntimeError("Node must be initialized before controlling tool work")
+            raise RuntimeError(
+                RUNTIME_TEXT.node_must_be_initialized_before_controlling_tool_work
+            )
         return self._runtime.control_tool_execution(tool_call_id, action, wait_seconds)
 
     def read_tool_output(
@@ -202,7 +213,9 @@ class Node:
     ) -> PreformattedToolResult:
         """Read node-local output; a final read acknowledges automatic delivery."""
         if self._runtime is None:
-            raise RuntimeError("Node must be initialized before reading tool output")
+            raise RuntimeError(
+                RUNTIME_TEXT.node_must_be_initialized_before_reading_tool_output
+            )
         return self._runtime.read_tool_output(output_id, cursor, summary_mode)
 
     def restore_history(
@@ -213,38 +226,40 @@ class Node:
     ) -> None:
         """Restore a saved conversation before the next run."""
         if self._runtime is None:
-            raise RuntimeError("Node must be initialized before restoring history")
+            raise RuntimeError(
+                RUNTIME_TEXT.node_must_be_initialized_before_restoring_history
+            )
         self._runtime.restore_history(messages, restore_execution_state)
 
     @staticmethod
     def _validate_hds_name(name_hds: str) -> str:
         if not isinstance(name_hds, str):
-            raise TypeError("name_hds must be a string")
+            raise TypeError(RUNTIME_TEXT.name_hds_must_be_a_string)
         if not name_hds.strip():
-            raise ValueError("name_hds cannot be empty")
+            raise ValueError(RUNTIME_TEXT.name_hds_cannot_be_empty)
         return name_hds
 
     @staticmethod
     def _validate_children(children: Sequence[Node]) -> tuple[Node, ...]:
         if isinstance(children, (str, bytes)) or not isinstance(children, Sequence):
-            raise TypeError("children must be a sequence of Node")
+            raise TypeError(RUNTIME_TEXT.children_must_be_a_sequence_of_node)
         nodes = tuple(children)
         if not all(isinstance(child, Node) for child in nodes):
-            raise TypeError("children must contain only Node instances")
+            raise TypeError(RUNTIME_TEXT.children_must_contain_only_node_instances)
         return nodes
 
     @staticmethod
     def _validate_persistent_history(persistent_history: bool) -> bool:
         if not isinstance(persistent_history, bool):
-            raise TypeError("persistent_history must be a bool")
+            raise TypeError(RUNTIME_TEXT.persistent_history_must_be_a_bool)
         return persistent_history
 
     @staticmethod
     def _validate_depth(depth: int) -> int:
         if not isinstance(depth, int) or isinstance(depth, bool):
-            raise TypeError("depth must be an integer")
+            raise TypeError(RUNTIME_TEXT.depth_must_be_an_integer)
         if depth < 0:
-            raise ValueError("depth cannot be negative")
+            raise ValueError(RUNTIME_TEXT.depth_cannot_be_negative)
         return depth
 
     @staticmethod
@@ -252,7 +267,7 @@ class Node:
         if agent_context_id is None:
             return None
         if not isinstance(agent_context_id, str):
-            raise TypeError("agent_context_id must be a string")
+            raise TypeError(RUNTIME_TEXT.agent_context_id_must_be_a_string)
         if not agent_context_id.strip():
-            raise ValueError("agent_context_id cannot be empty")
+            raise ValueError(RUNTIME_TEXT.agent_context_id_cannot_be_empty)
         return agent_context_id

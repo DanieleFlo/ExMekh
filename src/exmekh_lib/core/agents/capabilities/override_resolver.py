@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
+from exmekh_lib.config.capabilities import CAPABILITY_FORMAT, CAPABILITY_TEXT
 from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
 from exmekh_lib.core.agents.capabilities.defaults import (
     DeepSkillOverride,
@@ -31,12 +33,16 @@ class _NamedOverrideResolver:
         for target, replacement in self._defaults.overrides.items():
             if isinstance(replacement, ToolOverride):
                 source = self._find_source(
-                    loaded.tools, replacement.replacement_name, "tool"
+                    loaded.tools,
+                    replacement.replacement_name,
+                    CAPABILITY_TEXT.tool_label,
                 )
                 resolved[target] = source.with_name(target)
             elif isinstance(replacement, DeepSkillOverride):
                 source = self._find_source(
-                    loaded.deep_skills, replacement.replacement_name, "deep skill"
+                    loaded.deep_skills,
+                    replacement.replacement_name,
+                    CAPABILITY_FORMAT.deep_skill_resource_type.lower(),
                 )
                 resolved[target] = source.copy(name=target)
             else:
@@ -51,8 +57,12 @@ class _NamedOverrideResolver:
         matches = [resource for resource in resources if resource.get_name() == name]
         if not matches:
             raise ValueError(
-                f"Override {label} not found in capabilities_paths: {name}"
+                AGENT_TEXT.override_not_found_in_capabilities_paths.format(
+                    label=label, name=name
+                )
             )
         if len(matches) > 1:
-            raise ValueError(f"Override {label} name is ambiguous: {name}")
+            raise ValueError(
+                AGENT_TEXT.override_name_is_ambiguous.format(label=label, name=name)
+            )
         return matches[0]

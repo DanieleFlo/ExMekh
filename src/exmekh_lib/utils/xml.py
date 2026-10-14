@@ -9,9 +9,7 @@ from exmekh_lib.config.validation import VALIDATION_PATTERNS
 from exmekh_lib.utils.json import JsonValue, to_json_value
 
 _XML_NAME = re.compile(VALIDATION_PATTERNS.xml_name)
-_INVALID_XML_CHARACTER = re.compile(
-    r"[^\x09\x0a\x0d\x20-\ud7ff\ue000-\ufffd\U00010000-\U0010ffff]"
-)
+_INVALID_XML_CHARACTER = re.compile(VALIDATION_PATTERNS.xml_invalid_character)
 
 
 def stringify_tool_result(value: object) -> str:

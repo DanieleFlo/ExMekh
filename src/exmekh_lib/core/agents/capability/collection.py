@@ -5,6 +5,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.config.capabilities import CAPABILITY_FORMAT
 from exmekh_lib.core.agents.capability.markdown_capability import MarkdownCapability
 from exmekh_lib.core.agents.capability.parser import CapabilityMarkdownParser
@@ -41,17 +42,21 @@ class MarkdownCapabilityCollection[Resource: MarkdownCapability[Any]](ABC):
             folder_paths,
             Sequence,
         ):
-            raise TypeError("folder_paths must be a sequence of Path")
+            raise TypeError(AGENT_TEXT.folder_paths_must_be_a_sequence_of_path)
 
         paths = tuple(folder_paths)
 
         if not all(isinstance(path, Path) for path in paths):
-            raise TypeError("folder_paths must contain only Path instances")
+            raise TypeError(AGENT_TEXT.folder_paths_must_contain_only_path_instances)
 
         canonical_paths = tuple(path.resolve() for path in paths)
 
         if len(canonical_paths) != len(set(canonical_paths)):
-            raise ValueError(f"Duplicate {self.duplicate_label} folder path")
+            raise ValueError(
+                AGENT_TEXT.duplicate_folder_path.format(
+                    duplicate_label=self.duplicate_label
+                )
+            )
 
         return paths
 
@@ -75,33 +80,45 @@ class MarkdownCapabilityCollection[Resource: MarkdownCapability[Any]](ABC):
     def _validate_folder(self, folder_path: Path) -> None:
         if folder_path.is_symlink():
             raise ValueError(
-                f"{self.resource_label} folder must not be a symbolic link: "
-                f"{folder_path}"
+                AGENT_TEXT.folder_must_not_be_a_symbolic_link.format(
+                    resource_label=self.resource_label, folder_path=folder_path
+                )
             )
 
         if not folder_path.exists():
             raise FileNotFoundError(
-                f"{self.resource_label} folder does not exist: {folder_path}"
+                AGENT_TEXT.folder_does_not_exist.format(
+                    resource_label=self.resource_label, folder_path=folder_path
+                )
             )
 
         if not folder_path.is_dir():
             raise ValueError(
-                f"{self.resource_label} path must be a directory: {folder_path}"
+                AGENT_TEXT.path_must_be_a_directory.format(
+                    resource_label=self.resource_label, folder_path=folder_path
+                )
             )
 
     def _validate_markdown_entry(self, entry: Path) -> None:
         if entry.is_symlink():
             raise ValueError(
-                f"{self.resource_label} file must not be a symbolic link: {entry}"
+                AGENT_TEXT.file_must_not_be_a_symbolic_link.format(
+                    resource_label=self.resource_label, entry=entry
+                )
             )
 
         if not entry.is_file():
             raise ValueError(
-                f"{self.resource_label} folder can contain only Markdown files: {entry}"
+                AGENT_TEXT.folder_can_contain_only_markdown_files.format(
+                    resource_label=self.resource_label, entry=entry
+                )
             )
 
         if entry.suffix.lower() != self.MARKDOWN_SUFFIX:
             raise ValueError(
-                f"{self.resource_label} file must have "
-                f"'{self.MARKDOWN_SUFFIX}' extension: {entry}"
+                AGENT_TEXT.file_must_have_extension.format(
+                    resource_label=self.resource_label,
+                    markdown_suffix=self.MARKDOWN_SUFFIX,
+                    entry=entry,
+                )
             )

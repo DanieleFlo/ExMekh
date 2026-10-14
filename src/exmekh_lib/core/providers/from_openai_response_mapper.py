@@ -9,6 +9,7 @@ from openai.types.responses import (
     ResponseReasoningItem,
 )
 
+from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.assistant_message import (
     AssistantMessage,
     FunctionCall,
@@ -94,7 +95,9 @@ class FromOpenAIResponseMapper:
         tools: Tools | None,
     ) -> ToolCall:
         if tools is None:
-            raise ValueError("Tools are required to resolve a function tool call")
+            raise ValueError(
+                PROVIDER_TEXT.tools_are_required_to_resolve_a_function_tool_call
+            )
 
         tool, arguments = OpenAIResponseToolMapper.resolve_tool_call(
             item,
@@ -108,4 +111,4 @@ class FromOpenAIResponseMapper:
     @staticmethod
     def _ensure_response(response: Response) -> None:
         if not isinstance(response, Response):
-            raise TypeError("Expected an OpenAI Response instance")
+            raise TypeError(PROVIDER_TEXT.expected_an_openai_response_instance)

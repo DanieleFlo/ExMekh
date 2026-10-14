@@ -14,6 +14,7 @@ from openai.types.chat.chat_completion_message_function_tool_call import (
     ChatCompletionMessageFunctionToolCall,
 )
 
+from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.assistant_message import (
     AssistantMessage,
     FunctionCall,
@@ -110,11 +111,13 @@ class FromOpenAIChatCompletionMapper:
 
         if isinstance(tool_call, ChatCompletionMessageCustomToolCall):
             raise DeprecationWarning(
-                "Custom tool calls are deprecated and will be removed in a future version"
+                PROVIDER_TEXT.custom_tool_calls_are_deprecated_and_will_be_removed
             )
 
         raise TypeError(
-            f"Unsupported OpenAI tool call type: {type(tool_call).__name__}"
+            PROVIDER_TEXT.unsupported_openai_tool_call_type.format(
+                tool_call_type_name=type(tool_call).__name__
+            )
         )
 
     @classmethod
@@ -124,7 +127,9 @@ class FromOpenAIChatCompletionMapper:
         tools: Tools | None,
     ) -> ToolCall:
         if tools is None:
-            raise ValueError("Tools are required to resolve a function tool call")
+            raise ValueError(
+                PROVIDER_TEXT.tools_are_required_to_resolve_a_function_tool_call
+            )
 
         tool, arguments = OpenAIChatCompletionToolMapper.resolve_tool_call(
             tool_call,

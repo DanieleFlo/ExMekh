@@ -68,6 +68,7 @@ class RuntimeSettings:
     sub_agent_tool_name: str = "call_sub_agent"
     sub_agent_argument_names: frozenset[str] = frozenset({"sub_agent", "text"})
     memory_preview_limit: int = 240
+    preview_truncation_suffix: str = "…"
     memory_default_page_limit: int = 20
     memory_max_page_limit: int = 100
     history_min_page_limit: int = 2
@@ -159,6 +160,12 @@ class RuntimeSettings:
             f"Content below {self.tool_output_summary_min_tokens} tokens stays complete. "
             "Summaries preserve status, elapsed-seconds, IDs and next-cursor; "
             "read again with 'none' when exact details are needed.\n"
+            "Large tool output text is replaced with temporary file references. "
+            "Read those files with inspect-file and read-file; read_tool_output, "
+            "summaries and exit items return the references. Multiline output "
+            "uses one file. A single oversized physical line is split at the "
+            "configured token limit; read its listed files in order. Files live "
+            "for the cache session, including outputs with cache_result=False.\n"
             f"Use {self.search_tool_name} to find saved and runtime outputs, including "
             "background work, by text, tool name or skill path. Search returns IDs, "
             "status and previews; a preview does not acknowledge final delivery.\n"
@@ -212,6 +219,7 @@ class RuntimeSettings:
             "output ID. Use an optional cursor to read only new output; "
             "omit it to read the complete output. Includes the final "
             "result when available. Also reads saved user steering and restores its attachments. "
+            "Oversized output returns file references; use the file tools to read its text. "
             "summary_mode defaults to 'none'; 'brief' gives 3 to 5 bullet points, "
             f"'detailed' preserves essential details. Outputs below {self.tool_output_summary_min_tokens} tokens stay complete."
         )

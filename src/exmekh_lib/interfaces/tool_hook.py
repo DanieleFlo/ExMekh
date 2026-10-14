@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from exmekh_lib.config.interface_text import INTERFACE_TEXT
 from exmekh_lib.interfaces.message import Message
 
 
@@ -40,9 +41,9 @@ class AfterTool(ABC):
 
 def validate_tool_hooks(before: BeforeTool | None, after: AfterTool | None) -> None:
     if before is not None and not isinstance(before, BeforeTool):
-        raise TypeError("before must be a BeforeTool instance")
+        raise TypeError(INTERFACE_TEXT.before_must_be_a_beforetool_instance)
     if after is not None and not isinstance(after, AfterTool):
-        raise TypeError("after must be an AfterTool instance")
+        raise TypeError(INTERFACE_TEXT.after_must_be_an_aftertool_instance)
     for hook, argument_count in ((before, 1), (after, 2)):
         if hook is None:
             continue
@@ -52,7 +53,7 @@ def validate_tool_hooks(before: BeforeTool | None, after: AfterTool | None) -> N
             or inspect.isgeneratorfunction(method)
             or inspect.isasyncgenfunction(method)
         ):
-            raise TypeError("Tool hook handle must be synchronous")
+            raise TypeError(INTERFACE_TEXT.tool_hook_handle_must_be_synchronous)
         parameters = tuple(inspect.signature(method).parameters.values())
         if len(parameters) != argument_count or any(
             parameter.kind
@@ -63,5 +64,7 @@ def validate_tool_hooks(before: BeforeTool | None, after: AfterTool | None) -> N
             for parameter in parameters
         ):
             raise TypeError(
-                f"Tool hook handle must accept {argument_count} argument(s)"
+                INTERFACE_TEXT.tool_hook_handle_must_accept_argument_s.format(
+                    argument_count=argument_count
+                )
             )

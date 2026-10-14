@@ -4,6 +4,7 @@ from collections.abc import Mapping
 
 from pydantic import BaseModel
 
+from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.core.models.provider_request import ProviderRequest
 from exmekh_lib.core.models.tools import Tools
 from exmekh_lib.interfaces.event_handler import ProviderEventHandler
@@ -41,9 +42,9 @@ class StructuredProviderRequest[ResponseModel: BaseModel](ProviderRequest):
         if not isinstance(self._response_model, type) or not issubclass(
             self._response_model, BaseModel
         ):
-            raise TypeError("Response model must be a Pydantic BaseModel type")
+            raise TypeError(MODEL_TEXT.response_model_must_be_a_pydantic_basemodel_type)
         if not isinstance(self._strict, bool):
-            raise TypeError("Strict must be a boolean")
+            raise TypeError(MODEL_TEXT.strict_must_be_a_boolean)
 
     def get_response_model(self) -> type[ResponseModel]:
         return self._response_model

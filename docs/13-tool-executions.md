@@ -327,8 +327,14 @@ Una lettura finale riassunta conferma la consegna come una lettura integrale.
 
 ```python
 summary = node.read_tool_output(output_id, summary_mode="brief")
-original = node.read_tool_output(output_id)  # sempre recuperabile
+original = node.read_tool_output(output_id)  # output o riferimenti ai file temporanei
 ```
+
+Gli output oltre il budget configurato restituiscono riferimenti a file anche
+con `summary_mode="none"`; il testo originale si legge con i tool file. I
+riassunti non aprono automaticamente questi file. Vedi
+[Output testuali grandi](16-large-tool-outputs.md) per soglia, suddivisione,
+durata, lettura e pulizia concorrente.
 
 ## Hook e tool specializzati
 

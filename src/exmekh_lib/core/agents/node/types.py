@@ -1,14 +1,30 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Literal
 
+from exmekh_lib.core.models.external_tool_output import ExternalToolOutput
 from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
+from exmekh_lib.core.models.tool_result import ToolResult
 from exmekh_lib.core.models.user_message import UserMessageContent
 from exmekh_lib.core.tool_calls.execution_manager import ExecutionSnapshot
+from exmekh_lib.core.tool_calls.output_runtime import ToolOutputDelivery
 
 type NodeUserMessage = UserMessageContent
+
+
+@dataclass(frozen=True, slots=True)
+class ToolCallOutcome:
+    value: Any
+    execution: ExecutionSnapshot | None = None
+    elapsed_seconds: float | None = None
+    inspection_path: str | None = None
+    failed: bool = False
+
+    @property
+    def delivery_failed(self) -> bool:
+        return self.failed or ToolResult(self.value).delivery_failed()
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,11 +52,36 @@ class ToolExecutionResult:
     failed: bool = False
     inspection_path: str | None = None
     executed_arguments: dict[str, Any] | None = None
+    external_output: ExternalToolOutput | None = None
+
+    def with_delivery(
+        self, delivery: ToolOutputDelivery, output_id: str
+    ) -> ToolExecutionResult:
+        raw_result = self.raw_result
+        if delivery.failure is not None:
+            raw_result = delivery.failure
+        elif delivery.result.external_output is not None:
+            raw_result = None
+        elif delivery.execution is not None:
+            raw_result = delivery.execution.record_result()
+        return replace(
+            self,
+            response=self.response.with_result(delivery.result),
+            raw_result=raw_result,
+            output_id=output_id,
+            execution=delivery.execution or self.execution,
+            external_output=delivery.result.external_output,
+            failed=self.failed or delivery.result.delivery_failed,
+        )
 
     def execution_metadata(self) -> dict[str, Any] | None:
         """Describe execution consistently for persistence without exposing its form."""
         if self.execution is not None:
-            return self.execution.status_info()
+            info = self.execution.status_info()
+            info["response_type"] = (
+                "failed" if self.failed else self.execution.response_type
+            )
+            return info
         if self.elapsed_seconds is None:
             return {"status": "failed"} if self.failed else None
         return {

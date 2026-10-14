@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
+from exmekh_lib.config.capabilities import CAPABILITY_FORMAT
 from exmekh_lib.core.agents.capabilities.resource_type import ResourceType
 from exmekh_lib.core.agents.capability.markdown_capability import MarkdownCapability
 from exmekh_lib.core.agents.hds.metadata import HDSMetadata
@@ -20,7 +22,7 @@ class HDS(MarkdownCapability[HDSMetadata]):
         references: tuple[str, ...],
     ) -> None:
         if not isinstance(metadata, HDSMetadata):
-            raise TypeError("metadata must be HDSMetadata")
+            raise TypeError(AGENT_TEXT.metadata_must_be_hdsmetadata)
 
         super().__init__(
             name=name,
@@ -50,4 +52,10 @@ class HDS(MarkdownCapability[HDSMetadata]):
         return self.get_agent_context_id()
 
     def __str__(self) -> str:
-        return f"Name: {self.name}\nType: HDS\nBody: {self.body[:50]}...\nDescription: {self.description[:50]}..."
+        return AGENT_TEXT.name_type_hds_body_description.format(
+            name=self.name,
+            body=self.body[: CAPABILITY_FORMAT.representation_preview_chars],
+            description=self.description[
+                : CAPABILITY_FORMAT.representation_preview_chars
+            ],
+        )

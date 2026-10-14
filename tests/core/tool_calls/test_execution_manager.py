@@ -6,13 +6,43 @@ import pytest
 
 from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
 from exmekh_lib.core.cache.user_message_codec import serialize_user_message
+from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
 from exmekh_lib.core.models.tool import ExecutionOptions, ToolExecutionOperation
 from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
 from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.core.models.xml_header import XmlHeader
 from exmekh_lib.core.tool_calls import execution_manager
-from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
+from exmekh_lib.core.tool_calls.execution_manager import (
+    ExecutionLaunch,
+    ToolExecutionManager,
+)
 from exmekh_lib.core.tool_calls.output_formatter import ToolOutputFormatter
+
+
+def test_launch_keeps_call_metadata_and_freezes_arguments_before_work_starts():
+    arguments = {"values": ["original"]}
+    release = Event()
+    manager = ToolExecutionManager()
+    request = ExecutionLaunch(
+        call=ToolCall("call", FunctionCall("work", arguments)),
+        operation=ToolExecutionOperation(lambda: release.wait(2)),
+        owner_scope=("root", "skill"),
+        options=ExecutionOptions("background"),
+        output_id="output",
+        skill_path="/skill",
+    )
+    try:
+        manager.launch(request)
+        arguments["values"].append("changed")
+        snapshot = manager.by_output_id("output")
+        assert snapshot.tool_call().get_arguments() == {"values": ["original"]}
+        assert snapshot.output_reference() == ToolOutputReference("work", "output")
+        assert snapshot.skill_path == "/skill"
+        assert tuple(item.output_id for item in manager.running_outputs(("root",))) == (
+            "output",
+        )
+    finally:
+        release.set()
 
 
 def test_resuming_waits_does_not_lose_an_already_released_wait(monkeypatch):

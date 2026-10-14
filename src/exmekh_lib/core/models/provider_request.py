@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.core.models.interactive import (
     InteractiveHandler,
     InteractiveProtocolError,
@@ -43,24 +44,26 @@ class ProviderRequest:
 
     def _check_provider_inputs(self) -> None:
         if not isinstance(self._messages, list) or not self._messages:
-            raise ValueError("Expected a non-empty list of Messages")
+            raise ValueError(MODEL_TEXT.expected_a_non_empty_list_of_messages)
         if not all(isinstance(message, Message) for message in self._messages):
-            raise TypeError("All messages must be Message instances")
+            raise TypeError(MODEL_TEXT.all_messages_must_be_message_instances)
         if self._extra is not None and not isinstance(self._extra, Mapping):
-            raise TypeError("Extra provider data must be a mapping")
+            raise TypeError(MODEL_TEXT.extra_provider_data_must_be_a_mapping)
         if self._tool_choice is not None and not isinstance(self._tool_choice, str):
-            raise TypeError("Tool choice must be a string")
+            raise TypeError(MODEL_TEXT.tool_choice_must_be_a_string)
         if self._tools is not None and not isinstance(self._tools, Tools):
-            raise TypeError("Tools must be a Tools instance")
+            raise TypeError(MODEL_TEXT.tools_must_be_a_tools_instance)
         if not isinstance(self.stream, bool):
-            raise TypeError("Streaming must be a boolean")
+            raise TypeError(MODEL_TEXT.streaming_must_be_a_boolean)
         if self.on_event is not None:
             ProviderEventHandler.validate_instance(self.on_event)
         if self._reasoning_effort_override is not None and (
             not isinstance(self._reasoning_effort_override, str)
             or not self._reasoning_effort_override.strip()
         ):
-            raise ValueError("Reasoning effort override must be a non-empty string")
+            raise ValueError(
+                MODEL_TEXT.reasoning_effort_override_must_be_a_non_empty_string
+            )
 
     @staticmethod
     def _include_tool_attachments(
@@ -98,7 +101,7 @@ class ProviderRequest:
     def require_interactive_handler(self) -> InteractiveHandler:
         if self.interactive_handler is None:
             raise InteractiveProtocolError(
-                "Interactive tools require a node runtime handler"
+                MODEL_TEXT.interactive_tools_require_a_node_runtime_handler
             )
         return self.interactive_handler
 

@@ -13,29 +13,10 @@ from exmekh_lib.config.file_inspection import (
     FILE_INSPECTION_TEXT,
     FileInspectionSettings,
 )
+from exmekh_lib.core.file_inspection.output_access import output_file_read_limit
+from exmekh_lib.utils.file import FileIdentity
 
 from .errors import FileInspectionError
-
-
-@dataclass(frozen=True, slots=True)
-class FileIdentity:
-    """Filesystem identity and version, independent of access time and aliases."""
-
-    device: int
-    inode: int
-    size: int
-    modified_ns: int
-    changed_ns: int
-
-    @classmethod
-    def from_stat(cls, value: os.stat_result) -> FileIdentity:
-        return cls(
-            value.st_dev,
-            value.st_ino,
-            value.st_size,
-            value.st_mtime_ns,
-            value.st_ctime_ns,
-        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,6 +84,10 @@ def read_snapshot(
         raise FileInspectionError(FILE_INSPECTION_TEXT.path_unavailable) from error
 
     try:
+        try:
+            max_file_bytes = output_file_read_limit(target, settings.max_file_bytes)
+        except ValueError as error:
+            raise FileInspectionError(str(error)) from error
         flags = (
             os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0)
         )
@@ -114,11 +99,11 @@ def read_snapshot(
             if not stat.S_ISREG(initial.st_mode):
                 raise FileInspectionError(FILE_INSPECTION_TEXT.regular_file_required)
             content = (
-                stream.read(settings.max_file_bytes + 1)
-                if initial.st_size <= settings.max_file_bytes
+                stream.read(max_file_bytes + 1)
+                if initial.st_size <= max_file_bytes
                 else None
             )
-            if content is not None and len(content) > settings.max_file_bytes:
+            if content is not None and len(content) > max_file_bytes:
                 content = None
             if FileIdentity.from_stat(initial) != FileIdentity.from_stat(
                 os.fstat(stream.fileno())

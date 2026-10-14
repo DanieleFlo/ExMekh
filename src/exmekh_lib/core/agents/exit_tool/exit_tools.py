@@ -6,6 +6,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import get_type_hints
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.core.agents.capability.loader import MarkdownLoader
 from exmekh_lib.core.agents.exit_tool.data import ExitToolData
 from exmekh_lib.core.agents.exit_tool.decorator import (
@@ -32,7 +33,9 @@ class ExitTools(DeepTools):
             self._validate_return_type(function, entrypoint_path)
             if definition.description is None:
                 raise ValueError(
-                    f"Exit-tool entrypoint '{entrypoint_path}' must have a description"
+                    AGENT_TEXT.exit_tool_entrypoint_must_have_a_description.format(
+                        entrypoint_path=entrypoint_path
+                    )
                 )
             instructions_path = tool_path / definition.instructions_path
             instructions = MarkdownLoader(instructions_path).load()
@@ -65,8 +68,9 @@ class ExitTools(DeepTools):
 
         if len(entrypoints) != 1:
             raise ValueError(
-                f"Exit-tool entrypoint '{entrypoint_path}' must define "
-                "exactly one @exit_tool entrypoint"
+                AGENT_TEXT.exit_tool_entrypoint_must_define_exactly_one_exit_tool.format(
+                    entrypoint_path=entrypoint_path
+                )
             )
         return entrypoints[0]
 
@@ -79,16 +83,20 @@ class ExitTools(DeepTools):
             return_type = get_type_hints(function).get("return")
         except (NameError, TypeError) as error:
             raise ValueError(
-                f"Exit-tool entrypoint '{entrypoint_path}' must return ExitToolData"
+                AGENT_TEXT.exit_tool_entrypoint_must_return_exittooldata.format(
+                    entrypoint_path=entrypoint_path
+                )
             ) from error
         if return_type is not ExitToolData:
             raise ValueError(
-                f"Exit-tool entrypoint '{entrypoint_path}' must return ExitToolData"
+                AGENT_TEXT.exit_tool_entrypoint_must_return_exittooldata.format(
+                    entrypoint_path=entrypoint_path
+                )
             )
 
     def load_exit_tools(self) -> tuple[ExitTool, ...]:
         if self._load_attempted:
-            raise RuntimeError("ExitTools can load only once")
+            raise RuntimeError(AGENT_TEXT.exittools_can_load_only_once)
 
         self._load_attempted = True
         tools: list[ExitTool] = []

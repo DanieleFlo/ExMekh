@@ -7,6 +7,7 @@ from typing import Literal
 
 from PIL import Image
 
+from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.interfaces.message import Message
 
 type UserMessagePart = str | TextsUserMessage | ImagesUserMessage | FilesUserMessage
@@ -26,7 +27,7 @@ class UserMessage(Message["UserMessageContent"]):
 
     def _check_inputs(self) -> None:
         if not isinstance(self._name, str):
-            raise TypeError("User name must be a string")
+            raise TypeError(MODEL_TEXT.user_name_must_be_a_string)
         parts = self._content if isinstance(self._content, list) else [self._content]
         if not all(
             isinstance(
@@ -34,10 +35,7 @@ class UserMessage(Message["UserMessageContent"]):
             )
             for part in parts
         ):
-            raise TypeError(
-                "User content must be a string or an instance of TextsUserMessage, "
-                "ImagesUserMessage, or FilesUserMessage, or a list of these types"
-            )
+            raise TypeError(MODEL_TEXT.user_content_must_be_a_string_or_an_instance)
 
     def get_message(self) -> UserMessageContent:
         return self._content
@@ -61,7 +59,11 @@ class UserMessage(Message["UserMessageContent"]):
             elif isinstance(part, FilesUserMessage):
                 yield from part.documents
             else:
-                raise TypeError(f"Unsupported user content type: {type(part).__name__}")
+                raise TypeError(
+                    MODEL_TEXT.unsupported_user_content_type.format(
+                        part_type_name=type(part).__name__
+                    )
+                )
 
     def has_attachments(self) -> bool:
         return any(not isinstance(part, str) for part in self.iter_content_parts())
@@ -80,11 +82,13 @@ class UserMessage(Message["UserMessageContent"]):
 
     def _dump_part(self, part: str | Image.Image | DocumentUserMessage) -> str:
         if isinstance(part, Image.Image):
-            return f"Image hash: {self._get_hash(part)}"
+            return MODEL_TEXT.image_hash.format(hash=self._get_hash(part))
         if isinstance(part, DocumentUserMessage):
-            return (
-                f"Document: {part.name}, extension: {part.extension}, "
-                f"mime_type: {part.mime_type}, Hash: {self._get_hash(part.file)}"
+            return MODEL_TEXT.document_extension_mime_type_hash.format(
+                part_name=part.name,
+                part_extension=part.extension,
+                part_mime_type=part.mime_type,
+                hash=self._get_hash(part.file),
             )
         return part
 

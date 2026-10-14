@@ -5,6 +5,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Final
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.config.capabilities import CAPABILITY_FORMAT
 from exmekh_lib.config.runtime import RUNTIME
 
@@ -39,12 +40,14 @@ class CapabilitiesLayout:
         elif isinstance(capabilities_paths, (str, bytes)) or not isinstance(
             capabilities_paths, Sequence
         ):
-            raise TypeError("capabilities_paths must be a sequence of Path")
+            raise TypeError(AGENT_TEXT.capabilities_paths_must_be_a_sequence_of_path)
         else:
             paths = tuple(capabilities_paths)
 
         if not all(isinstance(path, Path) for path in paths):
-            raise TypeError("capabilities_paths must contain only Path instances")
+            raise TypeError(
+                AGENT_TEXT.capabilities_paths_must_contain_only_path_instances
+            )
 
         canonical_paths = tuple(path.resolve() for path in paths)
 
@@ -53,10 +56,10 @@ class CapabilitiesLayout:
             canonical_paths = (*canonical_paths, default_path.resolve())
 
         if not paths:
-            raise ValueError("capabilities_paths cannot be empty")
+            raise ValueError(AGENT_TEXT.capabilities_paths_cannot_be_empty)
 
         if len(canonical_paths) != len(set(canonical_paths)):
-            raise ValueError("Duplicate capabilities path")
+            raise ValueError(AGENT_TEXT.duplicate_capabilities_path)
 
         return paths
 
@@ -122,23 +125,31 @@ class CapabilitiesLayout:
     def _validate_capabilities_path(self, capabilities_path: Path) -> None:
         if capabilities_path.is_symlink():
             raise ValueError(
-                f"Capabilities path must not be a symbolic link: {capabilities_path}"
+                AGENT_TEXT.capabilities_path_must_not_be_a_symbolic_link.format(
+                    capabilities_path=capabilities_path
+                )
             )
 
         if not capabilities_path.exists():
             raise FileNotFoundError(
-                f"Capabilities path does not exist: {capabilities_path}"
+                AGENT_TEXT.capabilities_path_does_not_exist.format(
+                    capabilities_path=capabilities_path
+                )
             )
 
         if not capabilities_path.is_dir():
             raise ValueError(
-                f"Capabilities path must be a directory: {capabilities_path}"
+                AGENT_TEXT.capabilities_path_must_be_a_directory.format(
+                    capabilities_path=capabilities_path
+                )
             )
 
         if capabilities_path.name != self.CAPABILITIES_FOLDER_NAME:
             raise ValueError(
-                f"Capabilities folder must be named "
-                f"'{self.CAPABILITIES_FOLDER_NAME}': {capabilities_path}"
+                AGENT_TEXT.capabilities_folder_must_be_named.format(
+                    capabilities_folder_name=self.CAPABILITIES_FOLDER_NAME,
+                    capabilities_path=capabilities_path,
+                )
             )
 
     def _validate_capabilities_entry(self, entry: Path) -> None:
@@ -146,21 +157,22 @@ class CapabilitiesLayout:
 
         if entry.is_symlink():
             raise ValueError(
-                f"Capabilities entry '{capability_type.value}' must not be a "
-                f"symbolic link: {entry}"
+                AGENT_TEXT.capabilities_entry_must_not_be_a_symbolic_link.format(
+                    capability_type_value=capability_type.value, entry=entry
+                )
             )
 
         if not entry.is_dir():
             raise ValueError(
-                f"Capabilities entry '{capability_type.value}' must be a "
-                f"directory: {entry}"
+                AGENT_TEXT.capabilities_entry_must_be_a_directory.format(
+                    capability_type_value=capability_type.value, entry=entry
+                )
             )
 
     def _capability_type(self, entry: Path) -> CapabilityType:
         if entry.name == "exit-skill":
             raise ValueError(
-                "The exit-skill directory is no longer supported; "
-                "move instructions into exit-tool and set instructions_path on @exit_tool"
+                AGENT_TEXT.the_exit_skill_directory_is_no_longer_supported_move
             )
         try:
             return CapabilityType(entry.name)
@@ -169,8 +181,9 @@ class CapabilitiesLayout:
                 capability_type.value for capability_type in CapabilityType
             )
             raise ValueError(
-                f"Unexpected entry inside capabilities folder: {entry}. "
-                f"Allowed directories: {allowed}"
+                AGENT_TEXT.unexpected_entry_inside_capabilities_folder_allowed_directories.format(
+                    entry=entry, allowed=allowed
+                )
             ) from None
 
     def _create_missing_type_folders(self, capabilities_path: Path) -> None:

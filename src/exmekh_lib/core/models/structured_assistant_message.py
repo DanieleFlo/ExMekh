@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.core.models.assistant_message import ToolCall
 from exmekh_lib.interfaces.message import Message
 
@@ -21,22 +22,26 @@ class StructuredAssistantMessage[MessageContent: BaseModel](Message[MessageConte
 
     def _check_inputs(self):
         if not issubclass(type(self._content), BaseModel):
-            raise TypeError("Structured assistant content must be a Pydantic BaseModel")
+            raise TypeError(
+                MODEL_TEXT.structured_assistant_content_must_be_a_pydantic_basemodel
+            )
         if self._tool_calls is not None:
             if not isinstance(self._tool_calls, list):
                 raise TypeError(
-                    "Structured assistant tool_calls must be a list of ToolCall objects"
+                    MODEL_TEXT.structured_assistant_tool_calls_must_be_a_list_of
                 )
             for tool_call in self._tool_calls:
                 if not isinstance(tool_call, ToolCall):
                     raise TypeError(
-                        "Structured assistant tool_calls must be a list of ToolCall objects"
+                        MODEL_TEXT.structured_assistant_tool_calls_must_be_a_list_of
                     )
 
     def get_message(self) -> MessageContent:
         if not issubclass(type(self._content), BaseModel):
             raise TypeError(
-                f"content must be a subclass of BaseModel, got {type(self._content)!r}"
+                MODEL_TEXT.content_must_be_a_subclass_of_basemodel_got.format(
+                    content_type=type(self._content)
+                )
             )
         return self._content
 

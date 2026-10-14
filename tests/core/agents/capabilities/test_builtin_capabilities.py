@@ -207,6 +207,7 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
             "Use an optional cursor to read only new output; omit it to read the "
             "complete output. Includes the final result when available. "
             "Also reads saved user steering and restores its attachments. "
+            "Oversized output returns file references; use the file tools to read its text. "
             "summary_mode defaults to 'none'; 'brief' gives 3 to 5 bullet points, "
             f"'detailed' preserves essential details. Outputs below {RUNTIME.tool_output_summary_min_tokens} tokens stay complete."
         ),

@@ -6,6 +6,7 @@ from typing import Any
 
 from PIL import Image
 
+from exmekh_lib.config.cache_text import CACHE_TEXT
 from exmekh_lib.core.models.interactive import InterruptedMessage
 from exmekh_lib.core.models.user_message import (
     DocumentUserMessage,
@@ -52,15 +53,17 @@ def deserialize_user_message(data: dict[str, Any]) -> UserMessage:
         if "interactive" in data:
             record = data["interactive"]
             if not isinstance(record, dict):
-                raise ValueError("Cached interactive record must be an object")
+                raise ValueError(CACHE_TEXT.cached_interactive_record_must_be_an_object)
             return InterruptedMessage(record)
         name = _text_field(data, "name")
         raw_parts = data["parts"]
         if not isinstance(raw_parts, list):
-            raise ValueError("Cached user message parts must be a list")
+            raise ValueError(CACHE_TEXT.cached_user_message_parts_must_be_a_list)
         return UserMessage([_deserialize_part(part) for part in raw_parts], name=name)
     except (KeyError, TypeError, OSError) as error:
-        raise ValueError(f"Invalid cached user message: {error}") from error
+        raise ValueError(
+            CACHE_TEXT.invalid_cached_user_message.format(error=error)
+        ) from error
 
 
 def _deserialize_part(part: dict[str, Any]) -> UserMessagePart:
@@ -70,7 +73,7 @@ def _deserialize_part(part: dict[str, Any]) -> UserMessagePart:
         case "image":
             prefix, separator, data = _text_field(part, "data").partition(",")
             if not separator or prefix != "data:image/png;base64":
-                raise ValueError("Cached images must be PNG data URLs")
+                raise ValueError(CACHE_TEXT.cached_images_must_be_png_data_urls)
             with Image.open(BytesIO(base64.b64decode(data, validate=True))) as image:
                 return ImagesUserMessage([image.copy()])
         case "file":
@@ -85,11 +88,15 @@ def _deserialize_part(part: dict[str, Any]) -> UserMessagePart:
                 ]
             )
         case unknown:
-            raise ValueError(f"Unsupported cached user content type: {unknown}")
+            raise ValueError(
+                CACHE_TEXT.unsupported_cached_user_content_type.format(unknown=unknown)
+            )
 
 
 def _text_field(data: dict[str, Any], name: str) -> str:
     value = data[name]
     if not isinstance(value, str):
-        raise ValueError(f"Cached user message {name} must be a string")
+        raise ValueError(
+            CACHE_TEXT.cached_user_message_must_be_a_string.format(name=name)
+        )
     return value

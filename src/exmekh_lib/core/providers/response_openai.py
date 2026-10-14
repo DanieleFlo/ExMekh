@@ -13,6 +13,7 @@ from openai.types.responses import (
 )
 from pydantic import BaseModel
 
+from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.provider_request import ProviderRequest
 from exmekh_lib.core.models.provider_response import ProviderResponse
 from exmekh_lib.core.models.provider_stream_event import (
@@ -60,14 +61,16 @@ class ResponseOpenAI:
 
     def _check_inputs(self) -> None:
         if not isinstance(self._client, OpenAI):
-            raise TypeError("Client must be an instance of OpenAI")
+            raise TypeError(PROVIDER_TEXT.client_must_be_an_instance_of_openai)
         if not isinstance(self._model, str):
-            raise TypeError("Model must be a string")
+            raise TypeError(PROVIDER_TEXT.model_must_be_a_string)
         if self._reasoning_effort is not None and not isinstance(
             self._reasoning_effort,
             ReasoningEffort,
         ):
-            raise TypeError("Reasoning effort must be a ReasoningEffort instance")
+            raise TypeError(
+                PROVIDER_TEXT.reasoning_effort_must_be_a_reasoningeffort_instance
+            )
 
     def call(self, request: ProviderRequest) -> ProviderResponse:
         response = self._execute_request(request)
@@ -153,7 +156,9 @@ class ResponseOpenAI:
                 close()
 
         if response is None:
-            raise RuntimeError("No completed response returned from the provider")
+            raise RuntimeError(
+                PROVIDER_TEXT.no_completed_response_returned_from_the_provider
+            )
 
         cls._ensure_completed(response)
         request.execute_on_stream_event(
@@ -164,9 +169,17 @@ class ResponseOpenAI:
     @staticmethod
     def _ensure_completed(response: Response) -> None:
         if response.error is not None:
-            raise RuntimeError(f"Provider response failed: {response.error.message}")
+            raise RuntimeError(
+                PROVIDER_TEXT.provider_response_failed.format(
+                    response_error_message=response.error.message
+                )
+            )
         if response.status != "completed":
-            raise RuntimeError(f"Provider response did not complete: {response.status}")
+            raise RuntimeError(
+                PROVIDER_TEXT.provider_response_did_not_complete.format(
+                    response_status=response.status
+                )
+            )
 
     def _parse_response(
         self,

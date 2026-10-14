@@ -146,6 +146,8 @@ class FileEditFormat:
     """Fixed framing and behavior negotiated with the interactive provider."""
 
     behavior: str = "edit_file.v3"
+    uninspected_error_code: str = "uninspected"
+    unread_error_code: str = "unread"
     opening_pattern: str = r'<exmekh_edit path="([^"<>]+)"(?: id="([0-9]{3})")?\s*/>'
     separator_pattern: str = r'<exmekh_new_text(?: id="([0-9]{3})")?\s*/>'
 

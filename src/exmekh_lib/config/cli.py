@@ -17,6 +17,8 @@ class CliPresentation:
     response_label: str = "\nResponse:"
     history_label: str = "history:"
     skill_history_label: str = "Deep skill history:\n"
+    tools_label: str = "# Tools text"
+    separator: str = "----------"
 
 
 @dataclass(frozen=True, slots=True)

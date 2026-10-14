@@ -20,6 +20,7 @@ class WebNavigationSettings:
     max_markdown_chars: int = 24_000
     cache_ttl_seconds: int = 900
     chromium_install_timeout_seconds: int = 300
+    max_install_diagnostic_chars: int = 300
     pruning_threshold: float = 0.48
     pruning_min_words: int = 20
     minimum_fit_chars: int = 120
@@ -110,3 +111,44 @@ class WebFormat:
 WEB_NAVIGATION = WebNavigationSettings()
 WEB_RANKING = WebRankingSettings()
 WEB_FORMAT = WebFormat()
+
+
+@dataclass(frozen=True, slots=True)
+class WebContentSettings:
+    """Primary content selection and temporal metadata aliases."""
+
+    minimum_primary_chars: int = 200
+    minimum_article_fraction: float = 0.35
+    recommendation_article_chars: int = 1000
+    max_json_ld_blocks: int = 20
+    boilerplate_tokens: frozenset[str] = frozenset(
+        {
+            "advertisement",
+            "adsbygoogle",
+            "cookie-banner",
+            "cookie-consent",
+            "outbrain",
+            "recommendation",
+            "recommended-content",
+            "related-content",
+            "sponsored-content",
+            "taboola",
+        }
+    )
+    published_keys: tuple[str, ...] = (
+        "article:published_time",
+        "datepublished",
+        "date_published",
+        "publication_date",
+        "published_time",
+    )
+    modified_keys: tuple[str, ...] = (
+        "article:modified_time",
+        "datemodified",
+        "date_modified",
+        "last-modified",
+        "modified_time",
+    )
+
+
+WEB_CONTENT = WebContentSettings()

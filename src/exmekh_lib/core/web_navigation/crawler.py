@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from exmekh_lib.config.web import WEB_FORMAT, WEB_NAVIGATION
+from exmekh_lib.config.web_text import WEB_TEXT
 
 from .actions import execute_actions
 from .ast import build_semantic_ast
@@ -56,7 +57,9 @@ def crawl_page(
         or not 1 <= timeout_seconds <= WEB_NAVIGATION.max_timeout_seconds
     ):
         raise WebNavigationError(
-            f"timeout_seconds must be between 1 and {WEB_NAVIGATION.max_timeout_seconds}.",
+            WEB_TEXT.timeout_seconds_must_be_between_and.format(
+                web_navigation_max_timeout_seconds=WEB_NAVIGATION.max_timeout_seconds
+            ),
             kind="invalid_timeout",
         )
     root = Path(workroot).resolve() if workroot is not None else Path.cwd().resolve()
@@ -139,16 +142,20 @@ def _install_headless_chromium() -> None:
         )
     except (OSError, subprocess.TimeoutExpired) as error:
         raise WebNavigationError(
-            "Could not install Chromium automatically. Run "
-            "`python -m playwright install chromium --only-shell` in this environment.",
+            WEB_TEXT.could_not_install_chromium_automatically_run_python_m_playwright,
             kind="browser_unavailable",
         ) from error
     if completed.returncode != 0:
         detail = (completed.stderr or completed.stdout).strip().splitlines()
-        suffix = f" Playwright reported: {detail[-1][:300]}" if detail else ""
+        suffix = (
+            WEB_TEXT.playwright_reported.format(
+                detail=detail[-1][: WEB_NAVIGATION.max_install_diagnostic_chars]
+            )
+            if detail
+            else ""
+        )
         raise WebNavigationError(
-            "Could not install Chromium automatically. Run "
-            "`python -m playwright install chromium --only-shell` in this environment."
+            WEB_TEXT.could_not_install_chromium_automatically_run_python_m_playwright
             + suffix,
             kind="browser_unavailable",
         )
@@ -220,7 +227,7 @@ class _BrowserCapture:
             raise self._action_error
         self._policy.raise_if_violated()
         if not result.success:
-            message = str(result.error_message or "Unknown Crawl4AI failure.")
+            message = str(result.error_message or WEB_TEXT.unknown_crawl4ai_failure)
             raise WebNavigationError(message, kind="crawl_failed")
         final_url = str(
             self._final_url or result.redirected_url or result.url or requested_url
@@ -228,7 +235,9 @@ class _BrowserCapture:
         validate_public_url(final_url)
         if normalized_origin(final_url) != self._policy.initial_origin:
             raise WebNavigationError(
-                f"Main-frame navigation left the initial origin: {final_url}.",
+                WEB_TEXT.main_frame_navigation_left_the_initial_origin.format(
+                    final_url=final_url
+                ),
                 kind="cross_origin_navigation",
             )
         return _CapturedPage(
@@ -299,13 +308,14 @@ async def _crawl_page(
         raise
     except Exception as error:
         capture.raise_if_navigation_violated()
-        if "Executable doesn't exist" in str(error):
+        if WEB_TEXT.executable_doesn_t_exist in str(error):
             raise WebNavigationError(
-                "Chromium is unavailable. Run `python -m playwright install chromium --only-shell` in this environment.",
+                WEB_TEXT.chromium_is_unavailable_run_python_m_playwright_install_chromium,
                 kind="browser_unavailable",
             ) from error
         raise WebNavigationError(
-            f"Browser crawl failed: {type(error).__name__}.", kind="crawl_failed"
+            WEB_TEXT.browser_crawl_failed.format(error_type_name=type(error).__name__),
+            kind="crawl_failed",
         ) from error
     finally:
         await crawler.close()
@@ -347,7 +357,8 @@ def _validate_output_mode(value: str) -> OutputMode:
     mode = str(value).strip().lower()
     if mode not in {"markdown", "ast", "hybrid"}:
         raise WebNavigationError(
-            "output_mode must be markdown, ast, or hybrid.", kind="invalid_output_mode"
+            WEB_TEXT.output_mode_must_be_markdown_ast_or_hybrid,
+            kind="invalid_output_mode",
         )
     return mode  # type: ignore[return-value]
 
@@ -377,7 +388,7 @@ def _extract_markdown(result: Any, *, prefer_raw: bool = False) -> tuple[str, bo
     stripped = value.strip()
     truncated = len(stripped) > MAX_MARKDOWN_CHARS
     if truncated:
-        stripped = stripped[:MAX_MARKDOWN_CHARS].rstrip() + "\n\n[Content truncated]"
+        stripped = stripped[:MAX_MARKDOWN_CHARS].rstrip() + WEB_TEXT.content_truncated
     return stripped, truncated
 
 

@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
 from exmekh_lib.core.agents.capabilities.defaults import (
     RUNTIME_NAMES,
@@ -60,7 +61,7 @@ class _DefaultCapabilitiesComposer:
         }
         if missing_tools:
             raise ValueError(
-                "Override tools not found in capabilities_paths: "
+                AGENT_TEXT.override_tools_not_found_in_capabilities_paths
                 + ", ".join(sorted(missing_tools))
             )
         missing_skills = {
@@ -70,7 +71,7 @@ class _DefaultCapabilitiesComposer:
         }
         if missing_skills:
             raise ValueError(
-                "Override deep skills not found in capabilities_paths: "
+                AGENT_TEXT.override_deep_skills_not_found_in_capabilities_paths
                 + ", ".join(sorted(missing_skills))
             )
 
@@ -129,7 +130,9 @@ class _DefaultCapabilitiesComposer:
                 tools.append(replacement.with_execution_policy_of(original_tools[name]))
             else:
                 raise TypeError(
-                    f"Override for '{name}' must be resolved before composition"
+                    AGENT_TEXT.override_for_must_be_resolved_before_composition.format(
+                        name=name
+                    )
                 )
 
         return CapabilitiesData(
@@ -150,6 +153,6 @@ class _DefaultCapabilitiesComposer:
         missing = required_names - loaded_names
         if missing:
             raise ValueError(
-                "Selected default capabilities are missing: "
+                AGENT_TEXT.selected_default_capabilities_are_missing
                 + ", ".join(sorted(missing))
             )

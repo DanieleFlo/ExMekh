@@ -26,6 +26,7 @@ from PIL import Image
 from pydantic import BaseModel
 from pydantic_core import to_json
 
+from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.assistant_message import (
     AssistantMessage,
     ToolCall,
@@ -63,7 +64,9 @@ class ToOpenAIChatCompletionMapper:
                 content=content, role=role, name=name
             )
 
-        raise ValueError(f"Expected role 'system' or 'developer', got '{role}'")
+        raise ValueError(
+            PROVIDER_TEXT.expected_role_system_or_developer_got.format(role=role)
+        )
 
     @classmethod
     def map_user_message(
@@ -73,7 +76,7 @@ class ToOpenAIChatCompletionMapper:
         role = user_message.get_role_name()
 
         if role != "user":
-            raise ValueError(f"Expected role 'user', got '{role}'")
+            raise ValueError(PROVIDER_TEXT.expected_role_user_got.format(role=role))
 
         return ChatCompletionUserMessageParam(
             content=cls._map_user_content(user_message),
@@ -105,7 +108,11 @@ class ToOpenAIChatCompletionMapper:
                 parts.append(cls._map_file_document(part, document_index))
                 document_index += 1
             else:
-                raise TypeError(f"Unsupported user content type: {type(part).__name__}")
+                raise TypeError(
+                    PROVIDER_TEXT.unsupported_user_content_type.format(
+                        part_type_name=type(part).__name__
+                    )
+                )
         return parts
 
     @staticmethod
@@ -135,7 +142,9 @@ class ToOpenAIChatCompletionMapper:
         content = assistant_message.get_message()
 
         if role != "assistant":
-            raise ValueError(f"Expected role 'assistant', got '{role}'")
+            raise ValueError(
+                PROVIDER_TEXT.expected_role_assistant_got.format(role=role)
+            )
 
         mapped_message = ChatCompletionAssistantMessageParam(
             content=content,
@@ -157,14 +166,17 @@ class ToOpenAIChatCompletionMapper:
         role = assistant_message.get_role_name()
 
         if role != "assistant":
-            raise ValueError(f"Expected role 'assistant', got '{role}'")
+            raise ValueError(
+                PROVIDER_TEXT.expected_role_assistant_got.format(role=role)
+            )
 
         message_content = assistant_message.get_message()
 
         if not isinstance(message_content, BaseModel):
             raise TypeError(
-                f"Structured assistant content must be a Pydantic BaseModel, "
-                f"got {type(message_content)!r}"
+                PROVIDER_TEXT.structured_assistant_content_must_be_a_pydantic_basemodel_got.format(
+                    message_content_type=type(message_content)
+                )
             )
 
         mapped_message = ChatCompletionAssistantMessageParam(
@@ -194,7 +206,11 @@ class ToOpenAIChatCompletionMapper:
         if isinstance(tool_call, ToolCall):
             return cls._map_function_tool_call(tool_call)
 
-        raise TypeError(f"Unsupported tool call type: {type(tool_call).__name__}")
+        raise TypeError(
+            PROVIDER_TEXT.unsupported_tool_call_type.format(
+                tool_call_type_name=type(tool_call).__name__
+            )
+        )
 
     @staticmethod
     def _map_function_tool_call(
@@ -219,7 +235,7 @@ class ToOpenAIChatCompletionMapper:
         content = tool_message.get_message()
 
         if role != "tool":
-            raise ValueError(f"Expected role 'tool', got '{role}'")
+            raise ValueError(PROVIDER_TEXT.expected_role_tool_got.format(role=role))
 
         return ChatCompletionToolMessageParam(
             content=content,
@@ -235,7 +251,7 @@ class ToOpenAIChatCompletionMapper:
         content = function_message.get_message()
 
         if role != "function":
-            raise ValueError(f"Expected role 'function', got '{role}'")
+            raise ValueError(PROVIDER_TEXT.expected_role_function_got.format(role=role))
 
         return ChatCompletionFunctionMessageParam(
             content=content,

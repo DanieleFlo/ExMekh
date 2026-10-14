@@ -4,6 +4,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.core.models.tool import Tool
 from exmekh_lib.interfaces.tool_hook import AfterTool, BeforeTool
 
@@ -26,7 +27,9 @@ class DeepTool(Tool):
     ) -> None:
         definition = get_tool_definition(function)
         if definition is None or definition.description is None:
-            raise ValueError("Tool function must have @deep_tool with a description")
+            raise ValueError(
+                AGENT_TEXT.tool_function_must_have_deep_tool_with_a_description
+            )
 
         bound_function = partial(function, work_root, *runtime_arguments)
         super().__init__(

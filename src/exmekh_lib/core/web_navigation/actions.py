@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Literal, NotRequired, TypedDict, get_args
 
 from exmekh_lib.config.web import WEB_NAVIGATION
+from exmekh_lib.config.web_text import WEB_TEXT
 
 from .errors import WebNavigationError
 from .security import NavigationPolicy, validate_public_url
@@ -30,24 +31,29 @@ def validate_actions(actions: Sequence[Mapping[str, Any]]) -> list[dict[str, Any
     """Return normalized actions after strict shape and budget validation."""
     if isinstance(actions, (str, bytes)) or not isinstance(actions, Sequence):
         raise WebNavigationError(
-            "Actions must be a JSON array.", kind="invalid_actions"
+            WEB_TEXT.actions_must_be_a_json_array, kind="invalid_actions"
         )
     if not actions or len(actions) > MAX_ACTIONS:
         raise WebNavigationError(
-            f"Actions must contain between 1 and {MAX_ACTIONS} items.",
+            WEB_TEXT.actions_must_contain_between_and_items.format(
+                max_actions=MAX_ACTIONS
+            ),
             kind="invalid_actions",
         )
     normalized: list[dict[str, Any]] = []
     for index, action in enumerate(actions):
         if not isinstance(action, Mapping):
             raise WebNavigationError(
-                f"Action {index} must be an object.", kind="invalid_actions"
+                WEB_TEXT.action_must_be_an_object.format(index=index),
+                kind="invalid_actions",
             )
         item = dict(action)
         kind = str(item.get("kind", "")).strip().lower()
         if kind not in ACTION_KINDS:
             raise WebNavigationError(
-                f"Action {index} has unsupported kind: {kind or '<empty>'}.",
+                WEB_TEXT.action_has_unsupported_kind.format(
+                    index=index, value=kind or "<empty>"
+                ),
                 kind="invalid_actions",
             )
         item["kind"] = kind
@@ -71,7 +77,9 @@ def _validate_action(*, index: int, action: dict[str, Any]) -> None:
     unexpected = action.keys() - allowed_fields[kind]
     if unexpected:
         raise WebNavigationError(
-            f"Action {index} has unexpected fields: {', '.join(sorted(unexpected))}.",
+            WEB_TEXT.action_has_unexpected_fields.format(
+                index=index, names=", ".join(sorted(unexpected))
+            ),
             kind="invalid_actions",
         )
     if kind in {"click", "fill", "select"}:
@@ -82,7 +90,8 @@ def _validate_action(*, index: int, action: dict[str, Any]) -> None:
         delta = action.get("delta_y", WEB_NAVIGATION.default_scroll_pixels)
         if isinstance(delta, bool) or not isinstance(delta, (int, float)):
             raise WebNavigationError(
-                f"Action {index} delta_y must be numeric.", kind="invalid_actions"
+                WEB_TEXT.action_delta_y_must_be_numeric.format(index=index),
+                kind="invalid_actions",
             )
         action["delta_y"] = max(
             -WEB_NAVIGATION.max_scroll_pixels,
@@ -93,13 +102,15 @@ def _validate_action(*, index: int, action: dict[str, Any]) -> None:
         milliseconds = action.get("milliseconds")
         if bool(selector) == (milliseconds is not None):
             raise WebNavigationError(
-                f"Action {index} wait requires exactly one of selector or milliseconds.",
+                WEB_TEXT.action_wait_requires_exactly_one_of_selector_or_milliseconds.format(
+                    index=index
+                ),
                 kind="invalid_actions",
             )
         if milliseconds is not None:
             if isinstance(milliseconds, bool) or not isinstance(milliseconds, int):
                 raise WebNavigationError(
-                    f"Action {index} milliseconds must be an integer.",
+                    WEB_TEXT.action_milliseconds_must_be_an_integer.format(index=index),
                     kind="invalid_actions",
                 )
             action["milliseconds"] = max(
@@ -120,7 +131,8 @@ def _require_text(
     value = action.get(field)
     if not isinstance(value, str) or (not allow_empty and not value.strip()):
         raise WebNavigationError(
-            f"Action {index} requires string field '{field}'.", kind="invalid_actions"
+            WEB_TEXT.action_requires_string_field.format(index=index, field=field),
+            kind="invalid_actions",
         )
     return value
 

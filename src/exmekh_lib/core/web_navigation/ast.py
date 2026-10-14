@@ -10,6 +10,7 @@ from urllib.parse import urljoin
 from lxml import html as lxml_html
 
 from exmekh_lib.config.web import WEB_NAVIGATION
+from exmekh_lib.config.web_text import WEB_TEXT
 
 MAX_AST_NODES = WEB_NAVIGATION.max_ast_nodes
 MAX_AST_TEXT_CHARS = WEB_NAVIGATION.max_ast_text_chars
@@ -64,7 +65,7 @@ def build_semantic_ast(html: str, *, base_url: str) -> dict[str, Any]:
     try:
         root = lxml_html.fromstring(html or "<html></html>")
     except (TypeError, ValueError) as error:
-        raise ValueError("Rendered page HTML could not be parsed.") from error
+        raise ValueError(WEB_TEXT.rendered_page_html_could_not_be_parsed) from error
     budget = _Budget()
     children = _build_children(root, base_url=base_url, budget=budget)
     return {

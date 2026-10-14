@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from exmekh_lib.config.file_editing import FILE_EDIT_FORMAT, FILE_EDITING
+from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.core.models.assistant_message import ToolCall
 from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.utils.xml import stringify_tool_result
@@ -43,9 +44,9 @@ def validate_interactive_tool(
     if interactive is None:
         return
     if not isinstance(interactive, InteractiveDefinition):
-        raise TypeError("interactive must be an InteractiveDefinition or None")
+        raise TypeError(MODEL_TEXT.interactive_must_be_an_interactivedefinition_or_none)
     if background_enabled:
-        raise ValueError("Interactive tools must execute synchronously")
+        raise ValueError(MODEL_TEXT.interactive_tools_must_execute_synchronously)
 
 
 class InteractiveHandler(Protocol):

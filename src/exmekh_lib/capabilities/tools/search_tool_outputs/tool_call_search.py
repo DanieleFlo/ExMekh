@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -10,8 +9,11 @@ from exmekh_lib.core.cache.node_cache import NodeCache
 from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
 from exmekh_lib.core.models.tool import Tool
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
+from exmekh_lib.core.tool_calls.output_preparer import ToolOutputPreparer
+from exmekh_lib.core.tool_calls.output_runtime import ToolOutputRuntime
 from exmekh_lib.core.tool_calls.output_view import ToolOutputView
 
+from .query import ToolOutputQuery
 from .raw_search import run as run_raw_search
 
 
@@ -19,10 +21,13 @@ class ToolCallSearch:
     """Search one node's stored and runtime outputs without consuming results."""
 
     def __init__(
-        self, cache: NodeCache, execution_manager: ToolExecutionManager | None = None
+        self,
+        cache: NodeCache,
+        execution_manager: ToolExecutionManager | None = None,
+        output_preparer: ToolOutputPreparer | None = None,
     ) -> None:
         self._cache = cache
-        self._execution_manager = execution_manager
+        self._output_runtime = ToolOutputRuntime(execution_manager, output_preparer)
 
     def as_tool(self) -> Tool:
         return DeepTool(run_raw_search, Path.cwd(), self.search, cache_result=False)
@@ -62,41 +67,24 @@ class ToolCallSearch:
         limit: int = RUNTIME.memory_default_page_limit,
     ) -> tuple[list[ToolCallRecord], int, int | None]:
         """Return matching records and pagination metadata."""
-        if not isinstance(query, str):
-            raise TypeError(RUNTIME.output_query_required)
-        if tool_name is not None and (
-            not isinstance(tool_name, str) or not tool_name.strip()
-        ):
-            raise ValueError(RUNTIME.output_tool_name_required)
-        if skill_path is not None and (
-            not isinstance(skill_path, str) or not skill_path.startswith("/")
-        ):
-            raise ValueError(RUNTIME.output_skill_path_required)
-        if type(offset) is not int or offset < 0:
-            raise ValueError(RUNTIME.output_offset_required)
-        if type(limit) is not int or not 1 <= limit <= RUNTIME.memory_max_page_limit:
-            raise ValueError(
-                RUNTIME.output_limit_required.format(
-                    limit=RUNTIME.memory_max_page_limit
-                )
+        return self.find(
+            ToolOutputQuery(
+                query=query,
+                tool_name=tool_name,
+                skill_path=skill_path,
+                offset=offset,
+                limit=limit,
             )
-        needle = query.casefold()
-        matches = [
-            record
-            for record in self._output_records()
-            if (tool_name is None or record.name == tool_name)
-            and (skill_path is None or record.skill_path == skill_path)
-            and needle in json.dumps(record.to_dict(), ensure_ascii=False).casefold()
-        ]
-        end = offset + limit
-        return matches[offset:end], len(matches), end if end < len(matches) else None
+        )
+
+    def find(
+        self, query: ToolOutputQuery
+    ) -> tuple[list[ToolCallRecord], int, int | None]:
+        return query.select(self._output_records())
 
     def _output_records(self) -> tuple[ToolCallRecord, ...]:
         records = {
             record.id: ToolOutputView(record).saved_record()
             for record in self._cache.get_all()
         }
-        if self._execution_manager is not None:
-            for record in self._execution_manager.output_records(records):
-                records[record.id] = record
-        return tuple(records.values())
+        return self._output_runtime.prepare_records(records)

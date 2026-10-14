@@ -7,6 +7,7 @@ from openai.types.chat.chat_completion_message_function_tool_call import (
     ChatCompletionMessageFunctionToolCall,
 )
 
+from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.tool import Tool
 from exmekh_lib.core.models.tools import Tools
 from exmekh_lib.core.providers.openai_chat_completion_annotation_schema_builder import (
@@ -77,7 +78,9 @@ class OpenAIChatCompletionToolMapper:
         tool_call: ChatCompletionMessageFunctionToolCall,
     ) -> OpenAIFunctionToolCall:
         if not isinstance(tool_call, ChatCompletionMessageFunctionToolCall):
-            raise TypeError("tool_call must be an OpenAI function tool call")
+            raise TypeError(
+                PROVIDER_TEXT.tool_call_must_be_an_openai_function_tool_call
+            )
         return OpenAIFunctionToolCall(
             name=tool_call.function.name,
             arguments=tool_call.function.arguments,

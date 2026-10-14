@@ -18,6 +18,10 @@ class CapabilityFormat:
     exit_tool_attribute: str = "__exmekh_lib_exit_tool__"
     catalog_tag: str = "catalog"
     description_field: str = "description"
+    representation_preview_chars: int = 50
+    markdown_resource_type: str = "Markdown capability"
+    deep_skill_resource_type: str = "Deep skill"
+    hds_resource_type: str = "HDS"
     sub_skills_field: str = "sub-skills"
     sub_tools_field: str = "sub-tools"
     inherits_parent_tools_field: str = "inherits-parent-tools"
@@ -37,6 +41,12 @@ class CapabilityText:
     """Fixed text presented by bundled capabilities."""
 
     skill_only_availability: str = "Available in every skill."
+    tool_label: str = "tool"
+    mock_sub_tool_result: str = "Mock sub-tool result: {text}"
+    mock_tool_result: str = "Mock tool result: {text}"
+    nested_sub_tool_result: str = "Nested sub-tool result: {text}"
+    shared_tool_result: str = "Shared tool result: {text}"
+    exit_tool_label: str = "Exit tool '{name}'"
     exit_tool_description: str = (
         "Finishes the current skill and returns its result to the caller."
     )

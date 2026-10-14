@@ -4,6 +4,7 @@ from typing import Any
 
 from openai.types.responses import ResponseFunctionToolCall
 
+from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.tool import Tool
 from exmekh_lib.core.models.tools import Tools
 from exmekh_lib.core.providers.openai_chat_completion_annotation_schema_builder import (
@@ -57,7 +58,9 @@ class OpenAIResponseToolMapper:
         tools: Tools,
     ) -> tuple[Tool, dict[str, Any]]:
         if not isinstance(tool_call, ResponseFunctionToolCall):
-            raise TypeError("tool_call must be an OpenAI Response function tool call")
+            raise TypeError(
+                PROVIDER_TEXT.tool_call_must_be_an_openai_response_function_tool
+            )
         call = OpenAIFunctionToolCall(
             name=tool_call.name,
             arguments=tool_call.arguments,

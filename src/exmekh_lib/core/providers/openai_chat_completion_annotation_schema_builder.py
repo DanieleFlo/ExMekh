@@ -24,6 +24,7 @@ from typing import (
 )
 from uuid import UUID
 
+from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.utils.type_hints import typed_dict_required_keys
 
 Schema = dict[str, Any]
@@ -112,7 +113,9 @@ class OpenAIChatCompletionAnnotationSchemaBuilder:
         if supertype is not None:
             return self.build(supertype, active_types)
 
-        raise TypeError(f"Unsupported tool parameter type: {annotation!r}")
+        raise TypeError(
+            PROVIDER_TEXT.unsupported_tool_parameter_type.format(annotation=annotation)
+        )
 
     def _annotated_schema(
         self,
@@ -239,7 +242,7 @@ class OpenAIChatCompletionAnnotationSchemaBuilder:
         key_annotation, value_annotation = arguments if arguments else (str, Any)
 
         if key_annotation not in {str, Any}:
-            raise TypeError("JSON object keys must be annotated as str")
+            raise TypeError(PROVIDER_TEXT.json_object_keys_must_be_annotated_as_str)
 
         return {
             "type": "object",
@@ -316,7 +319,9 @@ class OpenAIChatCompletionAnnotationSchemaBuilder:
         active_types: frozenset[Any],
     ) -> frozenset[Any]:
         if annotation in active_types:
-            raise TypeError("Recursive tool parameter types are not supported")
+            raise TypeError(
+                PROVIDER_TEXT.recursive_tool_parameter_types_are_not_supported
+            )
 
         return active_types | {annotation}
 

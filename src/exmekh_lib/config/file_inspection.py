@@ -154,6 +154,8 @@ class FileInspectionText:
     physical_line_outside_source: str = "Physical line is outside the source"
     content_region_label: str = "file content"
     complex_key_label: str = "<complex key>"
+    table_header_label: str = "table header"
+    table_records_label: str = "records {start}-{end}"
     page_indices_label: str = "page indices"
     line_indices_label: str = "line indices"
 

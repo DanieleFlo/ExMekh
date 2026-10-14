@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta, tzinfo
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 from exmekh_lib.config.reasoning import DATE_TIME
+from exmekh_lib.config.reasoning_text import REASONING_TEXT
 
 
 class DateTimeInputError(ValueError):
@@ -30,7 +31,7 @@ def calculate_date_time(
         "add",
         "difference",
     }:
-        raise DateTimeInputError("unsupported date/time operation")
+        raise DateTimeInputError(REASONING_TEXT.unsupported_date_time_operation)
     unit_duration = _parse_unit_duration(unit)
     zone = _resolve_timezone(timezone)
     metadata: dict[str, object] = {"operation": operation, "timezone": timezone}
@@ -50,19 +51,21 @@ def calculate_date_time(
         return metadata | _datetime_result(start)
     except OverflowError as error:
         raise DateTimeInputError(
-            "Date/time or duration is outside the supported range."
+            REASONING_TEXT.date_time_or_duration_is_outside_the_supported_range
         ) from error
 
 
 def _parse_unit_duration(unit: str) -> timedelta:
     if not isinstance(unit, str) or unit not in {"seconds", "minutes", "hours", "days"}:
-        raise DateTimeInputError("unit must be seconds, minutes, hours, or days.")
+        raise DateTimeInputError(
+            REASONING_TEXT.unit_must_be_seconds_minutes_hours_or_days
+        )
     return timedelta(**{unit: 1})
 
 
 def _add_elapsed_duration(value: datetime, amount: float, unit: timedelta) -> datetime:
     if type(amount) not in (int, float) or not math.isfinite(amount):
-        raise DateTimeInputError("amount must be a finite number.")
+        raise DateTimeInputError(REASONING_TEXT.amount_must_be_a_finite_number)
     return (value.astimezone(UTC) + amount * unit).astimezone(value.tzinfo)
 
 
@@ -81,7 +84,7 @@ def _difference_result(
 def _resolve_timezone(name: str) -> tzinfo:
     if not isinstance(name, str) or not name:
         raise DateTimeInputError(
-            "timezone must be a non-empty IANA name, such as Europe/Rome."
+            REASONING_TEXT.timezone_must_be_a_non_empty_iana_name_such
         )
     if name == "UTC":
         return UTC
@@ -89,28 +92,32 @@ def _resolve_timezone(name: str) -> tzinfo:
         return ZoneInfo(name)
     except ValueError as error:
         raise DateTimeInputError(
-            "timezone must be a valid IANA name, such as Europe/Rome."
+            REASONING_TEXT.timezone_must_be_a_valid_iana_name_such_as
         ) from error
     except ZoneInfoNotFoundError as error:
         if not available_timezones():
             raise DateTimeDependencyError(
-                "The IANA timezone database is unavailable. Install the declared tzdata dependency."
+                REASONING_TEXT.the_iana_timezone_database_is_unavailable_install_the_declared
             ) from error
         raise DateTimeInputError(
-            f"Unknown timezone {name!r}. Use an IANA name such as Europe/Rome."
+            REASONING_TEXT.unknown_timezone_use_an_iana_name_such_as_europe.format(
+                name=name
+            )
         ) from error
 
 
 def _parse_datetime(text: str, zone: tzinfo, parameter: str) -> datetime:
     if not isinstance(text, str) or not text.strip():
         raise DateTimeInputError(
-            f"{parameter} must be a non-empty ISO 8601 date or datetime."
+            REASONING_TEXT.must_be_a_non_empty_iso_date_or_datetime.format(
+                parameter=parameter
+            )
         )
     try:
         value = datetime.fromisoformat(text.strip())
     except ValueError as error:
         raise DateTimeInputError(
-            f"{parameter} must be an ISO 8601 date or datetime."
+            REASONING_TEXT.must_be_an_iso_date_or_datetime.format(parameter=parameter)
         ) from error
     if value.tzinfo is not None:
         return value.astimezone(zone)
@@ -122,11 +129,15 @@ def _localize_datetime(value: datetime, zone: tzinfo, parameter: str) -> datetim
     # A UTC round trip detects local times skipped by a daylight-saving transition.
     if local.astimezone(UTC).astimezone(zone).replace(tzinfo=None) != value:
         raise DateTimeInputError(
-            f"{parameter} local time does not exist in this timezone. Supply an explicit UTC offset."
+            REASONING_TEXT.local_time_does_not_exist_in_this_timezone_supply.format(
+                parameter=parameter
+            )
         )
     if local.utcoffset() != value.replace(tzinfo=zone, fold=1).utcoffset():
         raise DateTimeInputError(
-            f"{parameter} local time is ambiguous in this timezone. Supply an explicit UTC offset."
+            REASONING_TEXT.local_time_is_ambiguous_in_this_timezone_supply_an.format(
+                parameter=parameter
+            )
         )
     return local
 

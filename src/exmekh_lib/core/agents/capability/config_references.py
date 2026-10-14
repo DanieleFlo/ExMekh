@@ -3,6 +3,7 @@
 import re
 
 from exmekh_lib.config import file_editing, file_inspection, reasoning, runtime
+from exmekh_lib.config.agent_text import AGENT_TEXT
 
 _REFERENCE = re.compile(r"{{config\.([A-Z_]+)\.([a-z][a-z0-9_]*)}}")
 
@@ -21,7 +22,9 @@ def render_config_references(text: str) -> str:
         value = getattr(configuration, field, None)
         if not isinstance(value, (str, int, float)):
             raise ValueError(
-                f"Unknown or non-scalar configuration reference: {name}.{field}"
+                AGENT_TEXT.unknown_or_non_scalar_configuration_reference.format(
+                    name=name, field=field
+                )
             )
         return str(value)
 

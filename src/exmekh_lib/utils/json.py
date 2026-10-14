@@ -4,6 +4,8 @@ import json
 import math
 from typing import Any, overload
 
+from exmekh_lib.config.utility_text import UTILITY_TEXT
+
 type JsonValue = (
     bool | int | float | str | list[JsonValue] | dict[str, JsonValue] | None
 )
@@ -39,7 +41,7 @@ def _convert(value: object, ancestors: set[int]) -> JsonValue:
         return repr(value)
     identity = id(value)
     if identity in ancestors:
-        return "<circular reference>"
+        return UTILITY_TEXT.circular_reference
     ancestors.add(identity)
     try:
         if isinstance(value, dict):

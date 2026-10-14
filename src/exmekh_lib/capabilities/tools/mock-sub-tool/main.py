@@ -10,4 +10,4 @@ from exmekh_lib.core.agents.tools.decorator import deep_tool
 )
 def run(work_root: Path, text: str) -> str:
     del work_root
-    return f"Mock sub-tool result: {text}"
+    return CAPABILITY_TEXT.mock_sub_tool_result.format(text=text)

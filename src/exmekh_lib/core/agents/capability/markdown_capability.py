@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Self
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.core.agents.capabilities.resource_type import ResourceType
 from exmekh_lib.core.agents.capability.loader import MarkdownLoader
 from exmekh_lib.core.agents.capability.markdown import CapabilityMarkdown
@@ -82,19 +83,19 @@ class MarkdownCapability[MetadataType: CapabilityMetadata](Tool, ABC):
         references: tuple[str, ...],
     ) -> None:
         if not isinstance(markdown_path, Path):
-            raise TypeError("markdown_path must be a Path")
+            raise TypeError(AGENT_TEXT.markdown_path_must_be_a_path)
 
         if not isinstance(metadata, CapabilityMetadata):
-            raise TypeError("metadata must be CapabilityMetadata")
+            raise TypeError(AGENT_TEXT.metadata_must_be_capabilitymetadata)
 
         if not isinstance(body, str):
-            raise TypeError("body must be a string")
+            raise TypeError(AGENT_TEXT.body_must_be_a_string)
 
         if not isinstance(references, tuple):
-            raise TypeError("references must be a tuple")
+            raise TypeError(AGENT_TEXT.references_must_be_a_tuple)
 
         if not all(isinstance(reference, str) for reference in references):
-            raise TypeError("references must contain only strings")
+            raise TypeError(AGENT_TEXT.references_must_contain_only_strings)
 
         if len(references) != len(set(references)):
-            raise ValueError("references cannot contain duplicates")
+            raise ValueError(AGENT_TEXT.references_cannot_contain_duplicates)

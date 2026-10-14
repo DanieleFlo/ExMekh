@@ -1,3 +1,4 @@
+from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
 from exmekh_lib.core.agents.deep_skill.deep_skill import CalledDeepSkill, DeepSkill
 from exmekh_lib.core.agents.exit_tool.exit_tool import CalledExitTool, ExitTool
@@ -28,8 +29,9 @@ class ToolCallResolver:
         for tool in (*self._capabilities.get_all_tools(), *self._runtime_tools):
             if not isinstance(tool, Tool):
                 raise TypeError(
-                    f"Tool '{tool_name}' is not a valid deep skill, "
-                    "exit tool, or tool instance"
+                    RUNTIME_TEXT.tool_is_not_a_valid_deep_skill_exit_tool_2.format(
+                        tool_name=tool_name
+                    )
                 )
             if tool.get_name() != tool_name:
                 continue
@@ -39,5 +41,7 @@ class ToolCallResolver:
                 return CalledExitTool(exit_tool=tool, tool_call=tool_call)
             return CalledTool(tool=tool, tool_call=tool_call)
         raise ValueError(
-            f"Tool '{tool_name}' is not a valid deep skill, exit tool, or tool"
+            RUNTIME_TEXT.tool_is_not_a_valid_deep_skill_exit_tool.format(
+                tool_name=tool_name
+            )
         )

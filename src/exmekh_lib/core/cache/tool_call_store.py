@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 from exmekh_lib.config.cache import CACHE_FORMAT
+from exmekh_lib.config.cache_text import CACHE_TEXT
 from exmekh_lib.core.cache.paths import cache_component
 from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
 from exmekh_lib.utils.file import read_json_from_path, write_json_atomically
@@ -24,7 +25,7 @@ class ToolCallStore:
 
     def save(self, record: ToolCallRecord) -> Path:
         if not isinstance(record, ToolCallRecord):
-            raise TypeError("record must be a ToolCallRecord instance")
+            raise TypeError(CACHE_TEXT.record_must_be_a_toolcallrecord_instance)
         payload = record.to_dict()
         self.directory.mkdir(parents=True, exist_ok=True)
         path = self.directory / self._filename(record.id)
@@ -69,7 +70,7 @@ class ToolCallStore:
             )
             return record if path.name in expected_names else None
         except (OSError, ValueError, TypeError, KeyError) as error:
-            logger.debug("Cannot read tool call record %s: %s", path, error)
+            logger.debug(CACHE_TEXT.cannot_read_tool_call_record, path, error)
             return None
 
     @staticmethod

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.agents.deep_skill.deep_skill import DeepSkill
 from exmekh_lib.core.agents.hds.hds import HDS
 from exmekh_lib.core.models.assistant_message import ToolCall
@@ -32,9 +33,9 @@ class AgenticScope:
 
     def _validate_resolved_context_id(self) -> None:
         if not isinstance(self._agent_context_id, str):
-            raise TypeError("agent_context_id must be a string")
+            raise TypeError(RUNTIME_TEXT.agent_context_id_must_be_a_string)
         if not self._agent_context_id.strip():
-            raise ValueError("agent_context_id cannot be empty")
+            raise ValueError(RUNTIME_TEXT.agent_context_id_cannot_be_empty)
 
     @property
     def agent_context_id(self) -> str:
@@ -83,8 +84,12 @@ class AgenticScope:
             if call.get_name() not in allowed:
                 skill_path = "/" + "/".join(skill.get_name() for skill in active_skills)
                 raise ValueError(
-                    f"Capability '{call.get_name()}' is not allowed at {skill_path}; "
-                    f"allowed_tools={allowed_tools}, allowed_skills={allowed_skills}"
+                    RUNTIME_TEXT.capability_is_not_allowed_at_allowed_tools_allowed_skills.format(
+                        call_get_name=call.get_name(),
+                        skill_path=skill_path,
+                        allowed_tools=allowed_tools,
+                        allowed_skills=allowed_skills,
+                    )
                 )
 
     def register_skill_return(self, skill_call_id: str) -> None:

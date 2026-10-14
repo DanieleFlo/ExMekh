@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.core.models.client import Client
 from exmekh_lib.core.models.client_request import ClientRequest
 from exmekh_lib.core.models.system_message import SystemMessage
@@ -21,8 +22,10 @@ class TextSummarizer:
             )
         )
         if response.get_tool_calls():
-            raise ValueError("The summary response must not contain tool calls")
+            raise ValueError(
+                MODEL_TEXT.the_summary_response_must_not_contain_tool_calls
+            )
         summary = response.get_message()
         if not isinstance(summary, str) or not summary.strip():
-            raise ValueError("The summary response contains no text")
+            raise ValueError(MODEL_TEXT.the_summary_response_contains_no_text)
         return summary.strip()

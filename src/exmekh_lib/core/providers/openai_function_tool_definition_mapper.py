@@ -8,6 +8,7 @@ from typing import Any, ClassVar
 
 from openai.types.shared_params.function_definition import FunctionDefinition
 
+from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.tool import Tool
 from exmekh_lib.core.models.tools import Tools
 from exmekh_lib.core.providers.openai_chat_completion_annotation_schema_builder import (
@@ -61,7 +62,7 @@ class OpenAIFunctionToolDefinitionMapper:
         strict: bool = False,
     ) -> list[OpenAIFunctionToolDefinition]:
         if not isinstance(tools, Tools):
-            raise TypeError("Expected a Tools instance")
+            raise TypeError(PROVIDER_TEXT.expected_a_tools_instance)
         return [self.map(tool, strict=strict) for tool in tools.get_tools()]
 
     def map(
@@ -93,7 +94,9 @@ class OpenAIFunctionToolDefinitionMapper:
             elif tool.is_execution_argument(parameter.name):
                 schema = {
                     "anyOf": [schema, {"type": "null"}],
-                    "description": f"Null uses the default: {parameter.default}.",
+                    "description": PROVIDER_TEXT.null_uses_the_default.format(
+                        parameter_default=parameter.default
+                    ),
                 }
             properties[parameter.name] = schema
             if strict or self._is_required(parameter):
@@ -109,7 +112,9 @@ class OpenAIFunctionToolDefinitionMapper:
         annotation = type_hints.get(parameter.name, parameter.annotation)
         if annotation is inspect.Parameter.empty:
             raise TypeError(
-                f"Tool parameter '{parameter.name}' must have a type annotation"
+                PROVIDER_TEXT.tool_parameter_must_have_a_type_annotation.format(
+                    parameter_name=parameter.name
+                )
             )
         return annotation
 
@@ -122,7 +127,9 @@ class OpenAIFunctionToolDefinitionMapper:
         if parameter.kind not in cls._UNSUPPORTED_PARAMETER_KINDS:
             return
         raise TypeError(
-            f"Tool '{tool.get_name()}' has unsupported parameter '{parameter.name}'"
+            PROVIDER_TEXT.tool_has_unsupported_parameter.format(
+                tool_get_name=tool.get_name(), parameter_name=parameter.name
+            )
         )
 
     @staticmethod
@@ -153,4 +160,4 @@ class OpenAIFunctionToolDefinitionMapper:
     @staticmethod
     def _ensure_tool(tool: Tool) -> None:
         if not isinstance(tool, Tool):
-            raise TypeError("Expected a Tool instance")
+            raise TypeError(PROVIDER_TEXT.expected_a_tool_instance)

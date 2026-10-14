@@ -7,6 +7,7 @@ from typing import Any, Literal, Self
 
 from pydantic_core import to_json
 
+from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.interfaces.message import Message
 
 
@@ -26,16 +27,16 @@ class AssistantMessage(Message[str | None]):
 
     def _check_inputs(self):
         if self._content is not None and not isinstance(self._content, str):
-            raise TypeError("Assistant content must be a string")
+            raise TypeError(MODEL_TEXT.assistant_content_must_be_a_string)
         if self._tool_calls is not None:
             if not isinstance(self._tool_calls, list):
                 raise TypeError(
-                    "Assistant tool_calls must be a list of ToolCall objects"
+                    MODEL_TEXT.assistant_tool_calls_must_be_a_list_of_toolcall
                 )
             for tool_call in self._tool_calls:
                 if not isinstance(tool_call, ToolCall):
                     raise TypeError(
-                        "Assistant tool_calls must be a list of ToolCall objects"
+                        MODEL_TEXT.assistant_tool_calls_must_be_a_list_of_toolcall
                     )
 
     def get_message(self) -> str | None:

@@ -32,6 +32,14 @@ class NodeCache:
     def store(self, record: ToolCallRecord) -> Path:
         return self._session.store_tool_call(self._node_id, record)
 
+    def write_output_files(
+        self, root: Path, key: str, parts: tuple[str, ...]
+    ) -> tuple[Path, ...]:
+        return self._session.output_files(root).write(self._node_id, key, parts)
+
+    def output_file_read_limit(self, root: Path, path: Path, default: int) -> int:
+        return self._session.output_files(root).read_limit(self._node_id, path, default)
+
     def record(
         self,
         name: str,

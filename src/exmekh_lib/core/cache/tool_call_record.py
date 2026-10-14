@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Literal, Protocol, Self, runtime_checkable
 
+from exmekh_lib.config.cache_text import CACHE_TEXT
 from exmekh_lib.core.models.assistant_message import ToolCall
+from exmekh_lib.core.models.external_tool_output import ExternalToolOutput
 from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
 from exmekh_lib.utils.json import to_json_value
 
@@ -37,51 +39,66 @@ class ToolCallRecord:
     execution: dict[str, Any] | None = None
     used_tools: tuple[ToolOutputReference, ...] | None = None
     user_message: dict[str, Any] | None = None
+    external_output: ExternalToolOutput | None = None
+
+    def externalized(self, reference: ExternalToolOutput) -> ToolCallRecord:
+        return replace(self, result=None, external_output=reference)
+
+    def with_delivery_failure(self, failure: dict[str, Any]) -> ToolCallRecord:
+        execution = {**(self.execution or {}), "response_type": "failed"}
+        return replace(self, result=failure, external_output=None, execution=execution)
 
     def __post_init__(self) -> None:
+        if self.external_output is not None:
+            if not isinstance(self.external_output, ExternalToolOutput):
+                raise TypeError(
+                    CACHE_TEXT.external_output_must_be_externaltooloutput_or_none
+                )
+            if self.result is not None:
+                raise ValueError(CACHE_TEXT.external_output_excludes_original_result)
         if not isinstance(self.name, str):
-            raise TypeError("ToolCallRecord 'name' must be a string")
+            raise TypeError(CACHE_TEXT.toolcallrecord_name_must_be_a_string)
         clean_name = self.name.strip()
         if not clean_name:
-            raise ValueError("ToolCallRecord 'name' cannot be empty")
+            raise ValueError(CACHE_TEXT.toolcallrecord_name_cannot_be_empty)
         object.__setattr__(self, "name", clean_name)
 
         if not isinstance(self.id, str):
-            raise TypeError("ToolCallRecord 'id' must be a string")
+            raise TypeError(CACHE_TEXT.toolcallrecord_id_must_be_a_string)
         clean_id = self.id.strip()
         if not clean_id:
-            raise ValueError("ToolCallRecord 'id' cannot be empty")
+            raise ValueError(CACHE_TEXT.toolcallrecord_id_cannot_be_empty)
         object.__setattr__(self, "id", clean_id)
 
         if self.tool_call_id is not None and (
             not isinstance(self.tool_call_id, str) or not self.tool_call_id.strip()
         ):
-            raise ValueError("tool_call_id must be a non-empty string or None")
+            raise ValueError(CACHE_TEXT.tool_call_id_must_be_a_non_empty_string)
 
         if self.thinking is not None and not isinstance(self.thinking, str):
-            raise TypeError("thinking must be a string or None")
+            raise TypeError(CACHE_TEXT.thinking_must_be_a_string_or_none)
 
         if self.source not in ("Tool", "DeepSkill", "UserMessage"):
-            raise ValueError("source must be 'Tool', 'DeepSkill', or 'UserMessage'")
+            raise ValueError(CACHE_TEXT.source_must_be_tool_deepskill_or_usermessage)
 
         if not isinstance(self.args, dict):
-            raise TypeError("ToolCallRecord 'args' must be a dictionary")
+            raise TypeError(CACHE_TEXT.toolcallrecord_args_must_be_a_dictionary)
 
         object.__setattr__(self, "args", to_json_value(self.args))
         object.__setattr__(self, "result", to_json_value(self.result))
         if self.user_message is not None:
             if not isinstance(self.user_message, dict):
-                raise TypeError("user_message must be a dictionary or None")
+                raise TypeError(CACHE_TEXT.user_message_must_be_a_dictionary_or_none)
             object.__setattr__(self, "user_message", to_json_value(self.user_message))
         if self.execution is not None:
             if not isinstance(self.execution, dict):
-                raise TypeError("execution must be a dictionary or None")
+                raise TypeError(CACHE_TEXT.execution_must_be_a_dictionary_or_none)
             object.__setattr__(self, "execution", to_json_value(self.execution))
 
         if not isinstance(self.skill_path, str):
-            raise TypeError("skill_path must be a string")
+            raise TypeError(CACHE_TEXT.skill_path_must_be_a_string)
         if not self.skill_path.startswith("/"):
-            raise ValueError("skill_path must be an absolute skill path")
+            raise ValueError(CACHE_TEXT.skill_path_must_be_an_absolute_skill_path)
 
         if self.used_tools is not None and (
             not isinstance(self.used_tools, tuple)
@@ -89,7 +106,9 @@ class ToolCallRecord:
                 isinstance(item, ToolOutputReference) for item in self.used_tools
             )
         ):
-            raise TypeError("used_tools must be a tuple of ToolOutputReference or None")
+            raise TypeError(
+                CACHE_TEXT.used_tools_must_be_a_tuple_of_tooloutputreference_or
+            )
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to a JSON-serializable dictionary."""
@@ -102,6 +121,11 @@ class ToolCallRecord:
             "tool_call_id": self.tool_call_id,
             "thinking": self.thinking,
             "type": self.source,
+            **(
+                {"external_output": self.external_output.to_dict()}
+                if self.external_output is not None
+                else {}
+            ),
             **({"execution": self.execution} if self.execution is not None else {}),
             **(
                 {"user_message": self.user_message}
@@ -119,16 +143,18 @@ class ToolCallRecord:
     def from_dict(cls, record_dict: dict[str, Any]) -> Self:
         """Construct a ToolCallRecord from a serialized dictionary."""
         if not isinstance(record_dict, dict):
-            raise TypeError("record_dict must be a dictionary")
+            raise TypeError(CACHE_TEXT.record_dict_must_be_a_dictionary)
         required_keys = {"name", "id", "args", "result"}
         missing = required_keys - record_dict.keys()
         if missing:
             raise ValueError(
-                f"Missing required keys in tool call record: {sorted(missing)}"
+                CACHE_TEXT.missing_required_keys_in_tool_call_record.format(
+                    missing=sorted(missing)
+                )
             )
         used_tools = record_dict.get("used_tools")
         if used_tools is not None and not isinstance(used_tools, list):
-            raise TypeError("Serialized used_tools must be a list or None")
+            raise TypeError(CACHE_TEXT.serialized_used_tools_must_be_a_list_or_none)
         return cls(
             name=record_dict["name"],
             id=record_dict["id"],
@@ -143,6 +169,11 @@ class ToolCallRecord:
             used_tools=(
                 tuple(ToolOutputReference.from_dict(item) for item in used_tools)
                 if used_tools is not None
+                else None
+            ),
+            external_output=(
+                ExternalToolOutput.from_dict(record_dict["external_output"])
+                if "external_output" in record_dict
                 else None
             ),
         )
@@ -169,7 +200,7 @@ class ToolCallRecord:
             arguments = tool_call.arguments
         else:
             raise TypeError(
-                "tool_call must be ToolCall or implement CalledToolMetadata"
+                CACHE_TEXT.tool_call_must_be_toolcall_or_implement_calledtoolmetadata
             )
         return cls(
             name=name,

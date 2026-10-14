@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from types import MappingProxyType
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
 from exmekh_lib.core.agents.node import Node, NodeUserMessage
 from exmekh_lib.interfaces.event_handler import DeepAgentEventHandler
@@ -24,10 +25,10 @@ class DeepAgent:
         on_stream: DeepAgentEventHandler | None = None,
     ) -> None:
         if not isinstance(provider, Provider):
-            raise TypeError("provider must be a Provider")
+            raise TypeError(AGENT_TEXT.provider_must_be_a_provider)
 
         if not isinstance(node, Node):
-            raise TypeError("node must be a Node")
+            raise TypeError(AGENT_TEXT.node_must_be_a_node)
         work_root = self._validate_work_root(work_root)
         if on_stream is not None:
             DeepAgentEventHandler.validate_instance(on_stream)
@@ -89,7 +90,7 @@ class DeepAgent:
 
         def initialize(node: Node) -> None:
             if node in active_nodes:
-                raise ValueError("Node hierarchy cannot contain cycles")
+                raise ValueError(AGENT_TEXT.node_hierarchy_cannot_contain_cycles)
 
             if node in capabilities_by_node:
                 return
@@ -119,20 +120,26 @@ class DeepAgent:
                 if cid is not None and context_ids.count(cid) > 1
             )
             raise ValueError(
-                "Distinct nodes in hierarchy must have unique agent_context_id: "
+                AGENT_TEXT.distinct_nodes_in_hierarchy_must_have_unique_agent_context
                 + ", ".join(duplicates)
             )
 
     @staticmethod
     def _validate_work_root(work_root: Path) -> Path:
         if not isinstance(work_root, Path):
-            raise TypeError("work_root must be a Path")
+            raise TypeError(AGENT_TEXT.work_root_must_be_a_path)
         if not work_root.exists():
-            raise FileNotFoundError(f"work_root does not exist: {work_root}")
+            raise FileNotFoundError(
+                AGENT_TEXT.work_root_does_not_exist.format(work_root=work_root)
+            )
         if not work_root.is_dir():
-            raise ValueError(f"work_root must be a directory: {work_root}")
+            raise ValueError(
+                AGENT_TEXT.work_root_must_be_a_directory.format(work_root=work_root)
+            )
         if not os.access(work_root, os.R_OK | os.W_OK | os.X_OK):
             raise PermissionError(
-                f"work_root must be readable, writable, and traversable: {work_root}"
+                AGENT_TEXT.work_root_must_be_readable_writable_and_traversable.format(
+                    work_root=work_root
+                )
             )
         return work_root.resolve()

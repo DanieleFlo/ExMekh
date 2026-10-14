@@ -90,7 +90,7 @@ class FileInteractiveCalls:
                 approval = previous.authorize_alias(self._work_root, resource)
         except EditPrerequisiteError as error:
             self._approvals.pop(call_id, None)
-            if error.code == "uninspected":
+            if error.code == FILE_EDIT_FORMAT.uninspected_error_code:
                 assert self._pending_inspections is not None
                 self._pending_inspections.add(resource)
             return {"status": "reject", "code": error.code, "message": str(error)}

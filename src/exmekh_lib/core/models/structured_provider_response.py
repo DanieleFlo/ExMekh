@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.core.models.model_thinking import ModelThinking
 from exmekh_lib.core.models.model_usage import ModelUsage
 from exmekh_lib.core.models.structured_assistant_message import (
@@ -17,17 +18,17 @@ class StructuredProviderResponse[ResponseContent: BaseModel](
         usage: ModelUsage | None = None,
     ) -> None:
         if not isinstance(response, StructuredAssistantMessage):
-            raise TypeError("Response must be a StructuredAssistantMessage")
+            raise TypeError(MODEL_TEXT.response_must_be_a_structuredassistantmessage)
 
         if usage is not None and not isinstance(usage, ModelUsage):
-            raise TypeError("Usage must be a ModelUsage instance")
+            raise TypeError(MODEL_TEXT.usage_must_be_a_modelusage_instance)
 
         content = response.get_message()
         if not isinstance(content, BaseModel):
-            raise TypeError("Response content must be a Pydantic BaseModel")
+            raise TypeError(MODEL_TEXT.response_content_must_be_a_pydantic_basemodel)
 
         if thinking is not None and not isinstance(thinking, ModelThinking):
-            raise TypeError("Thinking must be a ModelThinking instance")
+            raise TypeError(MODEL_TEXT.thinking_must_be_a_modelthinking_instance)
 
         super().__init__(
             content=content,

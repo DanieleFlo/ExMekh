@@ -1,3 +1,4 @@
+from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.core.models.tool import Tool
 
 
@@ -10,10 +11,10 @@ class Tools:
         if not isinstance(tools, list) or not all(
             isinstance(tool, Tool) for tool in tools
         ):
-            raise TypeError("Tools must be a list of Tool instances")
+            raise TypeError(MODEL_TEXT.tools_must_be_a_list_of_tool_instances)
         names = [tool.get_name() for tool in tools]
         if len(names) != len(set(names)):
-            raise ValueError("Tool names must be unique")
+            raise ValueError(MODEL_TEXT.tool_names_must_be_unique)
 
     def get_tool(self, name: str) -> Tool | None:
         """

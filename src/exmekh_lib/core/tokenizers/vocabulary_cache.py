@@ -6,6 +6,7 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from exmekh_lib.config.cache import CACHE_FORMAT
+from exmekh_lib.config.tokenizer_text import TOKENIZER_TEXT
 from exmekh_lib.config.validation import VALIDATION_PATTERNS
 from exmekh_lib.utils.file import read_json_from_path, write_json_atomically
 
@@ -27,7 +28,7 @@ class VocabularyCache:
         if self._path.exists():
             tokens = self._read_cached_vocabulary()
             logger.info(
-                "Loaded cached vocabulary: identity=%s tokens=%d path=%s",
+                TOKENIZER_TEXT.loaded_cached_vocabulary_identity_tokens_path,
                 self._identity,
                 len(tokens),
                 self._path,
@@ -43,7 +44,7 @@ class VocabularyCache:
             )
         )
         if not tokens:
-            raise ValueError("Tokenizer has no ASCII alphanumeric tokens")
+            raise ValueError(TOKENIZER_TEXT.tokenizer_has_no_ascii_alphanumeric_tokens)
         self._directory.mkdir(parents=True, exist_ok=True)
         value = {
             "version": 1,
@@ -52,7 +53,7 @@ class VocabularyCache:
         }
         write_json_atomically(self._path, value)
         logger.info(
-            "Built and cached vocabulary: identity=%s tokens=%d path=%s",
+            TOKENIZER_TEXT.built_and_cached_vocabulary_identity_tokens_path,
             self._identity,
             len(tokens),
             self._path,
@@ -67,7 +68,7 @@ class VocabularyCache:
                 or data.get("version") != 1
                 or data.get("identity") != self._identity
             ):
-                raise ValueError("Invalid cache metadata")
+                raise ValueError(TOKENIZER_TEXT.invalid_cache_metadata)
             tokens = data.get("tokens")
             if (
                 not isinstance(tokens, list)
@@ -79,7 +80,9 @@ class VocabularyCache:
                 )
                 or tokens != sorted(set(tokens))
             ):
-                raise ValueError("Invalid cached vocabulary")
+                raise ValueError(TOKENIZER_TEXT.invalid_cached_vocabulary)
         except (ValueError, UnicodeError) as error:
-            raise ValueError(f"Invalid tokenizer cache: {self._path}") from error
+            raise ValueError(
+                TOKENIZER_TEXT.invalid_tokenizer_cache.format(path=self._path)
+            ) from error
         return tuple(tokens)

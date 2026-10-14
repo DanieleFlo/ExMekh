@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from exmekh_lib.config.cache import CACHE_FORMAT
 from exmekh_lib.config.storage import StorageSettings
+from exmekh_lib.config.tokenizer_text import TOKENIZER_TEXT
 from exmekh_lib.core.tokenizers.tokenizer_session_registry import (
     TokenizerSessionRegistry,
 )
@@ -30,11 +31,11 @@ class SequentialTokenizer(Tokenizer):
         cache_directory: Path | None = None,
     ) -> None:
         if not isinstance(identity, str):
-            raise TypeError("Tokenizer identity must be a string")
+            raise TypeError(TOKENIZER_TEXT.tokenizer_identity_must_be_a_string)
         if not identity.strip():
-            raise ValueError("Tokenizer identity must not be empty")
+            raise ValueError(TOKENIZER_TEXT.tokenizer_identity_must_not_be_empty)
         if cache_directory is not None and not isinstance(cache_directory, Path):
-            raise TypeError("Cache directory must be a Path or None")
+            raise TypeError(TOKENIZER_TEXT.cache_directory_must_be_a_path_or_none)
         self._identity = identity
         namespace = sha256(identity.encode("utf-8")).hexdigest()
         root = (

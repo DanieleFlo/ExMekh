@@ -3,15 +3,17 @@ from io import BytesIO
 
 from PIL import Image
 
+from exmekh_lib.config.utility_text import UTILITY_TEXT
+
 
 def pil_image_to_data_url(
     image: Image.Image,
     format: str = "PNG",
 ) -> str:
     if not isinstance(image, Image.Image):
-        raise TypeError("Input must be a PIL Image")
+        raise TypeError(UTILITY_TEXT.input_must_be_a_pil_image)
     if not isinstance(format, str):
-        raise TypeError("Format must be a string")
+        raise TypeError(UTILITY_TEXT.format_must_be_a_string)
     normalized_format = format.upper()
     pillow_format = "JPEG" if normalized_format == "JPG" else normalized_format
     mime_type = {

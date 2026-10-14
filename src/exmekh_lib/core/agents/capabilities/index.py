@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import TypeVar
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
 from exmekh_lib.core.agents.deep_skill.deep_skill import DeepSkill
 from exmekh_lib.core.agents.exit_tool.exit_tool import ExitTool
@@ -24,7 +25,7 @@ class CapabilitiesIndex:
     @classmethod
     def build(cls, data: CapabilitiesData) -> CapabilitiesIndex:
         if not isinstance(data, CapabilitiesData):
-            raise TypeError("data must be CapabilitiesData")
+            raise TypeError(AGENT_TEXT.data_must_be_capabilitiesdata)
 
         deep_skills = cls._index_by_name(data.deep_skills, "deep-skill")
         tools = cls._index_by_name(data.tools, "tool")
@@ -50,7 +51,11 @@ class CapabilitiesIndex:
         for resource in resources:
             name = resource.get_name()
             if name in indexed_resources:
-                raise ValueError(f"Duplicate {resource_type} name: '{name}'")
+                raise ValueError(
+                    AGENT_TEXT.duplicate_name.format(
+                        resource_type=resource_type, name=name
+                    )
+                )
 
             indexed_resources[name] = resource
 
@@ -67,14 +72,20 @@ class CapabilitiesIndex:
 
         if duplicate_names:
             duplicates = ", ".join(sorted(duplicate_names))
-            raise ValueError(f"Names shared by deep skills and tools: {duplicates}")
+            raise ValueError(
+                AGENT_TEXT.names_shared_by_deep_skills_and_tools.format(
+                    duplicates=duplicates
+                )
+            )
 
         duplicate_names = set(hds) & (set(deep_skills) | set(tools))
 
         if duplicate_names:
             duplicates = ", ".join(sorted(duplicate_names))
             raise ValueError(
-                f"Names shared by HDS and other capabilities: {duplicates}"
+                AGENT_TEXT.names_shared_by_hds_and_other_capabilities.format(
+                    duplicates=duplicates
+                )
             )
 
         duplicate_names = set(exit_tools) & (set(deep_skills) | set(tools) | set(hds))
@@ -82,5 +93,7 @@ class CapabilitiesIndex:
         if duplicate_names:
             duplicates = ", ".join(sorted(duplicate_names))
             raise ValueError(
-                f"Names shared by exit tools and other capabilities: {duplicates}"
+                AGENT_TEXT.names_shared_by_exit_tools_and_other_capabilities.format(
+                    duplicates=duplicates
+                )
             )

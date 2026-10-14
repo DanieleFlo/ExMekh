@@ -38,6 +38,34 @@ class SampleTokenizer(SequentialTokenizer):
         return self.source
 
 
+@pytest.mark.parametrize("implementation", [SampleTokenizer, QwenTokenizer])
+@pytest.mark.parametrize(
+    "limit, error_type",
+    [
+        (True, TypeError),
+        (1.5, TypeError),
+        ("10", TypeError),
+        (None, TypeError),
+        (0, ValueError),
+        (-1, ValueError),
+    ],
+)
+def test_split_limits_have_the_same_validation_without_loading_models(
+    tmp_path, implementation, limit, error_type
+):
+    tokenizer = implementation(tmp_path)
+    with pytest.raises(error_type):
+        tokenizer.split_text("text", limit)
+
+
+@pytest.mark.parametrize("text", ["", "abcdefghi", "café 😀 漢字", "line\r\nnext\n"])
+def test_default_split_preserves_text_and_bounds_each_chunk(tmp_path, text):
+    tokenizer = SampleTokenizer(tmp_path)
+    parts = tokenizer.split_text(text, 3)
+    assert "".join(parts) == text
+    assert all(0 < tokenizer.count_tokens(part) <= 3 for part in parts)
+
+
 @pytest.fixture(autouse=True)
 def isolated_sessions():
     TokenizerSessionRegistry.close_all()
@@ -333,6 +361,28 @@ def test_qwen_reuses_cached_full_tokenizer_for_text(tmp_path):
     with patch("exmekh_lib.tokenizers.qwen.urlopen", side_effect=AssertionError):
         second = QwenTokenizer(tmp_path)
         assert second.count_tokens("alpha café") == first.count_tokens("alpha café")
+
+
+@pytest.mark.parametrize("limit", [5, 10, 31])
+def test_qwen_splits_using_offsets_without_reencoding_remaining_source(
+    tmp_path, monkeypatch, limit
+):
+    tokenizer = QwenTokenizer(tmp_path)
+    tokenizer._text_tokenizer = _sample_text_tokenizer()
+    text = " alpha café 😀 漢字 <&>" * 100
+    encoded_lengths = []
+    encode = tokenizer._encode
+
+    def track(value):
+        encoded_lengths.append(len(value))
+        return encode(value)
+
+    monkeypatch.setattr(tokenizer, "_encode", track)
+    parts = tokenizer.split_text(text, limit)
+    assert "".join(parts) == text
+    assert all(tokenizer.count_tokens(part) <= limit for part in parts)
+    assert encoded_lengths.count(len(text)) == 1
+    assert max(encoded_lengths[1:]) < len(text) // 2
 
 
 def test_qwen_downloads_full_tokenizer_for_an_existing_vocabulary_cache(tmp_path):

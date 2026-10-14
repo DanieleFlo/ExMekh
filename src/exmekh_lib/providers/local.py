@@ -9,6 +9,7 @@ from openai import OpenAI
 from pydantic import BaseModel
 
 from exmekh_lib.config.provider import DEFAULT_PROVIDER_SETTINGS
+from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.provider_request import ProviderRequest
 from exmekh_lib.core.models.provider_response import ProviderResponse
 from exmekh_lib.core.models.reasoning_effort import ReasoningEffort
@@ -57,28 +58,36 @@ class LocalProvider(Provider):
 
     def _check_inputs(self) -> None:
         if not isinstance(self._model, str):
-            raise TypeError("Model must be a string")
+            raise TypeError(PROVIDER_TEXT.model_must_be_a_string)
         if not isinstance(self._api_key_env_var, str):
-            raise TypeError("API key environment variable must be a string")
+            raise TypeError(PROVIDER_TEXT.api_key_environment_variable_must_be_a_string)
         if not isinstance(self._base_url_env_var, str):
-            raise TypeError("Base URL environment variable must be a string")
+            raise TypeError(
+                PROVIDER_TEXT.base_url_environment_variable_must_be_a_string
+            )
         if self._api_key is not None and not isinstance(self._api_key, str):
-            raise TypeError("API key must be a string or None")
+            raise TypeError(PROVIDER_TEXT.api_key_must_be_a_string_or_none)
         if self._base_url is not None and not isinstance(self._base_url, str):
-            raise TypeError("Base URL must be a string or None")
+            raise TypeError(PROVIDER_TEXT.base_url_must_be_a_string_or_none)
         if self._reasoning_effort is not None and not isinstance(
             self._reasoning_effort, ReasoningEffort
         ):
-            raise TypeError("Reasoning effort must be a ReasoningEffort or None")
+            raise TypeError(
+                PROVIDER_TEXT.reasoning_effort_must_be_a_reasoningeffort_or_none
+            )
         if self._api not in {"chat_completions", "responses"}:
-            raise ValueError("API must be 'chat_completions' or 'responses'")
+            raise ValueError(PROVIDER_TEXT.api_must_be_chat_completions_or_responses)
 
         if not self._model.strip():
-            raise ValueError("Model must be a non-empty string")
+            raise ValueError(PROVIDER_TEXT.model_must_be_a_non_empty_string)
         if not self._api_key_env_var.strip():
-            raise ValueError("API key environment variable must be a non-empty string")
+            raise ValueError(
+                PROVIDER_TEXT.api_key_environment_variable_must_be_a_non_empty
+            )
         if not self._base_url_env_var.strip():
-            raise ValueError("Base URL environment variable must be a non-empty string")
+            raise ValueError(
+                PROVIDER_TEXT.base_url_environment_variable_must_be_a_non_empty
+            )
 
     def _build_client(self) -> OpenAI:
         api_key = self._resolve_api_key()
@@ -105,26 +114,29 @@ class LocalProvider(Provider):
         )
         if not base_url or not base_url.strip():
             raise ValueError(
-                f"Environment variable '{self._base_url_env_var}' is not set."
+                PROVIDER_TEXT.environment_variable_is_not_set.format(
+                    base_url_env_var=self._base_url_env_var
+                )
             )
         parsed_url = urlparse(base_url)
         if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
-            raise ValueError("Base URL must be a valid HTTP(S) URL")
+            raise ValueError(PROVIDER_TEXT.base_url_must_be_a_valid_http_s_url)
         return base_url
 
     def _check_provider(self) -> None:
         if not self._model:
-            raise ValueError("Model name is not set.")
+            raise ValueError(PROVIDER_TEXT.model_name_is_not_set)
 
         available_models = self._get_available_models()
 
         if not available_models:
-            raise ValueError("No models are available from the provider.")
+            raise ValueError(PROVIDER_TEXT.no_models_are_available_from_the_provider)
 
         if self._model not in available_models:
             raise ValueError(
-                f"Model '{self._model}' not found. "
-                f"Available models: {', '.join(sorted(available_models))}"
+                PROVIDER_TEXT.model_not_found_available_models.format(
+                    model=self._model, names=", ".join(sorted(available_models))
+                )
             )
 
     def _get_available_models(self) -> set[str]:
@@ -133,14 +145,18 @@ class LocalProvider(Provider):
         model_list = self.client.models.list()
         model_data = getattr(model_list, "data", None)
         if model_data is None:
-            raise RuntimeError("Provider returned a malformed model catalog")
+            raise RuntimeError(
+                PROVIDER_TEXT.provider_returned_a_malformed_model_catalog
+            )
         if not isinstance(model_data, list):
-            raise TypeError("Provider model catalog data must be a list")
+            raise TypeError(PROVIDER_TEXT.provider_model_catalog_data_must_be_a_list)
 
         for model in model_data:
             model_id = getattr(model, "id", None)
             if not isinstance(model_id, str) or not model_id.strip():
-                raise RuntimeError("Provider returned a malformed model identifier")
+                raise RuntimeError(
+                    PROVIDER_TEXT.provider_returned_a_malformed_model_identifier
+                )
             available_models.add(model_id)
 
         return available_models
@@ -151,7 +167,7 @@ class LocalProvider(Provider):
             if self._has_interactive_tools(request):
                 if self._api != "responses":
                     raise ProviderRequestRejectedError(
-                        "Interactive tools require the DS4 Responses v2 API"
+                        PROVIDER_TEXT.interactive_tools_require_the_ds4_responses_v2_api
                     )
                 api_adapter = InteractiveResponseOpenAI(
                     client=self.client,
@@ -164,7 +180,7 @@ class LocalProvider(Provider):
                 self._rejection_message(error)
             ) from error
         except openai.APIError as error:
-            raise RuntimeError("Local provider request failed") from error
+            raise RuntimeError(PROVIDER_TEXT.local_provider_request_failed) from error
 
     @staticmethod
     def _rejection_message(error: openai.BadRequestError) -> str:
@@ -205,7 +221,7 @@ class LocalProvider(Provider):
                 reasoning_effort=self._reasoning_effort,
             )
         else:
-            raise ValueError("API must be 'chat_completions' or 'responses'")
+            raise ValueError(PROVIDER_TEXT.api_must_be_chat_completions_or_responses)
 
     def call_structured[ResponseModel: BaseModel](
         self,
@@ -213,7 +229,7 @@ class LocalProvider(Provider):
     ) -> StructuredProviderResponse[ResponseModel]:
         if self._has_interactive_tools(request):
             raise ProviderRequestRejectedError(
-                "Structured responses do not support interactive tool continuations"
+                PROVIDER_TEXT.structured_responses_do_not_support_interactive_tool_continuations
             )
         try:
             api_adapter = self._create_api_adapter()
@@ -223,4 +239,4 @@ class LocalProvider(Provider):
                 self._rejection_message(error)
             ) from error
         except openai.APIError as error:
-            raise RuntimeError("Local provider request failed") from error
+            raise RuntimeError(PROVIDER_TEXT.local_provider_request_failed) from error

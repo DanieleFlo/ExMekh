@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.core.models.provider_stream_event import ProviderStreamEvent
 
 
@@ -21,7 +22,7 @@ class DeepAgentStreamEvent:
 
     def __post_init__(self) -> None:
         if not isinstance(self.provider_event, ProviderStreamEvent):
-            raise TypeError("provider_event must be a ProviderStreamEvent")
+            raise TypeError(AGENT_TEXT.provider_event_must_be_a_providerstreamevent)
         _validate_position(self.depth, self.skill_path)
 
 
@@ -38,20 +39,20 @@ class DeepAgentExecutionEvent:
 
     def __post_init__(self) -> None:
         if not isinstance(self.type, DeepAgentExecutionEventType):
-            raise TypeError("Event type must be a DeepAgentExecutionEventType")
+            raise TypeError(AGENT_TEXT.event_type_must_be_a_deepagentexecutioneventtype)
         _validate_position(self.depth, self.skill_path)
         if not isinstance(self.failed, bool):
-            raise TypeError("Execution failure must be a boolean")
+            raise TypeError(AGENT_TEXT.execution_failure_must_be_a_boolean)
         if self.failed and self.is_tool_running:
-            raise ValueError("A running tool cannot have a terminal failure")
+            raise ValueError(AGENT_TEXT.a_running_tool_cannot_have_a_terminal_failure)
         if not isinstance(self.history, list):
-            raise TypeError("History must be a list")
+            raise TypeError(AGENT_TEXT.history_must_be_a_list)
         if not isinstance(self.history_tree, list):
-            raise TypeError("History tree must be a list")
+            raise TypeError(AGENT_TEXT.history_tree_must_be_a_list)
         if not isinstance(self.tool_name, str) or not self.tool_name:
-            raise ValueError("Execution events require a tool name")
+            raise ValueError(AGENT_TEXT.execution_events_require_a_tool_name)
         if not isinstance(self.tool_call_id, str) or not self.tool_call_id:
-            raise ValueError("Execution events require a tool call id")
+            raise ValueError(AGENT_TEXT.execution_events_require_a_tool_call_id)
 
         object.__setattr__(self, "history", deepcopy(self.history))
         object.__setattr__(self, "history_tree", deepcopy(self.history_tree))
@@ -66,8 +67,8 @@ type DeepAgentEvent = DeepAgentStreamEvent | DeepAgentExecutionEvent
 
 def _validate_position(depth: int, skill_path: str) -> None:
     if not isinstance(depth, int) or isinstance(depth, bool):
-        raise TypeError("Depth must be an integer")
+        raise TypeError(AGENT_TEXT.depth_must_be_an_integer)
     if depth < 0:
-        raise ValueError("Depth cannot be negative")
+        raise ValueError(AGENT_TEXT.depth_cannot_be_negative)
     if not isinstance(skill_path, str) or not skill_path.startswith("/"):
-        raise ValueError("Skill path must start with '/'")
+        raise ValueError(AGENT_TEXT.skill_path_must_start_with)

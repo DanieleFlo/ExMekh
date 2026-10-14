@@ -4,6 +4,7 @@ from typing import ClassVar
 
 from openai.types.chat import ChatCompletionChunk
 
+from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.model_usage import ModelUsage
 from exmekh_lib.core.models.provider_stream_event import (
     ProviderStreamEvent,
@@ -21,7 +22,7 @@ class FromOpenAIChatCompletionStreamMapper:
     @classmethod
     def map_chunk(cls, chunk: ChatCompletionChunk) -> list[ProviderStreamEvent]:
         if not isinstance(chunk, ChatCompletionChunk):
-            raise TypeError("Expected a ChatCompletionChunk instance")
+            raise TypeError(PROVIDER_TEXT.expected_a_chatcompletionchunk_instance)
 
         events: list[ProviderStreamEvent] = []
         for choice in chunk.choices:

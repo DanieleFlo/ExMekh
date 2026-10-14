@@ -156,18 +156,31 @@ def analyze_table(text: str, result: Analysis) -> None:
         widths.add(len(row))
         rows += 1
         if rows == 1 and has_header:
-            result.index.add("header", "table header", start, reader.line_num)
+            result.index.add(
+                "header",
+                FILE_INSPECTION_TEXT.table_header_label,
+                start,
+                reader.line_num,
+            )
         if rows % result.index.settings.table_rows_per_region == 0:
             result.index.add(
                 "rows",
-                f"records {rows - result.index.settings.table_rows_per_region + 1}-{rows}",
+                FILE_INSPECTION_TEXT.table_records_label.format(
+                    start=rows - result.index.settings.table_rows_per_region + 1,
+                    end=rows,
+                ),
                 chunk_start,
                 reader.line_num,
             )
             chunk_start = reader.line_num + 1
     if chunk_start <= previous_end:
         first = rows - rows % result.index.settings.table_rows_per_region + 1
-        result.index.add("rows", f"records {first}-{rows}", chunk_start, previous_end)
+        result.index.add(
+            "rows",
+            FILE_INSPECTION_TEXT.table_records_label.format(start=first, end=rows),
+            chunk_start,
+            previous_end,
+        )
     result.details.update(
         records=rows,
         columns=columns,

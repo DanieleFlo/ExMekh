@@ -6,6 +6,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import cast
 
+from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.config.capabilities import CAPABILITY_FORMAT
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.agents.deep_skill.deep_skill import DeepSkill
@@ -85,9 +86,9 @@ class _NamedOverride:
             ("replacement_name", self.replacement_name),
         ):
             if not isinstance(name, str):
-                raise TypeError(f"{label} must be a string")
+                raise TypeError(AGENT_TEXT.must_be_a_string.format(label=label))
             if not name:
-                raise ValueError(f"{label} cannot be empty")
+                raise ValueError(AGENT_TEXT.cannot_be_empty.format(label=label))
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,14 +122,14 @@ class DefaultCapabilities:
         tool_hooks: Mapping[str, ToolHooks] | None = None,
     ) -> None:
         if not isinstance(mocks, bool) or not isinstance(harness, bool):
-            raise TypeError("mocks and harness must be bool")
+            raise TypeError(AGENT_TEXT.mocks_and_harness_must_be_bool)
         included = self._validate_default_names(include, "include")
         excluded = self._validate_default_names(exclude, "exclude")
         replacements = self._validate_overrides(overrides)
         conflict = (included & excluded) | (replacements.keys() & excluded)
         if conflict:
             raise ValueError(
-                "Capability cannot be included or overridden and excluded: "
+                AGENT_TEXT.capability_cannot_be_included_or_overridden_and_excluded
                 + ", ".join(sorted(conflict))
             )
 
@@ -144,7 +145,7 @@ class DefaultCapabilities:
         unselected = hooks.keys() - selected_names
         if unselected:
             raise ValueError(
-                "Tool hooks require selected capabilities: "
+                AGENT_TEXT.tool_hooks_require_selected_capabilities
                 + ", ".join(sorted(unselected))
             )
         self._mocks = mocks
@@ -197,7 +198,9 @@ class DefaultCapabilities:
         if not isinstance(replacement, Tool) or isinstance(
             replacement, (HDS, DeepSkill, ExitTool)
         ):
-            raise TypeError(f"Override for '{name}' is not a resolved Tool")
+            raise TypeError(
+                AGENT_TEXT.override_for_is_not_a_resolved_tool.format(name=name)
+            )
         return replacement
 
     def tool_hooks_for(self, name: str) -> ToolHooks | None:
@@ -226,24 +229,34 @@ class DefaultCapabilities:
         if tool_hooks is None:
             return {}
         if not isinstance(tool_hooks, Mapping):
-            raise TypeError("tool_hooks must be a mapping")
+            raise TypeError(AGENT_TEXT.tool_hooks_must_be_a_mapping)
         cls._validate_default_names(tool_hooks, "tool_hooks")
         hooks: dict[str, ToolHooks] = {}
         for name, configuration in tool_hooks.items():
             if _RESOURCE_TYPES[name] not in (Tool, ExitTool):
-                raise TypeError(f"Tool hooks for '{name}' require a tool or exit tool")
+                raise TypeError(
+                    AGENT_TEXT.tool_hooks_for_require_a_tool_or_exit_tool.format(
+                        name=name
+                    )
+                )
             if not isinstance(configuration, ToolHooks):
-                raise TypeError(f"Tool hooks for '{name}' must be a ToolHooks instance")
+                raise TypeError(
+                    AGENT_TEXT.tool_hooks_for_must_be_a_toolhooks_instance.format(
+                        name=name
+                    )
+                )
             hooks[name] = configuration
         return hooks
 
     @staticmethod
     def _normalize_names(names: Iterable[str], label: str) -> frozenset[str]:
         if isinstance(names, (str, bytes)) or not isinstance(names, Iterable):
-            raise TypeError(f"{label} must be an iterable of capability names")
+            raise TypeError(
+                AGENT_TEXT.must_be_an_iterable_of_capability_names.format(label=label)
+            )
         values = tuple(names)
         if not all(isinstance(name, str) for name in values):
-            raise TypeError(f"{label} must contain only strings")
+            raise TypeError(AGENT_TEXT.must_contain_only_strings.format(label=label))
         return frozenset(values)
 
     @classmethod
@@ -254,7 +267,9 @@ class DefaultCapabilities:
         unknown = values - MOCK_NAMES - HARNESS_NAMES
         if unknown:
             raise ValueError(
-                f"Unknown default capabilities: {', '.join(sorted(unknown))}"
+                AGENT_TEXT.unknown_default_capabilities.format(
+                    names=", ".join(sorted(unknown))
+                )
             )
         return values
 
@@ -267,7 +282,7 @@ class DefaultCapabilities:
         replacements: dict[str, Override] = {}
         for name, resource in entries:
             if name in replacements:
-                raise ValueError(f"Duplicate override for '{name}'")
+                raise ValueError(AGENT_TEXT.duplicate_override_for.format(name=name))
             if isinstance(resource, _NamedOverride):
                 cls._validate_named_override(name, resource)
             else:
@@ -278,11 +293,17 @@ class DefaultCapabilities:
     @staticmethod
     def _validate_named_override(name: str, resource: _NamedOverride) -> None:
         if resource.target_name != name:
-            raise ValueError(f"Override for '{name}' must target '{name}'")
+            raise ValueError(
+                AGENT_TEXT.override_for_must_target.format(name=name, name_2=name)
+            )
         expected = _RESOURCE_TYPES.get(name)
         resource_type = Tool if isinstance(resource, ToolOverride) else DeepSkill
         if expected is not None and expected is not resource_type:
-            raise TypeError(f"Override for '{name}' must match {expected.__name__}")
+            raise TypeError(
+                AGENT_TEXT.override_for_must_match.format(
+                    name=name, expected_name=expected.__name__
+                )
+            )
 
     @staticmethod
     def _validate_object_override(
@@ -294,9 +315,15 @@ class DefaultCapabilities:
         if not isinstance(resource, expected) or (
             expected is Tool and isinstance(resource, (HDS, DeepSkill, ExitTool))
         ):
-            raise TypeError(f"Override for '{name}' must be a {expected.__name__}")
+            raise TypeError(
+                AGENT_TEXT.override_for_must_be_a.format(
+                    name=name, expected_name=expected.__name__
+                )
+            )
         if resource.get_name() != name:
-            raise ValueError(f"Override for '{name}' must have name '{name}'")
+            raise ValueError(
+                AGENT_TEXT.override_for_must_have_name.format(name=name, name_2=name)
+            )
 
     @staticmethod
     def _override_entries(
@@ -310,10 +337,12 @@ class DefaultCapabilities:
             entries: list[tuple[str, Override]] = []
             for item in overrides:
                 if not isinstance(item, _NamedOverride):
-                    raise TypeError("overrides must contain only override descriptors")
+                    raise TypeError(
+                        AGENT_TEXT.overrides_must_contain_only_override_descriptors
+                    )
                 entries.append((item.target_name, item))
             return tuple(entries)
-        raise TypeError("overrides must be a mapping or iterable of overrides")
+        raise TypeError(AGENT_TEXT.overrides_must_be_a_mapping_or_iterable_of_overrides)
 
 
 BUILTIN_CAPABILITIES_PATH = DefaultCapabilities.CAPABILITIES_PATH

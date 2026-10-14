@@ -6,6 +6,7 @@ from PIL import Image
 from pydantic import BaseModel
 from pydantic_core import to_json
 
+from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.assistant_message import AssistantMessage, ToolCall
 from exmekh_lib.core.models.function_message import FunctionMessage
 from exmekh_lib.core.models.interactive import InterruptedMessage
@@ -59,7 +60,9 @@ class ToOpenAIResponseMapper:
     ) -> list[dict[str, Any]]:
         content = message.get_message()
         if not isinstance(content, BaseModel):
-            raise TypeError("Structured assistant content must be a Pydantic model")
+            raise TypeError(
+                PROVIDER_TEXT.structured_assistant_content_must_be_a_pydantic_model
+            )
         return cls._map_assistant_content(
             content.model_dump_json(),
             message.get_tool_calls(),
@@ -77,7 +80,9 @@ class ToOpenAIResponseMapper:
 
     @staticmethod
     def map_function_message(message: FunctionMessage) -> list[dict[str, Any]]:
-        raise TypeError("Responses API does not support legacy function messages")
+        raise TypeError(
+            PROVIDER_TEXT.responses_api_does_not_support_legacy_function_messages
+        )
 
     @classmethod
     def map_message(cls, message: Message[object]) -> list[dict[str, Any]]:
@@ -95,7 +100,9 @@ class ToOpenAIResponseMapper:
             return cls.map_tool_message(message)
         if isinstance(message, FunctionMessage):
             return cls.map_function_message(message)
-        raise TypeError(f"Unsupported message type: {type(message)}")
+        raise TypeError(
+            PROVIDER_TEXT.unsupported_message_type.format(message_type=type(message))
+        )
 
     @classmethod
     def _map_assistant_content(
@@ -141,7 +148,11 @@ class ToOpenAIResponseMapper:
                 parts.append(cls._map_file(part, document_index))
                 document_index += 1
             else:
-                raise TypeError(f"Unsupported user content type: {type(part).__name__}")
+                raise TypeError(
+                    PROVIDER_TEXT.unsupported_user_content_type.format(
+                        part_type_name=type(part).__name__
+                    )
+                )
         return parts
 
     @staticmethod

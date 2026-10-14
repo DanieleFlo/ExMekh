@@ -17,6 +17,7 @@ from numpy.typing import NDArray
 from PIL import Image
 
 from exmekh_lib.config.web import WEB_FORMAT, WEB_RANKING
+from exmekh_lib.config.web_text import WEB_TEXT
 
 from .image_discovery import DiscoveredImage, decode_image
 
@@ -159,7 +160,7 @@ class EmbeddingLRUCache:
     def __init__(self, capacity: int = EMBEDDING_CACHE_SIZE) -> None:
         """Create a cache with a positive maximum entry count."""
         if capacity < 1:
-            raise ValueError("Embedding cache capacity must be positive.")
+            raise ValueError(WEB_TEXT.embedding_cache_capacity_must_be_positive)
         self._capacity = capacity
         self._entries: OrderedDict[str, Embedding] = OrderedDict()
         self._lock = threading.RLock()
@@ -281,10 +282,10 @@ def build_embedding_text(result: Mapping[str, object]) -> str:
     """Build a natural field-labelled representation of one search result."""
     hostname = urlparse(str(result.get("url", ""))).hostname or ""
     domain = hostname.removeprefix("www.")
-    return (
-        f"Title: {str(result.get('title', '')).strip()}\n"
-        f"Domain: {domain}\n"
-        f"Snippet: {str(result.get('snippet', '')).strip()}"
+    return WEB_TEXT.title_domain_snippet.format(
+        result_get_strip=str(result.get("title", "")).strip(),
+        domain=domain,
+        result_get_strip_2=str(result.get("snippet", "")).strip(),
     )
 
 
@@ -364,7 +365,7 @@ def compute_semantic_similarity(
         texts.extend(build_embedding_text(results[index]) for index in missing_indices)
         vectors = (backend or get_embedding_backend()).encode(texts)
         if vectors.ndim != 2 or vectors.shape[0] != len(texts):
-            raise ValueError("Embedding backend returned an invalid batch shape.")
+            raise ValueError(WEB_TEXT.embedding_backend_returned_an_invalid_batch_shape)
         query_embedding = vectors[0]
         for offset, result_index in enumerate(missing_indices, start=1):
             document_embedding = vectors[offset]
@@ -451,7 +452,7 @@ def reciprocal_rank_fusion(
 ) -> dict[int, float]:
     """Fuse ranked candidate indices using weighted reciprocal rank fusion."""
     if k < 1:
-        raise ValueError("RRF k must be positive.")
+        raise ValueError(WEB_TEXT.rrf_k_must_be_positive)
     scores: dict[int, float] = {}
     for ranking, weight in rankings:
         if weight <= 0:
@@ -478,7 +479,7 @@ def rank_results(
     try:
         semantic_scores = compute_semantic_similarity(query, results)
     except Exception as error:  # noqa: BLE001 - semantic ranking is an optional signal.
-        _LOGGER.warning("OpenVINO Granite semantic ranking unavailable: %s", error)
+        _LOGGER.warning(WEB_TEXT.openvino_granite_semantic_ranking_unavailable, error)
     else:
         rankings.append((_ranking_from_scores(semantic_scores), SEMANTIC_RRF_WEIGHT))
     if image_ranking is not None:

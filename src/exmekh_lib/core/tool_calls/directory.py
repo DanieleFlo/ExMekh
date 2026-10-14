@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol
 
+from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.cache.cache_manager import CacheManager
 from exmekh_lib.core.cache.paths import cache_component
 
@@ -22,18 +23,18 @@ def resolve_tool_call_directory(
 ) -> Path:
     """Resolve standalone archives; live node caches use their session directory."""
     if not isinstance(folder_name, str) or not folder_name.strip():
-        raise ValueError("folder_name must be a non-empty string")
+        raise ValueError(RUNTIME_TEXT.folder_name_must_be_a_non_empty_string)
     if cache_component(folder_name) != folder_name:
-        raise ValueError("folder_name must be a portable directory name")
+        raise ValueError(RUNTIME_TEXT.folder_name_must_be_a_portable_directory_name)
     if directory is not None:
         if not isinstance(directory, Path):
-            raise TypeError("directory must be a Path or None")
+            raise TypeError(RUNTIME_TEXT.directory_must_be_a_path_or_none)
         return directory.resolve()
     identity = tokenizer_identity
     if identity is None and tokenizer is not None:
         identity = tokenizer.cache_identity
     if not isinstance(identity, str) or not identity.strip():
         raise ValueError(
-            "Either 'directory', 'tokenizer_identity', or 'tokenizer' must be provided"
+            RUNTIME_TEXT.either_directory_tokenizer_identity_or_tokenizer_must_be_provided
         )
     return CacheManager.resolve_temp_directory(identity, cache_directory) / folder_name

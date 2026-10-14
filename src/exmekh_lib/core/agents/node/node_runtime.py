@@ -13,6 +13,7 @@ from exmekh_lib.capabilities.tools.control_tool_execution.execution_control_tool
 )
 from exmekh_lib.capabilities.tools.read_tool_output.summary import SummaryMode
 from exmekh_lib.config.runtime import RUNTIME
+from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.agents.capabilities.tool_composer import _DefaultToolComposer
 from exmekh_lib.core.agents.deep_agent.agent_response import AgentResponse
 from exmekh_lib.core.agents.deep_agent.stream_event import (
@@ -24,6 +25,7 @@ from exmekh_lib.core.agents.deep_skill.deep_skill import CalledDeepSkill
 from exmekh_lib.core.agents.exit_tool.exit_tool import CalledExitTool
 from exmekh_lib.core.agents.exit_tool.items import ExitItemResolver
 from exmekh_lib.core.cache.node_cache import NodeCache
+from exmekh_lib.core.cache.output_file_workspace import OutputFileWorkspace
 from exmekh_lib.core.file_inspection.runtime import FileInspectionRequests
 from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
 from exmekh_lib.core.models.client import Client
@@ -38,6 +40,7 @@ from exmekh_lib.core.models.user_message import ErrorUserMessage, UserMessage
 from exmekh_lib.core.tool_calls.execution_history import ExecutionHistory
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
 from exmekh_lib.core.tool_calls.harness_memory_tools import HarnessMemoryTools
+from exmekh_lib.core.tool_calls.output_preparer import ToolOutputPreparer
 from exmekh_lib.interfaces.event_handler import ProviderEventHandler
 from exmekh_lib.interfaces.message import Message
 from exmekh_lib.interfaces.provider import ProviderRequestRejectedError
@@ -71,9 +74,16 @@ class NodeRuntime(ProviderEventHandler):
         self._node_id = f"{config.get_hds_name()}-{uuid4().hex}"
         self._tool_cache: NodeCache | None = None
         self._execution_history = ExecutionHistory()
+        self._output_preparer = ToolOutputPreparer(
+            config.provider.get_tokenizer(),
+            OutputFileWorkspace(self._get_tool_cache, config.work_root, None),
+        )
         self._execution_manager = ToolExecutionManager()
         self._result_recorder = ToolResultRecorder(
-            self._execution_history, self._get_tool_cache, self._execution_manager
+            self._execution_history,
+            self._get_tool_cache,
+            self._execution_manager,
+            self._output_preparer,
         )
         self._turn_control = TurnControl(self._execution_manager)
         self._memory_tools = HarnessMemoryTools(
@@ -82,6 +92,7 @@ class NodeRuntime(ProviderEventHandler):
             self._execution_manager,
             config.work_root,
             provider=config.provider,
+            output_preparer=self._output_preparer,
         )
         self._exit_items = ExitItemResolver(
             self._execution_history,
@@ -150,12 +161,18 @@ class NodeRuntime(ProviderEventHandler):
         }
         if duplicate_runtime_names:
             names = ", ".join(sorted(duplicate_runtime_names))
-            raise ValueError(f"Harness runtime tool names must be unique: {names}")
+            raise ValueError(
+                RUNTIME_TEXT.harness_runtime_tool_names_must_be_unique.format(
+                    names=names
+                )
+            )
 
         collisions = capability_names.intersection(runtime_names)
         if collisions:
             names = ", ".join(sorted(collisions))
-            raise ValueError(f"Harness runtime tool names are reserved: {names}")
+            raise ValueError(
+                RUNTIME_TEXT.harness_runtime_tool_names_are_reserved.format(names=names)
+            )
 
     def run(self, user_message: NodeUserMessage) -> AgentResponse:
         with self._turn_control.run():
@@ -203,7 +220,7 @@ class NodeRuntime(ProviderEventHandler):
         self._thinking_annotation_resolver.begin_turn()
         self._run_start_position = self._execution_history.count
         logger.info(
-            "Starting node run: node=%s depth=%d",
+            RUNTIME_TEXT.starting_node_run_node_depth,
             self._config.get_hds_name(),
             self.depth,
         )
@@ -233,7 +250,7 @@ class NodeRuntime(ProviderEventHandler):
             )
         response = self._route_until_complete(response)
         logger.info(
-            "Completed node run: node=%s depth=%d root_executions=%d",
+            RUNTIME_TEXT.completed_node_run_node_depth_root_executions,
             self._config.get_hds_name(),
             self.depth,
             len(self._executor.skill_executions),
@@ -254,7 +271,9 @@ class NodeRuntime(ProviderEventHandler):
     ) -> None:
         """Restore messages and tool state for a persistent node."""
         if not self._config.is_persistent_history():
-            raise ValueError("Cannot restore history for a non-persistent node")
+            raise ValueError(
+                RUNTIME_TEXT.cannot_restore_history_for_a_non_persistent_node
+            )
         self._client.replace_history_from(1, list(messages))
         if restore_execution_state is not None:
             restore_execution_state(
@@ -266,7 +285,11 @@ class NodeRuntime(ProviderEventHandler):
         while True:
             tool_calls = response.get_tool_calls()
             if tool_calls:
-                logger.info(f"Tool calls: {[tool.get_name() for tool in tool_calls]}")
+                logger.info(
+                    RUNTIME_TEXT.tool_calls.format(
+                        names=[tool.get_name() for tool in tool_calls]
+                    )
+                )
                 resolved_tool_calls = self._prepare_tool_batch(tool_calls)
                 thinking = response.thinking.thoughts if response.thinking else None
                 self._execute_batch(resolved_tool_calls, thinking)
@@ -426,7 +449,7 @@ class NodeRuntime(ProviderEventHandler):
         failed = True
         try:
             logger.info(
-                "Starting tool execution: name=%s call_id=%s path=%s",
+                RUNTIME_TEXT.starting_tool_execution_name_call_id_path,
                 tool_call.name,
                 tool_call.call_id,
                 self._executor.skill_path,
@@ -473,14 +496,16 @@ class NodeRuntime(ProviderEventHandler):
                     arguments={"output_id": output_id},
                 ),
             )
-            self._execute_automatic_output_read(call)
-            self._execution_manager.mark_delivered(output_id)
+            result = self._execute_automatic_output_read(call)
+            if result.is_error:
+                break
+            self._execution_manager.acknowledge_output(snapshot)
             delivered = True
         return delivered
 
-    def _execute_automatic_output_read(self, call: ToolCall) -> None:
+    def _execute_automatic_output_read(self, call: ToolCall) -> ToolExecutionResult:
         with self._executor.record_automatic_tool_call(call):
-            self._execute_tool_call(self._resolver.resolve(call))
+            return self._execute_tool_call(self._resolver.resolve(call))
 
     def _has_read_tool(self) -> bool:
         return any(
@@ -508,6 +533,7 @@ class NodeRuntime(ProviderEventHandler):
             exit_content_resolver=self._compose_exit_content,
             execution_manager=self._execution_manager,
             scope_prefix=self._scope_prefix,
+            output_preparer=self._output_preparer,
         )
         self._executor.configure_interactive_calls(
             self._turn_control.has_pending_messages

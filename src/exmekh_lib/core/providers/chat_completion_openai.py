@@ -9,6 +9,7 @@ from openai.types.chat import ChatCompletionChunk
 from openai.types.chat.chat_completion import ChatCompletion
 from pydantic import BaseModel
 
+from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.provider_request import ProviderRequest
 from exmekh_lib.core.models.provider_response import ProviderResponse
 from exmekh_lib.core.models.provider_stream_event import (
@@ -56,15 +57,17 @@ class ChatCompletionOpenAI:
 
     def _check_inputs(self) -> None:
         if not isinstance(self._client, OpenAI):
-            raise TypeError("Client must be an instance of OpenAI")
+            raise TypeError(PROVIDER_TEXT.client_must_be_an_instance_of_openai)
 
         if not isinstance(self._model, str):
-            raise TypeError("Model must be a string")
+            raise TypeError(PROVIDER_TEXT.model_must_be_a_string)
 
         if self._reasoning_effort is not None and not isinstance(
             self._reasoning_effort, ReasoningEffort
         ):
-            raise TypeError("Reasoning effort must be a ReasoningEffort instance")
+            raise TypeError(
+                PROVIDER_TEXT.reasoning_effort_must_be_a_reasoningeffort_instance
+            )
 
     def call(self, request: ProviderRequest) -> ProviderResponse:
         response = self._execute_request(request)
@@ -144,7 +147,7 @@ class ChatCompletionOpenAI:
                 close()
 
         if not received_chunk:
-            raise RuntimeError("No chunks returned from the provider")
+            raise RuntimeError(PROVIDER_TEXT.no_chunks_returned_from_the_provider)
 
         response = cast(ChatCompletion, state.get_final_completion())
         end_event = ProviderStreamEventType.END
@@ -157,7 +160,7 @@ class ChatCompletionOpenAI:
         request: ProviderRequest,
     ) -> ProviderResponse:
         if not response.choices:
-            raise RuntimeError("No choices returned from the provider")
+            raise RuntimeError(PROVIDER_TEXT.no_choices_returned_from_the_provider)
 
         response_content = FromOpenAIChatCompletionMapper.map_assistant_message(
             response.choices[0].message,
@@ -177,7 +180,7 @@ class ChatCompletionOpenAI:
         request: StructuredProviderRequest[ResponseModel],
     ) -> StructuredProviderResponse[ResponseModel]:
         if not response.choices:
-            raise RuntimeError("No choices returned from the provider")
+            raise RuntimeError(PROVIDER_TEXT.no_choices_returned_from_the_provider)
 
         provider_message = response.choices[0].message
         json_data = provider_message.content or "{}"
