@@ -5,7 +5,7 @@ from pathlib import Path
 from exmekh_lib.config.file_inspection import FILE_INSPECTION_TEXT
 from exmekh_lib.core.agents.tools.decorator import deep_tool
 from exmekh_lib.core.file_inspection.errors import FileInspectionError
-from exmekh_lib.utils.tool_errors import missing_dependency
+from exmekh_lib.utils.tool_errors import missing_dependency, tool_error_result
 
 
 @deep_tool(
@@ -24,4 +24,4 @@ def run(
     except ModuleNotFoundError as error:
         return missing_dependency(error)
     except FileInspectionError as error:
-        return {"ok": False, "error_kind": "invalid_file_read", "error": str(error)}
+        return tool_error_result(error, "invalid_file_read")

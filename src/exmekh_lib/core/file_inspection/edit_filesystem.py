@@ -15,7 +15,13 @@ from exmekh_lib.config.file_editing import FILE_EDITING
 from exmekh_lib.config.file_inspection import FILE_INSPECTION, FILE_INSPECTION_TEXT
 
 from .errors import FileInspectionError
-from .workspace import FileIdentity, FileSnapshot, read_snapshot, validate_file_path
+from .workspace import (
+    FileIdentity,
+    FileSnapshot,
+    read_snapshot,
+    resolve_work_root,
+    validate_file_path,
+)
 
 _locks: WeakValueDictionary[str, RLock] = WeakValueDictionary()
 _registry_lock = Lock()
@@ -31,22 +37,29 @@ def resource_lock(path: Path) -> Generator[None]:
 
 def resolve_edit_target(work_root: Path, path: str) -> Path:
     validate_file_path(path)
-    root = work_root.resolve(strict=True)
-    if not root.is_dir():
-        raise FileInspectionError(FILE_INSPECTION_TEXT.root_not_directory)
+    root = resolve_work_root(work_root)
     candidate = root / path
     # A dangling symlink is a resource error, not authorization to create.
     try:
         candidate.lstat()
     except FileNotFoundError:
-        parent = candidate.parent.resolve(strict=True)
+        try:
+            parent = candidate.parent.resolve(strict=True)
+        except FileNotFoundError as error:
+            raise FileInspectionError(
+                FILE_EDITING.parent_required, code="parent_directory_missing"
+            ) from error
         target = parent / candidate.name
     else:
         target = candidate.resolve(strict=True)
     if not target.is_relative_to(root):
-        raise FileInspectionError(FILE_INSPECTION_TEXT.path_outside_root)
+        raise FileInspectionError(
+            FILE_INSPECTION_TEXT.path_outside_root, code="path_outside_workroot"
+        )
     if not target.parent.is_dir():
-        raise FileInspectionError(FILE_EDITING.parent_required)
+        raise FileInspectionError(
+            FILE_EDITING.parent_required, code="parent_directory_missing"
+        )
     return target
 
 
@@ -57,7 +70,9 @@ def edit_snapshot(work_root: Path, path: str) -> FileSnapshot:
         replace(FILE_INSPECTION, max_file_bytes=FILE_EDITING.max_snapshot_bytes),
     )
     if snapshot.content is None:
-        raise FileInspectionError(FILE_EDITING.snapshot_byte_limit)
+        raise FileInspectionError(
+            FILE_EDITING.snapshot_byte_limit, code="file_limit_exceeded"
+        )
     return snapshot
 
 
@@ -82,17 +97,22 @@ def new_file(work_root: Path, path: str, content: str) -> dict[str, object]:
         raise FileInspectionError(
             FILE_EDITING.minimum_content.format(
                 minimum=FILE_EDITING.min_new_file_characters
-            )
+            ),
+            code="invalid_content",
         )
     if "\x00" in content:
-        raise FileInspectionError(FILE_EDITING.content_nul)
+        raise FileInspectionError(FILE_EDITING.content_nul, code="invalid_content")
     encoded = content.encode("utf-8")
     if len(encoded) > FILE_EDITING.max_snapshot_bytes:
-        raise FileInspectionError(FILE_EDITING.creation_byte_limit)
+        raise FileInspectionError(
+            FILE_EDITING.creation_byte_limit, code="file_limit_exceeded"
+        )
     target = resolve_edit_target(work_root, path)
     with resource_lock(target):
         if os.path.lexists(work_root.resolve() / path):
-            raise FileInspectionError(FILE_EDITING.path_exists)
+            raise FileInspectionError(
+                FILE_EDITING.path_exists, code="file_already_exists"
+            )
         FileWriteTarget(work_root, path, target).commit(encoded)
     return {
         "ok": True,
@@ -109,7 +129,9 @@ def delete_file(work_root: Path, path: str) -> dict[str, object]:
     with resource_lock(target):
         initial = target.stat()
         if not stat.S_ISREG(initial.st_mode):
-            raise FileInspectionError(FILE_EDITING.deletion_regular_file)
+            raise FileInspectionError(
+                FILE_EDITING.deletion_regular_file, code="not_a_regular_file"
+            )
         descriptor = _open_parent_directory(work_root, target)
         try:
             current = os.stat(target.name, dir_fd=descriptor, follow_symlinks=False)
@@ -122,7 +144,9 @@ def delete_file(work_root: Path, path: str) -> dict[str, object]:
                 or (parent.st_dev, parent.st_ino)
                 != (opened_parent.st_dev, opened_parent.st_ino)
             ):
-                raise FileInspectionError(FILE_EDITING.changed_before_deletion)
+                raise FileInspectionError(
+                    FILE_EDITING.changed_before_deletion, code="file_changed"
+                )
             os.unlink(target.name, dir_fd=descriptor)
         finally:
             os.close(descriptor)
@@ -136,7 +160,9 @@ def delete_file(work_root: Path, path: str) -> dict[str, object]:
 
 def require_descriptor_operations(*operations: Callable[..., object]) -> None:
     if not set(operations).issubset(os.supports_dir_fd):
-        raise FileInspectionError(FILE_EDITING.unsupported_platform)
+        raise FileInspectionError(
+            FILE_EDITING.unsupported_platform, code="unsupported_platform"
+        )
 
 
 def _open_parent_directory(work_root: Path, target: Path) -> int:
@@ -167,21 +193,25 @@ class FileWriteTarget:
     def validate(self) -> None:
         """Recheck canonical path, initial bytes, identity and platform permissions."""
         if resolve_edit_target(self.work_root, self.resource) != self.path:
-            raise FileInspectionError(FILE_EDITING.changed)
+            raise FileInspectionError(FILE_EDITING.changed, code="file_changed")
         if self.snapshot is None:
             try:
                 self.path.lstat()
             except FileNotFoundError:
                 pass
             else:
-                raise FileInspectionError(FILE_EDITING.changed)
+                raise FileInspectionError(FILE_EDITING.changed, code="file_changed")
         elif not self.snapshot.matches(edit_snapshot(self.work_root, self.resource)):
-            raise FileInspectionError(FILE_EDITING.changed)
+            raise FileInspectionError(FILE_EDITING.changed, code="file_changed")
         require_descriptor_operations(os.open, os.unlink, os.link, os.rename)
         if self.snapshot is not None and not os.access(self.path, os.W_OK):
-            raise FileInspectionError(FILE_EDITING.file_not_writable)
+            raise FileInspectionError(
+                FILE_EDITING.file_not_writable, code="permission_denied"
+            )
         if not os.access(self.path.parent, os.W_OK | os.X_OK):
-            raise FileInspectionError(FILE_EDITING.parent_not_writable)
+            raise FileInspectionError(
+                FILE_EDITING.parent_not_writable, code="permission_denied"
+            )
 
     def commit(self, content: bytes) -> None:
         """Revalidate and publish under this target's cooperative lock."""
@@ -201,7 +231,7 @@ class FileWriteTarget:
                 parent_identity.st_dev,
                 parent_identity.st_ino,
             ):
-                raise FileInspectionError(FILE_EDITING.changed)
+                raise FileInspectionError(FILE_EDITING.changed, code="file_changed")
 
         temporary: str | None = None
         try:

@@ -8,6 +8,7 @@ from exmekh_lib.core.agents.tools.decorator import deep_tool
 from exmekh_lib.core.file_inspection.editing import edit_files
 from exmekh_lib.core.file_inspection.errors import FileInspectionError
 from exmekh_lib.core.models.interactive import InteractiveDefinition
+from exmekh_lib.utils.tool_errors import tool_error_result
 
 
 @deep_tool(
@@ -24,4 +25,4 @@ def run(
     try:
         return edit_files(work_root, edits)
     except (FileInspectionError, OSError, UnicodeError, ValueError) as error:
-        return {"ok": False, "error_kind": "invalid_file_edit", "error": str(error)}
+        return tool_error_result(error, "invalid_file_edit")

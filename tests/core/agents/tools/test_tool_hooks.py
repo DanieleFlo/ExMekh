@@ -74,6 +74,49 @@ def test_hooks_change_arguments_and_result(tmp_path: Path) -> None:
     )
 
 
+@pytest.mark.parametrize("replacement", [False, True])
+def test_nested_hook_arguments_do_not_mutate_the_call_or_after_snapshot(
+    tmp_path, replacement
+):
+    original = {"payload": {"steps": ["original"]}}
+    replacement_arguments = {"payload": {"steps": ["replacement"]}}
+    selected = ["replacement"] if replacement else ["original", "before"]
+
+    class Before(BeforeTool):
+        def handle(self, context):
+            if replacement:
+                return ToolArguments(replacement_arguments)
+            context.arguments["payload"]["steps"].append("before")
+
+    class After(AfterTool):
+        def handle(self, context, result):
+            assert context.arguments["payload"]["steps"] == selected
+            return result
+
+    def work(payload):
+        payload["steps"].append("work")
+        return payload["steps"]
+
+    tool = Tool(work, before=Before(), after=After())
+    called = CalledTool(tool, ToolCall("call", FunctionCall("work", original)))
+    result = called.execute(work_root=tmp_path)
+    assert result == [*selected, "work"]
+    assert original == {"payload": {"steps": ["original"]}}
+    assert replacement_arguments == {"payload": {"steps": ["replacement"]}}
+    assert called.executed_arguments == {"payload": {"steps": selected}}
+
+
+def test_deferred_execution_uses_arguments_from_handle_creation(tmp_path):
+    arguments = {"payload": {"steps": ["original"]}}
+    tool = Tool(lambda payload: payload["steps"], name="work")
+    operation = tool.create_execution_with_hooks(
+        arguments, call_id="call", work_root=tmp_path, history=()
+    )
+    arguments["payload"]["steps"].append("changed while pending")
+    assert operation.run() == ["original"]
+    assert operation.get_executed_arguments() == {"payload": {"steps": ["original"]}}
+
+
 def test_before_can_answer_without_calling_tool(tmp_path: Path) -> None:
     class AnswerEarly(BeforeTool):
         def handle(self, context: ToolContext) -> ToolResponse:

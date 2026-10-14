@@ -116,7 +116,9 @@ class FileInteractiveCalls:
 
     def _execution_evidence(self) -> tuple[InspectionEvidence, ...]:
         if self._cancelled() or self._scope_ids() != self._scope_snapshot:
-            raise FileInspectionError(FILE_EDITING.cancelled_before_write)
+            raise FileInspectionError(
+                FILE_EDITING.cancelled_before_write, code="edit_cancelled"
+            )
         return self._runtime.visible_evidence(self._history())
 
     def pending_inspections(self) -> tuple[ToolCall, ...]:

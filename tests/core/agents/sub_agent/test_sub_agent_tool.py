@@ -102,6 +102,7 @@ def test_returns_available_children_for_invalid_selector(
 
     assert tool.execute(**arguments) == (
         "Error: sub_agent must be one of: writer, reviewer."
+        ' Use call_sub_agent(sub_agent="<one of: writer, reviewer>", text="<non-empty task>").'
     )
     writer.run.assert_not_called()  # type: ignore[attr-defined]
     reviewer.run.assert_not_called()  # type: ignore[attr-defined]
@@ -113,6 +114,7 @@ def test_returns_error_for_invalid_text(tmp_path: Path, text: object) -> None:
 
     assert tool.execute(sub_agent="writer", text=text) == (
         "Error: text must be a non-empty string."
+        ' Use call_sub_agent(sub_agent="<one of: writer>", text="<non-empty task>").'
     )
 
 
@@ -122,6 +124,7 @@ def test_returns_error_for_unexpected_arguments(tmp_path: Path) -> None:
     assert tool.execute(sub_agent="writer", text="hi", extra=True) == (
         "Error: call_sub_agent accepts only the arguments sub_agent and text. "
         "Unexpected: extra."
+        ' Use call_sub_agent(sub_agent="<one of: writer>", text="<non-empty task>").'
     )
 
 

@@ -5,6 +5,10 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class WebText:
+    browser_cleanup_failed: str = "Browser cleanup failed: {error_type}: {error}."
+    browser_cleanup_failed_log: str = (
+        "Browser cleanup failed while preserving the original failure"
+    )
     playwright_reported: str = " Playwright reported: {detail}"
     content_truncated: str = "\n\n[Content truncated]"
     action_delta_y_must_be_numeric: str = "Action {index} delta_y must be numeric."

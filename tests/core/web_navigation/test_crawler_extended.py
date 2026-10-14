@@ -257,6 +257,195 @@ def test_crawler_rejects_unsuccessful_result(
         )
 
 
+@pytest.mark.parametrize("status", [404, 403, 429, 503])
+def test_http_errors_are_not_successful_sources_even_when_crawler_reports_success(
+    monkeypatch, status
+):
+    _install_fake_crawl4ai(monkeypatch)
+    capture = crawler._BrowserCapture(url=URL, actions=None, timeout_ms=100)
+    _FakeCrawler.result.status_code = status
+    with pytest.raises(WebNavigationError) as caught:
+        capture.captured_page(_FakeCrawler.result, requested_url=URL)
+    assert caught.value.kind == "crawl_failed"
+    assert caught.value.details["status_code"] == status
+
+
+def test_primary_action_failure_is_not_replaced_by_a_later_page_failure(monkeypatch):
+    _install_fake_crawl4ai(monkeypatch)
+    original = WebNavigationError(
+        "Blocked navigation",
+        kind="cross_origin_navigation",
+        details={"actions": [{"success": True}], "failed_action_index": 1},
+    )
+
+    async def fail_actions(*args, **kwargs):
+        raise original
+
+    class BrokenAfterActions(_Page):
+        waits = 0
+
+        async def wait_for_load_state(self, state, *, timeout):
+            self.waits += 1
+            if self.waits > 1:
+                raise TimeoutError("secondary load failure")
+
+    monkeypatch.setattr(crawler, "execute_actions", fail_actions)
+    capture = crawler._BrowserCapture(
+        url=URL, actions=[{"kind": "back"}], timeout_ms=100
+    )
+    page = BrokenAfterActions()
+    asyncio.run(capture.apply_actions(page))
+    with pytest.raises(WebNavigationError) as caught:
+        capture.captured_page(_FakeCrawler.result, requested_url=URL)
+    assert caught.value is original
+    assert caught.value.details["actions"][0]["success"] is True
+    assert page.waits == 1
+
+
+def test_crawl_timeout_after_actions_preserves_observed_effects(monkeypatch, tmp_path):
+    _install_fake_crawl4ai(monkeypatch)
+    outcome = {"index": 0, "kind": "fill", "success": True, "effect_observed": True}
+
+    async def completed_actions(*args, **kwargs):
+        return [outcome]
+
+    class LateTimeout(_Page):
+        waits = 0
+
+        async def wait_for_load_state(self, state, *, timeout):
+            self.waits += 1
+            if self.waits > 1:
+                raise TimeoutError("after the form was filled")
+
+    monkeypatch.setattr(crawler, "execute_actions", completed_actions)
+    monkeypatch.setattr(sys.modules[__name__], "_Page", LateTimeout)
+    with pytest.raises(WebNavigationError) as caught:
+        asyncio.run(
+            crawler._crawl_page(
+                url=URL,
+                output_mode="markdown",
+                timeout_seconds=2,
+                cache_root=tmp_path,
+                actions=[{"kind": "fill", "selector": "input", "value": "sent"}],
+            )
+        )
+    assert caught.value.code == "crawl_timeout"
+    assert caught.value.details["actions"] == [outcome]
+    assert _FakeCrawler.instances[-1].closed
+
+
+def test_recorded_navigation_violation_keeps_action_context(monkeypatch):
+    _install_fake_crawl4ai(monkeypatch)
+    original = WebNavigationError("Blocked navigation", kind="cross_origin_navigation")
+    outcome = {"index": 0, "kind": "fill", "success": True, "effect_observed": True}
+
+    async def completed_actions(*args, **kwargs):
+        return [outcome]
+
+    def fail_policy(self):
+        raise original
+
+    monkeypatch.setattr(crawler, "execute_actions", completed_actions)
+    monkeypatch.setattr(crawler.NavigationPolicy, "raise_if_violated", fail_policy)
+    capture = crawler._BrowserCapture(
+        url=URL, actions=[{"kind": "fill"}], timeout_ms=100
+    )
+    asyncio.run(capture.apply_actions(_Page()))
+    snapshot = capture.action_details()
+    snapshot["actions"].clear()
+    with pytest.raises(WebNavigationError) as caught:
+        capture.captured_page(_FakeCrawler.result, requested_url=URL)
+    assert caught.value is original
+    assert caught.value.details["actions"] == [outcome]
+
+
+@pytest.mark.parametrize(
+    "primary",
+    [None, WebNavigationError("blocked", kind="blocked_url"), KeyboardInterrupt()],
+)
+def test_browser_cleanup_failure_preserves_primary_error_or_reports_cleanup(
+    monkeypatch, tmp_path, primary, caplog
+):
+    _install_fake_crawl4ai(monkeypatch)
+    _FakeCrawler.error = primary
+
+    async def fail_close(self):
+        self.closed = True
+        raise RuntimeError("cleanup failed")
+
+    monkeypatch.setattr(_FakeCrawler, "close", fail_close)
+    with pytest.raises(BaseException) as caught:
+        asyncio.run(
+            crawler._crawl_page(
+                url=URL,
+                output_mode="markdown",
+                timeout_seconds=2,
+                cache_root=tmp_path,
+                actions=None,
+            )
+        )
+    if primary is None:
+        assert isinstance(caught.value, WebNavigationError)
+        assert caught.value.code == "browser_cleanup_failed"
+    elif isinstance(primary, WebNavigationError):
+        assert caught.value is primary
+        assert "cleanup failed" in primary.details["cleanup_error"]
+    else:
+        assert caught.value is primary
+        assert "cleanup failed" in primary.__notes__[0]
+    assert _FakeCrawler.instances[-1].closed
+    if primary is not None:
+        assert "preserving the original failure" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "status,code",
+    [
+        (404, "http_not_found"),
+        (401, "http_access_denied"),
+        (403, "http_access_denied"),
+        (429, "http_rate_limited"),
+        (503, "http_server_error"),
+        (None, "crawl_failed"),
+    ],
+)
+def test_failed_http_results_explain_recovery_without_changing_error_family(
+    monkeypatch, status, code
+):
+    _install_fake_crawl4ai(monkeypatch)
+    capture = crawler._BrowserCapture(url=URL, actions=None, timeout_ms=100)
+    result = SimpleNamespace(
+        success=False, status_code=status, error_message="Remote failure"
+    )
+    with pytest.raises(WebNavigationError) as caught:
+        capture.captured_page(result, requested_url=URL)
+    assert caught.value.kind == "crawl_failed"
+    assert caught.value.code == code
+    assert caught.value.details["status_code"] == status
+    assert caught.value.hint
+
+
+def test_crawl_timeout_preserves_cleanup_and_warns_about_action_effects(
+    monkeypatch, tmp_path
+):
+    _install_fake_crawl4ai(monkeypatch)
+    _FakeCrawler.error = TimeoutError("deadline")
+    with pytest.raises(WebNavigationError) as caught:
+        asyncio.run(
+            crawler._crawl_page(
+                url=URL,
+                output_mode="markdown",
+                timeout_seconds=2,
+                cache_root=tmp_path,
+                actions=None,
+            )
+        )
+    assert caught.value.kind == "crawl_failed"
+    assert caught.value.code == "crawl_timeout"
+    assert "some may have completed" in caught.value.hint
+    assert _FakeCrawler.instances[-1].closed
+
+
 def test_page_capture_rejects_failed_actions_and_cross_origin_result(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

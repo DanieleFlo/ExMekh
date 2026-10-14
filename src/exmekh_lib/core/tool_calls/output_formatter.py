@@ -6,6 +6,7 @@ from typing import Any, Literal
 from uuid import uuid4
 
 from exmekh_lib.config.runtime_text import RUNTIME_TEXT
+from exmekh_lib.config.tool_errors import ERROR_HINTS
 from exmekh_lib.core.models.client import Client
 from exmekh_lib.core.models.tool import PreformattedToolResult
 from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
@@ -87,6 +88,9 @@ class ToolOutputFormatter:
         header = cls._execution_header(output_id, execution)
         if partial_error is not None:
             header.add_field("partial-output-error", partial_error)
+            header.add_field(
+                "partial-output-hint", ERROR_HINTS["partial_output_failed"]
+            )
         if partial is None:
             content = execution.output_content()
             response_type = execution.response_type

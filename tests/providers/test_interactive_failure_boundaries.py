@@ -440,9 +440,21 @@ def test_transport_receipts_limits_and_retry_failure(tmp_path, monkeypatch, kind
             monkeypatch.setattr(
                 interactive_openai,
                 "FILE_EDITING",
-                replace(FILE_EDITING, protocol_timeout_seconds=0.01),
+                replace(FILE_EDITING, protocol_timeout_seconds=1),
             )
-            steps += [status] * 2 + [terminal()]
+            clock = {"seconds": 0.0}
+            monkeypatch.setattr(
+                interactive_openai, "monotonic", lambda: clock["seconds"]
+            )
+            monkeypatch.setattr(
+                interactive_openai, "sleep", lambda _: clock.update(seconds=0.5)
+            )
+
+            def still_running(body):
+                clock["seconds"] = 2.0
+                return status
+
+            steps += [still_running, terminal()]
     elif kind == "budget":
         monkeypatch.setattr(
             interactive_openai, "FILE_EDITING", replace(FILE_EDITING, max_exchanges=0)
@@ -513,6 +525,8 @@ def test_transport_receipts_limits_and_retry_failure(tmp_path, monkeypatch, kind
                     "Cancellation was not confirmed" in note
                     for note in caught.value.__notes__
                 )
+            if kind == "status_timeout":
+                assert "terminal receipt" in str(caught.value)
         else:
             result = provider.call(request)
             if kind == "snapshot_limit":

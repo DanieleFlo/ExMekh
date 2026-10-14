@@ -8,6 +8,7 @@ from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.cache.node_cache import NodeCache
 from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
+from exmekh_lib.utils.tool_errors import ToolInputError
 
 
 @dataclass(slots=True)
@@ -165,8 +166,9 @@ class ExecutionHistory:
         if start_position is not None and (
             type(start_position) is not int or start_position < 1
         ):
-            raise ValueError(
-                RUNTIME_TEXT.start_position_must_be_a_positive_integer_or_none
+            raise ToolInputError(
+                RUNTIME_TEXT.start_position_must_be_a_positive_integer_or_none,
+                code="invalid_history_page",
             )
         if (
             type(limit) is not int
@@ -174,9 +176,10 @@ class ExecutionHistory:
             <= limit
             <= RUNTIME.memory_max_page_limit
         ):
-            raise ValueError(
+            raise ToolInputError(
                 RUNTIME_TEXT.limit_must_be_between_and.format(
                     runtime_history_min_page_limit=RUNTIME.history_min_page_limit,
                     runtime_memory_max_page_limit=RUNTIME.memory_max_page_limit,
-                )
+                ),
+                code="invalid_history_page",
             )

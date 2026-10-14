@@ -6,6 +6,7 @@ from typing import Any, Literal
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.agents.tools.deep_tool import DeepTool
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
+from exmekh_lib.utils.tool_errors import ToolInputError
 
 from .main import run
 
@@ -42,4 +43,6 @@ class ExecutionControlTool(DeepTool):
             if not supported:
                 result["message"] = RUNTIME.cancellation_unsupported
             return result
-        raise ValueError(RUNTIME.invalid_control_action)
+        raise ToolInputError(
+            RUNTIME.invalid_control_action, code="invalid_control_action"
+        )

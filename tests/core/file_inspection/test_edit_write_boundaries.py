@@ -93,6 +93,9 @@ def test_second_commit_failure_reports_the_first_commit_and_keeps_second_file(
     assert result["ok"] is False
     assert result["error_kind"] == "partial_file_edit"
     assert result["failed_path"] == paths[1].name
+    assert result["error_code"] == "permission_denied"
+    assert "do not replay" in result["hint"]
+    assert [entry["path"] for entry in result["files"]] == [paths[0].name]
     assert [path.read_text() for path in paths] == ["NEW", "OLD"]
     assert not list(tmp_path.glob(FILE_EDITING.temporary_file_prefix + "*"))
 

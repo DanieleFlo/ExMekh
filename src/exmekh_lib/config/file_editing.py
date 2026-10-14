@@ -26,6 +26,12 @@ class FileEditingSettings:
         "old_text must occur exactly once globally and start at a physical line boundary, "
         "including indentation. It may be empty only when the existing file is empty."
     )
+    selection_empty: str = "old_text is empty, but the existing file is not empty."
+    selection_missing: str = "old_text does not occur in the current initial snapshot."
+    selection_ambiguous: str = "old_text occurs more than once in the initial snapshot."
+    selection_midline: str = (
+        "old_text does not start at a physical line boundary, including indentation."
+    )
     conflict_error: str = "Edits of the same canonical file must use the initial snapshot without overlapping selections."
     document_description: str = (
         'One string: <exmekh_edit path="file.txt" id="123" />old text'

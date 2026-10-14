@@ -82,9 +82,11 @@ class SubAgentTool(DeepTool):
     def execute(self, **arguments: Any) -> str:
         unexpected = sorted(set(arguments).difference(self._ARGUMENT_NAMES))
         if unexpected:
-            return RUNTIME.sub_agent_argument_error.format(
-                tool_name=self.get_name(),
-                unexpected=", ".join(unexpected),
+            return self._input_error(
+                RUNTIME.sub_agent_argument_error.format(
+                    tool_name=self.get_name(),
+                    unexpected=", ".join(unexpected),
+                )
             )
 
         sub_agent = arguments.get("sub_agent")
@@ -93,7 +95,7 @@ class SubAgentTool(DeepTool):
 
         text = arguments.get("text")
         if not isinstance(text, str) or not text.strip():
-            return RUNTIME.sub_agent_text_error
+            return self._input_error(RUNTIME.sub_agent_text_error)
 
         return super().execute(**arguments)
 
@@ -105,6 +107,15 @@ class SubAgentTool(DeepTool):
         return content
 
     def _invalid_sub_agent_message(self) -> str:
-        return RUNTIME.sub_agent_selector_error.format(
-            names=", ".join(self._child_names)
+        return self._input_error(
+            RUNTIME.sub_agent_selector_error.format(names=", ".join(self._child_names))
+        )
+
+    def _input_error(self, message: str) -> str:
+        return (
+            message
+            + " "
+            + RUNTIME.sub_agent_correction.format(
+                tool_name=self.get_name(), names=", ".join(self._child_names)
+            )
         )

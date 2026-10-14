@@ -297,8 +297,7 @@ l'esecuzione di più `run` sullo stesso `NodeRuntime`.
 | Situazione | Effetto |
 | --- | --- |
 | Un lavoro gestito o un suo hook solleva un'eccezione | Stato `failed` e diagnostica leggibili; la cache conserva il fallimento se il tool consente il salvataggio. Un risultato valido che segnala un esito negativo resta `completed`. |
-| Un tool sincrono solleva `TypeError` o `ValueError` | L'errore torna al modello senza salvare un output; il modello può correggere gli argomenti e riprovare. |
-| Un tool sincrono solleva un'altra eccezione | L'errore risale al chiamante. |
+| Un tool sincrono o un suo hook solleva un'eccezione | Il runtime restituisce un output `failed` con diagnostica e suggerimenti; salvataggio secondo la policy del tool. Gli errori di binding restano distinti dagli errori interni. |
 | Lo storage fallisce dopo l'esecuzione | La risposta è già applicata alla cronologia; la funzione può avere già prodotto effetti esterni. |
 | Un record non è leggibile o è incoerente | Viene escluso dalla lettura e dagli elenchi. |
 | Una vista appartiene a una sessione chiusa | Le operazioni sulla vista sollevano `RuntimeError`. |

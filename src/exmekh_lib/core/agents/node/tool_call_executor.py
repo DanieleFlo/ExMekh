@@ -10,6 +10,7 @@ from typing import Any
 
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.config.runtime_text import RUNTIME_TEXT
+from exmekh_lib.config.tool_errors import ERROR_HINTS
 from exmekh_lib.core.agents.deep_skill.deep_skill import CalledDeepSkill
 from exmekh_lib.core.agents.deep_skill.execution import (
     DeepSkillExecution,
@@ -40,7 +41,10 @@ from exmekh_lib.core.tool_calls.output_runtime import (
     ToolOutputDelivery,
     ToolOutputRuntime,
 )
-from exmekh_lib.utils.tool_errors import ToolArgumentError, tool_failure_result
+from exmekh_lib.utils.tool_errors import (
+    ToolArgumentError,
+    tool_failure_result,
+)
 
 from .agentic_scope import AgenticScope
 from .tool_call_resolver import ResolvedToolCall
@@ -309,20 +313,23 @@ class ToolCallExecutor:
             )
         )
         try:
-            snapshot = manager.launch(
-                ExecutionLaunch(
-                    call=called_tool.tool_call,
-                    operation=operation,
-                    owner_scope=self.skill_scope_ids,
-                    options=called_tool.execution_options,
-                    output_id=output_id,
-                    skill_path=self.skill_path,
-                )
-            )
+            options = called_tool.execution_options
         except (TypeError, ValueError) as error:
-            raise ToolArgumentError(
-                RUNTIME_TEXT.invalid_arguments.format(error=error)
+            raise ToolArgumentError.from_error(
+                error,
+                RUNTIME_TEXT.invalid_arguments.format(error=error),
+                code="invalid_execution_options",
             ) from error
+        snapshot = manager.launch(
+            ExecutionLaunch(
+                call=called_tool.tool_call,
+                operation=operation,
+                owner_scope=self.skill_scope_ids,
+                options=options,
+                output_id=output_id,
+                skill_path=self.skill_path,
+            )
+        )
         result = snapshot.output_result()
         if snapshot.is_finished:
             return result, snapshot
@@ -335,7 +342,11 @@ class ToolCallExecutor:
                     "next_cursor": partial[1],
                 }
         except Exception as error:
-            result = {**result, "partial_output_error": str(error)}
+            result = {
+                **result,
+                "partial_output_error": str(error),
+                "partial_output_hint": ERROR_HINTS["partial_output_failed"],
+            }
         return result, snapshot
 
     def _format_tool_result(

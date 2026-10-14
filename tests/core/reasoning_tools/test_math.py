@@ -3,6 +3,55 @@ import pytest
 from exmekh_lib.core.reasoning_tools.math import MathInputError, calculate
 
 
+@pytest.mark.parametrize(
+    "expression",
+    [
+        "sin(0, 1)",
+        "cos(0, 1)",
+        "tan(0, 1)",
+        "exp(0, 1)",
+        "sqrt(4, 2)",
+        "Abs(-1, 2)",
+        "log()",
+    ],
+)
+def test_math_function_arity_is_validated_before_calling_sympy(expression):
+    with pytest.raises(MathInputError) as caught:
+        calculate("evaluate", expression)
+    assert caught.value.code == "invalid_math_function_arguments"
+    assert "argument" in caught.value.hint
+    assert calculate("evaluate", "log(8, 2)")["result"] == "3.00000000000000"
+
+
+@pytest.mark.parametrize("expression", ["1/0", "0/0", "log(0)", "Abs(1/0)"])
+def test_undefined_numeric_results_are_actionable_errors(expression):
+    with pytest.raises(MathInputError) as caught:
+        calculate("evaluate", expression)
+    assert caught.value.code == "undefined_math_result"
+    assert "zero divisors" in caught.value.hint
+    assert calculate("evaluate", "1/2")["result"] == "0.500000000000000"
+
+
+def test_singular_inverse_is_distinct_from_invalid_matrix_shape():
+    with pytest.raises(MathInputError) as caught:
+        calculate("inverse", matrix=[[1, 2], [2, 4]])
+    assert caught.value.code == "singular_matrix"
+    assert "no inverse" in caught.value.hint
+    assert calculate("determinant", matrix=[[1, 2], [2, 4]])["result"] == "0"
+
+
+@pytest.mark.parametrize(
+    "expression,code",
+    [("x**x", "unsupported_math_syntax"), ("2**1000", "math_limit_exceeded")],
+)
+def test_variable_exponent_and_oversized_literal_need_different_corrections(
+    expression, code
+):
+    with pytest.raises(MathInputError) as caught:
+        calculate("simplify", expression)
+    assert caught.value.code == code
+
+
 def test_symbolic_and_numerical_operations() -> None:
     pytest.importorskip("sympy")
     assert calculate("differentiate", "x**2 + 3*x")["result"] == "2*x + 3"

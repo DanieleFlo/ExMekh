@@ -170,6 +170,8 @@ def test_bundled_tool_returns_structured_input_errors(bundled_tool: Tool) -> Non
         "ok": False,
         "error_kind": "invalid_date_time",
         "error": "value must be an ISO 8601 date or datetime.",
+        "error_code": "invalid_datetime",
+        "hint": "Supply an ISO 8601 value such as 2026-10-14T12:00:00+02:00; difference also requires other.",
     }
 
 

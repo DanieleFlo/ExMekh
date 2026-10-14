@@ -5,8 +5,16 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, Literal, NotRequired, TypedDict, get_args
 
+from playwright.async_api import TimeoutError as BrowserTimeoutError
+
+from exmekh_lib.config.tool_errors import (
+    ERROR_HINTS,
+    WEB_ACTION_EFFECT,
+    WEB_ACTION_ERROR,
+)
 from exmekh_lib.config.web import WEB_NAVIGATION
 from exmekh_lib.config.web_text import WEB_TEXT
+from exmekh_lib.utils.tool_errors import error_diagnostic
 
 from .errors import WebNavigationError
 from .security import NavigationPolicy, validate_public_url
@@ -162,6 +170,9 @@ async def execute_actions(
                 "cross_origin_navigation",
                 "redirect_limit_exceeded",
             }:
+                error.add_details(
+                    {"actions": list(outcomes), "failed_action_index": index}
+                )
                 raise
             outcomes.append(
                 {
@@ -170,10 +181,17 @@ async def execute_actions(
                     "success": False,
                     "effect_observed": False,
                     "error": error.kind,
+                    "message": str(error),
+                    **error_diagnostic(error),
                 }
             )
             break
         except Exception as error:
+            code = (
+                "action_timeout"
+                if isinstance(error, (TimeoutError, BrowserTimeoutError))
+                else "action_failed"
+            )
             outcomes.append(
                 {
                     "index": index,
@@ -181,6 +199,14 @@ async def execute_actions(
                     "success": False,
                     "effect_observed": False,
                     "error": type(error).__name__,
+                    "error_code": code,
+                    "message": WEB_ACTION_ERROR.format(
+                        index=index,
+                        kind=kind,
+                        error_type=type(error).__name__,
+                        error=error,
+                    ),
+                    "hint": ERROR_HINTS[code],
                 }
             )
             break
@@ -190,6 +216,15 @@ async def execute_actions(
                 "kind": kind,
                 "success": True,
                 "effect_observed": effect_observed,
+                **(
+                    {
+                        "error_code": "action_effect_unobserved",
+                        "message": WEB_ACTION_EFFECT.format(index=index, kind=kind),
+                        "hint": ERROR_HINTS["action_effect_unobserved"],
+                    }
+                    if not effect_observed
+                    else {}
+                ),
             }
         )
     return outcomes

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
+from exmekh_lib.utils.tool_errors import ToolInputError, ToolTypeError
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,25 +18,34 @@ class ToolOutputQuery:
 
     def __post_init__(self) -> None:
         if not isinstance(self.query, str):
-            raise TypeError(RUNTIME.output_query_required)
+            raise ToolTypeError(
+                RUNTIME.output_query_required, code="invalid_output_filter"
+            )
         if self.tool_name is not None and (
             not isinstance(self.tool_name, str) or not self.tool_name.strip()
         ):
-            raise ValueError(RUNTIME.output_tool_name_required)
+            raise ToolInputError(
+                RUNTIME.output_tool_name_required, code="invalid_output_filter"
+            )
         if self.skill_path is not None and (
             not isinstance(self.skill_path, str) or not self.skill_path.startswith("/")
         ):
-            raise ValueError(RUNTIME.output_skill_path_required)
+            raise ToolInputError(
+                RUNTIME.output_skill_path_required, code="invalid_output_filter"
+            )
         if type(self.offset) is not int or self.offset < 0:
-            raise ValueError(RUNTIME.output_offset_required)
+            raise ToolInputError(
+                RUNTIME.output_offset_required, code="invalid_output_filter"
+            )
         if (
             type(self.limit) is not int
             or not 1 <= self.limit <= RUNTIME.memory_max_page_limit
         ):
-            raise ValueError(
+            raise ToolInputError(
                 RUNTIME.output_limit_required.format(
                     limit=RUNTIME.memory_max_page_limit
-                )
+                ),
+                code="invalid_output_filter",
             )
 
     def matches(self, record: ToolCallRecord) -> bool:

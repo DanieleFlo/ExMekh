@@ -16,11 +16,20 @@ from exmekh_lib.core.models.tool import (
 )
 from exmekh_lib.core.tool_calls import execution_manager
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
+from exmekh_lib.utils.tool_errors import ToolInputError
 from exmekh_lib.utils.xml import stringify_tool_result
 
 
 def unavailable_cache():
     raise AssertionError("Transient output must not depend on the cache")
+
+
+@pytest.mark.parametrize("output_id", [None, 0, False, "", " \t"])
+def test_invalid_output_ids_are_rejected_before_storage_access(output_id):
+    with pytest.raises(ToolInputError) as caught:
+        ToolOutputReader(unavailable_cache).read(output_id)
+    assert caught.value.code == "invalid_output_id"
+    assert "saved output ID" in caught.value.hint
 
 
 @pytest.mark.parametrize("cursor", [-1, True, 0.5, "0"])
@@ -195,6 +204,10 @@ def test_progress_failure_preserves_current_state_and_final_output(status, curso
         assert header.findtext("partial-output-error") == (
             "progress <&> unavailable" if expects_diagnostic else None
         )
+        if expects_diagnostic:
+            assert "last valid cursor" in header.findtext("partial-output-hint")
+        else:
+            assert header.find("partial-output-hint") is None
         assert header.find("next-cursor") is None
         if status == "completed":
             assert body == "final result"

@@ -20,6 +20,7 @@ class MathSettings:
         "integrate (with optional bounds), and calculate matrix determinants, inverses, "
         "or eigenvalues. Use Python-style syntax: +, -, *, /, ** for powers, and parentheses. "
         "Supported functions: sin, cos, tan, exp, log, sqrt, Abs; constants: pi, E. "
+        "Functions take one argument; log also accepts log(value, base). "
         "Use explicit multiplication (2*x), numeric literal exponents, and = for equations. "
         "Specify the variable when needed, both bounds for definite integrals, and square numeric "
         "matrices for matrix operations."

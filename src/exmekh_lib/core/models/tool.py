@@ -31,7 +31,11 @@ from exmekh_lib.interfaces.tool_hook import (
     ToolResponse,
     validate_tool_hooks,
 )
-from exmekh_lib.utils.tool_errors import ToolArgumentError
+from exmekh_lib.utils.tool_errors import (
+    ToolArgumentError,
+    ToolInputError,
+    ToolTypeError,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,7 +87,10 @@ class ExecutionOptions:
 
     def __post_init__(self) -> None:
         if self.mode not in ("wait", "background"):
-            raise ValueError(MODEL_TEXT.execution_mode_must_be_wait_or_background)
+            raise ToolInputError(
+                MODEL_TEXT.execution_mode_must_be_wait_or_background,
+                code="invalid_execution_options",
+            )
         self.validate_wait_seconds(self.wait_seconds)
 
     @classmethod
@@ -99,12 +106,16 @@ class ExecutionOptions:
     @staticmethod
     def validate_wait_seconds(wait_seconds: float) -> float:
         if isinstance(wait_seconds, bool) or not isinstance(wait_seconds, (int, float)):
-            raise TypeError(MODEL_TEXT.wait_seconds_must_be_a_number)
+            raise ToolTypeError(
+                MODEL_TEXT.wait_seconds_must_be_a_number,
+                code="invalid_execution_options",
+            )
         if not 0 < wait_seconds <= RUNTIME.max_tool_wait_seconds:
-            raise ValueError(
+            raise ToolInputError(
                 MODEL_TEXT.wait_seconds_must_be_between_and.format(
                     runtime_max_tool_wait_seconds=RUNTIME.max_tool_wait_seconds
-                )
+                ),
+                code="invalid_execution_options",
             )
         return float(wait_seconds)
 
@@ -207,7 +218,13 @@ class Tool:
 
     def validate_arguments(self, arguments: dict[str, Any]) -> None:
         """Validate the final arguments before invoking the tool."""
-        inspect.signature(self.tool).bind(**arguments)
+        signature = inspect.signature(self.tool)
+        try:
+            signature.bind(**arguments)
+        except TypeError as error:
+            raise ToolArgumentError.from_binding_error(
+                error, signature, arguments
+            ) from error
 
     def is_execution_argument(self, name: str) -> bool:
         return self.background_enabled and name in RUNTIME.execution_argument_names
@@ -248,10 +265,12 @@ class Tool:
         work_root: Path,
         history: tuple[Message[object], ...],
     ) -> tuple[ToolContext, ToolResponse | None]:
-        context = ToolContext(dict(arguments), work_root, history)
+        context = ToolContext(deepcopy(dict(arguments)), work_root, history)
         decision = self.before.handle(context) if self.before is not None else None
         if isinstance(decision, ToolArguments):
-            context = ToolContext(dict(decision.arguments), work_root, history)
+            context = ToolContext(
+                deepcopy(dict(decision.arguments)), work_root, history
+            )
             return context, None
         if decision is not None and not isinstance(decision, ToolResponse):
             raise TypeError(
@@ -279,6 +298,7 @@ class Tool:
         history: tuple[Message[object], ...],
     ) -> ToolExecutionOperation:
         """Apply hooks once to a private snapshot, including for custom handles."""
+        arguments = deepcopy(arguments)
         history = tuple(message.copy() for message in history)
 
         def run() -> Any:
@@ -293,11 +313,15 @@ class Tool:
                     guidance = self.argument_guidance or (
                         RUNTIME.argument_correction.format(tool_name=self.get_name())
                     )
-                    raise ToolArgumentError(
-                        RUNTIME.invalid_arguments.format(error=error, guidance=guidance)
+                    raise ToolArgumentError.from_error(
+                        error,
+                        RUNTIME.invalid_arguments.format(
+                            error=error, guidance=guidance
+                        ),
+                        hint=guidance,
                     ) from error
                 work = self.create_execution(
-                    context.arguments,
+                    deepcopy(context.arguments),
                     call_id=call_id,
                     work_root=work_root,
                     history=history,

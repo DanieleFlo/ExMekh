@@ -8,6 +8,7 @@ from exmekh_lib.capabilities.tools.read_tool_output.summary import (
     ToolOutputSummarizer,
 )
 from exmekh_lib.config.runtime import RUNTIME
+from exmekh_lib.config.tool_errors import ERROR_HINTS
 from exmekh_lib.core.cache.node_cache import NodeCache
 from exmekh_lib.core.models.tool import PreformattedToolResult
 from exmekh_lib.core.models.tool_output_presentation import ToolOutputPresentation
@@ -20,6 +21,7 @@ from exmekh_lib.core.tool_calls.output_runtime import (
     ToolOutputRuntime,
 )
 from exmekh_lib.core.tool_calls.output_view import ToolOutputView
+from exmekh_lib.utils.tool_errors import ToolInputError
 from exmekh_lib.utils.xml import append_text_element, render_xml
 
 
@@ -50,11 +52,17 @@ class ToolOutputReader:
         summary_mode: SummaryMode = "none",
     ) -> PreformattedToolResult:
         """Read output; a successful final read acknowledges automatic delivery."""
+        if not isinstance(output_id, str) or not output_id.strip():
+            raise ToolInputError(RUNTIME.output_id_required, code="invalid_output_id")
         if cursor is not None and (type(cursor) is not int or cursor < 0):
-            raise ValueError(RUNTIME.invalid_output_cursor)
+            raise ToolInputError(
+                RUNTIME.invalid_output_cursor, code="invalid_output_cursor"
+            )
         ToolOutputSummarizer.validate_mode(summary_mode)
         if summary_mode != "none" and self._summarizer is None:
-            raise ValueError(RUNTIME.summary_provider_required)
+            raise ToolInputError(
+                RUNTIME.summary_provider_required, code="summary_provider_required"
+            )
         delivery = self._read_output(output_id, cursor)
         result = delivery.result
         result = (
@@ -126,6 +134,8 @@ class ToolOutputReader:
         root = ET.Element("saved-tool-output")
         append_text_element(root, "id", output_id)
         append_text_element(root, "found", "false")
+        append_text_element(root, "error_code", "output_not_found")
+        append_text_element(root, "hint", ERROR_HINTS["output_not_found"])
         return ToolOutputDelivery(PreformattedToolResult(render_xml(root)))
 
     def _read_runtime_output(
@@ -152,7 +162,10 @@ class ToolOutputReader:
                 partial_error = str(error)
             else:
                 if cursor is not None and partial is None:
-                    raise ValueError(RUNTIME.output_cursor_unsupported)
+                    raise ToolInputError(
+                        RUNTIME.output_cursor_unsupported,
+                        code="output_cursor_unsupported",
+                    )
 
         content = ToolOutputFormatter.format_execution_output(
             output_id, snapshot, partial, partial_error=partial_error

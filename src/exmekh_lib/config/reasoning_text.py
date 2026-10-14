@@ -5,6 +5,13 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class ReasoningText:
+    invalid_function_arguments: str = (
+        "{function} received {count} arguments; expected {expected}."
+    )
+    matrix_has_no_inverse: str = "The matrix is singular and has no inverse."
+    undefined_math_result: str = (
+        "The expression produces an undefined or non-finite numeric result."
+    )
     amount_must_be_a_finite_number: str = "amount must be a finite number."
     conclusion_is_required_for_this_task: str = "conclusion is required for this task."
     constants_must_be_bounded_booleans_or_numbers: str = (

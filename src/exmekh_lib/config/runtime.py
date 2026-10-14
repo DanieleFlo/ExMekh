@@ -46,14 +46,18 @@ class RuntimeSettings:
         "Unexpected: {unexpected}."
     )
     sub_agent_text_error: str = "Error: text must be a non-empty string."
+    sub_agent_correction: str = (
+        'Use {tool_name}(sub_agent="<one of: {names}>", text="<non-empty task>").'
+    )
     sub_agent_selector_error: str = "Error: sub_agent must be one of: {names}."
-    sub_agent_empty_response: str = "Sub-agent '{name}' returned no final response text"
+    sub_agent_empty_response: str = "Sub-agent '{name}' returned no final response text. Check the delegated task and any side effects before retrying; an empty response does not prove no work occurred."
     sub_agent_children_required: str = "SubAgentTool requires at least one child"
     sub_agent_duplicate_names: str = "Direct child HDS names must be unique: {names}"
     search_tool_name: str = "search_tool_outputs"
     unavailable_execution_message: str = (
         "Execution is unavailable in this runtime; it was not resumed. "
-        "The saved running response is not a final result."
+        "The saved running response is not a final result. "
+        "Check current external state before relaunching; the previous operation may already have had effects."
     )
     read_tool_name: str = "read_tool_output"
     execution_tool_name: str = "control_tool_execution"
@@ -105,9 +109,10 @@ class RuntimeSettings:
         "Bash is unavailable: install Bash and add it to PATH. No other shell is used."
     )
     invalid_control_action: str = "action must be 'wait' or 'cancel'"
-    cancellation_unsupported: str = "This tool does not support cancellation."
+    cancellation_unsupported: str = "This tool does not support cancellation. Check the returned status and read available output; wait for completion if work is still running."
     invalid_summary_mode: str = "summary_mode must be none, brief or detailed"
     invalid_output_cursor: str = "cursor must be a non-negative integer or None"
+    output_id_required: str = "output_id must be a non-empty saved output ID string"
     summary_provider_required: str = "Output summaries require a configured provider"
     output_cursor_unsupported: str = "This tool output does not support cursors"
     output_query_required: str = "query must be a string"

@@ -27,7 +27,7 @@ class RuntimeText:
     cannot_restore_history_for_a_non_persistent_node: str = (
         "Cannot restore history for a non-persistent node"
     )
-    capability_is_not_allowed_at_allowed_tools_allowed_skills: str = "Capability '{call_get_name}' is not allowed at {skill_path}; allowed_tools={allowed_tools}, allowed_skills={allowed_skills}"
+    capability_is_not_allowed_at_allowed_tools_allowed_skills: str = "Capability '{call_get_name}' is not allowed at {skill_path}; allowed_tools={allowed_tools}, allowed_skills={allowed_skills}. Choose a listed tool or enter an allowed skill before using its tools; the rejected batch was not executed."
     children_must_be_a_sequence_of_node: str = "children must be a sequence of Node"
     children_must_contain_only_node_instances: str = (
         "children must contain only Node instances"
@@ -137,9 +137,7 @@ class RuntimeText:
     )
     tool_execution_is_still_running: str = "Tool execution is still running."
     tool_execution_was_cancelled: str = "Tool execution was cancelled."
-    tool_is_not_a_valid_deep_skill_exit_tool: str = (
-        "Tool '{tool_name}' is not a valid deep skill, exit tool, or tool"
-    )
+    tool_is_not_a_valid_deep_skill_exit_tool: str = "Tool '{tool_name}' is not a valid deep skill, exit tool, or tool. Choose an exact registered name from: {available}. Availability still depends on the current skill."
     tool_is_not_a_valid_deep_skill_exit_tool_2: str = (
         "Tool '{tool_name}' is not a valid deep skill, exit tool, or tool instance"
     )

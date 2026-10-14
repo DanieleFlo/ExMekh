@@ -95,6 +95,10 @@ failed XML response and let the model continue. A valid result containing
 `ok=false` remains a final result. Low-level direct Python calls still raise
 their exceptions; recovery belongs to the node runtime.
 
+Failures preserve their `error_kind` and add cause-specific `error_code`, `hint`
+and optional `details`. See [Tool Error Guidance](17-tool-error-guidance.md) for
+the tool inventory, compatibility and recovery after partial effects.
+
 `@deep_tool` and `@exit_tool` accept `before` and `after` instances. Plain
 `Tool` objects accept the same constructor arguments. Hooks run for agent tool
 calls and are kept out of the model's tool schema.
@@ -139,7 +143,10 @@ available when the execution operation is created, before a background worker
 starts. Use message methods and concrete types such as `AssistantMessage` and
 `ToolMessage` to access calls, results, attachments and local metadata. Both hooks
 and custom execution handles share the invocation's private snapshot; changing
-it cannot modify the caller's history. This also applies to direct
+it cannot modify the caller's history. Arguments, including nested containers,
+are also copied when the operation is created. Arguments returned by a before
+hook and those passed to the tool receive independent copies; an after hook
+sees the effective input values before the tool's own mutations. This also applies to direct
 `execute_with_hooks` and `create_execution_with_hooks` calls. Exit tool results must
 still contain valid `text` and `items` fields. Hook instances must implement
 synchronous `handle` methods with the shown number of parameters.

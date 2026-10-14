@@ -109,6 +109,8 @@ def test_invalid_tokenizer_count_fails_without_publishing_raw_output(preparer, i
         )
     )
     assert prepared.failure["error_kind"] == "tool_output_export_failed"
+    assert "Recover the existing output ID" in prepared.failure["hint"]
+    assert "may already have occurred" in prepared.failure["hint"]
     assert "secret" not in prepared.content
     assert not service.files.root.exists()
 

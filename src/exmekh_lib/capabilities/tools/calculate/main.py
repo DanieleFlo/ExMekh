@@ -6,7 +6,7 @@ from typing import Literal
 from exmekh_lib.config.reasoning import MATH
 from exmekh_lib.core.agents.tools.decorator import deep_tool
 from exmekh_lib.core.reasoning_tools.math import MathInputError, calculate
-from exmekh_lib.utils.tool_errors import missing_dependency
+from exmekh_lib.utils.tool_errors import missing_dependency, tool_error_result
 
 
 @deep_tool(
@@ -46,4 +46,4 @@ def run(
     except ModuleNotFoundError as error:
         return missing_dependency(error)
     except (MathInputError, ValueError, ZeroDivisionError) as error:
-        return {"ok": False, "error_kind": "invalid_math", "error": str(error)}
+        return tool_error_result(error, "invalid_math")

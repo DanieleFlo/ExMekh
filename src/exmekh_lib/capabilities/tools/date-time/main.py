@@ -10,6 +10,7 @@ from exmekh_lib.core.reasoning_tools.date_time import (
     DateTimeInputError,
     calculate_date_time,
 )
+from exmekh_lib.utils.tool_errors import tool_error_result
 
 
 @deep_tool(
@@ -38,4 +39,4 @@ def run(
             "hint": DATE_TIME.dependency_hint,
         }
     except DateTimeInputError as error:
-        return {"ok": False, "error_kind": "invalid_date_time", "error": str(error)}
+        return tool_error_result(error, "invalid_date_time")

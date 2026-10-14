@@ -199,7 +199,9 @@ def test_bash_process_start_failure_is_not_a_command_result(tmp_path: Path) -> N
         manager, str(tmp_path / "missing-bash"), tmp_path, "echo never", "startup"
     )
     assert snapshot.status == "failed"
-    assert snapshot.error.startswith("FileNotFoundError:")
+    assert snapshot.error.startswith("BashLaunchError:")
+    assert snapshot.result["error_code"] == "bash_unavailable"
+    assert "Install Bash" in snapshot.result["hint"]
 
 
 class ReplaceCommand(BeforeTool):

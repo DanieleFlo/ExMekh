@@ -15,6 +15,11 @@ from typing import IO, Any
 import psutil
 
 from exmekh_lib.config.runtime import RUNTIME
+from exmekh_lib.utils.tool_errors import ToolDiagnosticError
+
+
+class BashLaunchError(ToolDiagnosticError, FileNotFoundError):
+    """The shell or its working directory cannot be found during launch."""
 
 
 class BashProcess:
@@ -34,22 +39,34 @@ class BashProcess:
     def run(self) -> dict[str, Any]:
         executable = self._executable or shutil.which("bash")
         if executable is None:
-            raise FileNotFoundError(RUNTIME.bash_unavailable)
+            raise BashLaunchError(RUNTIME.bash_unavailable, code="bash_unavailable")
         started_at = datetime.now(timezone.utc)
         with self._lock:
             if self._cancel_requested:
                 raise RuntimeError(RUNTIME.bash_cancelled_before_launch)
-            self._process = subprocess.Popen(
-                [executable, "-c", self._command],
-                cwd=self._work_root,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                bufsize=0,
-                start_new_session=os.name != "nt",
-                creationflags=(
-                    subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
-                ),
-            )
+            try:
+                self._process = subprocess.Popen(
+                    [executable, "-c", self._command],
+                    cwd=self._work_root,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    bufsize=0,
+                    start_new_session=os.name != "nt",
+                    creationflags=(
+                        subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+                    ),
+                )
+            except FileNotFoundError as error:
+                # Popen also reports a missing cwd as FileNotFoundError.
+                if not self._work_root.is_dir():
+                    raise BashLaunchError(
+                        str(error), code="workroot_unavailable"
+                    ) from error
+                raise BashLaunchError(
+                    RUNTIME.bash_unavailable,
+                    code="bash_unavailable",
+                    details={"executable": executable},
+                ) from error
             process = self._process
         stdout = process.stdout
         stderr = process.stderr

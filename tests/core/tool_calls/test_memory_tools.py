@@ -378,12 +378,12 @@ def test_read_missing_id_is_non_destructive_xml(tmp_path) -> None:
     with SessionCache(tmp_path) as session:
         memory = HarnessMemoryTools(ExecutionHistory(), lambda: session.node("node"))
 
-        assert _content(memory.read_tool_output("missing")) == (
-            "<saved-tool-output>\n"
-            "  <id>missing</id>\n"
-            "  <found>false</found>\n"
-            "</saved-tool-output>"
-        )
+        root = ET.fromstring(_content(memory.read_tool_output("missing")))
+        assert root.tag == "saved-tool-output"
+        assert root.findtext("id") == "missing"
+        assert root.findtext("found") == "false"
+        assert root.findtext("error_code") == "output_not_found"
+        assert "saved output ID" in root.findtext("hint")
 
 
 def test_memory_tools_are_transient_and_have_reserved_names(tmp_path) -> None:

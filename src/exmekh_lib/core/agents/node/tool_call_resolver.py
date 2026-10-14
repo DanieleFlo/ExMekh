@@ -26,7 +26,8 @@ class ToolCallResolver:
 
     def resolve(self, tool_call: ToolCall) -> ResolvedToolCall:
         tool_name = tool_call.get_name()
-        for tool in (*self._capabilities.get_all_tools(), *self._runtime_tools):
+        registered_tools = (*self._capabilities.get_all_tools(), *self._runtime_tools)
+        for tool in registered_tools:
             if not isinstance(tool, Tool):
                 raise TypeError(
                     RUNTIME_TEXT.tool_is_not_a_valid_deep_skill_exit_tool_2.format(
@@ -42,6 +43,7 @@ class ToolCallResolver:
             return CalledTool(tool=tool, tool_call=tool_call)
         raise ValueError(
             RUNTIME_TEXT.tool_is_not_a_valid_deep_skill_exit_tool.format(
-                tool_name=tool_name
+                tool_name=tool_name,
+                available=", ".join(tool.get_name() for tool in registered_tools),
             )
         )

@@ -50,6 +50,28 @@ def test_selection_rejects_ambiguity_midline_empty_and_invalid_lines(text, old):
 
 
 @pytest.mark.parametrize(
+    "text,old,code,correction",
+    [
+        ("one", "", "old_text_empty", "anchor"),
+        ("one", "missing", "old_text_not_found", "exactly"),
+        ("value\nprefix value", "value", "old_text_ambiguous", "adjacent"),
+        ("aaa", "aa", "old_text_ambiguous", "adjacent"),
+        ("  value", "value", "old_text_not_at_line_start", "indentation"),
+    ],
+)
+def test_selection_diagnostics_explain_distinct_corrections(
+    text, old, code, correction
+):
+    document = EditDocument.parse(edit_fragment("file.txt", old, "new"))
+    with pytest.raises(FileInspectionError) as caught:
+        select_replacements(text, document.elements)
+    assert caught.value.code == code
+    assert correction in caught.value.hint
+    corrected = EditDocument.parse(edit_fragment("file.txt", text, "new"))
+    assert select_replacements(text, corrected.elements) == "new"
+
+
+@pytest.mark.parametrize(
     "codec,bom",
     [
         ("utf-16-be", codecs.BOM_UTF16_BE),

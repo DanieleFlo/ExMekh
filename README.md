@@ -45,6 +45,7 @@ Explore the detailed documentation in the [`docs/`](docs) directory:
 14. **[Workspace File Inspection and Reading](docs/14-file-inspection.md)**: Analysis, navigation ranges, verified line reads, automatic prerequisite recovery, format support and limits.
 15. **[Interactive Text Editing](docs/15-interactive-file-editing.md)**: Snapshot authorization, exact selections and markers, atomic commits, protocol recovery and security tests.
 16. **[Large Tool Outputs](docs/16-large-tool-outputs.md)**: Configurable token budgets, temporary text files, single-line splitting, file-based recovery and safe concurrent cleanup.
+17. **[Tool Error Guidance](docs/17-tool-error-guidance.md)**: Cause-specific diagnostics, correction hints, reviewed tool inventory and recovery after partial effects.
 
 ---
 

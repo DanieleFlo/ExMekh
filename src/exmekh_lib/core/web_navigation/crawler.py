@@ -5,16 +5,20 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 import os
 import subprocess
 import sys
 import threading
 import time
 from collections.abc import Mapping, Sequence
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
+
+from playwright.async_api import TimeoutError as BrowserTimeoutError
 
 from exmekh_lib.config.web import WEB_FORMAT, WEB_NAVIGATION
 from exmekh_lib.config.web_text import WEB_TEXT
@@ -39,6 +43,7 @@ CACHE_TTL_SECONDS = WEB_NAVIGATION.cache_ttl_seconds
 CACHE_FORMAT_VERSION = WEB_FORMAT.cache_format_version
 CHROMIUM_INSTALL_TIMEOUT_SECONDS = WEB_NAVIGATION.chromium_install_timeout_seconds
 _CRAWL_ENV_LOCK = threading.Lock()
+_LOGGER = logging.getLogger(__name__)
 
 
 def crawl_page(
@@ -212,23 +217,46 @@ class _BrowserCapture:
                 )
             except WebNavigationError as error:
                 self._action_error = error
+                return page
         await page.wait_for_load_state("load", timeout=self._timeout_ms)
         self._final_url = str(page.url)
         self._final_html = str(await page.content())
         self._final_title = str(await page.title())
         return page
 
-    def raise_if_navigation_violated(self) -> None:
-        self._policy.raise_if_violated()
+    def action_details(self) -> dict[str, object]:
+        """Expose an independent snapshot of observed actions for failure recovery."""
+        return (
+            {"actions": deepcopy(self._outcomes)} if self._actions is not None else {}
+        )
+
+    def raise_if_failed(self) -> None:
+        if self._action_error is not None:
+            raise self._action_error
+        try:
+            self._policy.raise_if_violated()
+        except WebNavigationError as error:
+            error.add_details(self.action_details())
+            raise
 
     def captured_page(self, result: Any, *, requested_url: str) -> _CapturedPage:
         """Validate the crawl and return the observed page data."""
-        if self._action_error is not None:
-            raise self._action_error
-        self._policy.raise_if_violated()
-        if not result.success:
-            message = str(result.error_message or WEB_TEXT.unknown_crawl4ai_failure)
-            raise WebNavigationError(message, kind="crawl_failed")
+        self.raise_if_failed()
+        status = getattr(result, "status_code", None)
+        http_failed = type(status) is int and 400 <= status < 600
+        if not result.success or http_failed:
+            fallback = (
+                WEB_TEXT.remote_resource_returned_http.format(response_status=status)
+                if http_failed
+                else WEB_TEXT.unknown_crawl4ai_failure
+            )
+            error = WebNavigationError.from_crawl_failure(
+                str(result.error_message or fallback),
+                status=status,
+                requested_url=requested_url,
+            )
+            error.add_details(self.action_details())
+            raise error
         final_url = str(
             self._final_url or result.redirected_url or result.url or requested_url
         )
@@ -239,12 +267,13 @@ class _BrowserCapture:
                     final_url=final_url
                 ),
                 kind="cross_origin_navigation",
+                details=self.action_details(),
             )
         return _CapturedPage(
             final_url=final_url,
             html=str(self._final_html or result.html or ""),
             title=str(self._final_title or (result.metadata or {}).get("title") or ""),
-            actions=list(self._outcomes),
+            actions=deepcopy(self._outcomes),
             actions_completed=len(self._outcomes) == len(self._actions or ())
             and all(
                 item["success"] and item["effect_observed"] for item in self._outcomes
@@ -260,7 +289,7 @@ async def _crawl_page(
     cache_root: Path,
     actions: Sequence[Mapping[str, Any]] | None,
 ) -> dict[str, Any]:
-    """Execute one asynchronous crawl and optional atomic action sequence."""
+    """Execute one asynchronous crawl and optional ordered action sequence."""
     cache_root.mkdir(parents=True, exist_ok=True)
     from crawl4ai import (
         AsyncWebCrawler,
@@ -304,22 +333,35 @@ async def _crawl_page(
     try:
         await crawler.start()
         result = await crawler.arun(url=url, config=run_config)
-    except WebNavigationError:
+        captured = capture.captured_page(result, requested_url=url)
+    except WebNavigationError as error:
+        capture.raise_if_failed()
+        error.add_details(capture.action_details())
         raise
     except Exception as error:
-        capture.raise_if_navigation_violated()
+        capture.raise_if_failed()
+        if isinstance(error, (TimeoutError, BrowserTimeoutError)):
+            raise WebNavigationError(
+                WEB_TEXT.browser_crawl_failed.format(
+                    error_type_name=type(error).__name__
+                ),
+                kind="crawl_failed",
+                code="crawl_timeout",
+                details=capture.action_details(),
+            ) from error
         if WEB_TEXT.executable_doesn_t_exist in str(error):
             raise WebNavigationError(
                 WEB_TEXT.chromium_is_unavailable_run_python_m_playwright_install_chromium,
                 kind="browser_unavailable",
+                details=capture.action_details(),
             ) from error
         raise WebNavigationError(
             WEB_TEXT.browser_crawl_failed.format(error_type_name=type(error).__name__),
             kind="crawl_failed",
+            details=capture.action_details(),
         ) from error
     finally:
-        await crawler.close()
-    captured = capture.captured_page(result, requested_url=url)
+        await _close_crawler(crawler, sys.exception(), capture.action_details())
     primary_html, content_scope = select_primary_html(captured.html)
     regenerated_markdown = markdown_generator.generate_markdown(
         primary_html,
@@ -350,6 +392,30 @@ async def _crawl_page(
     if output_mode in {"ast", "hybrid"}:
         payload["ast"] = build_semantic_ast(captured.html, base_url=captured.final_url)
     return payload
+
+
+async def _close_crawler(
+    crawler: Any, primary_error: BaseException | None, details: dict[str, object]
+) -> None:
+    """Keep the original failure when cleanup also fails, and report both causes."""
+    try:
+        await crawler.close()
+    except Exception as error:
+        message = WEB_TEXT.browser_cleanup_failed.format(
+            error_type=type(error).__name__, error=error
+        )
+        if primary_error is None:
+            raise WebNavigationError(
+                message,
+                kind="crawl_failed",
+                code="browser_cleanup_failed",
+                details=details,
+            ) from error
+        _LOGGER.exception(WEB_TEXT.browser_cleanup_failed_log)
+        if isinstance(primary_error, WebNavigationError):
+            primary_error.add_details({"cleanup_error": message})
+        else:
+            primary_error.add_note(message)
 
 
 def _validate_output_mode(value: str) -> OutputMode:

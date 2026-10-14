@@ -10,6 +10,7 @@ from exmekh_lib.core.models.text_summarizer import TextSummarizer
 from exmekh_lib.core.models.tool import PreformattedToolResult
 from exmekh_lib.core.models.xml_header import XmlHeader
 from exmekh_lib.interfaces.provider import Provider
+from exmekh_lib.utils.tool_errors import ToolInputError
 
 SummaryMode = Literal["none", "brief", "detailed"]
 
@@ -26,7 +27,9 @@ class ToolOutputSummarizer:
     @staticmethod
     def validate_mode(mode: SummaryMode) -> None:
         if mode not in ("none", "brief", "detailed"):
-            raise ValueError(RUNTIME.invalid_summary_mode)
+            raise ToolInputError(
+                RUNTIME.invalid_summary_mode, code="invalid_summary_mode"
+            )
 
     def summarize(
         self, result: PreformattedToolResult, mode: SummaryMode

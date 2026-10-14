@@ -140,6 +140,9 @@ def test_action_failure_stops_sequence_and_reports_error() -> None:
             "success": False,
             "effect_observed": False,
             "error": "TimeoutError",
+            "error_code": "action_timeout",
+            "message": "Action 0 (wait) failed: TimeoutError: not found.",
+            "hint": "Read the page again and check the selector, visibility and current state. Earlier actions may already have completed; do not repeat an entire sequence blindly.",
         }
     ]
 
@@ -186,6 +189,64 @@ def test_recoverable_browser_error_is_returned_as_action_outcome() -> None:
         )
     )
     assert outcomes[0]["error"] == "invalid_actions"
+    assert outcomes[0]["error_code"] == "invalid_actions"
+    assert outcomes[0]["hint"]
+
+
+def test_failed_action_preserves_completed_actions_and_stops_before_later_effects():
+    class BrokenPage(_Page):
+        async def wait_for_selector(self, selector, *, timeout):
+            raise TimeoutError("missing")
+
+    page = BrokenPage()
+    outcomes = asyncio.run(
+        actions.execute_actions(
+            page,
+            [
+                {"kind": "fill", "selector": "input", "value": "saved"},
+                {"kind": "wait", "selector": "#missing"},
+                {"kind": "fill", "selector": "input", "value": "must not run"},
+            ],
+            timeout_ms=100,
+        )
+    )
+    assert len(outcomes) == 2
+    assert outcomes[0]["success"] is True
+    assert outcomes[1]["error_code"] == "action_timeout"
+    assert "Earlier actions" in outcomes[1]["hint"]
+    assert page.value == "saved"
+
+
+def test_action_without_observed_effect_warns_before_repetition():
+    page = _Page()
+    outcomes = asyncio.run(
+        actions.execute_actions(page, [{"kind": "back"}], timeout_ms=100)
+    )
+    assert outcomes[0]["success"] is True
+    assert outcomes[0]["effect_observed"] is False
+    assert outcomes[0]["error_code"] == "action_effect_unobserved"
+    assert "before repeating" in outcomes[0]["hint"]
+
+
+def test_navigation_rejection_carries_completed_actions(monkeypatch):
+    monkeypatch.setattr(security, "validate_public_url", lambda url: url)
+    page = _Page()
+    policy = security.NavigationPolicy(initial_url=page.url)
+    with pytest.raises(WebNavigationError) as caught:
+        asyncio.run(
+            actions.execute_actions(
+                page,
+                [
+                    {"kind": "fill", "selector": "input", "value": "saved"},
+                    {"kind": "navigate", "url": "https://other.example/"},
+                ],
+                timeout_ms=100,
+                navigation_policy=policy,
+            )
+        )
+    assert caught.value.details["failed_action_index"] == 1
+    assert caught.value.details["actions"][0]["success"] is True
+    assert page.value == "saved"
 
 
 def test_scroll_without_target_and_unknown_internal_action() -> None:

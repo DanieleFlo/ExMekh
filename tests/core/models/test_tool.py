@@ -17,6 +17,18 @@ from exmekh_lib.core.models.tool import (
     Tool,
 )
 from exmekh_lib.core.models.user_message import UserMessage
+from exmekh_lib.utils.tool_errors import ToolArgumentError
+
+
+def test_binding_error_does_not_claim_a_present_positional_only_name_is_missing():
+    def work(value, /, **options):
+        pytest.fail("Invalid keyword binding must not execute work")
+
+    with pytest.raises(ToolArgumentError) as caught:
+        Tool(work).validate_arguments({"value": "provided as a keyword"})
+    assert caught.value.code == "invalid_tool_arguments"
+    assert caught.value.details["missing"] == []
+    assert caught.value.details["unexpected"] == []
 
 
 def documented_tool(query: str) -> str:

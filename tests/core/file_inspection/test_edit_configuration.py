@@ -62,10 +62,10 @@ def test_no_v1_or_role_mapping_fallback():
 def test_semantic_error_messages_use_configuration(monkeypatch):
     settings = replace(
         FILE_EDITING,
-        selection_error="configured selection error",
+        selection_missing="configured selection error",
     )
     monkeypatch.setattr(edit_selection, "FILE_EDITING", settings)
-    for old, error in (("missing", settings.selection_error),):
+    for old, error in (("missing", settings.selection_missing),):
         document = EditDocument.parse(edit_fragment("file.txt", old, "new"))
         with pytest.raises(FileInspectionError, match=error):
             edit_selection.select_replacements("one", document.elements)

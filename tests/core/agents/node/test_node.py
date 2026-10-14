@@ -2243,8 +2243,11 @@ def test_runtime_keeps_history_and_emits_end_when_cache_write_fails(
 
 
 def test_runtime_captures_arguments_before_tool_mutates_them(tmp_path: Path) -> None:
+    mutated_items = []
+
     def mutate(items: list[int]) -> str:
         items.append(2)
+        mutated_items.extend(items)
         return "done"
 
     with SessionCache(tmp_path) as session:
@@ -2270,7 +2273,8 @@ def test_runtime_captures_arguments_before_tool_mutates_them(tmp_path: Path) -> 
         )
         node.initialize(provider, work_root=tmp_path)
         node.run("start")
-        assert items == [1, 2]
+        assert mutated_items == [1, 2]
+        assert items == [1]
         (record,) = node._runtime._tool_cache.get_all()
         assert record.args == {"items": [1]}
 
@@ -2846,9 +2850,13 @@ def test_sub_agent_input_error_is_a_cached_tool_response(tmp_path: Path) -> None
     tool_message = cast(ToolMessage, provider.requests[1].get_messages()[-1])
     assert tool_message.get_message().endswith(
         "\nError: sub_agent must be one of: child."
+        ' Use call_sub_agent(sub_agent="<one of: child>", text="<non-empty task>").'
     )
     record = parent._runtime._tool_cache.get("sub-agent-error")
-    assert record.result == "Error: sub_agent must be one of: child."
+    assert record.result == (
+        "Error: sub_agent must be one of: child."
+        ' Use call_sub_agent(sub_agent="<one of: child>", text="<non-empty task>").'
+    )
 
 
 def test_sub_agent_tool_is_available_in_every_skill_scope(tmp_path: Path) -> None:

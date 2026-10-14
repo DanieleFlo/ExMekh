@@ -7,6 +7,28 @@ import pytest
 
 from exmekh_lib.capabilities.tools.bash import bash_process
 from exmekh_lib.capabilities.tools.bash.bash_process import BashProcess
+from exmekh_lib.utils.tool_errors import error_diagnostic
+
+
+@pytest.mark.parametrize("discovery", [True, False])
+def test_missing_bash_is_distinct_from_missing_work_file(
+    tmp_path, monkeypatch, discovery
+):
+    monkeypatch.setattr(bash_process.shutil, "which", lambda name: None)
+    process = BashProcess(
+        "pwd", tmp_path, None if discovery else str(tmp_path / "absent-bash")
+    )
+    with pytest.raises(FileNotFoundError) as caught:
+        process.run()
+    assert error_diagnostic(caught.value)["error_code"] == "bash_unavailable"
+    assert "Install Bash" in error_diagnostic(caught.value)["hint"]
+
+
+def test_missing_bash_workroot_is_not_misreported_as_missing_shell(tmp_path):
+    process = BashProcess("pwd", tmp_path / "missing", "/bin/bash")
+    with pytest.raises(FileNotFoundError) as caught:
+        process.run()
+    assert error_diagnostic(caught.value)["error_code"] == "workroot_unavailable"
 
 
 def test_cancellation_before_launch_prevents_process_creation(tmp_path, monkeypatch):

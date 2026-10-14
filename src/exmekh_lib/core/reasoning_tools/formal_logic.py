@@ -13,13 +13,17 @@ from typing import Any, Literal
 
 from exmekh_lib.config.reasoning import FORMAL_LOGIC
 from exmekh_lib.config.reasoning_text import REASONING_TEXT
+from exmekh_lib.config.tool_errors import ERROR_HINTS
+from exmekh_lib.utils.tool_errors import ToolInputError, error_diagnostic
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class FormalLogicError(ValueError):
-    def __init__(self, message: str, *, kind: str = "parse_error") -> None:
-        super().__init__(message)
+class FormalLogicError(ToolInputError):
+    def __init__(
+        self, message: str, *, kind: str = "parse_error", code: str | None = None
+    ) -> None:
+        super().__init__(message, code=code or kind)
         self.kind = kind
 
 
@@ -60,7 +64,8 @@ class _FormulaBuilder:
             name = node["var"]
             if not isinstance(name, str) or name not in self._variables:
                 raise FormalLogicError(
-                    REASONING_TEXT.undeclared_variable.format(name=name)
+                    REASONING_TEXT.undeclared_variable.format(name=name),
+                    code="undeclared_logic_variable",
                 )
             return _Term(self._variables[name], self._sorts[name])
         if set(node) == {"const"}:
@@ -408,6 +413,7 @@ def _unknown(base: dict[str, object], solver: Any) -> dict[str, object]:
         "status": status,
         "solver_result": "unknown",
         "reason": reason,
+        "hint": ERROR_HINTS[status],
     }
 
 
@@ -424,6 +430,7 @@ def _deadline_exceeded(base: dict[str, object]) -> dict[str, object]:
         "status": "timeout",
         "solver_result": "unknown",
         "reason": REASONING_TEXT.request_deadline_exceeded,
+        "hint": ERROR_HINTS["timeout"],
     }
 
 
@@ -453,6 +460,7 @@ def logic_tool_result(
             "backend": "z3",
             "error_kind": error.kind,
             "error": str(error),
+            **error_diagnostic(error),
         }
     except Exception as error:
         _LOGGER.exception(REASONING_TEXT.z3_logic_tool_failed)
@@ -464,4 +472,7 @@ def logic_tool_result(
             "error": REASONING_TEXT.the_z3_memory_limit_was_reached
             if exhausted_memory
             else REASONING_TEXT.the_z3_check_failed_unexpectedly,
+            "hint": ERROR_HINTS[
+                "resource_limit" if exhausted_memory else "internal_error"
+            ],
         }

@@ -610,6 +610,7 @@ def test_initial_progress_failure_is_reported_without_stopping_the_worker(
         )
         assert result["status"] == "running"
         assert result["partial_output_error"] == "progress pipe unavailable"
+        assert "last valid cursor" in result["partial_output_hint"]
         assert manager.by_output_id("output-1").status == "running"
     finally:
         release.set()

@@ -75,10 +75,13 @@ def validate_read_arguments(path: str, start_index: int, end_index: int) -> None
     for name, value in (("start_index", start_index), ("end_index", end_index)):
         if type(value) is not int or (value < 1 and (start_index, end_index) != (0, 0)):
             raise FileInspectionError(
-                FILE_INSPECTION_TEXT.positive_index.format(name=name)
+                FILE_INSPECTION_TEXT.positive_index.format(name=name),
+                code="invalid_selection",
             )
     if start_index > end_index:
-        raise FileInspectionError(FILE_INSPECTION_TEXT.ordered_indices)
+        raise FileInspectionError(
+            FILE_INSPECTION_TEXT.ordered_indices, code="invalid_selection"
+        )
 
 
 def read_file(
@@ -138,19 +141,26 @@ def _read_line_range(
     end_index: int,
 ) -> dict[str, object]:
     if not inspection.readable:
-        raise FileInspectionError(FILE_INSPECTION_TEXT.no_readable_lines)
+        raise FileInspectionError(
+            FILE_INSPECTION_TEXT.no_readable_lines, code="unsupported_file_format"
+        )
     assert snapshot.content is not None
     decoded = decode_text(snapshot.content, snapshot.path.suffix.casefold())
     if decoded is None:
-        raise FileInspectionError(FILE_INSPECTION_TEXT.no_readable_lines)
+        raise FileInspectionError(
+            FILE_INSPECTION_TEXT.no_readable_lines, code="unsupported_file_format"
+        )
     text, encoding = decoded
     lines = physical_lines(text)
     if not lines:
         if (start_index, end_index) != (0, 0):
-            raise FileInspectionError(FILE_INSPECTION_TEXT.empty_file_range)
+            raise FileInspectionError(
+                FILE_INSPECTION_TEXT.empty_file_range, code="invalid_selection"
+            )
     elif start_index < 1 or end_index > len(lines):
         raise FileInspectionError(
-            FILE_INSPECTION_TEXT.line_range_outside_file.format(total_lines=len(lines))
+            FILE_INSPECTION_TEXT.line_range_outside_file.format(total_lines=len(lines)),
+            code="range_out_of_bounds",
         )
     return ReadReport(
         {

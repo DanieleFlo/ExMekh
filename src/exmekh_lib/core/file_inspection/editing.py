@@ -9,7 +9,9 @@ from typing import Self
 
 from exmekh_lib.config.file_editing import FILE_EDIT_FORMAT, FILE_EDITING
 from exmekh_lib.config.file_inspection import FILE_INSPECTION
+from exmekh_lib.config.tool_errors import ERROR_HINTS, PARTIAL_EDIT_MESSAGE
 from exmekh_lib.core.models.edit_document import EditDocument, EditElement
+from exmekh_lib.utils.tool_errors import error_diagnostic
 
 from .decoding import decode_text
 from .edit_filesystem import (
@@ -54,7 +56,9 @@ class EditApproval:
         assert self.snapshot.content is not None
         encoded = encode_replacement(replacement, self.snapshot.content, self.encoding)
         if len(encoded) > FILE_EDITING.max_snapshot_bytes:
-            raise FileInspectionError(FILE_EDITING.replacement_byte_limit)
+            raise FileInspectionError(
+                FILE_EDITING.replacement_byte_limit, code="file_limit_exceeded"
+            )
         return encoded
 
     def commit_replacement(
@@ -81,8 +85,7 @@ class EditApproval:
 
 class EditPrerequisiteError(FileInspectionError):
     def __init__(self, code: str, message: str) -> None:
-        super().__init__(message)
-        self.code = code
+        super().__init__(message, code=code, hint=message)
 
 
 def require_edit_evidence(
@@ -98,7 +101,9 @@ def require_edit_evidence(
             and item.successful
             and not item.readable
         ):
-            raise FileInspectionError(FILE_EDITING.noneditable_inspection)
+            raise FileInspectionError(
+                FILE_EDITING.noneditable_inspection, code="unsupported_file_format"
+            )
         if (
             item.path != target
             or item.digest != digest
@@ -129,21 +134,29 @@ def approve_edit(
         *FILE_INSPECTION.zip_extensions,
         ".pdf",
     }:
-        raise FileInspectionError(FILE_EDITING.unsupported_text_format)
+        raise FileInspectionError(
+            FILE_EDITING.unsupported_text_format, code="unsupported_file_format"
+        )
     with resource_lock(target):
         try:
             target.lstat()
         except FileNotFoundError as error:
-            raise FileInspectionError(FILE_EDITING.existing_file_required) from error
+            raise FileInspectionError(
+                FILE_EDITING.existing_file_required, code="file_not_found"
+            ) from error
         snapshot = edit_snapshot(work_root, resource)
         assert snapshot.content is not None
         require_edit_evidence(target, snapshot.content, evidence)
         decoded = decode_text(snapshot.content, target.suffix.casefold())
         if decoded is None or "\x00" in decoded[0]:
-            raise FileInspectionError(FILE_EDITING.unicode_text_required)
+            raise FileInspectionError(
+                FILE_EDITING.unicode_text_required, code="unsupported_file_format"
+            )
         text, encoding = decoded
         if len(text.encode("utf-8")) > FILE_EDITING.max_snapshot_bytes:
-            raise FileInspectionError(FILE_EDITING.decoded_snapshot_limit)
+            raise FileInspectionError(
+                FILE_EDITING.decoded_snapshot_limit, code="file_limit_exceeded"
+            )
         return EditApproval(resource, target, snapshot, text, encoding)
 
 
@@ -202,7 +215,9 @@ def _prepare_edits(
         element.path != approval.resource
         for element, approval in zip(document.elements, approvals, strict=True)
     ):
-        raise FileInspectionError(FILE_EDITING.authorization_mismatch)
+        raise FileInspectionError(
+            FILE_EDITING.authorization_mismatch, code="edit_authorization_mismatch"
+        )
     groups: dict[Path, list[tuple[EditElement, EditApproval]]] = {}
     for element, approval in zip(document.elements, approvals, strict=True):
         groups.setdefault(approval.target, []).append((element, approval))
@@ -210,7 +225,9 @@ def _prepare_edits(
     for group in groups.values():
         approval = group[0][1]
         if any(not approval.shares_snapshot(other) for _, other in group):
-            raise FileInspectionError(FILE_EDITING.alias_snapshot_mismatch)
+            raise FileInspectionError(
+                FILE_EDITING.alias_snapshot_mismatch, code="file_changed"
+            )
         approval.require_evidence(evidence)
         encoded = approval.prepare_replacement(tuple(element for element, _ in group))
         prepared.append(
@@ -225,7 +242,10 @@ def edit_files(work_root: Path, edits: str) -> dict[str, object]:
     """Validate the entire post-hook document, then commit each canonical file once."""
     context = _approval.get()
     if context is None or not context[0]:
-        raise FileInspectionError(FILE_EDITING.interactive_exchange_required)
+        raise FileInspectionError(
+            FILE_EDITING.interactive_exchange_required,
+            code="interactive_exchange_required",
+        )
     approvals, evidence_source = context
     document = EditDocument.parse(
         edits, snapshots=tuple(item.text for item in approvals)
@@ -252,7 +272,9 @@ def edit_files(work_root: Path, edits: str) -> dict[str, object]:
                 return {
                     "ok": False,
                     "error_kind": "partial_file_edit",
-                    "error": str(error),
+                    "error": PARTIAL_EDIT_MESSAGE.format(error=error),
+                    **error_diagnostic(error),
+                    "hint": ERROR_HINTS["partial_file_edit"],
                     "failed_path": item.resource,
                     "files": committed,
                 }

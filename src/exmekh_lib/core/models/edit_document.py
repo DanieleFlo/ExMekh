@@ -6,6 +6,7 @@ from html import unescape
 from typing import Self
 
 from exmekh_lib.config.file_editing import FILE_EDIT_FORMAT, FILE_EDITING
+from exmekh_lib.utils.tool_errors import ToolInputError
 
 _OPEN = re.compile(FILE_EDIT_FORMAT.opening_pattern)
 _SEPARATOR = re.compile(FILE_EDIT_FORMAT.separator_pattern)
@@ -50,7 +51,9 @@ class EditDocument:
         while offset < len(source):
             opening = _OPEN.match(source, offset)
             if opening is None:
-                raise ValueError(FILE_EDITING.opening_marker_required)
+                raise ToolInputError(
+                    FILE_EDITING.opening_marker_required, code="invalid_edit_document"
+                )
             identifier = opening[2]
             cls._reserve_identifier(identifier, used_ids)
             boundary = next(
@@ -78,27 +81,39 @@ class EditDocument:
                 )
             )
             if len(elements) > FILE_EDITING.max_exchanges:
-                raise ValueError(FILE_EDITING.document_element_limit)
+                raise ToolInputError(
+                    FILE_EDITING.document_element_limit, code="invalid_edit_document"
+                )
             offset = end
         if not elements:
-            raise ValueError(FILE_EDITING.empty_document)
+            raise ToolInputError(
+                FILE_EDITING.empty_document, code="invalid_edit_document"
+            )
         return cls(tuple(elements))
 
     @staticmethod
     def _validate_source(source: str) -> None:
         if not isinstance(source, str):
-            raise ValueError(FILE_EDITING.document_string)
+            raise ToolInputError(
+                FILE_EDITING.document_string, code="invalid_edit_document"
+            )
         if "\x00" in source or any(0xD800 <= ord(ch) <= 0xDFFF for ch in source):
-            raise ValueError(FILE_EDITING.document_unicode)
+            raise ToolInputError(
+                FILE_EDITING.document_unicode, code="invalid_edit_document"
+            )
         if len(source.encode("utf-8")) > FILE_EDITING.max_generated_bytes:
-            raise ValueError(FILE_EDITING.document_byte_limit)
+            raise ToolInputError(
+                FILE_EDITING.document_byte_limit, code="file_limit_exceeded"
+            )
 
     @staticmethod
     def _reserve_identifier(identifier: str | None, used_ids: set[str]) -> None:
         if identifier is None:
             return
         if identifier in used_ids:
-            raise ValueError(FILE_EDITING.duplicate_edit_id)
+            raise ToolInputError(
+                FILE_EDITING.duplicate_edit_id, code="invalid_edit_document"
+            )
         used_ids.add(identifier)
 
     @staticmethod
@@ -119,7 +134,9 @@ class EditDocument:
         if explicit:
             separators = explicit
         if not separators:
-            raise ValueError(FILE_EDITING.separator_required)
+            raise ToolInputError(
+                FILE_EDITING.separator_required, code="invalid_edit_document"
+            )
         if len(separators) > 1 and snapshot is not None:
             separators = [
                 match
@@ -130,5 +147,7 @@ class EditDocument:
                 is not None
             ]
         if len(separators) != 1:
-            raise ValueError(FILE_EDITING.separator_ambiguous)
+            raise ToolInputError(
+                FILE_EDITING.separator_ambiguous, code="invalid_edit_document"
+            )
         return separators[0]

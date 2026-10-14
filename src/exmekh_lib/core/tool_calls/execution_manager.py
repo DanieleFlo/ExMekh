@@ -21,7 +21,7 @@ from exmekh_lib.core.models.tool import (
 from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
 from exmekh_lib.core.models.tool_result import ToolResult
 from exmekh_lib.core.models.user_message import UserMessage
-from exmekh_lib.utils.tool_errors import tool_failure_result
+from exmekh_lib.utils.tool_errors import ToolInputError, tool_failure_result
 from exmekh_lib.utils.xml import stringify_tool_result
 
 type ExecutionStatus = Literal["running", "completed", "failed", "cancelled"]
@@ -366,15 +366,19 @@ class ToolExecutionManager:
                 item.call_id == execution.call_id and not item.finished.is_set()
                 for item in self._executions
             ):
-                raise ValueError(
+                raise ToolInputError(
                     RUNTIME_TEXT.tool_call_id_already_has_active_work.format(
                         call_id=execution.call_id
-                    )
+                    ),
+                    code="execution_already_active",
                 )
             if sum(not item.finished.is_set() for item in self._executions) >= (
                 RUNTIME.max_active_tool_executions
             ):
-                raise ValueError(RUNTIME_TEXT.too_many_active_tool_executions)
+                raise ToolInputError(
+                    RUNTIME_TEXT.too_many_active_tool_executions,
+                    code="execution_limit_reached",
+                )
             self._executions.append(execution)
         try:
             Thread(target=self._run, args=(execution,), daemon=True).start()
@@ -555,8 +559,9 @@ class ToolExecutionManager:
             if not isinstance(cancelled, bool):
                 raise TypeError(RUNTIME_TEXT.cancellation_callback_must_return_a_bool)
         except Exception as error:
-            raise ValueError(
-                RUNTIME_TEXT.cancellation_failed.format(error=error)
+            raise ToolInputError(
+                RUNTIME_TEXT.cancellation_failed.format(error=error),
+                code="cancellation_failed",
             ) from error
         with self._state_changed:
             if cancelled:
@@ -568,13 +573,17 @@ class ToolExecutionManager:
         with self._lock:
             matches = [item for item in self._executions if item.call_id == call_id]
         if not matches:
-            raise ValueError(RUNTIME_TEXT.unknown_tool_call_id.format(call_id=call_id))
+            raise ToolInputError(
+                RUNTIME_TEXT.unknown_tool_call_id.format(call_id=call_id),
+                code="unknown_tool_call_id",
+            )
         active = [item for item in matches if not item.finished.is_set()]
         if len(active) == 1:
             return active[0]
         if len(matches) > 1:
-            raise ValueError(
-                RUNTIME_TEXT.ambiguous_tool_call_id.format(call_id=call_id)
+            raise ToolInputError(
+                RUNTIME_TEXT.ambiguous_tool_call_id.format(call_id=call_id),
+                code="ambiguous_tool_call_id",
             )
         return matches[0]
 

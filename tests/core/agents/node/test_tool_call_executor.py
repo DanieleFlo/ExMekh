@@ -35,9 +35,10 @@ from tests.tool_result_support import parse_tool_result, parse_used_tools
 
 @pytest.fixture
 def make_executor():
-    def build(manager=None):
+    def build(manager=None, *, output_ids=None):
         client = MagicMock(spec=Client)
         client.generate_id.return_value = "output"
+        client.generate_id.side_effect = output_ids
         client.get_history.return_value = []
         executor = ToolCallExecutor(
             client=client,
@@ -200,6 +201,12 @@ def test_work_failures_have_consistent_status_and_readable_results(
             if failure == "arguments"
             else "tool_execution_failed"
         )
+        assert immediate["error_code"] == (
+            "missing_tool_arguments"
+            if failure == "arguments"
+            else "tool_execution_failed"
+        )
+        assert immediate["hint"]
     with SessionCache(tmp_path / "cache") as session:
         cache = session.node("node")
         history = ExecutionHistory()
@@ -241,6 +248,67 @@ def test_invalid_execution_options_return_failure_without_starting_work(
         == "invalid_tool_arguments"
     )
     assert calls == []
+    assert (
+        parse_tool_result(result.response.get_message())["error_code"]
+        == "invalid_execution_options"
+    )
+
+
+@pytest.mark.parametrize("error", [TypeError("manager bug"), ValueError("manager bug")])
+def test_launch_infrastructure_failures_are_not_argument_errors(
+    make_executor, monkeypatch, error
+):
+    manager = ToolExecutionManager()
+
+    def fail(request):
+        raise error
+
+    monkeypatch.setattr(manager, "launch", fail)
+    called = CalledTool(
+        Tool(lambda: "done", name="work"), ToolCall("call", FunctionCall("work", {}))
+    )
+    result = make_executor(manager).execute(called)
+    body = parse_tool_result(result.response.get_message())
+    assert result.is_error
+    assert body["error_kind"] == "tool_execution_failed"
+    assert body["error_code"] == "tool_execution_failed"
+
+
+@pytest.mark.parametrize("managed", [False, True])
+@pytest.mark.parametrize(
+    "arguments,code",
+    [
+        ({}, "missing_tool_arguments"),
+        ({"text": "x", "typo": "y"}, "unexpected_tool_arguments"),
+    ],
+)
+def test_argument_diagnostics_expose_required_names_before_work(
+    make_executor, managed, arguments, code
+):
+    calls = []
+
+    def work(text):
+        calls.append(text)
+        return "done"
+
+    tool = Tool(work, name="work", background_enabled=managed)
+    executor = make_executor(
+        ToolExecutionManager(), output_ids=["error-output", "final-output"]
+    )
+    rejected = executor.execute(
+        CalledTool(tool, ToolCall("bad", FunctionCall("work", arguments)))
+    )
+    result = parse_tool_result(rejected.response.get_message())
+    assert result["error_kind"] == "invalid_tool_arguments"
+    assert result["error_code"] == code
+    assert result["details"]["required"] == ["text"]
+    assert result["details"]["accepted"] == ["text"]
+    assert calls == []
+    corrected = executor.execute(
+        CalledTool(tool, ToolCall("good", FunctionCall("work", {"text": "x"})))
+    )
+    assert corrected.is_error is False
+    assert calls == ["x"]
 
 
 @pytest.mark.parametrize("mode", ["inline", "managed", "exit"])
