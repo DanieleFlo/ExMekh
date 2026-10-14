@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from dataclasses import replace
 from time import monotonic
 from uuid import uuid4
@@ -12,9 +13,8 @@ from dotenv import load_dotenv
 
 from exmekh_lib.config.file_editing import FILE_EDITING
 from exmekh_lib.config.provider import DEFAULT_PROVIDER_SETTINGS
-from exmekh_lib.core.agents.node import DefaultCapabilities, Node
-from exmekh_lib.core.file_inspection.edit_selection import select_replacements
-from exmekh_lib.core.file_inspection.errors import FileInspectionError
+from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
+from exmekh_lib.core.agents.capabilities.defaults import BUILTIN_CAPABILITIES_PATH
 from exmekh_lib.core.file_inspection.interactive import FileInteractiveCalls
 from exmekh_lib.core.file_inspection.lines import physical_lines
 from exmekh_lib.core.file_inspection.reading import file_read_context, read_file
@@ -43,6 +43,7 @@ from exmekh_lib.providers.local import LocalProvider
 from exmekh_lib.utils.xml import stringify_tool_result
 from tests.interactive_support import edit_fragment
 from tests.live.model_support import CacheTestTokenizer, LiveModelProvider
+from tests.tool_result_support import parse_tool_result
 
 pytestmark = pytest.mark.live
 
@@ -80,7 +81,6 @@ class EditingLiveProvider(LiveModelProvider):
         )
 
     def call(self, request):
-        assert len(self.requests) < 20, "Model exceeded the file editing turn budget"
         bounded = ProviderRequest(
             request.get_messages(),
             extra={
@@ -89,7 +89,7 @@ class EditingLiveProvider(LiveModelProvider):
                 "temperature": 0,
             },
             tools=request.get_tools(),
-            tool_choice="required" if not self.requests else request.get_tool_choice(),
+            tool_choice=request.get_tool_choice(),
             stream=request.get_streaming(),
             on_event=request.on_event,
             reasoning_effort_override=request.get_reasoning_effort_override(),
@@ -134,33 +134,227 @@ def edit_provider(tmp_path):
         provider.client.close()
 
 
-def editing_node(provider, directory):
-    hds = directory / "capabilities" / "hds"
-    hds.mkdir(parents=True)
-    (hds / "main.md").write_text(
-        "---\ndescription: Modify workspace text files.\nexit-tool: exit_agent\n"
-        "sub-skills:\n  - file-processing\n---\n"
-        "Use {{!file-processing}} for file changes. After its return, answer done and stop."
-    )
-    node = Node(
-        [hds.parent],
-        name_hds="main",
-        agent_context_id=f"live-edit-{uuid4().hex}",
-        default_capabilities=DefaultCapabilities(
-            harness=False,
-            include={
-                "file-processing",
-                "inspect-file",
-                "read-file",
-                "edit-file",
-                "new-file",
-                "delete-file",
-                "exit_agent",
-            },
+def file_tools(directory):
+    loaded = Capabilities([BUILTIN_CAPABILITIES_PATH]).load(work_root=directory)
+    return {tool.get_name(): tool for tool in loaded.tools}
+
+
+def execute_live_file_call(provider, directory, tool_name, arguments, initial):
+    """Dispatch one real call after real prerequisite reads, without a model strategy loop."""
+    tools = file_tools(directory)
+    history = [
+        SystemMessage("Return only the exact requested file tool call."),
+        UserMessage(
+            f"Call {tool_name} once with this exact argument object: "
+            + json.dumps(arguments)
+            + ". Opening IDs are assigned by the server. Copy each ID into its separator; preserve all literal body characters."
         ),
+    ]
+    runtime = FileToolRuntime()
+    if tool_name == "edit-file":
+        for path in initial:
+            resource = path.relative_to(directory).as_posix()
+            line_count = len(physical_lines(initial[path].decode()))
+            start_index = 1 if line_count else 0
+            inspection = inspect_file(directory, resource)
+            with file_read_context((inspection.evidence,)):
+                reading = read_file(directory, resource, start_index, line_count)
+            for name, report, inputs in (
+                ("inspect-file", inspection, {"path": resource}),
+                (
+                    "read-file",
+                    reading,
+                    {
+                        "path": resource,
+                        "start_index": start_index,
+                        "end_index": line_count,
+                    },
+                ),
+            ):
+                call = ToolCall(f"{name}-{len(history)}", FunctionCall(name, inputs))
+                message = ToolMessage(
+                    stringify_tool_result(report), call.get_id(), name
+                )
+                history.extend([AssistantMessage("", tool_calls=[call]), message])
+                runtime.record_result(call, report, message)
+    handler = FileInteractiveCalls(
+        runtime, directory, lambda: history, lambda: False, lambda: ()
     )
-    loaded = node.initialize(provider, work_root=directory)
-    return node, loaded
+    request = ProviderRequest(
+        history,
+        tools=Tools([tools[tool_name]]),
+        tool_choice="required",
+        stream=True,
+        extra={
+            "agentic": {
+                "agent_context_id": f"live-file-call-{uuid4().hex}",
+                "allowed_tools": [tool_name],
+                "allowed_skills": [],
+            }
+        },
+    )
+    request.interactive_handler = handler
+    result = provider.call(request)
+    calls = result.get_tool_calls() or []
+    assert len(calls) == 1 and calls[0].get_name() == tool_name, (
+        f"COVERAGE: expected one complete {tool_name} call, got {calls!r}"
+    )
+    call = calls[0]
+    history.append(AssistantMessage(result.get_message(), tool_calls=calls))
+    with handler.execution_context(call.get_id()):
+        receipt = tools[tool_name].execute_with_hooks(
+            call.get_arguments(),
+            call_id=call.get_id(),
+            work_root=directory,
+            history=tuple(history),
+        )
+    history.append(
+        ToolMessage(stringify_tool_result(receipt), call.get_id(), tool_name)
+    )
+    (directory / "live-edit-trace.json").write_text(
+        json.dumps(
+            [message.message_dump() for message in history], ensure_ascii=True, indent=2
+        )
+    )
+    verify_file_effects(history, directory, initial)
+    assert receipt.get("ok") is True, receipt
+    return call, receipt
+
+
+def _expected_edit_bytes(initial, elements):
+    assert initial is not None, "IMPLEMENTATION: edit accepted a missing file"
+    text = initial.decode()
+    assert text or len(elements) == 1, (
+        "IMPLEMENTATION: multiple selections of an empty file were accepted"
+    )
+    line_starts = {0, *(match.end() for match in re.finditer(r"\r\n|\r|\n", text))}
+    replacements = []
+    for element in elements:
+        starts = (
+            [
+                match.start()
+                for match in re.finditer(f"(?={re.escape(element.old_text)})", text)
+            ]
+            if element.old_text
+            else [0]
+            if not text
+            else []
+        )
+        assert len(starts) == 1, (
+            "IMPLEMENTATION: accepted selection is absent or ambiguous"
+        )
+        start = starts[0]
+        assert start in line_starts, (
+            "IMPLEMENTATION: accepted selection starts inside a physical line"
+        )
+        end = start + len(element.old_text)
+        assert all(
+            max(start, other_start) >= min(end, other_end)
+            for other_start, other_end, _ in replacements
+        ), "IMPLEMENTATION: overlapping edits were accepted"
+        replacements.append((start, end, element.replacement))
+    for start, end, replacement in sorted(replacements, reverse=True):
+        text = text[:start] + replacement + text[end:]
+    return text.encode()
+
+
+def _partial_edit_paths(directory, targets, receipt):
+    committed = [(directory / entry["path"]).resolve() for entry in receipt["files"]]
+    assert committed and len(committed) < len(targets), (
+        "IMPLEMENTATION: partial receipt must identify earlier committed files"
+    )
+    assert committed == targets[: len(committed)], (
+        "IMPLEMENTATION: partial receipt reports the wrong committed files"
+    )
+    assert (directory / receipt["failed_path"]).resolve() == targets[len(committed)], (
+        "IMPLEMENTATION: partial receipt reports the wrong failed path"
+    )
+    return committed
+
+
+def verify_file_effects(history, directory, initial):
+    """Check actual writes against emitted arguments before judging user intent."""
+    expected = {path.resolve(): content for path, content in initial.items()}
+    calls = {}
+    seen_results = set()
+    successful = []
+    for message in history:
+        if isinstance(message, AssistantMessage):
+            calls.update(
+                {call.get_id(): call for call in message.get_tool_calls() or []}
+            )
+        if not isinstance(message, ToolMessage):
+            continue
+        call = calls.get(message.get_tool_call_id())
+        if call is None or call.get_name() not in {
+            "new-file",
+            "edit-file",
+            "delete-file",
+        }:
+            continue
+        if call.get_id() in seen_results:
+            continue
+        seen_results.add(call.get_id())
+        receipt = parse_tool_result(message.get_message())
+        arguments = call.get_arguments()
+        partial = (
+            isinstance(receipt, dict)
+            and receipt.get("ok") is False
+            and receipt.get("error_kind") == "partial_file_edit"
+            and call.get_name() == "edit-file"
+        )
+        if not isinstance(receipt, dict) or (
+            receipt.get("ok") is not True and not partial
+        ):
+            if call.get_name() in {"new-file", "delete-file"}:
+                path = (directory / arguments["path"]).resolve()
+                if path in expected:
+                    valid = (
+                        expected[path] is not None
+                        if call.get_name() == "delete-file"
+                        else expected[path] is None
+                        and isinstance(arguments.get("content"), str)
+                        and len(arguments["content"]) >= 2
+                        and "\x00" not in arguments["content"]
+                    )
+                    assert not valid, (
+                        f"IMPLEMENTATION: valid {call.get_name()} call failed: {receipt!r}"
+                    )
+            continue
+        if call.get_name() == "edit-file":
+            document = EditDocument.parse(arguments["edits"])
+            groups = {}
+            for element in document.elements:
+                groups.setdefault((directory / element.path).resolve(), []).append(
+                    element
+                )
+            changes = {
+                path: _expected_edit_bytes(expected[path], elements)
+                for path, elements in groups.items()
+            }
+            committed = (
+                _partial_edit_paths(directory, list(groups), receipt)
+                if partial
+                else list(groups)
+            )
+            expected.update({path: changes[path] for path in committed})
+        else:
+            path = (directory / arguments["path"]).resolve()
+            expected[path] = (
+                arguments["content"].encode() if call.get_name() == "new-file" else None
+            )
+        if not partial:
+            successful.append(call)
+    for path, content in expected.items():
+        if content is None:
+            assert not path.exists(), (
+                "IMPLEMENTATION: delete did not match its successful receipt"
+            )
+        else:
+            assert path.exists() and path.read_bytes() == content, (
+                f"IMPLEMENTATION: file bytes differ from executed arguments: {path}"
+            )
+    return successful
 
 
 @pytest.mark.parametrize(
@@ -182,54 +376,50 @@ def test_live_model_applies_literal_file_operations(tmp_path, edit_provider, ope
         "literal_markup": ("new-file", b"<all/><delete/>&lt;<![CDATA[raw]]>\r\n"),
         "empty_existing": ("edit-file", b"FILLED"),
     }[operation]
-    node, _ = editing_node(edit_provider, tmp_path)
-    prerequisite = (
-        "First inspect notes.txt and read its current physical lines (0/0 if empty). "
-        if tool == "edit-file"
-        else "Do not inspect or read the file. "
+    arguments = (
+        {"path": path.name}
+        if tool == "delete-file"
+        else {"path": path.name, "content": expected.decode()}
+        if tool == "new-file"
+        else {
+            "edits": edit_fragment(
+                path.name,
+                {
+                    "edit": "  old value",
+                    "empty": initial.decode(),
+                    "insert": "KEEP",
+                    "empty_existing": "",
+                }[operation],
+                {
+                    "edit": "  updated value",
+                    "empty": "",
+                    "insert": "INSERT\r\nKEEP",
+                    "empty_existing": "FILLED",
+                }[operation],
+            )
+        }
     )
-    instruction = {
-        "edit": "Replace the first line's text with exactly two spaces followed by updated value.",
-        "new": "Create notes.txt containing exactly created value.",
-        "remove": "Delete notes.txt.",
-        "empty": "Remove the entire content of notes.txt so the existing file is zero bytes.",
-        "insert": "Insert INSERT followed by CRLF immediately before KEEP. Preserve the existing bytes.",
-        "literal_markup": (
-            "Create notes.txt with this exact literal content, followed by one CRLF:\n"
-            "<all/><delete/>&lt;<![CDATA[raw]]>"
-        ),
-        "empty_existing": "Fill the existing empty notes.txt with exactly FILLED.",
-    }[operation]
-    result = node.run(
-        "Enter file-processing. "
-        + prerequisite
-        + instruction
-        + f" Use {tool} exactly once. Preserve literal characters, including ampersands "
-        "and angle brackets. Do not add a final newline unless requested. "
-        "After success exit the skill and answer done."
+    call, receipt = execute_live_file_call(
+        edit_provider, tmp_path, tool, arguments, {path: initial if existing else None}
     )
-    trace = [
-        message.message_dump()
-        for execution in result.skill_executions
-        for message in execution.history
-    ]
-    (tmp_path / "live-edit-trace.json").write_text(
-        json.dumps(trace, ensure_ascii=True, indent=2)
-    )
-    if expected is None:
-        assert not path.exists(), trace
-    else:
-        assert path.read_bytes() == expected, trace
-    calls = [
-        message
-        for execution in result.skill_executions
-        for message in execution.history
-        if message.get_role_name() == "tool" and message.get_name() == tool
-    ]
-    assert len(calls) == 1, trace
     if tool != "edit-file":
         assert not edit_provider.exchanges
-    assert node.depth == 0
+        if operation == "literal_markup":
+            assert any(
+                character in call.get_arguments()["content"] for character in "<&"
+            ), "COVERAGE: literal markup characters were not exercised"
+    else:
+        assert len(edit_provider.exchanges) == 1
+        assert receipt["files"][0]["size_bytes"] == len(path.read_bytes())
+        (element,) = EditDocument.parse(call.get_arguments()["edits"]).elements
+        if operation == "empty":
+            assert element.replacement == "", (
+                "COVERAGE: empty replacement was not exercised"
+            )
+        if operation == "empty_existing":
+            assert element.old_text == "", (
+                "COVERAGE: editing an empty file was not exercised"
+            )
 
 
 @pytest.mark.parametrize("alias", [False, True])
@@ -249,29 +439,16 @@ def test_live_one_literal_call_edits_multiple_resources_with_initial_snapshots(
         document = edit_fragment(first.name, "FIRST", "UPDATED FIRST") + edit_fragment(
             second.name, "OTHER", "UPDATED OTHER"
         )
-    node, _ = editing_node(edit_provider, tmp_path)
-    result = node.run(
-        "Enter file-processing. Inspect notes.txt, read its two lines. "
-        + ("" if alias else "Inspect other.txt and read its one line. ")
-        + "Now make exactly ONE edit-file call whose single edits string contains both literal edit blocks from "
-        + json.dumps({"edits": document})
-        + ". The server supplies distinct opening IDs. Copy each ID into its separator. "
-        + "After success exit_agent(text='done',items=[]), then answer done without more tools."
+    initial = {first: b"FIRST\r\nSECOND\n"}
+    if not alias:
+        initial[second] = b"OTHER\n"
+    call, receipt = execute_live_file_call(
+        edit_provider, tmp_path, "edit-file", {"edits": document}, initial
     )
-    trace = [
-        message.message_dump()
-        for execution in result.skill_executions
-        for message in execution.history
-    ]
-    (tmp_path / "live-multiple-trace.json").write_text(
-        json.dumps(trace, ensure_ascii=True, indent=2)
+    trace = call.get_arguments()
+    assert len(EditDocument.parse(trace["edits"]).elements) == 2, (
+        "COVERAGE: multi-edit call did not contain both resources"
     )
-    assert first.read_bytes() == (
-        b"UPDATED FIRST\r\nUPDATED SECOND\n" if alias else b"UPDATED FIRST\r\nSECOND\n"
-    ), trace
-    assert second.read_bytes() == (
-        first.read_bytes() if alias else b"UPDATED OTHER\n"
-    ), trace
     exchanges = [
         (event, reply)
         for event, reply in edit_provider.exchanges
@@ -284,7 +461,7 @@ def test_live_one_literal_call_edits_multiple_resources_with_initial_snapshots(
     if alias:
         assert exchanges[0][1] == exchanges[1][1]
         assert second.is_symlink()
-    assert node.depth == 0
+    assert len(receipt["files"]) == (1 if alias else 2)
 
 
 class AdversarialSnapshot:
@@ -298,7 +475,9 @@ class AdversarialSnapshot:
 
     def prepare(self, event, definition):
         self.exchanges += 1
-        assert event["request"]["values"] == {"path": "attack.txt"}
+        values = event["request"]["values"]
+        assert set(values) == {"path"}
+        assert isinstance(values["path"], str) and values["path"]
         return {
             "status": "provide",
             "text": self.text,
@@ -316,8 +495,8 @@ class AdversarialSnapshot:
             # may be rejected here. This attack targets literal masking only.
             for element in document.elements:
                 try:
-                    select_replacements(self.text, (element,))
-                except FileInspectionError as error:
+                    _expected_edit_bytes(self.text.encode(), (element,))
+                except AssertionError as error:
                     pytest.fail(
                         f"Server literal constraints escaped: {element!r}: {error}"
                     )
@@ -326,8 +505,7 @@ class AdversarialSnapshot:
 def test_live_adversarial_literal_selection_cannot_escape_for_30_seconds(
     tmp_path, edit_provider, monkeypatch, record_property
 ):
-    _, loaded = editing_node(edit_provider, tmp_path)
-    edit = next(tool for tool in loaded.tools if tool.name == "edit-file")
+    edit = file_tools(tmp_path)["edit-file"]
     text = "  value\nprefix value\naaa\nvalue"
     started = monotonic()
     deadline = started + 30
@@ -382,9 +560,11 @@ def test_live_adversarial_literal_selection_cannot_escape_for_30_seconds(
             if not expired or not timeout:
                 raise
     assert snapshot.exchanges > 0
-    assert completed > 0, "No complete constrained tool call was evaluated"
     assert edit_provider.client.models.list().data
     assert not (tmp_path / "attack.txt").exists()
+    assert completed > 0, (
+        "COVERAGE: no complete constrained call emitted; adversarial selections not verified"
+    )
     record_property("adversarial_seconds", monotonic() - started)
     record_property("attempts", attempts)
     record_property("validated_calls", completed)
@@ -400,8 +580,7 @@ def test_live_rejection_of_second_edit_prevents_entire_call(
     inspection = inspect_file(tmp_path, first.name)
     with file_read_context((inspection.evidence,)):
         reading = read_file(tmp_path, first.name, 1, 1)
-    _, loaded = editing_node(edit_provider, tmp_path)
-    edit = next(tool for tool in loaded.tools if tool.name == "edit-file")
+    edit = file_tools(tmp_path)["edit-file"]
     document = edit_fragment("notes.txt", "FIRST", "BAD") + edit_fragment(
         "existing.txt", "<all/>", "BAD"
     )
@@ -415,14 +594,12 @@ def test_live_rejection_of_second_edit_prevents_entire_call(
     runtime = FileToolRuntime()
     for name, report, arguments in (
         ("inspect-file", inspection, {"path": first.name}),
-        ("read-file", reading, {"path": first.name, "start_line": 1, "end_line": 1}),
+        ("read-file", reading, {"path": first.name, "start_index": 1, "end_index": 1}),
     ):
         call = ToolCall(name, FunctionCall(name, arguments))
         message = ToolMessage(stringify_tool_result(report), name, name)
-        history[1:1] = [AssistantMessage("", tool_calls=[call]), message]
+        history.extend([AssistantMessage("", tool_calls=[call]), message])
         runtime.record_result(call, report, message)
-    # Inspection must precede the read in visible history.
-    history[1:5] = history[3:5] + history[1:3]
     handler = FileInteractiveCalls(
         runtime, tmp_path, lambda: history, lambda: False, lambda: ()
     )
@@ -444,8 +621,12 @@ def test_live_rejection_of_second_edit_prevents_entire_call(
     )
     request.interactive_handler = RecordingHandler(handler, exchanges)
     result = LocalProvider.call(edit_provider, request)
+    assert (tmp_path / "existing.txt").read_bytes() == b"KEEP"
+    assert first.read_bytes() == b"FIRST"
     assert not result.get_tool_calls()
-    assert len(exchanges) == 2
+    assert len(exchanges) == 2, (
+        "COVERAGE: second edit was not reached; rejection boundary not verified"
+    )
     assert [reply["status"] for _, reply in exchanges] == ["provide", "reject"]
     record = result.interruptions[0].record
     assert record["edit_index"] == 2
@@ -459,8 +640,7 @@ def test_live_rejection_of_second_edit_prevents_entire_call(
 def test_live_scope_change_at_pause_cancels_without_authorizing_a_resource(
     tmp_path, edit_provider, streaming, record_property
 ):
-    _, loaded = editing_node(edit_provider, tmp_path)
-    edit = next(tool for tool in loaded.tools if tool.name == "edit-file")
+    edit = file_tools(tmp_path)["edit-file"]
     scope = ("node", "first-opening")
     pauses = []
 
@@ -515,7 +695,13 @@ def test_live_scope_change_at_pause_cancels_without_authorizing_a_resource(
             indent=2,
         )
     )
-    assert len(pauses) == 1
+    if not pauses:
+        assert not result.get_tool_calls(), (
+            "IMPLEMENTATION: edit returned without its snapshot pause"
+        )
+    assert len(pauses) == 1, (
+        "COVERAGE: edit pause not reached exactly once; scope cancellation not verified"
+    )
     assert not exchanges
     assert not result.get_tool_calls()
     assert any(record["type"] == "interactive.cancelled" for record in records)

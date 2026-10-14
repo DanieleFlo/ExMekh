@@ -161,10 +161,46 @@ API_KEY=sk-local-key
 EXMEKH_LIB_LIVE_MODEL=qwen3.5-9b-mtp
 ```
 
-### Assertion Diagnostic Conventions
-Assertion messages in live tests use prefix tags to clarify failure causes:
-- **`CLIENT`**: Protocol error, history invariant failure, or client library bug.
-- **`MODEL`**: Model failed to follow prompt instructions, output invalid tool calls, or generated unexpected text.
+### Assertions and coverage
+
+Live tests exercise the software through real provider responses. Compare actual
+tool arguments, receipts, histories and effects before comparing an answer with
+the requested fixture. A plausible model answer cannot replace these checks, and
+different model choices cannot excuse effects that disagree with emitted arguments.
+
+`CLIENT`, `PROVIDER`, `IMPLEMENTATION`, `CACHE` and `PROCESS` assertions identify
+the contract being checked. `COVERAGE` means the required branch was not exercised;
+`FLOW` means the workflow did not terminate as required. Neither is converted to
+a passing result or a model-limitation skip. Inspect the recorded requests and
+responses before attributing a failure to either the model or the implementation.
+Environment and fixture requirements may still produce explicit skips.
+
+The file-editing observer checks literal uniqueness, physical line boundaries,
+disjoint edits and resulting bytes independently of the production selection
+implementation. Offline tests deliberately supply inconsistent successful receipts
+to verify that this observer catches bugs.
+
+File-operation live cases expose one real tool at a time and dispatch the actual
+returned call through its hooks and the real file runtime. Edit prerequisites are
+real inspection/read results in a valid history; snapshot authorization still
+crosses the live interactive protocol. These cases do not depend on entering,
+leaving or reopening a skill. Neither responses nor arguments are substituted,
+and the recorder performs no additional inference to complete a model workflow.
+The requested software branch must still be exercised, such as an empty
+replacement or a call with two edits. Bytes are compared with the actual
+arguments, rather than treating a different model-selected replacement as a
+filesystem bug. Removing an empty replacement must preserve any unselected
+trailing newline; it does not necessarily produce a zero-byte file.
+
+Reading live cases use inspection and reading directly at root. They assert the
+selected text or PDF pages, actual image companions delivered to the provider,
+and identical values and images recovered from the cache. An optional image
+inspection is allowed; image reads do not require it. These checks do not depend
+on a model's final wording or skill-entry strategy. Mixed-content tests retain
+their separate end-to-end checks that the endpoint consumes the supplied images.
+
+The public-web suite also verifies actual 401/403, 404, 429 and 503 responses:
+the error family, cause, status, requested URL and recovery guidance must agree.
 
 ### Tool cache live checks
 
@@ -228,8 +264,19 @@ The deep-thinking workflow uses a scripted provider and mocked web boundaries in
 `tests/core/agents/node/test_deep_thinking_workflow.py`. Clock, SymPy and Z3
 capability integration checks run offline in
 `tests/core/agents/capabilities/test_reasoning_integration.py`. The real public-web
-suite remains live, and the complete model-driven deep-thinking audit still
+suite remains live, and the complete real-provider deep-thinking audit still
 requires `EXMEKH_LIB_LIVE_DEEP_THINKING_MODEL`.
+
+The audit runs a declared sequence of real calls. Its provider fixture keeps the
+tool registry unchanged and narrows only the allowed names for each step; changing
+registered definitions inside one DS4 context produces HTTP 409. Required inputs
+and optional defaults come from the step and the tool's public signature.
+Responses and returned arguments are preserved. Work runs synchronously in this
+fixture, while the separate process suite verifies managed and background work.
+After hooks observe unmodified results before presentation, so a recorded tool
+name cannot hide an error result. The audit checks the actual mean, logic statuses,
+HTTP response and navigation effect. Child calls are inspected through
+`skill_executions`; the root's exported history contains the root calls.
 
 Public search discovery and reading share one live check: results must be
 bounded, unique public URLs, and at least one discovered source must be readable.

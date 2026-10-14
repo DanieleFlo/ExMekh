@@ -179,8 +179,6 @@ def _verify_read_call(history, message, fixture: ReadFixture):
             and c.get_arguments()["path"] == fixture.path.name
             for c in calls[: calls.index(read)]
         )
-    else:
-        assert all(c.get_name() != "inspect-file" for c in calls)
 
 
 def _verify_visual_read(history, message, result, fixture: ReadFixture):

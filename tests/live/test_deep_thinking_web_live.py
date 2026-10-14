@@ -97,6 +97,30 @@ def test_live_read_complex_documentation_and_reuse_cache(tmp_path: Path) -> None
     assert cached == first
 
 
+@pytest.mark.parametrize(
+    ("status", "error_code"),
+    [
+        (401, "http_access_denied"),
+        (403, "http_access_denied"),
+        (404, "http_not_found"),
+        (429, "http_rate_limited"),
+        (503, "http_server_error"),
+    ],
+)
+def test_live_http_failure_preserves_remote_status_and_recovery(
+    tmp_path: Path, status: int, error_code: str
+) -> None:
+    url = f"https://httpbin.org/status/{status}"
+    result = _web_tools(tmp_path)["read-web-page"].execute(url=url)
+
+    assert result.get("ok") is False, result
+    assert result["error_kind"] == "crawl_failed", result
+    assert result["error_code"] == error_code, result
+    assert result["details"]["status_code"] == status, result
+    assert result["details"]["requested_url"] == url, result
+    assert result["error"] and result["hint"], result
+
+
 def test_live_browser_form_submission_captures_destination_page(tmp_path: Path) -> None:
     tools = _web_tools(tmp_path)
 

@@ -14,12 +14,21 @@ from exmekh_lib.core.models.assistant_message import (
 )
 from exmekh_lib.core.models.provider_request import ProviderRequest
 from exmekh_lib.core.models.provider_response import ProviderResponse
-from exmekh_lib.core.models.tool import ExecutionOptions, ToolExecutionOperation
+from exmekh_lib.core.models.system_message import SystemMessage
+from exmekh_lib.core.models.tool import ExecutionOptions, Tool, ToolExecutionOperation
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.models.tools import Tools
 from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.core.tool_calls import execution_manager
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
+from exmekh_lib.core.web_navigation import crawler, search
 from exmekh_lib.providers.local import LocalProvider
-from tests.live.model_support import DEFAULT_LIVE_REQUEST_TIMEOUT_SECONDS
+from tests.history_validation import validate_request_history
+from tests.live import test_deep_thinking_skill_live as macro_live
+from tests.live.model_support import (
+    DEFAULT_LIVE_REQUEST_TIMEOUT_SECONDS,
+    CacheTestTokenizer,
+)
 from tests.live.test_deep_thinking_skill_live import DeepThinkingLiveProvider
 from tests.live.test_tool_cache_live import RecordingLocalProvider
 from tests.live.tool_execution_support import (
@@ -78,13 +87,107 @@ def test_macro_live_test_bounds_model_turns_and_saves_its_trace(
     request = ProviderRequest([UserMessage("complete the macro")])
     provider.call(request)
     provider.call(request)
-    with pytest.raises(AssertionError, match="MODEL: exceeded 2 macro turns"):
+    with pytest.raises(AssertionError, match="FLOW: exceeded 2 macro turns"):
         provider.call(request)
     repeated = [{"name": "interact-web-page", "arguments": {"actions": []}}]
     assert json.loads((tmp_path / "macro-model-trace.json").read_text()) == [
         repeated,
         repeated,
     ]
+
+
+def test_macro_fixture_limits_choices_without_substituting_real_arguments(
+    recording_provider, monkeypatch, tmp_path
+):
+    provider = recording_provider(
+        lambda directory: DeepThinkingLiveProvider(
+            "offline-test-model", tmp_path, steps=[("work", {"value": "REQUESTED"})]
+        )
+    )
+    seen = []
+    response = ProviderResponse(
+        AssistantMessage(
+            "",
+            tool_calls=[ToolCall("call", FunctionCall("work", {"value": "OBSERVED"}))],
+        )
+    )
+
+    def call(self, request):
+        seen.append(request)
+        return response
+
+    monkeypatch.setattr(LocalProvider, "call", call)
+    request = ProviderRequest(
+        [SystemMessage("test"), UserMessage("start")],
+        tools=Tools(
+            [
+                Tool(lambda value, mode="safe": value, name="work"),
+                Tool(lambda: None, name="other"),
+            ]
+        ),
+        extra={
+            "agentic": {"allowed_tools": ["work", "other"], "allowed_skills": ["skill"]}
+        },
+    )
+    assert provider.call(request) is response
+    (bounded,) = seen
+    assert bounded.get_tools().list_tools() == ["work", "other"]
+    assert bounded.get_tool_choice() == "required"
+    assert '"mode": "safe"' in bounded.get_messages()[-1].get_message()
+    assert bounded.get_extra()["agentic"] == {
+        "allowed_tools": ["work"],
+        "allowed_skills": [],
+    }
+    assert request.get_tools().list_tools() == ["work", "other"]
+    assert len(request.get_messages()) == 2
+    assert response.get_tool_calls()[0].get_arguments() == {"value": "OBSERVED"}
+
+
+def test_macro_final_reply_keeps_the_real_return_checkpoint_last(
+    recording_provider, monkeypatch, tmp_path
+):
+    provider = recording_provider(
+        lambda directory: DeepThinkingLiveProvider(
+            "offline-test-model", tmp_path, steps=[]
+        )
+    )
+    seen = []
+    monkeypatch.setattr(
+        LocalProvider,
+        "call",
+        lambda self, request: (
+            seen.append(request) or ProviderResponse(AssistantMessage("DONE"))
+        ),
+    )
+    message = ToolMessage("complete", "skill-call", "deep-thinking")
+    provider.call(
+        ProviderRequest(
+            [
+                SystemMessage("test"),
+                UserMessage("start"),
+                AssistantMessage(
+                    "",
+                    tool_calls=[
+                        ToolCall("skill-call", FunctionCall("deep-thinking", {}))
+                    ],
+                ),
+                message,
+            ],
+            tools=Tools([]),
+            extra={
+                "agentic": {
+                    "operation": "return",
+                    "skill_call_id": "skill-call",
+                    "allowed_tools": [],
+                    "allowed_skills": [],
+                }
+            },
+        )
+    )
+    (bounded,) = seen
+    assert bounded.get_messages()[-1] is message
+    assert bounded.get_tool_choice() == "none"
+    assert bounded.get_extra()["agentic"]["skill_call_id"] == "skill-call"
 
 
 @pytest.mark.parametrize(
@@ -297,3 +400,69 @@ def test_real_process_cancellation_respects_operation_support(tmp_path, tool_typ
             assert job.receipt
     finally:
         fixture.close()
+
+
+def test_controlled_macro_fixture_runs_every_real_reasoning_tool_offline(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv(
+        DEFAULT_PROVIDER_SETTINGS.base_url_env_var, "http://127.0.0.1:1/v1"
+    )
+    monkeypatch.setenv(DEFAULT_PROVIDER_SETTINGS.api_key_env_var, "offline-test-key")
+    monkeypatch.setenv("EXMEKH_LIB_LIVE_DEEP_THINKING_MODEL", "offline-test-model")
+    monkeypatch.setattr(
+        LocalProvider, "_get_available_models", lambda self: {"offline-test-model"}
+    )
+    original = macro_live.DeepThinkingLiveProvider
+    monkeypatch.setattr(
+        macro_live,
+        "DeepThinkingLiveProvider",
+        lambda model, directory, **options: original(
+            model,
+            directory,
+            tokenizer=CacheTestTokenizer("macro-fixture", directory / "cache"),
+            **options,
+        ),
+    )
+    steps = dict(macro_live.macro_steps())
+    seen = []
+
+    def call(self, request):
+        validate_request_history(request)
+        seen.append(request)
+        if request.get_tool_choice() == "none":
+            return ProviderResponse(AssistantMessage("DONE"))
+        scope = request.get_extra()["agentic"]
+        (name,) = scope["allowed_tools"] + scope["allowed_skills"]
+        return ProviderResponse(
+            AssistantMessage(
+                "",
+                tool_calls=[
+                    ToolCall(f"call-{len(seen)}", FunctionCall(name, steps[name]))
+                ],
+            )
+        )
+
+    monkeypatch.setattr(LocalProvider, "call", call)
+    monkeypatch.setattr(
+        search,
+        "search_web",
+        lambda query, **arguments: {
+            "result_count": 1,
+            "results": [{"url": steps["read-web-page"]["url"]}],
+        },
+    )
+    monkeypatch.setattr(
+        crawler,
+        "crawl_page",
+        lambda **arguments: {
+            "status_code": 200,
+            "final_url": "https://docs.python.org/3/library/math.html"
+            if arguments.get("actions")
+            else arguments["url"],
+            "markdown": "Actual fixture content",
+            "actions_completed": True,
+        },
+    )
+    macro_live.test_live_model_can_choose_and_combine_every_skill_tool(tmp_path)
+    assert len(seen) == len(steps) + 1
