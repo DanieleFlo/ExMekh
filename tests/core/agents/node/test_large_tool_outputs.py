@@ -1,13 +1,20 @@
+from pathlib import Path
 from threading import Event
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from exmekh_lib.core.agents.node.types import ToolExecutionResult
 from exmekh_lib.core.models.assistant_message import AssistantMessage
 from exmekh_lib.core.models.external_tool_output import ExternalToolOutput
 from exmekh_lib.core.models.tool import (
+    ExecutionOptions,
     PreformattedToolResult,
     Tool,
+    ToolExecutionOperation,
 )
+from exmekh_lib.core.models.tool_message import ToolMessage
+from exmekh_lib.core.tool_calls.output_runtime import ToolOutputDelivery
 from exmekh_lib.interfaces.tool_hook import AfterTool
 from tests.core.agents.node.test_node import SequenceProvider
 from tests.core.agents.node.test_tool_executions import make_node as make_node
@@ -240,3 +247,65 @@ def test_large_skill_return_is_exported_before_tree_and_cache_recording(
         original not in path.read_text()
         for path in provider.get_session().session_dir.rglob("*.json")
     )
+
+
+def test_failed_automatic_export_keeps_output_pending_for_the_next_turn(
+    make_node, monkeypatch
+):
+    provider = SequenceProvider([AssistantMessage("first"), AssistantMessage("second")])
+    node = make_node(provider, Tool(lambda: "unused", name="mock-tool"))
+    runtime = node._runtime
+    snapshot = runtime._execution_manager.start(
+        "background",
+        "work",
+        {},
+        ToolExecutionOperation(lambda: "private" * 1000),
+        runtime._executor.skill_scope_ids,
+        ExecutionOptions(),
+        "pending",
+    )
+    assert snapshot.is_finished
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, "write_bytes", MagicMock(side_effect=OSError("disk full")))
+        assert node.run("first").get_message() == "first"
+    assert (
+        runtime._execution_manager.next_delivery(runtime._executor.skill_scope_ids)
+        is not None
+    )
+    assert node.run("retry").get_message() == "second"
+    assert node.read_tool_output("pending").external_output is not None
+    assert (
+        runtime._execution_manager.next_delivery(runtime._executor.skill_scope_ids)
+        is None
+    )
+
+
+def test_executor_does_not_acknowledge_failed_delivery(make_node):
+    provider = SequenceProvider([AssistantMessage("unused")])
+    node = make_node(provider, Tool(lambda: "unused", name="mock-tool"))
+    executor = node._runtime._executor
+    manager = node._runtime._execution_manager
+    snapshot = manager.start(
+        "call",
+        "work",
+        {},
+        ToolExecutionOperation(lambda: "done"),
+        executor.skill_scope_ids,
+        ExecutionOptions(),
+        "id",
+    )
+    original = ToolExecutionResult(
+        ToolMessage("original", "call", "work"), execution=snapshot
+    )
+    with patch.object(
+        executor._output_runtime,
+        "publish_final",
+        return_value=ToolOutputDelivery(
+            PreformattedToolResult("failure", delivery_failed=True),
+            snapshot,
+            {"error": "unavailable"},
+        ),
+    ):
+        prepared = executor._prepare_result(original)
+    assert prepared.is_error
+    assert manager.next_delivery(executor.skill_scope_ids) is not None

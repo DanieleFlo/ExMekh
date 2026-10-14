@@ -38,7 +38,6 @@ class FileInteractiveCalls:
         self._scope_ids = scope_ids
         self._evidence: tuple[InspectionEvidence, ...] = ()
         self._approvals: dict[str, list[EditApproval]] = {}
-        self._preparers = {FILE_EDIT_FORMAT.behavior: self._prepare_edit}
         self._pending_inspections: FileInspectionRequests | None = None
         self._history_snapshot: list[dict[str, str]] | None = None
         self._scope_snapshot: tuple[str, ...] = ()
@@ -68,10 +67,9 @@ class FileInteractiveCalls:
     def prepare(
         self, event: dict[str, Any], definition: dict[str, Any]
     ) -> dict[str, object]:
-        prepare = self._preparers.get(definition["behavior"])
-        if prepare is None:
+        if definition["behavior"] != FILE_EDIT_FORMAT.behavior:
             raise InteractiveProtocolError(FILE_EDITING.runtime_handler_required)
-        return prepare(event, definition)
+        return self._prepare_edit(event, definition)
 
     def _prepare_edit(
         self, event: dict[str, Any], definition: dict[str, Any]

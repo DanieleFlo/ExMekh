@@ -433,3 +433,40 @@ def test_provider_accepts_tokenizer_and_delegates(tmp_path):
     assert second.generate_id() == "2_2_B"
     with pytest.raises(TypeError, match="Tokenizer"):
         LocalProvider("model", tokenizer=object())
+
+
+@pytest.mark.parametrize("text", ["", "short"])
+def test_qwen_keeps_text_that_already_fits_the_split_budget(tmp_path, text):
+    tokenizer = QwenTokenizer(tmp_path)
+    tokenizer._text_tokenizer = _sample_text_tokenizer()
+    assert tokenizer.split_text(text, 100) == ((text,) if text else ())
+
+
+def test_qwen_splits_shared_character_offsets_without_losing_unicode(
+    tmp_path, monkeypatch
+):
+    tokenizer = QwenTokenizer(tmp_path)
+    monkeypatch.setattr(
+        tokenizer,
+        "_encode",
+        lambda text: SimpleNamespace(ids=[1, 2, 3], offsets=[(0, 1), (0, 1), (1, 2)]),
+    )
+    monkeypatch.setattr(tokenizer, "count_tokens", lambda text: 1)
+    assert tokenizer.split_text("éx", 1) == ("é", "x")
+
+
+def test_qwen_rejects_unsplittable_character_and_uncovered_source(
+    tmp_path, monkeypatch
+):
+    tokenizer = QwenTokenizer(tmp_path)
+    monkeypatch.setattr(
+        tokenizer,
+        "_encode",
+        lambda text: SimpleNamespace(ids=[1, 2], offsets=[(0, 1), (0, 1)]),
+    )
+    monkeypatch.setattr(tokenizer, "count_tokens", lambda text: 2)
+    with pytest.raises(ValueError, match="cannot split"):
+        tokenizer.split_text("é", 1)
+    monkeypatch.setattr(tokenizer, "count_tokens", lambda text: 1)
+    with pytest.raises(ValueError, match="complete source"):
+        tokenizer.split_text("éx", 1)

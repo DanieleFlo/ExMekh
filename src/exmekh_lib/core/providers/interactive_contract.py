@@ -6,6 +6,7 @@ from copy import deepcopy
 from dataclasses import dataclass, replace
 from typing import Any
 
+from exmekh_lib.config.interactive import INTERACTIVE_PROTOCOL
 from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
 from exmekh_lib.core.models.edit_document import EditDocument
@@ -110,7 +111,7 @@ class InteractiveContract:
         identifier = value.get("continuation_id")
         if (
             type(value.get("version")) is not int
-            or value["version"] != 2
+            or value["version"] != INTERACTIVE_PROTOCOL.version
             or not isinstance(identifier, str)
             or not identifier
         ):
@@ -149,7 +150,7 @@ class InteractiveContract:
         values = request.get("values")
         index = request.get("edit_index")
         if (
-            request.get("kind") != "file_snapshot"
+            request.get("kind") != INTERACTIVE_PROTOCOL.snapshot_kind
             or not isinstance(values, dict)
             or set(values) != {"path"}
             or not isinstance(values["path"], str)

@@ -13,12 +13,11 @@ from exmekh_lib.core.models.edit_document import EditDocument, EditElement
 
 from .decoding import decode_text
 from .edit_filesystem import (
-    commit_edit,
+    FileWriteTarget,
     edit_snapshot,
     encode_replacement,
     resolve_edit_target,
     resource_lock,
-    validate_edit_target,
 )
 from .edit_selection import select_replacements
 from .errors import FileInspectionError
@@ -41,7 +40,7 @@ class EditApproval:
         return replace(self, resource=resource)
 
     def validate_target(self, work_root: Path, resource: str) -> None:
-        validate_edit_target(work_root, resource, self.target, self.snapshot)
+        FileWriteTarget(work_root, resource, self.target, self.snapshot).validate()
 
     def shares_snapshot(self, other: Self) -> bool:
         return (
@@ -62,7 +61,9 @@ class EditApproval:
         self, work_root: Path, content: bytes, evidence: tuple[InspectionEvidence, ...]
     ) -> None:
         self.require_evidence(evidence)
-        commit_edit(work_root, self.resource, self.target, self.snapshot, content)
+        FileWriteTarget(work_root, self.resource, self.target, self.snapshot).commit(
+            content
+        )
 
     def reply(self) -> dict[str, object]:
         return {

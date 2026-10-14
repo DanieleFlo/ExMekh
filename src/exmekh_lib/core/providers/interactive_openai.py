@@ -10,6 +10,7 @@ from openai import OpenAI
 from openai.types.responses import Response
 
 from exmekh_lib.config.file_editing import FILE_EDIT_FORMAT, FILE_EDITING
+from exmekh_lib.config.interactive import INTERACTIVE_PROTOCOL
 from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.assistant_message import (
     AssistantMessage,
@@ -81,7 +82,7 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
         body["agentic"] = {
             **scope,
             "interactive": {
-                "version": 2,
+                "version": INTERACTIVE_PROTOCOL.version,
                 "operation": "configure",
                 "request_id": uuid4().hex,
                 "tools": list(definitions.values()),
@@ -91,7 +92,9 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
         return self._logical_call(request, body, scope, contract, snapshot_limit)
 
     def _negotiate(self) -> int:
-        capabilities = self._client.get("/agentic/capabilities", cast_to=dict[str, Any])
+        capabilities = self._client.get(
+            INTERACTIVE_PROTOCOL.capabilities_path, cast_to=dict[str, Any]
+        )
         if not isinstance(capabilities, dict):
             raise InteractiveProtocolError(PROVIDER_TEXT.malformed_server_capabilities)
         interactive = capabilities.get("interactive", {})
@@ -109,7 +112,7 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
             )
         if (
             type(interactive.get("version")) is not int
-            or interactive["version"] != 2
+            or interactive["version"] != INTERACTIVE_PROTOCOL.version
             or interactive.get("model_supported") is not True
             or interactive.get("model_syntax") not in interactive.get("syntaxes", [])
             or "responses" not in interactive.get("apis", [])
@@ -301,7 +304,7 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
     ) -> ProviderResponse:
         record = {
             "type": "interactive.cancelled",
-            "version": 2,
+            "version": INTERACTIVE_PROTOCOL.version,
             "continuation_id": continuation_id,
             "code": "steered",
             "message": PROVIDER_TEXT.steering_invalidated_this_inference_before_dispatch,
@@ -335,7 +338,7 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
         scope: dict[str, Any], operation: str, continuation_id: str, **values: Any
     ) -> dict[str, Any]:
         control = {
-            "version": 2,
+            "version": INTERACTIVE_PROTOCOL.version,
             "operation": operation,
             "continuation_id": continuation_id,
             **values,

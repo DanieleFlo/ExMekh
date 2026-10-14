@@ -5,6 +5,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class FileEditingSettings:
+    temporary_file_prefix: str = ".exmekh-edit-"
+    temporary_file_mode: int = 0o600
     min_new_file_characters: int = 2
     max_snapshot_bytes: int = 1024 * 1024
     max_generated_bytes: int = 1024 * 1024

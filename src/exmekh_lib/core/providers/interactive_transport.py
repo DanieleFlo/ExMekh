@@ -11,6 +11,7 @@ import httpx2
 from openai import APIConnectionError, APIResponse, APITimeoutError, OpenAI
 
 from exmekh_lib.config.file_editing import FILE_EDITING
+from exmekh_lib.config.interactive import INTERACTIVE_PROTOCOL
 from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.interactive import InteractiveProtocolError
 from exmekh_lib.core.providers.interactive_contract import decode_object_pairs
@@ -24,7 +25,7 @@ class InteractiveTransport:
         deadline = monotonic() + timeout
         client = self._client.with_options(timeout=timeout, max_retries=0)
         response = client.post(
-            "/responses",
+            INTERACTIVE_PROTOCOL.responses_path,
             body=body,
             cast_to=APIResponse[dict[str, Any]],
             options={"headers": {"X-Stainless-Raw-Response": "stream"}},

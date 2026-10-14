@@ -5,7 +5,7 @@ import os
 import stat
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from threading import Lock, RLock
 from uuid import uuid4
@@ -93,7 +93,7 @@ def new_file(work_root: Path, path: str, content: str) -> dict[str, object]:
     with resource_lock(target):
         if os.path.lexists(work_root.resolve() / path):
             raise FileInspectionError(FILE_EDITING.path_exists)
-        commit_edit(work_root, path, target, None, encoded)
+        FileWriteTarget(work_root, path, target).commit(encoded)
     return {
         "ok": True,
         "path": target.relative_to(work_root.resolve()).as_posix(),
@@ -155,89 +155,91 @@ def _open_parent_directory(work_root: Path, target: Path) -> int:
         raise
 
 
-def validate_edit_target(
-    work_root: Path,
-    original_path: str,
-    target: Path,
-    snapshot: FileSnapshot | None,
-) -> None:
-    """Recheck canonical path, initial bytes, identity and platform permissions."""
-    if resolve_edit_target(work_root, original_path) != target:
-        raise FileInspectionError(FILE_EDITING.changed)
-    if snapshot is None:
+@dataclass(frozen=True, slots=True)
+class FileWriteTarget:
+    """Bind a workspace resource to its canonical path and initial snapshot."""
+
+    work_root: Path
+    resource: str
+    path: Path
+    snapshot: FileSnapshot | None = None
+
+    def validate(self) -> None:
+        """Recheck canonical path, initial bytes, identity and platform permissions."""
+        if resolve_edit_target(self.work_root, self.resource) != self.path:
+            raise FileInspectionError(FILE_EDITING.changed)
+        if self.snapshot is None:
+            try:
+                self.path.lstat()
+            except FileNotFoundError:
+                pass
+            else:
+                raise FileInspectionError(FILE_EDITING.changed)
+        elif not self.snapshot.matches(edit_snapshot(self.work_root, self.resource)):
+            raise FileInspectionError(FILE_EDITING.changed)
+        require_descriptor_operations(os.open, os.unlink, os.link, os.rename)
+        if self.snapshot is not None and not os.access(self.path, os.W_OK):
+            raise FileInspectionError(FILE_EDITING.file_not_writable)
+        if not os.access(self.path.parent, os.W_OK | os.X_OK):
+            raise FileInspectionError(FILE_EDITING.parent_not_writable)
+
+    def commit(self, content: bytes) -> None:
+        """Revalidate and publish under this target's cooperative lock."""
+        with resource_lock(self.path):
+            self._commit(content)
+
+    def _commit(self, content: bytes) -> None:
+        """Commit after an exact-byte and identity check. External writers must cooperate."""
+
+        self.validate()
+        parent_fd = _open_parent_directory(self.work_root, self.path)
+        parent_identity = os.fstat(parent_fd)
+
+        def check_parent() -> None:
+            current = self.path.parent.stat()
+            if (current.st_dev, current.st_ino) != (
+                parent_identity.st_dev,
+                parent_identity.st_ino,
+            ):
+                raise FileInspectionError(FILE_EDITING.changed)
+
+        temporary: str | None = None
         try:
-            target.lstat()
-        except FileNotFoundError:
-            pass
-        else:
-            raise FileInspectionError(FILE_EDITING.changed)
-    elif not snapshot.matches(edit_snapshot(work_root, original_path)):
-        raise FileInspectionError(FILE_EDITING.changed)
-    require_descriptor_operations(os.open, os.unlink, os.link, os.rename)
-    if snapshot is not None and not os.access(target, os.W_OK):
-        raise FileInspectionError(FILE_EDITING.file_not_writable)
-    if not os.access(target.parent, os.W_OK | os.X_OK):
-        raise FileInspectionError(FILE_EDITING.parent_not_writable)
-
-
-def commit_edit(
-    work_root: Path,
-    original_path: str,
-    target: Path,
-    snapshot: FileSnapshot | None,
-    content: bytes,
-) -> None:
-    """Commit after an exact-byte and identity check. External writers must cooperate."""
-
-    def check_current() -> None:
-        validate_edit_target(work_root, original_path, target, snapshot)
-
-    check_current()
-    parent_fd = _open_parent_directory(work_root, target)
-    parent_identity = os.fstat(parent_fd)
-
-    def check_parent() -> None:
-        current = target.parent.stat()
-        if (current.st_dev, current.st_ino) != (
-            parent_identity.st_dev,
-            parent_identity.st_ino,
-        ):
-            raise FileInspectionError(FILE_EDITING.changed)
-
-    temporary: str | None = None
-    try:
-        temporary = f".exmekh-edit-{uuid4().hex}"
-        descriptor = os.open(
-            temporary,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-            0o600,
-            dir_fd=parent_fd,
-        )
-        with os.fdopen(descriptor, "wb") as stream:
-            stream.write(content)
-            stream.flush()
-            if snapshot is not None and hasattr(os, "fchmod"):
-                os.fchmod(stream.fileno(), stat.S_IMODE(snapshot.stat.st_mode))
-            os.fsync(stream.fileno())
-        check_current()
-        check_parent()
-        if snapshot is None:
-            # An exclusive hard link publishes complete bytes without overwriting.
-            os.link(
+            temporary = f"{FILE_EDITING.temporary_file_prefix}{uuid4().hex}"
+            descriptor = os.open(
                 temporary,
-                target.name,
-                src_dir_fd=parent_fd,
-                dst_dir_fd=parent_fd,
-                follow_symlinks=False,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                FILE_EDITING.temporary_file_mode,
+                dir_fd=parent_fd,
             )
-        else:
-            os.replace(
-                temporary, target.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd
-            )
-            temporary = None
-    finally:
-        try:
-            if temporary is not None:
-                os.unlink(temporary, dir_fd=parent_fd)
+            with os.fdopen(descriptor, "wb") as stream:
+                stream.write(content)
+                stream.flush()
+                if self.snapshot is not None and hasattr(os, "fchmod"):
+                    os.fchmod(stream.fileno(), stat.S_IMODE(self.snapshot.stat.st_mode))
+                os.fsync(stream.fileno())
+            self.validate()
+            check_parent()
+            if self.snapshot is None:
+                # An exclusive hard link publishes complete bytes without overwriting.
+                os.link(
+                    temporary,
+                    self.path.name,
+                    src_dir_fd=parent_fd,
+                    dst_dir_fd=parent_fd,
+                    follow_symlinks=False,
+                )
+            else:
+                os.replace(
+                    temporary,
+                    self.path.name,
+                    src_dir_fd=parent_fd,
+                    dst_dir_fd=parent_fd,
+                )
+                temporary = None
         finally:
-            os.close(parent_fd)
+            try:
+                if temporary is not None:
+                    os.unlink(temporary, dir_fd=parent_fd)
+            finally:
+                os.close(parent_fd)

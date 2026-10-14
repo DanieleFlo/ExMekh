@@ -30,7 +30,10 @@ from exmekh_lib.core.models.tool import Tool
 from exmekh_lib.core.models.tools import Tools
 from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.core.providers import interactive_openai, interactive_transport
-from exmekh_lib.core.providers.interactive_contract import InteractiveContract
+from exmekh_lib.core.providers.interactive_contract import (
+    InteractiveContract,
+    decode_object_pairs,
+)
 from exmekh_lib.core.providers.interactive_openai import InteractiveResponseOpenAI
 from exmekh_lib.core.providers.interactive_transport import InteractiveTransport
 from exmekh_lib.interfaces.event_handler import ProviderEventHandler
@@ -735,3 +738,27 @@ def test_scope_invalidated_while_polling_does_not_start_another_inference(
     finally:
         provider.get_session().close()
         server.client.close()
+
+
+def test_wire_contract_rejects_duplicate_properties_changed_ownership_and_argument_types():
+    with pytest.raises(InteractiveProtocolError):
+        decode_object_pairs([("same", 1), ("same", 2)])
+    state = contract()
+    state.record_acceptance({"version": 2, "continuation_id": "owner"})
+    with pytest.raises(InteractiveProtocolError):
+        state.record_acceptance({"version": 2, "continuation_id": "changed"})
+    for arguments in ({"edits": 1}, {"edits": "text", "extra": True}):
+        with pytest.raises(InteractiveProtocolError):
+            state.validate_raw_calls(
+                [
+                    {
+                        "type": "function_call",
+                        "call_id": "call",
+                        "name": "edit-file",
+                        "arguments": json.dumps(arguments),
+                    }
+                ]
+            )
+    call = ToolCall("same", FunctionCall("ordinary", {}))
+    with pytest.raises(InteractiveProtocolError):
+        state.validate_calls([call, call])
