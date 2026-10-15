@@ -297,6 +297,25 @@ def verify_file_effects(history, directory, initial):
         seen_results.add(call.get_id())
         receipt = parse_tool_result(message.get_message())
         arguments = call.get_arguments()
+        if call.get_name() == "delete-file":
+            outcomes = receipt["results"]
+            assert [item["path"] for item in outcomes] == arguments["paths"], (
+                "IMPLEMENTATION: deletion receipt must report every input path in order"
+            )
+            assert receipt["ok"] == all(item["ok"] for item in outcomes)
+            for item in outcomes:
+                path = (directory / item["path"]).resolve()
+                if item["ok"]:
+                    for target in list(expected):
+                        if target == path or path in target.parents:
+                            expected[target] = None
+                elif path in expected:
+                    assert expected[path] is None, (
+                        f"IMPLEMENTATION: valid delete-file call failed: {item!r}"
+                    )
+            if receipt["ok"]:
+                successful.append(call)
+            continue
         partial = (
             isinstance(receipt, dict)
             and receipt.get("ok") is False
@@ -306,13 +325,11 @@ def verify_file_effects(history, directory, initial):
         if not isinstance(receipt, dict) or (
             receipt.get("ok") is not True and not partial
         ):
-            if call.get_name() in {"new-file", "delete-file"}:
+            if call.get_name() == "new-file":
                 path = (directory / arguments["path"]).resolve()
                 if path in expected:
                     valid = (
-                        expected[path] is not None
-                        if call.get_name() == "delete-file"
-                        else expected[path] is None
+                        expected[path] is None
                         and isinstance(arguments.get("content"), str)
                         and len(arguments["content"]) >= 2
                         and "\x00" not in arguments["content"]
@@ -340,9 +357,7 @@ def verify_file_effects(history, directory, initial):
             expected.update({path: changes[path] for path in committed})
         else:
             path = (directory / arguments["path"]).resolve()
-            expected[path] = (
-                arguments["content"].encode() if call.get_name() == "new-file" else None
-            )
+            expected[path] = arguments["content"].encode()
         if not partial:
             successful.append(call)
     for path, content in expected.items():
@@ -377,7 +392,7 @@ def test_live_model_applies_literal_file_operations(tmp_path, edit_provider, ope
         "empty_existing": ("edit-file", b"FILLED"),
     }[operation]
     arguments = (
-        {"path": path.name}
+        {"paths": [path.name]}
         if tool == "delete-file"
         else {"path": path.name, "content": expected.decode()}
         if tool == "new-file"
@@ -420,6 +435,27 @@ def test_live_model_applies_literal_file_operations(tmp_path, edit_provider, ope
             assert element.old_text == "", (
                 "COVERAGE: editing an empty file was not exercised"
             )
+
+
+def test_live_batch_deletes_files_and_directory_trees(tmp_path, edit_provider):
+    binary = tmp_path / "binary.dat"
+    binary.write_bytes(b"\x00\xff")
+    child = tmp_path / "folder" / "nested" / "keep.txt"
+    child.parent.mkdir(parents=True)
+    child.write_bytes(b"REMOVE")
+    call, receipt = execute_live_file_call(
+        edit_provider,
+        tmp_path,
+        "delete-file",
+        {"paths": ["binary.dat", "folder"]},
+        {binary: b"\x00\xff", child: b"REMOVE"},
+    )
+    if call.get_arguments() != {"paths": ["binary.dat", "folder"]}:
+        pytest.skip(
+            "MODEL_LIMITATION: model did not select both requested deletion paths"
+        )
+    assert [item["path"] for item in receipt["results"]] == ["binary.dat", "folder"]
+    assert not binary.exists() and not (tmp_path / "folder").exists()
 
 
 @pytest.mark.parametrize("alias", [False, True])

@@ -77,7 +77,12 @@ class FileEditingSettings:
     content_nul: str = "content must not contain NUL characters."
     creation_byte_limit: str = "Content exceeds the configured file byte limit."
     path_exists: str = "The path already exists; new-file cannot overwrite it."
-    deletion_regular_file: str = "delete-file requires an existing regular file."
+    deletion_target: str = "delete-file requires an existing regular file or directory; top-level symbolic links are not followed."
+    deletion_paths_required: str = (
+        "paths must be a nonempty list of workroot-relative paths."
+    )
+    deletion_relative_path: str = "Deletion paths must be relative to the workroot."
+    deletion_workroot: str = "The workroot itself cannot be deleted."
     changed_before_deletion: str = "File or path changed before deletion."
     unsupported_platform: str = (
         "This platform lacks descriptor-relative atomic edit operations; use a "
@@ -126,9 +131,14 @@ class FileEditingSettings:
         )
 
     delete_file_description: str = (
-        "Delete one existing regular file inside the workroot. Requires path. A "
-        "missing file or directory is an error. No inspect-file or read-file is "
-        "required; file contents are not decoded."
+        "Delete files and directories inside the workroot. Requires paths, a nonempty "
+        "list of paths relative to the workroot. Detects files and directories "
+        "automatically; directories and their contents are removed recursively "
+        "without following nested symbolic links. Top-level symbolic links are rejected. The workroot itself cannot be "
+        "deleted. Processes paths in order and continues after failures. Returns "
+        "ok and ordered results, each with its input path and success or error "
+        "details; ok is true only if every path succeeded. No inspect-file or "
+        "read-file is required; file contents are not decoded."
     )
 
     argument_guidance: str = (

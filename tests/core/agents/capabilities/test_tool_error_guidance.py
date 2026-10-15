@@ -68,11 +68,11 @@ def bundled_tools(tmp_path):
         ),
         (
             "delete-file",
-            {"path": "missing.txt"},
+            {"paths": ["missing.txt"]},
             "invalid_file_deletion",
             "file_not_found",
         ),
-        ("delete-file", {"path": "."}, "invalid_file_deletion", "not_a_regular_file"),
+        ("delete-file", {"paths": ["."]}, "invalid_file_deletion", "invalid_path"),
         (
             "edit-file",
             {"edits": "invalid"},
@@ -128,6 +128,9 @@ def test_real_tools_preserve_error_family_and_expose_specific_recovery(
 ):
     (tmp_path / "notes.txt").write_text("original")
     result = bundled_tools[name].execute(**arguments)
+    if name == "delete-file":
+        assert result["ok"] is False
+        result = result["results"][0]
     assert result["ok"] is False
     assert result["error_kind"] == kind
     assert result["error_code"] == code

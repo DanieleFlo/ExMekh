@@ -43,6 +43,12 @@ The client layer provides a high-level API over raw providers:
 - **[`Client`](../src/exmekh_lib/core/models/client.py)**: Manages model interaction, system prompts, message history, function tools registration, and response coercion.
 - **Structured Outputs**: Supports `client.call_structured(...)` to validate LLM output against Pydantic models with strict or non-strict JSON schema validation.
 
+`ProviderResponse.history_messages()` exposes the transcript evidence to retain.
+The client records that public result without interpreting provider cancellation
+details. A completed response superseded by steering remains evidence with
+cancelled, unexecuted tool receipts; its calls are never dispatched. An actually
+interrupted generation follows the interruption protocol instead.
+
 ### 3. Capabilities System (`exmekh_lib.core.agents.capabilities`)
 Capabilities are directory-based resources that specify an agent's knowledge, skills, system prompts, and tools:
 - **HDS (Hierarchical Domain Specification)**: System prompt and agent personality defined in Markdown (e.g., `main.md`).

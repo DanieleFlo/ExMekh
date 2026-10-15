@@ -16,6 +16,7 @@ def test_init_uses_optional_metadata_defaults() -> None:
     assert response.get_tool_calls() is message.get_tool_calls()
     assert response.thinking is None
     assert response.usage is None
+    assert response.superseded_response is None
 
 
 def test_init_preserves_response_metadata() -> None:
@@ -41,6 +42,7 @@ def test_init_rejects_non_message_response() -> None:
     [
         ({"usage": object()}, "ModelUsage"),
         ({"thinking": object()}, "ModelThinking"),
+        ({"superseded_response": object()}, "AssistantMessage"),
     ],
 )
 def test_init_rejects_invalid_metadata(metadata: dict, message: str) -> None:
@@ -52,3 +54,11 @@ def test_init_preserves_response_without_content() -> None:
     response = ProviderResponse(AssistantMessage(None))
 
     assert response.get_message() is None
+
+
+def test_superseded_response_is_evidence_without_executable_calls() -> None:
+    completed = AssistantMessage("superseded")
+    response = ProviderResponse(AssistantMessage(None), superseded_response=completed)
+    assert response.superseded_response is completed
+    assert response.get_message() is None
+    assert not response.get_tool_calls()

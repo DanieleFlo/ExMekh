@@ -2,6 +2,7 @@
 
 import codecs
 import os
+import shutil
 import stat
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
@@ -123,39 +124,85 @@ def new_file(work_root: Path, path: str, content: str) -> dict[str, object]:
 
 
 def delete_file(work_root: Path, path: str) -> dict[str, object]:
-    """Remove an existing regular file using metadata, never text decoding."""
-    require_descriptor_operations(os.open, os.stat, os.unlink)
-    target = resolve_edit_target(work_root, path)
-    with resource_lock(target):
-        initial = target.stat()
-        if not stat.S_ISREG(initial.st_mode):
+    """Remove a regular file or directory tree without following nested symlinks."""
+    return FileDeletionTarget.resolve(work_root, path).remove()
+
+
+@dataclass(frozen=True, slots=True)
+class FileDeletionTarget:
+    """Own the authorized resource, identity checks and descriptor-relative removal."""
+
+    work_root: Path
+    resource: str
+    path: Path
+
+    @classmethod
+    def resolve(cls, work_root: Path, resource: str) -> "FileDeletionTarget":
+        validate_file_path(resource)
+        if Path(resource).is_absolute():
             raise FileInspectionError(
-                FILE_EDITING.deletion_regular_file, code="not_a_regular_file"
+                FILE_EDITING.deletion_relative_path, code="invalid_path"
             )
-        descriptor = _open_parent_directory(work_root, target)
-        try:
-            current = os.stat(target.name, dir_fd=descriptor, follow_symlinks=False)
-            parent = target.parent.stat()
-            opened_parent = os.fstat(descriptor)
-            if (
-                resolve_edit_target(work_root, path) != target
-                or FileIdentity.from_stat(initial) != FileIdentity.from_stat(current)
-                or not stat.S_ISREG(current.st_mode)
-                or (parent.st_dev, parent.st_ino)
-                != (opened_parent.st_dev, opened_parent.st_ino)
-            ):
+        require_descriptor_operations(os.open, os.stat, os.unlink)
+        root = resolve_work_root(work_root)
+        target = resolve_edit_target(root, resource)
+        if target == root:
+            raise FileInspectionError(
+                FILE_EDITING.deletion_workroot, code="invalid_path"
+            )
+        if (root / resource).is_symlink():
+            raise FileInspectionError(
+                FILE_EDITING.deletion_target, code="invalid_deletion_target"
+            )
+        return cls(root, resource, target)
+
+    def remove(self) -> dict[str, object]:
+        with resource_lock(self.path):
+            initial = self.path.stat()
+            is_directory = stat.S_ISDIR(initial.st_mode)
+            self._validate_kind(initial)
+            descriptor = _open_parent_directory(self.work_root, self.path)
+            try:
+                self._validate_unchanged(initial, descriptor)
+                if is_directory:
+                    shutil.rmtree(self.path.name, dir_fd=descriptor)
+                else:
+                    os.unlink(self.path.name, dir_fd=descriptor)
+            finally:
+                os.close(descriptor)
+        return {
+            "ok": True,
+            "path": self.path.relative_to(self.work_root).as_posix(),
+            "operation": "remove",
+            "size_bytes": 0,
+        }
+
+    def _validate_kind(self, initial: os.stat_result) -> None:
+        if not (stat.S_ISREG(initial.st_mode) or stat.S_ISDIR(initial.st_mode)):
+            raise FileInspectionError(
+                FILE_EDITING.deletion_target, code="invalid_deletion_target"
+            )
+        if stat.S_ISDIR(initial.st_mode):
+            require_descriptor_operations(os.rmdir)
+            if not shutil.rmtree.avoids_symlink_attacks:
                 raise FileInspectionError(
-                    FILE_EDITING.changed_before_deletion, code="file_changed"
+                    FILE_EDITING.unsupported_platform, code="unsupported_platform"
                 )
-            os.unlink(target.name, dir_fd=descriptor)
-        finally:
-            os.close(descriptor)
-    return {
-        "ok": True,
-        "path": target.relative_to(work_root.resolve()).as_posix(),
-        "operation": "remove",
-        "size_bytes": 0,
-    }
+
+    def _validate_unchanged(self, initial: os.stat_result, descriptor: int) -> None:
+        current = os.stat(self.path.name, dir_fd=descriptor, follow_symlinks=False)
+        parent = self.path.parent.stat()
+        opened_parent = os.fstat(descriptor)
+        if (
+            resolve_edit_target(self.work_root, self.resource) != self.path
+            or FileIdentity.from_stat(initial) != FileIdentity.from_stat(current)
+            or stat.S_IFMT(initial.st_mode) != stat.S_IFMT(current.st_mode)
+            or (parent.st_dev, parent.st_ino)
+            != (opened_parent.st_dev, opened_parent.st_ino)
+        ):
+            raise FileInspectionError(
+                FILE_EDITING.changed_before_deletion, code="file_changed"
+            )
 
 
 def require_descriptor_operations(*operations: Callable[..., object]) -> None:

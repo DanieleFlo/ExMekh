@@ -148,9 +148,8 @@ def test_delete_does_not_decode_or_limit_file_contents(tmp_path):
     assert not path.exists()
     folder = tmp_path / "folder"
     folder.mkdir()
-    with pytest.raises(FileInspectionError, match="regular"):
-        delete_file(tmp_path, folder.name)
-    assert folder.is_dir()
+    assert delete_file(tmp_path, folder.name)["operation"] == "remove"
+    assert not folder.exists()
 
 
 def test_delete_reports_unsupported_platform_before_opening_directory(
@@ -191,8 +190,9 @@ def test_separately_approved_aliases_use_snapshot_identity(tmp_path):
 
 
 @pytest.mark.parametrize("streaming", [False, True])
+@pytest.mark.parametrize("missing", [False, True])
 def test_new_delete_use_normal_hooks_without_inspect_or_read(
-    tmp_path, monkeypatch, streaming
+    tmp_path, monkeypatch, streaming, missing
 ):
     hook_calls = []
 
@@ -212,7 +212,15 @@ def test_new_delete_use_normal_hooks_without_inspect_or_read(
                 continuation="cont-new",
             ),
             response(
-                ("delete", "delete-file", {"path": "notes.txt"}),
+                (
+                    "delete",
+                    "delete-file",
+                    {
+                        "paths": ["missing<&>.txt", "notes.txt"]
+                        if missing
+                        else ["notes.txt"]
+                    },
+                ),
                 continuation="cont-delete",
             ),
             exit_skill(),
@@ -232,7 +240,13 @@ def test_new_delete_use_normal_hooks_without_inspect_or_read(
             for item in history
             if item.get_role_name() == "tool" and item.get_name() in hooks
         ]
-        assert len(results) == 2 and all(item["ok"] for item in results)
+        assert len(results) == 2 and results[0]["ok"] is True
+        assert results[1]["ok"] is (not missing)
+        if missing:
+            failed, deleted = results[1]["results"]
+            assert failed["path"] == "missing<&>.txt"
+            assert failed["error_code"] == "file_not_found"
+            assert deleted["ok"] is True
         assert not any(
             item.get_name() in {"inspect-file", "read-file"} for item in history
         )

@@ -294,13 +294,18 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
         self._report_usage(request, response)
         handler = request.require_interactive_handler()
         if handler.cancellation_requested():
-            return self._steered_response(response, contract.continuation_id)
+            return self._steered_response(
+                response, contract.continuation_id, superseded_response=response
+            )
         handler.validate_completed(calls)
         return response
 
     @staticmethod
     def _steered_response(
-        response: ProviderResponse, continuation_id: str
+        response: ProviderResponse,
+        continuation_id: str,
+        *,
+        superseded_response: AssistantMessage | None = None,
     ) -> ProviderResponse:
         record = {
             "type": "interactive.cancelled",
@@ -314,6 +319,7 @@ class InteractiveResponseOpenAI(ResponseOpenAI):
             thinking=response.thinking,
             usage=response.usage,
             interruptions=(*response.interruptions, InterruptedMessage(record)),
+            superseded_response=superseded_response,
         )
 
     @staticmethod

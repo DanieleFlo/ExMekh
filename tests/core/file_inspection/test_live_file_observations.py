@@ -76,18 +76,25 @@ def test_observed_effects_validate_emitted_arguments_before_user_intent(tmp_path
     arguments = (
         {"edits": edit_fragment("notes.txt", "OLD", "MODEL_CHOICE")}
         if name == "edit-file"
+        else {"paths": ["notes.txt"]}
+        if name == "delete-file"
         else {"path": "notes.txt", "content": "MODEL_CHOICE"}
+    )
+    receipt = (
+        {"ok": True, "results": [{"path": "notes.txt", "ok": True}]}
+        if name == "delete-file"
+        else {"ok": True}
     )
     if name != "delete-file":
         path.write_bytes(b"MODEL_CHOICE")
     calls = verify_file_effects(
-        history(name, arguments, {"ok": True}), tmp_path, {path: initial}
+        history(name, arguments, receipt), tmp_path, {path: initial}
     )
     assert len(calls) == 1
     path.write_bytes(b"WRONG_ENGINE_RESULT")
     with pytest.raises(AssertionError, match="IMPLEMENTATION"):
         verify_file_effects(
-            history(name, arguments, {"ok": True}), tmp_path, {path: initial}
+            history(name, arguments, receipt), tmp_path, {path: initial}
         )
 
 
@@ -219,14 +226,14 @@ def test_live_file_fixture_executes_observed_arguments_once(tmp_path, tool_name)
         if tool_name == "edit-file"
         else {"path": path.name, "content": "REQUESTED"}
         if tool_name == "new-file"
-        else {"path": path.name}
+        else {"paths": [path.name]}
     )
     observed = (
         {"edits": edit_fragment(path.name, "OLD", "OBSERVED")}
         if tool_name == "edit-file"
         else {"path": path.name, "content": "OBSERVED"}
         if tool_name == "new-file"
-        else {"path": path.name}
+        else {"paths": [path.name]}
     )
 
     provider = FileFixtureProvider(tool_name, observed)

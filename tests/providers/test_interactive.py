@@ -486,6 +486,61 @@ def test_steering_cancels_before_snapshot_delivery_and_prevents_dispatch(
         server.client.close()
 
 
+@pytest.mark.parametrize("streaming", [False, True])
+@pytest.mark.parametrize("with_calls", [False, True])
+def test_steering_after_completion_preserves_generated_history_without_dispatch(
+    tmp_path, monkeypatch, streaming, with_calls
+):
+    (tmp_path / "notes.txt").write_text("KEEP")
+
+    def complete_and_steer(body):
+        node.steer("stop all work and leave the skill")
+        calls = (
+            (
+            ("discarded-delete", "delete-file", {"paths": ["notes.txt"]}),
+                ("discarded-exit", "exit_agent", {"text": "obsolete", "items": []}),
+            )
+            if with_calls
+            else ()
+        )
+        return response(*calls, text="Obsolete reply", continuation="cont-completed")
+
+    node, server, provider = make_sdk_node(
+        tmp_path,
+        monkeypatch,
+        [enter(), complete_and_steer, exit_skill(), response(text="done")],
+        streaming=streaming,
+    )
+    try:
+        result = node.run("work")
+        items = server.requests[2]["input"]
+        assert {"role": "assistant", "content": "Obsolete reply"} in items
+        for call_id in ("discarded-delete", "discarded-exit") if with_calls else ():
+            generated = [
+                item
+                for item in items
+                if item.get("type") == "function_call"
+                and item.get("call_id") == call_id
+            ]
+            outputs = [
+                item
+                for item in items
+                if item.get("type") == "function_call_output"
+                and item.get("call_id") == call_id
+            ]
+            assert len(generated) == len(outputs) == 1
+            assert "cancelled" in outputs[0]["output"]
+            assert '<executed type="boolean">false</executed>' in outputs[0]["output"]
+        assert items[-1]["content"] == "stop all work and leave the skill"
+        assert (tmp_path / "notes.txt").read_text() == "KEEP"
+        assert len(result.skill_executions) == 1
+        assert (tmp_path / "notes.txt").read_text() == "KEEP"
+        assert not server.steps
+    finally:
+        provider.get_session().close()
+        server.client.close()
+
+
 def test_steering_at_rejection_discards_earlier_complete_edits_and_recovery(
     tmp_path, monkeypatch
 ):

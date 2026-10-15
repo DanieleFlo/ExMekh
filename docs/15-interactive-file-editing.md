@@ -9,9 +9,22 @@ tool arguments and exported history retain their JSON transport.
 - `new-file(path, content)`: create an absent path exclusively. Its parent must
   exist inside the workroot. Content is required and must contain at least two
   Unicode characters, counted without trimming. No inspection/read evidence.
-- `delete-file(path)`: remove an existing regular file. Missing files and
-  directories are errors. No inspection/read evidence or text decoding;
-  binary and large files are supported.
+- `delete-file(paths)`: remove files and directories using a nonempty list of
+  workroot-relative paths, for example `{"paths": ["notes.txt", "build"]}`.
+  The path determines the resource type; directories and their contents are
+  removed recursively without following nested symbolic links. Absolute paths,
+  directly named symbolic links (including links to internal targets),
+  the workroot itself, missing entries, special files and paths resolving outside
+  the workroot are rejected. No inspection/read evidence or text decoding;
+  binary and large files are supported. Paths are processed in order, continuing
+  after failures. The response contains `ok` (true only if every deletion
+  succeeds) and `results`, with one entry per input path containing `path`, `ok`
+  and either deletion metadata or `error`, `error_kind`, `error_code` and `hint`.
+  Earlier successful deletions are retained; retry only failed paths. Deleting
+  a directory can partially remove its contents before a filesystem failure.
+  `FileDeletionTarget.resolve(...).remove()` owns resource validation, locking,
+  identity checks and descriptor-relative removal; the tool adapter owns the
+  ordered batch and converts each failure into its independent result.
 - `edit-file(edits)`: edit existing Unicode text after successful visible
   inspection and subsequent reading of unchanged content. Missing files are
   errors; they are never created through edit.
@@ -72,6 +85,7 @@ window. Distinct files have no transactional rollback guarantee.
 ```
 
 The deterministic suite covers separate new/delete hooks, absent/existing
-paths, binary deletion, empty files, literal old command tags, omitted IDs,
+paths, binary and recursive directory deletion, independent batch failures,
+workroot and symbolic-link boundaries, empty files, literal old command tags, omitted IDs,
 snapshot-based separator disambiguation, exact content, aliases, post-hook
 validation, cancellation, encoding/BOM and exclusive/atomic failures.

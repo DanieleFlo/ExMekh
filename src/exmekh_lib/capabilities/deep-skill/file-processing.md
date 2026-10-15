@@ -36,8 +36,14 @@ Report unsupported formats, invalid input and resource limits explicitly.
 
 Use `new-file(path, content)` to create a file. The path must be absent, its
 parent must exist, and content must contain at least {{config.FILE_EDITING.min_new_file_characters}} characters.
-Use `delete-file(path)` to remove an existing file. Neither requires inspection
-or reading.
+Use `delete-file(paths)` with a nonempty list of paths relative to the workroot
+to remove files or directories, detected automatically. Directories are removed
+recursively without following nested symbolic links. A path naming a symbolic link
+directly is rejected rather than deleting its target. The workroot itself cannot
+be deleted. Paths are processed in order, even after failures; each entry in
+`results` reports its input path, success or error details. Retry only failed
+paths after correcting their causes. Neither creation nor deletion requires
+inspection or reading.
 
 Use `edit-file(edits)` for existing text files after inspection and reading,
 keeping both complete, successful results visible for unchanged content.

@@ -28,6 +28,7 @@ class ModelText:
     calling_provider_messages_tool_choice: str = (
         "Calling provider: messages=%d tool_choice=%s"
     )
+    tool_call_cancelled_by_steering: str = "Tool call cancelled by steering before execution. Follow the latest user guidance."
     compacted_message_history_start_index_previous_size_replacement_size: str = "Compacted message history: start_index=%d previous_size=%d replacement_size=%d new_size=%d"
     content_must_be_a_subclass_of_basemodel_got: str = (
         "content must be a subclass of BaseModel, got {content_type!r}"

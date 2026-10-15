@@ -118,12 +118,9 @@ class Client:
         response = self._provider.call(request)
         if not isinstance(response, ProviderResponse):
             raise TypeError(MODEL_TEXT.item_must_be_an_instance_of_message_or_a)
-        if (
-            response.get_message() is not None
-            or response.get_tool_calls()
-            or not response.interruptions
-        ):
-            self._history.add(response)
+        messages = response.history_messages()
+        if messages:
+            self._history.add(messages)
         logger.info(
             MODEL_TEXT.provider_response_recorded_tool_calls_history_size,
             len(response.get_tool_calls() or ()),
