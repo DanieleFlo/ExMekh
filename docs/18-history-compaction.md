@@ -19,9 +19,13 @@ Il servizio non aggiunge un tool invocabile dal modello. La selezione automatica
 
 ```python
 from exmekh_lib.core.history_compaction import HistoryCompactionPolicy
+from exmekh_lib.core.models.request_budget import RequestBudget
 
 # policy implementa il contratto HistoryCompactionPolicy dell'applicazione.
 agent.root_node.set_history_compaction_policy(policy)
+# Se l'applicazione conosce la capienza e sa stimare il prompt completo:
+budget = RequestBudget(capacity=26000, count_tokens=count_request_tokens)
+agent.root_node.set_history_compaction_policy(policy, budget=budget)
 child_node.set_history_compaction_policy(child_policy)
 child_node.set_history_compaction_policy(None)  # disabilita il trigger
 ```
@@ -33,8 +37,18 @@ policy senza prendere una seconda decisione alla stessa frontiera. La libreria
 non decide soglie né capienza: appartengono all'applicazione e ai metadati server.
 Le inferenze interne di scoring e riassunto non attraversano la policy.
 
-Un errore di compattazione automatica viene registrato e il modello continua
-con la history originale. La cancellazione viene propagata. Dopo una sostituzione,
+Con un `RequestBudget`, il runtime controlla ogni richiesta completa prima
+dell'inferenza. Il superamento del budget forza un tentativo di compattazione
+anche se la policy è disarmata o restano solo messaggi protetti. Dopo la
+compattazione e la consegna dello steering, controlla nuovamente la richiesta:
+se non entra, propaga `ContextBudgetExceededError` senza inviarla al provider.
+Il limite del prompt riserva alla generazione il minore fra 1024 token e un
+ottavo della capienza. L'applicazione fornisce lo stimatore, includendo template,
+tool e schema strutturato; senza capienza nota non viene inventato un limite.
+
+Un errore di compattazione automatica viene registrato e propagato con la sua
+causa: l'inferenza si ferma e conserva la history originale per un nuovo tentativo.
+La cancellazione viene propagata. Dopo una sostituzione,
 il runtime ricostruisce la richiesta e consegna lo steering accettato durante il
 riassunto prima di riprendere l'inferenza.
 
@@ -72,7 +86,27 @@ il normale comportamento di reset.
 
 Una chiamata strutturata riceve una copia della history completa, con system
 e tools invariati, seguita da un messaggio temporaneo contenente istruzioni e
-catalogo XML. Questi messaggi non vengono aggiunti alla conversazione del nodo.
+catalogo JSON compatto. Il catalogo è input interno temporaneo, non un risultato
+di tool: evitare i tag XML ripetuti lascia spazio allo schema dei voti quando
+la conversazione è vicina al limite. I dati e le anteprime restano gli stessi.
+Questi messaggi non vengono aggiunti alla conversazione del nodo; i risultati
+della compattazione e dei tool mantengono il renderer XML.
+
+Se lo scoring non entra nel budget, i corpi degli output sostituibili vengono
+salvati su file e sostituiti con riferimenti più brevi nella copia temporanea,
+partendo dai più grandi. Questo può riguardare anche output inferiori alla
+soglia ordinaria di 5000 token. System, user e istruzioni delle skill attive
+restano protetti. Le anteprime e i riassunti usano il contenuto originale; il
+risultato conserva i metadati dei file e l'archivio conserva i messaggi originali.
+I manifest già esterni non vengono esportati ricorsivamente.
+
+Se il catalogo e lo schema restano troppo grandi, i candidati vengono valutati
+in lotti con campi obbligatori distinti. Ogni richiesta viene verificata prima
+dell'invio. Anche i riassunti troppo grandi vengono suddivisi senza troncare
+il testo sorgente e poi riassunti insieme; la mancata riduzione interrompe
+l'operazione. Un errore di esportazione, scoring o riassunto conserva la history
+di ingresso. Se sono i messaggi protetti a occupare tutto il contesto, si ferma
+esplicitamente anziché tagliarli o inviare una richiesta fuori budget.
 
 Il catalogo contiene nome, ID canonico, posizione univoca della risposta,
 conteggio dei token e primi 20 + ultimi 20 token del corpo. Con al massimo
@@ -166,8 +200,11 @@ prerequisiti prima di leggere o modificare quando le call originali non sono
 più visibili. La durata e la pulizia dei file non cambiano.
 
 La preparazione può leggere integralmente gli output su disco e i riassunti
-richiedono che il relativo input rientri nel contesto del provider. Non sono
-introdotti chunking o fallback silenziosi per superare i limiti del modello.
+senza budget richiedono che il relativo input rientri nel contesto del provider.
+Con un budget, `RequestBudget.split_text()` suddivide il testo senza perdite
+verificando ogni richiesta completa, compreso il costo del prompt e del wrapping.
+`TextSummarizer` coordina i riassunti dei frammenti e la loro riduzione successiva;
+non deduce la capienza sottraendo costi che potrebbero non essere additivi.
 
 ## Servizio standalone
 
@@ -247,6 +284,16 @@ non misura il riuso della KV cache o il costo del prefill sul server.
 valutazione e la validazione dei voti; `CompactionPresenter` possiede riassunti e
 presentazione dei blocchi. Il runtime del nodo resta l'unico responsabile
 dell'applicazione e del riallineamento degli scope.
+
+`CompactionContext` possiede soltanto la copia temporanea dello scoring.
+`ToolOutputPreparer.shorten()` decide se un riferimento su file riduce davvero
+il costo; `OutputCandidate.with_presentation()` aggiorna la rappresentazione
+senza perdere il corpo originale. I chiamanti non ne ricostruiscono i campi.
+
+`ProviderRequest.with_event_handler()` adatta l'osservazione preservando il tipo
+della richiesta, le opzioni, l'handler interattivo e la conversazione già
+espansa. I wrapper devono usare questa API: ricostruire una richiesta a partire
+da `get_messages()` espanderebbe nuovamente i companion degli allegati dei tool.
 
 I metadati dei record in cache sono usati soltanto quando il contenuto coincide
 con lo snapshot visibile. Una lista `used-tools` esplicitamente vuota esclude

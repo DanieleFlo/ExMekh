@@ -7,6 +7,18 @@ from dataclasses import dataclass
 class HistoryCompactionSettings:
     tool_name: str = "compact_history"
     preview_tokens: int = 20
+    response_reserve_tokens: int = 1024
+    invalid_budget: str = "Context capacity must be a positive integer"
+    budget_exceeded: str = (
+        "History compaction cannot fit the request within {limit} prompt tokens "
+        "({tokens} estimated); protected inputs and original outputs were retained"
+    )
+    export_failure: str = (
+        "Unable to externalize a tool output before history compaction"
+    )
+    summary_no_progress: str = (
+        "History compaction summary did not reduce oversized input"
+    )
     score_description: str = "Importance of history entry {entry_id}, from 1 to 100."
     scoring_prompt: str = (
         "This is a runtime history-compaction request, not a new user task. "

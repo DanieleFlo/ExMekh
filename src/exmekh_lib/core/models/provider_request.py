@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from copy import copy
+from typing import Self
 
 from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.core.models.interactive import (
@@ -97,6 +99,14 @@ class ProviderRequest:
 
     def get_streaming(self) -> bool:
         return self.stream
+
+    def with_event_handler(self, handler: ProviderEventHandler | None) -> Self:
+        """Adapt observation without rebuilding an already expanded conversation."""
+        if handler is not None:
+            ProviderEventHandler.validate_instance(handler)
+        adapted = copy(self)
+        adapted.on_event = handler
+        return adapted
 
     def require_interactive_handler(self) -> InteractiveHandler:
         if self.interactive_handler is None:

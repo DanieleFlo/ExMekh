@@ -5,10 +5,12 @@ from collections.abc import Callable, Sequence
 from exmekh_lib.core.cache.output_file_workspace import OutputFileWorkspace
 from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
 from exmekh_lib.core.models.history import HistoryMessage, MessageHistory
+from exmekh_lib.core.models.request_budget import RequestBudget
 from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.core.models.tools import Tools
 from exmekh_lib.interfaces.provider import Provider
 
+from .context import CompactionContext
 from .models import CompactionResult
 from .outputs import CompactionOutputs
 from .presentation import CompactionPresenter
@@ -23,9 +25,12 @@ class HistoryCompactor:
         *,
         output_lookup: Callable[[str], ToolCallRecord | None] | None = None,
         files: OutputFileWorkspace | None = None,
+        budget: RequestBudget | None = None,
     ) -> None:
-        self._scorer = CompactionScorer(provider)
-        self._presenter = CompactionPresenter(provider)
+        self._scorer = CompactionScorer(provider, budget)
+        self._presenter = CompactionPresenter(provider, budget)
+        self._tokenizer = provider.get_tokenizer()
+        self._files = files
         self._outputs = CompactionOutputs(
             provider.get_tokenizer(), output_lookup, files
         )
@@ -48,15 +53,12 @@ class HistoryCompactor:
             for index in range(span.start, span.end)
             if isinstance(message := messages[index], ToolMessage)
         }
-        entries = tuple(item for group in candidates.values() for item in group)
-        scores = self._scorer.score(messages, entries, tools) if candidates else {}
+        context = CompactionContext(messages, candidates, self._tokenizer, self._files)
+        scores = self._scorer.score(context, tools) if candidates else {}
+        messages = context.messages
         replacements = {}
         for span in spans:
-            selected_outputs = tuple(
-                item
-                for index in range(span.start, span.end)
-                for item in candidates.get(index, ())
-            )
+            selected_outputs = context.entries(range(span.start, span.end))
             summary = self._presenter.create_summary(
                 messages[span.start : span.end], selected_outputs, scores
             )
@@ -88,5 +90,5 @@ class HistoryCompactor:
             for span, pair in replacements.values()
         }
         return CompactionResult(
-            result, tuple(index_map), len(entries), replaced_history
+            result, tuple(index_map), len(context.entries()), replaced_history
         )

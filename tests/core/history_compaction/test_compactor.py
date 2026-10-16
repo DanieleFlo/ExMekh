@@ -38,6 +38,7 @@ from exmekh_lib.core.models.user_message import (
 )
 from exmekh_lib.core.models.xml_header import XmlHeader
 from exmekh_lib.core.tool_calls.output_preparer import ToolOutputPreparer
+from exmekh_lib.utils.json import serialize_json
 from tests.core.history_compaction.support import (
     CompactionProvider,
     UnvalidatedScores,
@@ -160,6 +161,40 @@ def test_user_system_and_attachments_are_untouched_and_blocks_do_not_cross_users
     assert compacted_payload(compacted[3])["outputs"][0]["id"] == "output"
     assert compacted_payload(compacted[6])["outputs"][0]["id"] == "other-output"
     validate_request_history(ProviderRequest(compacted))
+
+
+def test_scoring_many_outputs_fits_the_remaining_context_without_dropping_entries():
+    provider = CompactionProvider(score=9)
+    history = MessageHistory([SystemMessage("system"), UserMessage("task")])
+    for index in range(20):
+        history.add(
+            output_batch(
+                "evidence <tag> & details " * 4,
+                call_id=f"call-{index}",
+                output_id=f"output-{index}",
+            )
+        )
+    before = history.dump_history()
+
+    def reject_oversized_request(request):
+        # The fixture tokenizer counts characters as tokens. Include the score
+        # schema too: both it and the temporary catalog need context headroom.
+        prompt = serialize_json(
+            {
+                "messages": [
+                    message.message_dump() for message in request.get_messages()
+                ],
+                "schema": request.get_response_model().model_json_schema(),
+            }
+        )
+        assert provider.get_tokenizer().count_tokens(prompt) <= 20000
+
+    provider.on_score = reject_oversized_request
+    result = HistoryCompactor(provider).compact(history)
+    assert result.output_count == 20
+    assert len(provider.catalogs[0]["outputs"]) == 20
+    assert len(compacted_payload(result.history.get_history()[-1])["outputs"]) == 20
+    assert history.dump_history() == before
 
 
 def test_reused_call_and_output_ids_have_independent_scores_per_message():

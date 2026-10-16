@@ -59,6 +59,24 @@ class ToolOutputPreparer:
         self,
         output: ToolOutputPresentation,
     ) -> PreparedToolOutput:
+        return self._prepare(output, self.settings.max_tokens)
+
+    def externalize(self, output: ToolOutputPresentation) -> PreparedToolOutput:
+        """Export a nonempty body independently of the ordinary inline threshold."""
+        return self._prepare(output, 0)
+
+    def shorten(self, output: ToolOutputPresentation) -> PreparedToolOutput:
+        """Use a file reference only if it reduces the displayed token cost."""
+        prepared = self.externalize(output)
+        if prepared.failure is not None or self._count(prepared.content) < self._count(
+            output.result.content
+        ):
+            return prepared
+        return PreparedToolOutput(output.result.content, output.result.external_output)
+
+    def _prepare(
+        self, output: ToolOutputPresentation, inline_limit: int
+    ) -> PreparedToolOutput:
         if output.result.external_output is not None:
             # References may list many files; never recursively export their manifest.
             return PreparedToolOutput(
@@ -69,7 +87,7 @@ class ToolOutputPreparer:
             count = self._count(
                 text if output.budget_text is None else output.budget_text
             )
-            if count <= self.settings.max_tokens:
+            if count <= inline_limit:
                 return PreparedToolOutput(output.result.content)
             reference = self._export(text, output.identity.id)
             return PreparedToolOutput(

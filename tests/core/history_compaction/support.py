@@ -1,3 +1,5 @@
+import json
+
 from pydantic import BaseModel, ConfigDict
 
 from exmekh_lib.config.history_compaction import HISTORY_COMPACTION
@@ -10,14 +12,25 @@ from exmekh_lib.core.models.provider_response import ProviderResponse
 from exmekh_lib.core.models.structured_assistant_message import (
     StructuredAssistantMessage,
 )
+from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
 from exmekh_lib.core.models.structured_provider_response import (
     StructuredProviderResponse,
 )
 from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.core.models.xml_header import XmlHeader
+from exmekh_lib.utils.json import serialize_json
 from tests.core.agents.node.test_node import SequenceProvider
 from tests.history_validation import validate_request_history
 from tests.tool_result_support import parse_tool_result
+
+
+def count_request(request):
+    text = serialize_json(
+        [message.message_dump() for message in request.get_messages()]
+    )
+    if isinstance(request, StructuredProviderRequest):
+        text += serialize_json(request.get_response_model().model_json_schema())
+    return len(text)
 
 
 class UnvalidatedScores(BaseModel):
@@ -52,7 +65,7 @@ class CompactionProvider(SequenceProvider):
         validate_request_history(request)
         self.score_requests.append(request)
         content = request.get_messages()[-1].get_message()
-        catalog = parse_tool_result(content[len(HISTORY_COMPACTION.scoring_prompt) :])
+        catalog = json.loads(content[len(HISTORY_COMPACTION.scoring_prompt) :])
         self.catalogs.append(catalog)
         if self.on_score is not None:
             self.on_score(request)

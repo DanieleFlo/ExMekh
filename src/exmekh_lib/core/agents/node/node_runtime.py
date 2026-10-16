@@ -40,6 +40,7 @@ from exmekh_lib.core.models.provider_stream_event import (
     ProviderStreamEvent,
     ProviderStreamEventType,
 )
+from exmekh_lib.core.models.request_budget import RequestBudget
 from exmekh_lib.core.models.tool import CalledTool, PreformattedToolResult
 from exmekh_lib.core.models.user_message import ErrorUserMessage, UserMessage
 from exmekh_lib.core.tool_calls.execution_history import ExecutionHistory
@@ -77,6 +78,7 @@ class NodeRuntime(ProviderEventHandler):
     def __init__(self, config: NodeRuntimeConfig) -> None:
         self._config = config
         self._history_compaction_policy: HistoryCompactionPolicy | None = None
+        self._compaction_budget: RequestBudget | None = None
         self._node_id = f"{config.get_hds_name()}-{uuid4().hex}"
         self._tool_cache: NodeCache | None = None
         self._execution_history = ExecutionHistory()
@@ -189,9 +191,13 @@ class NodeRuntime(ProviderEventHandler):
         self._turn_control.compact_history(self._compact_history)
 
     def set_history_compaction_policy(
-        self, policy: HistoryCompactionPolicy | None
+        self,
+        policy: HistoryCompactionPolicy | None,
+        *,
+        budget: RequestBudget | None = None,
     ) -> None:
         self._history_compaction_policy = policy
+        self._compaction_budget = budget if policy is not None else None
 
     def _prepare_inference(self, request: ProviderRequest) -> ProviderRequest:
         # Client has admitted user input and completed tool replies here. Rebuild
@@ -199,11 +205,15 @@ class NodeRuntime(ProviderEventHandler):
         policy = self._history_compaction_policy
         if policy is None:
             return request
-        if not compaction_spans(
+        budget = self._compaction_budget
+        oversized = budget is not None and not budget.fits(request)
+        eligible = compaction_spans(
             self._client.get_history(), self._executor.protected_history_indices
-        ):
-            return request
-        if not policy.before_inference(request):
+        )
+        requested = bool(eligible) and policy.before_inference(request)
+        # A hard capacity check must also override a disarmed threshold policy
+        # and cover histories made entirely of protected user/system messages.
+        if not requested and not oversized:
             return request
         try:
             self._compact_history()
@@ -230,6 +240,8 @@ class NodeRuntime(ProviderEventHandler):
         )
         compacted_request.notify_steering_added(steering)
         policy.after_compaction(compacted_request)
+        if budget is not None:
+            budget.require_fits(compacted_request)
         return compacted_request
 
     def _compact_pending_history(self) -> None:
@@ -249,6 +261,7 @@ class NodeRuntime(ProviderEventHandler):
             self._config.provider,
             output_lookup=records.get,
             files=self._output_preparer.files,
+            budget=self._compaction_budget,
         )
         protected = self._executor.protected_history_indices
         if self._executor.pending_return_call_id is not None:

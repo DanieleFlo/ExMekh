@@ -10,6 +10,10 @@ from exmekh_lib.core.models.assistant_message import AssistantMessage
 from exmekh_lib.core.models.client import Client
 from exmekh_lib.core.models.interactive import InterruptedMessage
 from exmekh_lib.core.models.provider_response import ProviderResponse
+from exmekh_lib.core.models.request_budget import (
+    ContextBudgetExceededError,
+    RequestBudget,
+)
 from exmekh_lib.core.models.system_message import SystemMessage
 from exmekh_lib.core.models.tool import Tool
 from exmekh_lib.core.models.tool_message import ToolMessage
@@ -17,7 +21,7 @@ from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.interfaces.provider import Provider, ProviderRequestRejectedError
 from tests.core.agents.node.steering_support import call, tool_reply
 from tests.core.agents.node.test_history_compaction import runtime_history
-from tests.core.history_compaction.support import CompactionProvider
+from tests.core.history_compaction.support import CompactionProvider, count_request
 from tests.event_handler import as_agent_handler
 from tests.history_validation import validate_request_history
 
@@ -232,3 +236,54 @@ def test_return_transition_without_an_assistant_message_keeps_its_history():
         extra={"agentic": {"operation": "return", "skill_call_id": "call"}}
     )
     assert client.get_history() == before
+
+
+def test_capacity_forces_compaction_even_when_threshold_policy_is_disarmed(make_agent):
+    provider = CompactionProvider(
+        [tool_reply(call()), AssistantMessage("done")], score=9
+    )
+    body = "evidence line\n" * 300
+    agent = make_agent(provider, Tool(lambda: body, name="mock-tool"))
+    budget = RequestBudget(11000, count_request)
+    provider.on_call = budget.require_fits
+    provider.on_score = budget.require_fits
+    policy = automatic_policy(lambda request: False)
+    agent.root_node.set_history_compaction_policy(policy, budget=budget)
+    assert agent.run("user constraint " * 220).get_message() == "done"
+    assert len(provider.score_requests) == 1
+    assert len(provider.requests) == 2
+    assert agent.root_node.read_tool_output("output-0").content.endswith(body)
+    assert "compact_history" in str([m.message_dump() for m in runtime_history(agent)])
+
+
+def test_oversized_protected_input_stops_before_any_inference(make_agent):
+    provider = CompactionProvider([AssistantMessage("must not be called")])
+    agent = make_agent(provider)
+    policy = automatic_policy()
+    agent.root_node.set_history_compaction_policy(
+        policy, budget=RequestBudget(500, count_request)
+    )
+    with pytest.raises(ContextBudgetExceededError):
+        agent.run("protected user input " * 100)
+    assert not provider.requests
+    assert not provider.score_requests
+    policy.after_compaction.assert_called_once()
+    assert any(
+        m.get_message() == "protected user input " * 100 for m in runtime_history(agent)
+    )
+
+
+def test_compacted_result_is_checked_before_the_next_inference(make_agent):
+    provider = CompactionProvider(
+        [tool_reply(call()), AssistantMessage("must not run")],
+        score=30,
+        summary="large summary " * 1000,
+    )
+    agent = make_agent(provider, Tool(lambda: "original body", name="mock-tool"))
+    agent.root_node.set_history_compaction_policy(
+        automatic_policy(), budget=RequestBudget(8000, count_request)
+    )
+    with pytest.raises(ContextBudgetExceededError):
+        agent.run("task")
+    assert len(provider.requests) == len(provider.score_requests) == 1
+    assert "compact_history" in str([m.message_dump() for m in runtime_history(agent)])

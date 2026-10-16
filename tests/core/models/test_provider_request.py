@@ -1,6 +1,8 @@
 from types import MappingProxyType
+from unittest.mock import Mock
 
 import pytest
+from pydantic import BaseModel
 
 from exmekh_lib.core.models.assistant_message import AssistantMessage
 from exmekh_lib.core.models.provider_request import ProviderRequest
@@ -8,8 +10,10 @@ from exmekh_lib.core.models.provider_stream_event import (
     ProviderStreamEvent,
     ProviderStreamEventType,
 )
+from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
 from exmekh_lib.core.models.system_message import SystemMessage
 from exmekh_lib.core.models.tool import Tool
+from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.core.models.tools import Tools
 from exmekh_lib.core.models.user_message import UserMessage
 from tests.event_handler import as_provider_handler
@@ -119,3 +123,50 @@ def test_request_rejects_invalid_options() -> None:
 
     with pytest.raises(ValueError, match="Reasoning effort override"):
         ProviderRequest(messages, reasoning_effort_override="  ")
+
+
+@pytest.mark.parametrize("structured", [False, True])
+def test_event_adapter_preserves_conversation_options_and_schema(structured):
+    class Answer(BaseModel):
+        text: str
+
+    events = []
+    original_events = []
+    attachment = UserMessage("attachment")
+    messages = [
+        SystemMessage("rules"),
+        ToolMessage("body", "call", "work", attachments=attachment),
+    ]
+    options = dict(
+        extra={"temperature": 0.2},
+        tool_choice="none",
+        stream=True,
+        reasoning_effort_override="none",
+        on_event=as_provider_handler(original_events.append),
+    )
+    request = (
+        StructuredProviderRequest(messages, Answer, strict=False, **options)
+        if structured
+        else ProviderRequest(messages, **options)
+    )
+    request.interactive_handler = Mock()
+    adapted = request.with_event_handler(as_provider_handler(events.append))
+    assert type(adapted) is type(request)
+    assert adapted is not request
+    assert adapted.get_messages() == request.get_messages()
+    assert adapted.get_messages().count(attachment) == 1
+    assert adapted.get_extra() == request.get_extra()
+    assert adapted.get_tool_choice() == "none"
+    assert adapted.get_streaming()
+    assert adapted.get_reasoning_effort_override() == "none"
+    assert adapted.require_interactive_handler() is request.interactive_handler
+    if structured:
+        assert adapted.get_response_model() is Answer
+        assert not adapted.get_strict()
+    event = ProviderStreamEvent(ProviderStreamEventType.START)
+    adapted.execute_on_stream_event(event)
+    assert events == [event]
+    assert not original_events
+    assert adapted.with_event_handler(None).on_event is None
+    with pytest.raises(TypeError, match="ProviderEventHandler"):
+        request.with_event_handler(object())

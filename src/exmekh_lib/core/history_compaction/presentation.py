@@ -9,6 +9,7 @@ from exmekh_lib.core.models.assistant_message import (
     ToolCall,
 )
 from exmekh_lib.core.models.history import HistoryMessage
+from exmekh_lib.core.models.request_budget import RequestBudget
 from exmekh_lib.core.models.text_summarizer import TextSummarizer
 from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.core.models.user_message import UserMessage, UserMessagePart
@@ -21,8 +22,8 @@ from .policy import summary_prompt
 
 
 class CompactionPresenter:
-    def __init__(self, provider: Provider) -> None:
-        self._summarizer = TextSummarizer(provider)
+    def __init__(self, provider: Provider, budget: RequestBudget | None = None) -> None:
+        self._summarizer = TextSummarizer(provider, budget=budget)
 
     def create_summary(
         self,

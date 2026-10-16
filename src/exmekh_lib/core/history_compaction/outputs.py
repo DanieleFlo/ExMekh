@@ -1,12 +1,13 @@
 """Resolve visible and referenced outputs without changing cache or delivery."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from exmekh_lib.config.history_compaction import HISTORY_COMPACTION
 from exmekh_lib.core.cache.output_file_workspace import OutputFileWorkspace
 from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
 from exmekh_lib.core.models.external_tool_output import ExternalToolOutput
+from exmekh_lib.core.models.tool import PreformattedToolResult
 from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
 from exmekh_lib.core.models.xml_header import XmlHeader
@@ -27,6 +28,15 @@ class OutputCandidate:
     used_tools: tuple[ToolOutputReference, ...] = ()
     visible: bool = True
     available: bool = True
+
+    def with_presentation(self, result: PreformattedToolResult) -> "OutputCandidate":
+        """Replace the visible form while retaining the original body for summaries."""
+        return replace(
+            self,
+            message=self.message.with_result(result),
+            external=result.external_output,
+            recoverable=self.recoverable or result.external_output is not None,
+        )
 
     def preview(self, tokenizer: Tokenizer) -> dict[str, object]:
         limit = HISTORY_COMPACTION.preview_tokens
