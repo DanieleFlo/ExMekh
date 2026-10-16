@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from exmekh_lib.config.model_text import MODEL_TEXT
+from exmekh_lib.core.models.external_tool_output import ExternalToolOutput
 from exmekh_lib.core.models.tool import PreformattedToolResult
 from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.interfaces.message import Message
@@ -13,6 +14,7 @@ class ToolMessage(Message[str]):
             self._tool_call_id,
             self._name,
             attachments=result.attachments,
+            external_output=result.external_output,
         )
 
     def __init__(
@@ -22,12 +24,14 @@ class ToolMessage(Message[str]):
         name: str = "",
         *,
         attachments: UserMessage | None = None,
+        external_output: ExternalToolOutput | None = None,
     ) -> None:
         self._content = content
         self._tool_call_id = tool_call_id
         self._role: str = "tool"
         self._name = name
         self._attachments = attachments
+        self._external_output = external_output
         self._check_inputs()
 
     def _check_inputs(self):
@@ -41,6 +45,14 @@ class ToolMessage(Message[str]):
             self._attachments, UserMessage
         ):
             raise TypeError(MODEL_TEXT.tool_attachments_must_be_a_usermessage_or_none)
+
+        if self._external_output is not None and not isinstance(
+            self._external_output, ExternalToolOutput
+        ):
+            raise TypeError(MODEL_TEXT.tool_external_output_must_be_a_reference)
+
+    def get_external_output(self) -> ExternalToolOutput | None:
+        return self._external_output
 
     def get_message(self) -> str:
         return self._content

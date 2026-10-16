@@ -12,6 +12,7 @@ from exmekh_lib.capabilities.tools.control_tool_execution.execution_control_tool
     ExecutionControlTool,
 )
 from exmekh_lib.capabilities.tools.read_tool_output.summary import SummaryMode
+from exmekh_lib.config.history_compaction import HISTORY_COMPACTION
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.agents.capabilities.tool_composer import _DefaultToolComposer
@@ -27,6 +28,7 @@ from exmekh_lib.core.agents.exit_tool.items import ExitItemResolver
 from exmekh_lib.core.cache.node_cache import NodeCache
 from exmekh_lib.core.cache.output_file_workspace import OutputFileWorkspace
 from exmekh_lib.core.file_inspection.runtime import FileInspectionRequests
+from exmekh_lib.core.history_compaction import HistoryCompactor
 from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
 from exmekh_lib.core.models.client import Client
 from exmekh_lib.core.models.client_request import ClientRequest
@@ -178,11 +180,48 @@ class NodeRuntime(ProviderEventHandler):
         with self._turn_control.run():
             return self._run_turn(user_message)
 
+    def compact_history(self) -> None:
+        """Compact now while idle, or at the next safe boundary of an active run."""
+        self._turn_control.compact_history(self._compact_history)
+
+    def _compact_pending_history(self) -> None:
+        if self._turn_control.take_compaction_request():
+            self._compact_history()
+
+    def _compact_history(self) -> None:
+        original = self._client.get_history()
+        records = {record.id: record for record in self._get_tool_cache().get_all()}
+        records.update(
+            {
+                record.id: record
+                for record in self._execution_manager.output_records(records)
+            }
+        )
+        compactor = HistoryCompactor(
+            self._config.provider,
+            output_lookup=records.get,
+            files=self._output_preparer.files,
+        )
+        protected = self._executor.protected_history_indices
+        if self._executor.pending_return_call_id is not None:
+            # The native return protocol still needs the original final batch.
+            protected = (*protected, len(original) - 1)
+        result = compactor.compact(
+            self._client.create_history_checkpoint(),
+            tools=self._client.tools,
+            protected_indices=protected,
+        )
+        if self._client.get_history() != original:
+            raise RuntimeError(HISTORY_COMPACTION.changed_history)
+        self._client.replace_history_from(0, result.history.get_history())
+        self._executor.rebase_active_history(result.index_map)
+
     def steer(self, user_message: NodeUserMessage) -> None:
         """Accept guidance without mutating history or invoking the provider."""
         self._turn_control.steer(user_message)
 
     def _continue_with_steering(self) -> ProviderResponse | None:
+        self._compact_pending_history()
         if self._executor.pending_return_call_id is not None:
             return None
         messages = self._turn_control.take_user_messages()

@@ -118,3 +118,82 @@ def test_changed_exports_cannot_be_reused_or_granted_an_expanded_read_limit(
             cache.write_output_files(root, "id", ("original",))
         with pytest.raises(ValueError, match="not available"):
             cache.output_file_read_limit(root, path, 1)
+
+
+def test_owned_output_read_preserves_bytes_and_rejects_other_nodes_or_closed_sessions(
+    tmp_path,
+):
+    root = tmp_path / "outputs"
+    store = OutputFileSession(root)
+    text = "first\r\n\nlast\ud800"
+    path = store.write("owner", "result", (text,))[0]
+    try:
+        assert store.read_text("owner", path) == text
+        for node_id, candidate in (
+            ("other", path),
+            ("owner", tmp_path / "unregistered"),
+        ):
+            with pytest.raises(ValueError, match="not available"):
+                store.read_text(node_id, candidate)
+    finally:
+        store.close()
+    with pytest.raises(ValueError, match="not available"):
+        store.read_text("owner", path)
+
+
+@pytest.mark.parametrize(
+    "mutation", ["before_open", "during_read", "replace_after_read"]
+)
+def test_output_read_rejects_a_snapshot_changed_during_access(
+    tmp_path, monkeypatch, mutation
+):
+    store = OutputFileSession(tmp_path / "outputs")
+    path = store.write("owner", "result", ("original",))[0]
+    original_open = Path.open
+
+    class ChangingReader:
+        def __init__(self, stream):
+            self.stream = stream
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            self.stream.close()
+
+        def fileno(self):
+            return self.stream.fileno()
+
+        def read(self):
+            data = self.stream.read()
+            if mutation == "during_read":
+                descriptor = os.open(path, os.O_WRONLY | os.O_TRUNC)
+                try:
+                    os.write(descriptor, b"changed")
+                finally:
+                    os.close(descriptor)
+            else:
+                path.unlink()
+                descriptor = os.open(path, os.O_WRONLY | os.O_CREAT)
+                try:
+                    os.write(descriptor, b"original")
+                finally:
+                    os.close(descriptor)
+            return data
+
+    def open_with_change(candidate, *args, **kwargs):
+        if candidate == path and mutation == "before_open":
+            descriptor = os.open(path, os.O_WRONLY | os.O_TRUNC)
+            try:
+                os.write(descriptor, b"changed")
+            finally:
+                os.close(descriptor)
+        stream = original_open(candidate, *args, **kwargs)
+        return ChangingReader(stream) if candidate == path else stream
+
+    monkeypatch.setattr(Path, "open", open_with_change)
+    try:
+        with pytest.raises(ValueError, match="not available"):
+            store.read_text("owner", path)
+    finally:
+        store.close()

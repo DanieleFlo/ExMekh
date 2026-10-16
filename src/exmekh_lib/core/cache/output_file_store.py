@@ -171,20 +171,39 @@ class OutputFileSession:
                     shutil.rmtree(staging)
             return paths
 
+    def _registered_file(self, node_id: str, path: Path) -> FileIdentity:
+        node_directory = self.directory / cache_component(node_id)
+        if (
+            self._closed
+            or not path.is_relative_to(node_directory)
+            or path.resolve() != path
+            or path not in self._files
+            or not self._files[path].matches(path)
+        ):
+            raise ValueError(TOOL_OUTPUT_TEXT.access_denied)
+        return self._files[path]
+
+    def read_text(self, node_id: str, path: Path) -> str:
+        """Read one owned snapshot and reject changes before or during the read."""
+        with self._lock:
+            identity = self._registered_file(node_id, path)
+            with path.open("rb") as stream:
+                if FileIdentity.from_stat(os.fstat(stream.fileno())) != identity:
+                    raise ValueError(TOOL_OUTPUT_TEXT.access_denied)
+                content = stream.read()
+                current_identity = FileIdentity.from_stat(os.fstat(stream.fileno()))
+                if current_identity != identity or not identity.matches(path):
+                    raise ValueError(TOOL_OUTPUT_TEXT.access_denied)
+            return content.decode(
+                CACHE_FORMAT.output_text_encoding, CACHE_FORMAT.output_text_errors
+            )
+
     def read_limit(self, node_id: str, path: Path, default: int) -> int:
         """Allow only registered files of this node; large multiline files are readable."""
         if not path.is_relative_to(self.root):
             return default
         with self._lock:
-            node_directory = self.directory / cache_component(node_id)
-            if (
-                self._closed
-                or not path.is_relative_to(node_directory)
-                or path not in self._files
-                or not self._files[path].matches(path)
-            ):
-                raise ValueError(TOOL_OUTPUT_TEXT.access_denied)
-            return max(default, self._files[path].size)
+            return max(default, self._registered_file(node_id, path).size)
 
     def close(self) -> None:
         with self._lock:

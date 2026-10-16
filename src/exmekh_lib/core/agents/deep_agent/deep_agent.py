@@ -6,6 +6,7 @@ from pathlib import Path
 from types import MappingProxyType
 
 from exmekh_lib.config.agent_text import AGENT_TEXT
+from exmekh_lib.config.history_compaction import HISTORY_COMPACTION
 from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
 from exmekh_lib.core.agents.node import Node, NodeUserMessage
 from exmekh_lib.interfaces.event_handler import DeepAgentEventHandler
@@ -60,6 +61,14 @@ class DeepAgent:
         Providers must implement tools request serialization.
         """
         return self._root_node.get_tools_text()
+
+    def compact_history(self, node: Node) -> None:
+        """Compact an explicitly selected node belonging to this hierarchy."""
+        if not isinstance(node, Node):
+            raise TypeError(AGENT_TEXT.node_must_be_a_node)
+        if node not in self._capabilities_by_node:
+            raise ValueError(HISTORY_COMPACTION.node_not_member)
+        node.compact_history()
 
     def steer(self, user_message: NodeUserMessage) -> None:
         """Queue guidance for the active root run without waiting for its response."""

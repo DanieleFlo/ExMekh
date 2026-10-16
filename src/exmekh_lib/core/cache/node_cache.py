@@ -37,6 +37,9 @@ class NodeCache:
     ) -> tuple[Path, ...]:
         return self._session.output_files(root).write(self._node_id, key, parts)
 
+    def read_output_file(self, root: Path, path: Path) -> str:
+        return self._session.output_files(root).read_text(self._node_id, path)
+
     def output_file_read_limit(self, root: Path, path: Path, default: int) -> int:
         return self._session.output_files(root).read_limit(self._node_id, path, default)
 

@@ -128,6 +128,22 @@ class ToolOutputView:
         )
         return replace(record, result=result, execution=execution)
 
+    def format_current(self) -> str:
+        """Render current metadata and content without converting running work to saved."""
+        record = self._record
+        fields = {
+            key: value
+            for key, value in self.search_fields().items()
+            if key not in {"name", "type", "id"}
+        }
+        if record.used_tools is not None:
+            fields["used-tools"] = [
+                reference.to_dict() for reference in record.used_tools
+            ]
+        return XmlHeader(
+            record.source, record.name, record.id, fields=fields, args=record.args
+        ).prepend_to(self.content())
+
     def format_saved(self, cursor: int | None) -> str:
         """Render a saved read; cursors count result characters, excluding warnings."""
         record = self._record

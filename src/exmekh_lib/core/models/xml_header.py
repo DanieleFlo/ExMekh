@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import re
 from dataclasses import dataclass, field
@@ -9,8 +10,42 @@ from xml.etree import ElementTree as ET
 from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.config.validation import VALIDATION_PATTERNS
+from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
 from exmekh_lib.utils.json import to_json_value
 from exmekh_lib.utils.xml import append_text_element, append_value_element, render_xml
+
+
+@dataclass(frozen=True, slots=True)
+class XmlHeaderContent:
+    """Read parsed metadata without exposing its XML representation."""
+
+    header: str
+    body: str
+    _root: ET.Element = field(repr=False, compare=False)
+
+    def field(self, key: str) -> str | None:
+        element = self._root.find(key)
+        return None if element is None else self._text(element)
+
+    def output_references(self) -> tuple[ToolOutputReference, ...] | None:
+        container = self._root.find("used-tools")
+        if container is None:
+            return None
+        return tuple(
+            ToolOutputReference.from_dict(
+                {child.tag: self._text(child) for child in item}
+            )
+            for item in container.findall("item")
+        )
+
+    @staticmethod
+    def _text(element: ET.Element) -> str:
+        text = element.text or ""
+        if element.get("encoding") == "base64":
+            return base64.b64decode(text, validate=True).decode(
+                "utf-8", "surrogatepass"
+            )
+        return text
 
 
 @dataclass
@@ -140,12 +175,33 @@ class XmlHeader:
         return cls._leading_header(content) is not None
 
     @classmethod
-    def body_from_content(cls, content: str) -> str | None:
-        """Read the body only when content starts with a valid XML header."""
+    def parse_content(cls, content: str) -> XmlHeaderContent | None:
+        """Parse once, preserving the body after exactly one framing separator."""
         leading = cls._leading_header(content)
         if leading is None:
             return None
-        return content[cls._body_start(content, leading[1]) :]
+        root, end = leading
+        return XmlHeaderContent(
+            content[:end], content[cls._body_start(content, end) :], root
+        )
+
+    @classmethod
+    def field_from_content(cls, content: str, key: str) -> str | None:
+        parsed = cls.parse_content(content)
+        return None if parsed is None else parsed.field(key)
+
+    @classmethod
+    def output_references_from_content(
+        cls, content: str
+    ) -> tuple[ToolOutputReference, ...]:
+        parsed = cls.parse_content(content)
+        return () if parsed is None else parsed.output_references() or ()
+
+    @classmethod
+    def body_from_content(cls, content: str) -> str | None:
+        """Read the body only when content starts with a valid XML header."""
+        parsed = cls.parse_content(content)
+        return None if parsed is None else parsed.body
 
     @classmethod
     def replace_body_in_content(cls, content: str, body: str) -> str:

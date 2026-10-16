@@ -302,3 +302,38 @@ def test_body_operations_preserve_header_and_line_separator(separator):
 def test_body_operations_leave_unframed_or_invalid_xml_unchanged(content):
     assert XmlHeader.body_from_content(content) is None
     assert XmlHeader.replace_body_in_content(content, "replacement") == content
+
+
+def test_parsed_header_exposes_decoded_metadata_without_exposing_xml_nodes():
+    body = "\n\r\n exact body\r\n"
+    content = XmlHeader(
+        "Tool",
+        "work",
+        "output\x00",
+        fields={"used-tools": [{"name": "child\x01", "id": "child\x02"}]},
+    ).prepend_to(body)
+    parsed = XmlHeader.parse_content(content)
+    assert parsed is not None
+    assert parsed.body == body
+    assert parsed.header == content[: content.index("</header>") + len("</header>")]
+    assert parsed.field("id") == "output\x00"
+    assert parsed.field("missing") is None
+    references = parsed.output_references()
+    assert references is not None
+    assert [(item.name, item.id) for item in references] == [("child\x01", "child\x02")]
+    assert XmlHeader.output_references_from_content(content) == references
+    assert XmlHeader.output_references_from_content("plain") == ()
+
+
+def test_missing_and_empty_reference_metadata_have_different_meanings():
+    plain = XmlHeader.parse_content(
+        XmlHeader("Tool", "work", "output").prepend_to("body")
+    )
+    empty = XmlHeader.parse_content(
+        XmlHeader("Tool", "work", "output", fields={"used-tools": []}).prepend_to(
+            "body"
+        )
+    )
+    assert plain is not None and plain.output_references() is None
+    assert empty is not None and empty.output_references() == ()
+    assert XmlHeader.output_references_from_content(plain.header) == ()

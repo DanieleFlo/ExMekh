@@ -7,6 +7,7 @@ from exmekh_lib.config.cache_text import CACHE_TEXT
 from exmekh_lib.config.tool_output import ToolOutputSettings
 from exmekh_lib.core.cache.node_cache import NodeCache
 from exmekh_lib.core.cache.output_file_store import OutputFileSession
+from exmekh_lib.core.models.external_tool_output import ExternalToolOutput
 
 
 class OutputFileWorkspace:
@@ -29,6 +30,14 @@ class OutputFileWorkspace:
     def write(self, key: str, parts: tuple[str, ...]) -> tuple[str, ...]:
         paths = self._cache_provider().write_output_files(self.root, key, parts)
         return tuple(path.relative_to(self._work_root).as_posix() for path in paths)
+
+    def read_text(self, reference: ExternalToolOutput) -> str:
+        """Read registered, unchanged output parts in their original order."""
+        cache = self._cache_provider()
+        return "".join(
+            cache.read_output_file(self.root, self._work_root / item.path)
+            for item in reference.files
+        )
 
     def read_limit(self, path: Path, default: int) -> int:
         if not path.is_relative_to(self.root):

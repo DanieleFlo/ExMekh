@@ -131,6 +131,13 @@ class ToolCallExecutor:
     def skill_scope_ids(self) -> tuple[str, ...]:
         return (self._scope_prefix, *self._skill_executions.active_scope_ids)
 
+    @property
+    def protected_history_indices(self) -> tuple[int, ...]:
+        return self._skill_executions.protected_history_indices
+
+    def rebase_active_history(self, index_map: tuple[int, ...]) -> None:
+        self._skill_executions.rebase_active_history(index_map)
+
     def is_directly_in_skill(self, name: str) -> bool:
         return self._skill_executions.is_current_skill(name)
 
@@ -372,6 +379,7 @@ class ToolCallExecutor:
             tool_call_id=called_tool.call_id,
             name=called_tool.name,
             attachments=output.attachments(),
+            external_output=output.external_output(),
         )
         execution_result = ToolExecutionResult(
             response=tool_response,
@@ -610,6 +618,7 @@ class ToolCallExecutor:
             content=output,
             tool_call_id=execution.opening_tool_call_id,
             name=execution.name,
+            external_output=prepared_result.external_output,
         )
         self._depth = max(0, self._depth - 1)
         self._agentic_scope.register_skill_return(execution.opening_tool_call_id)

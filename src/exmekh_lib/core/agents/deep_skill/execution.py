@@ -153,6 +153,19 @@ class DeepSkillExecutionTracker:
     ) -> list[dict[str, Any]]:
         return [execution.history_tree(current_history) for execution in self._roots]
 
+    @property
+    def protected_history_indices(self) -> tuple[int, ...]:
+        """Protect opening batches, including every active skill's instructions."""
+        return tuple(execution.start_index for execution in self._active)
+
+    def rebase_active_history(self, index_map: tuple[int, ...]) -> None:
+        """Keep live opening anchors aligned without changing stable scope IDs."""
+        positions = tuple(
+            index_map[execution.start_index] for execution in self._active
+        )
+        for execution, position in zip(self._active, positions, strict=True):
+            execution.start_index = position
+
     def get_current_start_index(self) -> int:
         return self.current.start_index
 

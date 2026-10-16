@@ -6,6 +6,7 @@ from typing import Any, Final, Literal
 
 from exmekh_lib.capabilities.tools.call_sub_agent.sub_agent_tool import SubAgentTool
 from exmekh_lib.capabilities.tools.read_tool_output.summary import SummaryMode
+from exmekh_lib.config.history_compaction import HISTORY_COMPACTION
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
@@ -185,6 +186,12 @@ class Node:
                 RUNTIME_TEXT.node_must_be_initialized_before_accessing_tools
             )
         return self._runtime.get_tools_text()
+
+    def compact_history(self) -> None:
+        """Compact now, or request compaction at the active run's next safe boundary."""
+        if self._runtime is None:
+            raise RuntimeError(HISTORY_COMPACTION.uninitialized_node)
+        self._runtime.compact_history()
 
     def steer(self, user_message: NodeUserMessage) -> None:
         """Queue guidance and release managed tool waits in this node's active run."""
