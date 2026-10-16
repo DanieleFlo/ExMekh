@@ -169,18 +169,39 @@ def test_failing_compaction_observer_does_not_send_the_stale_request(make_agent)
     )
 
 
-def test_failed_automatic_summary_continues_with_the_original_completed_batch(
-    make_agent, caplog
+@pytest.mark.parametrize("phase", ["scoring", "summary"])
+def test_failed_automatic_compaction_stops_before_inference_and_preserves_history(
+    make_agent, caplog, phase
 ):
     provider = CompactionProvider(
         [tool_reply(call()), AssistantMessage("done")], score=30
     )
-    provider.summary_error = RuntimeError("summary unavailable")
+    error = RuntimeError("compaction unavailable")
+    if phase == "summary":
+        provider.summary_error = error
+    else:
+        provider.on_score = lambda request: (_ for _ in ()).throw(error)
     agent = make_agent(provider, Tool(lambda: "original body " * 500, name="mock-tool"))
-    agent.root_node.set_history_compaction_policy(automatic_policy())
-    assert agent.run("task").get_message() == "done"
-    assert provider.requests[-1].get_messages()[-1].get_name() == "mock-tool"
+    policy = automatic_policy()
+    agent.root_node.set_history_compaction_policy(policy)
+    with pytest.raises(
+        RuntimeError, match="Automatic history compaction failed"
+    ) as failed:
+        agent.run("task")
+    assert failed.value.__cause__ is error
+    assert len(provider.requests) == 1
+    assert runtime_history(agent)[-1].get_name() == "mock-tool"
+    assert agent.root_node.read_tool_output("output-0") is not None
+    assert "compact_history" not in str(
+        [message.message_dump() for message in runtime_history(agent)]
+    )
+    policy.after_compaction.assert_not_called()
     assert "Automatic history compaction failed" in caplog.text
+    # Retrying a later turn can compact the retained completed batch.
+    provider.summary_error = None
+    provider.on_score = None
+    assert agent.run("continue").get_message() == "done"
+    policy.after_compaction.assert_called_once()
 
 
 def test_steering_accepted_during_automatic_summary_is_in_the_resumed_request(

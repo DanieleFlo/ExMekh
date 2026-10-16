@@ -60,7 +60,10 @@ class HistoryCompactionSettings:
     unexpected_calls: str = "History compaction scoring must not return tool calls"
     invalid_anchor: str = "Compaction protection index is outside the history"
     changed_history: str = "History changed while compaction was being prepared"
-    automatic_failure: str = "Automatic history compaction failed; retaining original history"
+    automatic_failure: str = (
+        "Automatic history compaction failed; inference stopped with original "
+        "history retained"
+    )
     observer_failure: str = "Unable to publish applied history compaction"
     uninitialized_node: str = "Node must be initialized before compacting history"
     node_not_member: str = "Compaction node must belong to this DeepAgent hierarchy"

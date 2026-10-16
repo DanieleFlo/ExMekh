@@ -207,9 +207,11 @@ class NodeRuntime(ProviderEventHandler):
             return request
         try:
             self._compact_history()
-        except Exception:
+        except Exception as error:
+            # Sending the unmodified request after the policy asked to compact
+            # can exhaust the context before there is another safe boundary.
             logger.exception(HISTORY_COMPACTION.automatic_failure)
-            return request
+            raise RuntimeError(HISTORY_COMPACTION.automatic_failure) from error
         steering = (
             self._turn_control.take_user_messages()
             if self._executor.pending_return_call_id is None
