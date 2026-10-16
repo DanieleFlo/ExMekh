@@ -197,6 +197,23 @@ def test_live_compaction_inside_nested_skills_keeps_scope_and_allows_both_exits(
         assert history_tokens(provider, final_history) < history_tokens(
             provider, captured["before"]
         )
+        scoring_index = next(
+            index
+            for index, item in enumerate(provider.observations)
+            if item["stage"] == "scoring"
+        )
+        server_tokens_before = provider.observations[scoring_index - 1]["prompt_tokens"]
+        resumed = [
+            item["prompt_tokens"]
+            for item in provider.observations[scoring_index + 1 :]
+            if item["stage"] == "continuation"
+        ]
+        assert len(resumed) >= 3
+        assert all(tokens < server_tokens_before for tokens in resumed), (
+            "SERVER: a skill return restored history replaced by compaction",
+            server_tokens_before,
+            resumed,
+        )
         catalog_request = provider.scoring_requests[0]
         catalog_text = catalog_request.get_messages()[-1].get_message()
         assert (
@@ -211,6 +228,8 @@ def test_live_compaction_inside_nested_skills_keeps_scope_and_allows_both_exits(
             scope_preserved=True,
             final_depth=root.depth,
             final_tokens=history_tokens(provider, final_history),
+            server_tokens_before=server_tokens_before,
+            resumed_server_prompt_tokens=resumed,
             final_history=[message.message_dump() for message in final_history],
             completed_tools=[
                 event.tool_name
