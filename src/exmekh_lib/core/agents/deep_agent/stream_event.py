@@ -6,6 +6,7 @@ from enum import StrEnum
 from typing import Any
 
 from exmekh_lib.config.agent_text import AGENT_TEXT
+from exmekh_lib.core.history_compaction.progress import CompactionProgress
 from exmekh_lib.core.models.provider_stream_event import ProviderStreamEvent
 
 
@@ -77,8 +78,22 @@ class DeepAgentHistoryCompactionEvent:
             object.__setattr__(self, name, deepcopy(getattr(self, name)))
 
 
+@dataclass(frozen=True, slots=True)
+class DeepAgentCompactionProgressEvent:
+    depth: int
+    skill_path: str
+    agent_context_id: str
+    progress: CompactionProgress
+
+    def __post_init__(self) -> None:
+        _validate_position(self.depth, self.skill_path)
+
+
 type DeepAgentEvent = (
-    DeepAgentStreamEvent | DeepAgentExecutionEvent | DeepAgentHistoryCompactionEvent
+    DeepAgentStreamEvent
+    | DeepAgentExecutionEvent
+    | DeepAgentHistoryCompactionEvent
+    | DeepAgentCompactionProgressEvent
 )
 
 

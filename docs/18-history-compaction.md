@@ -129,6 +129,18 @@ Una posizione distinta identifica ciascuna risposta, anche quando call ID o
 ID canonici sono riutilizzati. Una tool call nella risposta strutturata fa
 fallire l'operazione.
 
+Dopo aver raccolto tutti i lotti, `normalize_scores()` abbassa i voti dello stesso
+offset, senza scendere sotto 1. La configurazione di sistema
+`config/history_compaction.py` imposta `summary_fraction=0.10`,
+`minimum_summary_candidates=2` e `summary_score_threshold=10`. Il numero obiettivo
+è il 10% degli output totali, arrotondato per eccesso e con minimo due candidati
+quando disponibili. Se i candidati sopra soglia sono già entro questo numero,
+i voti restano invariati. Tutti i pari merito al confine sono mantenuti, anche
+quando fanno superare il 10%; se non si escluderebbe alcun candidato, i voti
+restano invariati. I voti inferiori a 10 non vengono promossi per raggiungere
+il minimo. La tabella seguente usa i voti normalizzati; alcuni output brevi
+possono ancora conservare il corpo originale senza una chiamata di riassunto.
+
 | Voto | Rappresentazione |
 | --- | --- |
 | 1–9 | Nome e ID, con metadati di recupero e stato |
@@ -147,6 +159,24 @@ Valutazione e riassunti richiedono `reasoning_effort_override="none"`.
 I riassunti riusano `TextSummarizer`, con client isolato, prompt dedicato e
 nessun tool. Temperatura e altre impostazioni mantengono i default del provider.
 Prompt e valori del protocollo sono in `config/history_compaction.py`.
+
+## Avanzamento transitorio
+
+`HistoryCompactor(..., on_progress=callback)` pubblica snapshot immutabili
+`CompactionProgress`: preparazione/valutazione, piano dei riassunti, output
+completati e conclusione, anche in caso di errore o interruzione. Gli output
+discendenti sono contati come candidati distinti. Un errore dell'osservatore
+opzionale viene registrato senza interrompere la compattazione.
+
+Il tempo trascorso comprende tutta l'operazione. La stima residua usa soltanto
+la durata dei riassunti effettivi, compreso quello dello stato dell'assistant
+quando presente; riferimenti e corpi trattenuti senza inferenza non alterano la
+media. Prima del primo riassunto completato la stima non è disponibile. Il tempo
+già speso nel riassunto in corso viene sottratto dalla previsione residua.
+
+Il runtime inoltra `DeepAgentCompactionProgressEvent` con identità del nodo,
+posizione della skill e ID dell'operazione. Questi eventi non entrano nella
+history del modello né nell'archivio delle risposte originali.
 
 ## Ricostruzione e protezioni
 

@@ -19,32 +19,56 @@ from exmekh_lib.utils.xml import stringify_tool_result
 
 from .outputs import OutputCandidate
 from .policy import summary_prompt
+from .progress import CompactionProgressReporter
 
 
 class CompactionPresenter:
     def __init__(self, provider: Provider, budget: RequestBudget | None = None) -> None:
         self._summarizer = TextSummarizer(provider, budget=budget)
 
-    def create_summary(
-        self,
-        messages: list[HistoryMessage],
-        candidates: tuple[OutputCandidate, ...],
-        scores: dict[str, int],
-    ) -> list[HistoryMessage]:
-        outputs = [
-            self._summarize_output(candidate, scores[candidate.entry_id])
-            for candidate in candidates
-        ]
-        assistant_text = [
+    @staticmethod
+    def _prompt(candidate: OutputCandidate, score: int) -> str | None:
+        return (
+            summary_prompt(score, candidate.token_count) if candidate.available else ""
+        )
+
+    @staticmethod
+    def _assistant_text(messages: list[HistoryMessage]) -> list[str]:
+        return [
             content
             for message in messages
             if not isinstance(message, ToolMessage)
             and (content := message.message_dump().get("content"))
         ]
+
+    def summary_count(
+        self,
+        messages: list[HistoryMessage],
+        candidates: tuple[OutputCandidate, ...],
+        scores: dict[str, int],
+    ) -> int:
+        return sum(
+            bool(self._prompt(candidate, scores[candidate.entry_id]))
+            for candidate in candidates
+        ) + bool(self._assistant_text(messages))
+
+    def create_summary(
+        self,
+        messages: list[HistoryMessage],
+        candidates: tuple[OutputCandidate, ...],
+        scores: dict[str, int],
+        progress: CompactionProgressReporter,
+    ) -> list[HistoryMessage]:
+        outputs = [
+            self._summarize_output(candidate, scores[candidate.entry_id], progress)
+            for candidate in candidates
+        ]
+        assistant_text = self._assistant_text(messages)
         state = (
-            self._summarizer.summarize(
+            self._summarize(
                 stringify_tool_result(assistant_text),
                 HISTORY_COMPACTION.assistant_prompt,
+                progress,
             )
             if assistant_text
             else None
@@ -79,11 +103,12 @@ class CompactionPresenter:
         ]
 
     def _summarize_output(
-        self, candidate: OutputCandidate, score: int
+        self,
+        candidate: OutputCandidate,
+        score: int,
+        progress: CompactionProgressReporter,
     ) -> dict[str, object]:
-        prompt = (
-            summary_prompt(score, candidate.token_count) if candidate.available else ""
-        )
+        prompt = self._prompt(candidate, score)
         result: dict[str, object] = {
             "name": candidate.name,
             "id": candidate.output_id,
@@ -107,11 +132,18 @@ class CompactionPresenter:
             )
         elif prompt:
             result["representation"] = "summary"
-            result["content"] = self._summarizer.summarize(candidate.body, prompt)
+            result["content"] = self._summarize(candidate.body, prompt, progress)
         else:
             result["representation"] = "reference"
         for field in ("type", "status", "response-type"):
             value = XmlHeader.field_from_content(candidate.message.get_message(), field)
             if value is not None:
                 result[field] = value
+        progress.output_completed()
         return result
+
+    def _summarize(
+        self, text: str, prompt: str, progress: CompactionProgressReporter
+    ) -> str:
+        with progress.summary():
+            return self._summarizer.summarize(text, prompt)

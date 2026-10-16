@@ -7,6 +7,9 @@ from dataclasses import dataclass
 class HistoryCompactionSettings:
     tool_name: str = "compact_history"
     preview_tokens: int = 20
+    summary_fraction: float = 0.10
+    minimum_summary_candidates: int = 2
+    summary_score_threshold: int = 10
     response_reserve_tokens: int = 1024
     invalid_budget: str = "Context capacity must be a positive integer"
     budget_exceeded: str = (
@@ -77,6 +80,7 @@ class HistoryCompactionSettings:
         "history retained"
     )
     observer_failure: str = "Unable to publish applied history compaction"
+    progress_observer_failure: str = "Unable to publish history compaction progress"
     uninitialized_node: str = "Node must be initialized before compacting history"
     node_not_member: str = "Compaction node must belong to this DeepAgent hierarchy"
     closing_run: str = "Cannot request history compaction while run() is closing"

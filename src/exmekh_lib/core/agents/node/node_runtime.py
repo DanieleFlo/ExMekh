@@ -18,6 +18,7 @@ from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.agents.capabilities.tool_composer import _DefaultToolComposer
 from exmekh_lib.core.agents.deep_agent.agent_response import AgentResponse
 from exmekh_lib.core.agents.deep_agent.stream_event import (
+    DeepAgentCompactionProgressEvent,
     DeepAgentExecutionEvent,
     DeepAgentExecutionEventType,
     DeepAgentHistoryCompactionEvent,
@@ -262,6 +263,14 @@ class NodeRuntime(ProviderEventHandler):
             output_lookup=records.get,
             files=self._output_preparer.files,
             budget=self._compaction_budget,
+            on_progress=lambda progress: self._config.emit_stream(
+                DeepAgentCompactionProgressEvent(
+                    depth=self._executor.depth,
+                    skill_path=self._executor.skill_path,
+                    agent_context_id=self.agent_context_id,
+                    progress=progress,
+                )
+            ),
         )
         protected = self._executor.protected_history_indices
         if self._executor.pending_return_call_id is not None:

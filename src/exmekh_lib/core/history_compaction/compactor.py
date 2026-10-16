@@ -13,7 +13,9 @@ from exmekh_lib.interfaces.provider import Provider
 from .context import CompactionContext
 from .models import CompactionResult
 from .outputs import CompactionOutputs
+from .policy import normalize_scores
 from .presentation import CompactionPresenter
+from .progress import CompactionProgress, CompactionProgressReporter
 from .projection import compaction_spans, complete_batches
 from .scoring import CompactionScorer
 
@@ -26,11 +28,13 @@ class HistoryCompactor:
         output_lookup: Callable[[str], ToolCallRecord | None] | None = None,
         files: OutputFileWorkspace | None = None,
         budget: RequestBudget | None = None,
+        on_progress: Callable[[CompactionProgress], None] | None = None,
     ) -> None:
         self._scorer = CompactionScorer(provider, budget)
         self._presenter = CompactionPresenter(provider, budget)
         self._tokenizer = provider.get_tokenizer()
         self._files = files
+        self._on_progress = on_progress
         self._outputs = CompactionOutputs(
             provider.get_tokenizer(), output_lookup, files
         )
@@ -43,6 +47,23 @@ class HistoryCompactor:
         protected_indices: Sequence[int] = (),
     ) -> CompactionResult:
         """Return a new history; never persist summaries or alter the input."""
+        progress = CompactionProgressReporter(self._on_progress)
+        succeeded = False
+        try:
+            progress.start(0)
+            result = self._compact(history, tools, protected_indices, progress)
+            succeeded = True
+            return result
+        finally:
+            progress.finish(failed=not succeeded)
+
+    def _compact(
+        self,
+        history: MessageHistory,
+        tools: Tools | None,
+        protected_indices: Sequence[int],
+        progress: CompactionProgressReporter,
+    ) -> CompactionResult:
         history.check_history()
         original = history.get_history()
         messages = history.get_copy_of_history()
@@ -54,13 +75,26 @@ class HistoryCompactor:
             if isinstance(message := messages[index], ToolMessage)
         }
         context = CompactionContext(messages, candidates, self._tokenizer, self._files)
-        scores = self._scorer.score(context, tools) if candidates else {}
+        progress.start(len(context.entries()))
+        scores = (
+            normalize_scores(self._scorer.score(context, tools)) if candidates else {}
+        )
         messages = context.messages
+        progress.plan(
+            sum(
+                self._presenter.summary_count(
+                    messages[span.start : span.end],
+                    context.entries(range(span.start, span.end)),
+                    scores,
+                )
+                for span in spans
+            )
+        )
         replacements = {}
         for span in spans:
             selected_outputs = context.entries(range(span.start, span.end))
             summary = self._presenter.create_summary(
-                messages[span.start : span.end], selected_outputs, scores
+                messages[span.start : span.end], selected_outputs, scores, progress
             )
             replacements[span.start] = (span, summary)
         compacted: list[HistoryMessage] = []
