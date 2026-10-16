@@ -81,4 +81,12 @@ class HistoryCompactor:
         result = MessageHistory(compacted)
         result.check_history()
         complete_batches(compacted)
-        return CompactionResult(result, tuple(index_map), len(entries))
+        replaced_history = {
+            pair[0].get_tool_calls()[0].id: [
+                message.message_dump() for message in original[span.start : span.end]
+            ]
+            for span, pair in replacements.values()
+        }
+        return CompactionResult(
+            result, tuple(index_map), len(entries), replaced_history
+        )

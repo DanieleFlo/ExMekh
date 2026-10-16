@@ -1,11 +1,11 @@
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, create_model
 
 from exmekh_lib.config.history_compaction import HISTORY_COMPACTION
-from exmekh_lib.core.models.history import MessageHistory
+from exmekh_lib.core.models.history import HistoryMessage, MessageHistory
 
 
 class CompactionScores(BaseModel):
@@ -40,6 +40,19 @@ class CompactionResult:
     history: MessageHistory
     index_map: tuple[int, ...]
     output_count: int
+    replaced_history: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
+
+    def replacement_for(
+        self, original: Sequence[HistoryMessage]
+    ) -> list[HistoryMessage]:
+        """Keep retained inputs by identity, so their owner can still reject them."""
+        if len(original) != self.original_message_count:
+            raise ValueError(HISTORY_COMPACTION.changed_history)
+        replacement = self.history.get_history()
+        for index, message in enumerate(original):
+            if self.index_map[index + 1] == self.index_map[index] + 1:
+                replacement[self.index_map[index]] = message
+        return replacement
 
     @property
     def original_message_count(self) -> int:

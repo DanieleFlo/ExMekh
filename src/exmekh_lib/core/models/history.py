@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -202,6 +203,17 @@ class MessageHistory:
             len(messages),
             len(self._history),
         )
+
+    def discard_latest(self, messages: Sequence[HistoryMessage]) -> None:
+        """Remove admitted occurrences by identity without losing earlier reuse."""
+        remaining = Counter(id(message) for message in messages)
+        retained: list[HistoryMessage] = []
+        for message in reversed(self._history):
+            if remaining[id(message)]:
+                remaining[id(message)] -= 1
+            else:
+                retained.append(message)
+        self.replace_from(0, list(reversed(retained)))
 
     def dump_history(self) -> list[dict[str, str]]:
         return [message.message_dump() for message in self._history]

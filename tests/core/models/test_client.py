@@ -42,6 +42,26 @@ class StructuredAnswer(BaseModel):
     value: int
 
 
+@pytest.mark.parametrize("entrypoint", ["call", "structured", "steering"])
+def test_rejected_reused_input_preserves_previously_accepted_occurrences(entrypoint):
+    provider = MagicMock(spec=Provider)
+    provider.call.return_value = ProviderResponse(AssistantMessage("accepted"))
+    client = Client(provider, SystemMessage("rules"))
+    message = UserMessage("reusable input")
+    client.call(ClientRequest(message))
+    before = client.get_history()
+    provider.call.side_effect = ProviderRequestRejectedError("rejected")
+    provider.call_structured.side_effect = ProviderRequestRejectedError("rejected")
+    with pytest.raises(ProviderRequestRejectedError):
+        if entrypoint == "call":
+            client.call(ClientRequest(message))
+        elif entrypoint == "structured":
+            client.call_structured(ClientRequest(message), StructuredAnswer)
+        else:
+            client.continue_with_user_messages([message, message, UserMessage("new")])
+    assert client.get_history() == before
+
+
 @pytest.mark.parametrize("provider_fails", [False, True])
 def test_complete_tool_transition_retains_the_completed_batch(provider_fails):
     provider = MagicMock(spec=Provider)

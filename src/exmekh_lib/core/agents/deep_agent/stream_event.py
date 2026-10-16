@@ -62,7 +62,24 @@ class DeepAgentExecutionEvent:
         return self.type is DeepAgentExecutionEventType.TOOL_START
 
 
-type DeepAgentEvent = DeepAgentStreamEvent | DeepAgentExecutionEvent
+@dataclass(frozen=True, slots=True)
+class DeepAgentHistoryCompactionEvent:
+    depth: int
+    skill_path: str
+    history: list[dict[str, Any]]
+    history_tree: list[dict[str, Any]]
+    replaced_history: dict[str, list[dict[str, Any]]]
+    agent_context_id: str = ""
+
+    def __post_init__(self) -> None:
+        _validate_position(self.depth, self.skill_path)
+        for name in ("history", "history_tree", "replaced_history"):
+            object.__setattr__(self, name, deepcopy(getattr(self, name)))
+
+
+type DeepAgentEvent = (
+    DeepAgentStreamEvent | DeepAgentExecutionEvent | DeepAgentHistoryCompactionEvent
+)
 
 
 def _validate_position(depth: int, skill_path: str) -> None:

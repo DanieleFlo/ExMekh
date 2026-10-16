@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING
 
@@ -43,6 +43,8 @@ class Client:
         provider: Provider,
         system_message: SystemMessage,
         tools: Tools | None = None,
+        *,
+        before_request: Callable[[ProviderRequest], ProviderRequest] | None = None,
     ) -> None:
         if not isinstance(system_message, SystemMessage):
             raise TypeError(MODEL_TEXT.expected_a_systemmessage_instance)
@@ -50,6 +52,7 @@ class Client:
         self._history = MessageHistory(history=[system_message])
         self._history.check_history()
         self._provider = provider
+        self._before_request = before_request
         self._validate_provider()
 
         if tools is not None and not isinstance(tools, Tools):
@@ -101,14 +104,19 @@ class Client:
         return self._history.record_tool_call(call, batch_call_id=batch_call_id)
 
     def call(self, request: ClientRequest) -> ProviderResponse:
-        history_start = len(self._history.get_history())
         try:
             return self._call_provider(self._prepare_request(request))
         except ProviderRequestRejectedError:
-            self._history.replace_from(history_start, [])
+            self.remove_rejected_input([request.message])
             raise
 
+    def remove_rejected_input(self, messages: Sequence[HistoryMessage]) -> None:
+        """Roll back admitted inputs even when a request hook compacted their prefix."""
+        self._history.discard_latest(messages)
+
     def _call_provider(self, request: ProviderRequest) -> ProviderResponse:
+        if self._before_request is not None:
+            request = self._before_request(request)
         logger.info(
             MODEL_TEXT.calling_provider_messages_tool_choice,
             len(request.get_messages()),
@@ -198,13 +206,12 @@ class Client:
             stream=streaming,
             on_event=on_event,
         )
-        history_start = len(self._history.get_history())
         self._history.add(added_messages)
         try:
             provider_request.notify_steering_added(messages)
             return self._call_provider(provider_request)
         except ProviderRequestRejectedError:
-            self._history.replace_from(history_start, [])
+            self.remove_rejected_input(added_messages)
             raise
 
     def complete_tool_transition(self, *, extra: Mapping[str, object]) -> None:
@@ -213,9 +220,10 @@ class Client:
         The next batch supersedes this response, so it is neither streamed nor
         retained in the conversation.
         """
-        history_size = len(self._history.get_history())
-        self.continue_after_tools(extra=extra, tool_choice="none")
-        self._history.replace_from(history_size, [])
+        response = self.continue_after_tools(extra=extra, tool_choice="none")
+        appended = len(response.history_messages())
+        if appended:
+            self._history.replace_from(len(self._history.get_history()) - appended, [])
 
     def call_structured[ResponseModel: BaseModel](
         self,
@@ -224,7 +232,6 @@ class Client:
         *,
         strict: bool = True,
     ) -> StructuredProviderResponse[ResponseModel]:
-        history_start = len(self._history.get_history())
         try:
             provider_request = self._prepare_structured_request(
                 request,
@@ -233,7 +240,7 @@ class Client:
             )
             return self._call_structured_provider(provider_request)
         except ProviderRequestRejectedError:
-            self._history.replace_from(history_start, [])
+            self.remove_rejected_input([request.message])
             raise
 
     def continue_after_tools_structured[ResponseModel: BaseModel](

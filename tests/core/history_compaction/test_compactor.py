@@ -53,6 +53,19 @@ def history_with_output(body, **kwargs):
     )
 
 
+def test_replacement_preserves_retained_input_identity_without_exposing_mapping_rules():
+    history = history_with_output("original body")
+    original = history.get_history()
+    checkpoint = MessageHistory(history.get_copy_of_history())
+    result = HistoryCompactor(CompactionProvider()).compact(checkpoint)
+    replacement = result.replacement_for(original)
+    assert replacement[0] is original[0]
+    assert replacement[1] is original[1]
+    assert replacement[2] is not original[2]
+    with pytest.raises(ValueError, match=HISTORY_COMPACTION.changed_history):
+        result.replacement_for(original[:-1])
+
+
 @pytest.mark.parametrize(
     ("score", "length", "representation"),
     [

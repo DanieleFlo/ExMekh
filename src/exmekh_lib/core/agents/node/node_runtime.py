@@ -20,6 +20,7 @@ from exmekh_lib.core.agents.deep_agent.agent_response import AgentResponse
 from exmekh_lib.core.agents.deep_agent.stream_event import (
     DeepAgentExecutionEvent,
     DeepAgentExecutionEventType,
+    DeepAgentHistoryCompactionEvent,
     DeepAgentStreamEvent,
 )
 from exmekh_lib.core.agents.deep_skill.deep_skill import CalledDeepSkill
@@ -28,10 +29,12 @@ from exmekh_lib.core.agents.exit_tool.items import ExitItemResolver
 from exmekh_lib.core.cache.node_cache import NodeCache
 from exmekh_lib.core.cache.output_file_workspace import OutputFileWorkspace
 from exmekh_lib.core.file_inspection.runtime import FileInspectionRequests
-from exmekh_lib.core.history_compaction import HistoryCompactor
+from exmekh_lib.core.history_compaction import HistoryCompactionPolicy, HistoryCompactor
+from exmekh_lib.core.history_compaction.projection import compaction_spans
 from exmekh_lib.core.models.assistant_message import FunctionCall, ToolCall
 from exmekh_lib.core.models.client import Client
 from exmekh_lib.core.models.client_request import ClientRequest
+from exmekh_lib.core.models.provider_request import ProviderRequest
 from exmekh_lib.core.models.provider_response import ProviderResponse
 from exmekh_lib.core.models.provider_stream_event import (
     ProviderStreamEvent,
@@ -73,6 +76,7 @@ class NodeRuntime(ProviderEventHandler):
 
     def __init__(self, config: NodeRuntimeConfig) -> None:
         self._config = config
+        self._history_compaction_policy: HistoryCompactionPolicy | None = None
         self._node_id = f"{config.get_hds_name()}-{uuid4().hex}"
         self._tool_cache: NodeCache | None = None
         self._execution_history = ExecutionHistory()
@@ -184,6 +188,48 @@ class NodeRuntime(ProviderEventHandler):
         """Compact now while idle, or at the next safe boundary of an active run."""
         self._turn_control.compact_history(self._compact_history)
 
+    def set_history_compaction_policy(
+        self, policy: HistoryCompactionPolicy | None
+    ) -> None:
+        self._history_compaction_policy = policy
+
+    def _prepare_inference(self, request: ProviderRequest) -> ProviderRequest:
+        # Client has admitted user input and completed tool replies here. Rebuild
+        # the request only after the owner has replaced history and rebased scopes.
+        policy = self._history_compaction_policy
+        if policy is None:
+            return request
+        if not compaction_spans(
+            self._client.get_history(), self._executor.protected_history_indices
+        ):
+            return request
+        if not policy.before_inference(request):
+            return request
+        try:
+            self._compact_history()
+        except Exception:
+            logger.exception(HISTORY_COMPACTION.automatic_failure)
+            return request
+        steering = (
+            self._turn_control.take_user_messages()
+            if self._executor.pending_return_call_id is None
+            else ()
+        )
+        for message in steering:
+            self._client.add_user_message(message)
+        compacted_request = ProviderRequest(
+            messages=self._client.get_history(),
+            tools=request.get_tools(),
+            tool_choice=request.get_tool_choice(),
+            extra=self._executor.build_agentic_extra(),
+            stream=request.get_streaming(),
+            on_event=request.on_event,
+            reasoning_effort_override=request.get_reasoning_effort_override(),
+        )
+        compacted_request.notify_steering_added(steering)
+        policy.after_compaction(compacted_request)
+        return compacted_request
+
     def _compact_pending_history(self) -> None:
         if self._turn_control.take_compaction_request():
             self._compact_history()
@@ -213,8 +259,24 @@ class NodeRuntime(ProviderEventHandler):
         )
         if self._client.get_history() != original:
             raise RuntimeError(HISTORY_COMPACTION.changed_history)
-        self._client.replace_history_from(0, result.history.get_history())
+        self._client.replace_history_from(0, result.replacement_for(original))
         self._executor.rebase_active_history(result.index_map)
+        if result.replaced_history:
+            snapshot = self._executor.snapshot()
+            event = DeepAgentHistoryCompactionEvent(
+                depth=snapshot.depth,
+                skill_path=snapshot.skill_path,
+                history=snapshot.history,
+                history_tree=snapshot.history_tree,
+                replaced_history=result.replaced_history,
+                agent_context_id=self.agent_context_id,
+            )
+            try:
+                self._config.emit_stream(event)
+            except Exception:
+                # Applied history must never be paired with the stale request
+                # because an optional frontend observer failed to render it.
+                logger.exception(HISTORY_COMPACTION.observer_failure)
 
     def steer(self, user_message: NodeUserMessage) -> None:
         """Accept guidance without mutating history or invoking the provider."""
@@ -268,15 +330,14 @@ class NodeRuntime(ProviderEventHandler):
             self._executor.skill_scope_ids
         )
         if pending_result is not None and self._has_read_tool():
-            user_index = len(self._client.get_history())
-            self._client.add_user_message(UserMessage(content=user_message))
+            input_message = UserMessage(content=user_message)
+            self._client.add_user_message(input_message)
             self._deliver_completed_tool_outputs()
             try:
                 response = self._continue_after_tools()
             except ProviderRequestRejectedError:
                 # Keep completed background output; remove only the rejected input.
-                following = self._client.get_history()[user_index + 1 :]
-                self._client.replace_history_from(user_index, following)
+                self._client.remove_rejected_input([input_message])
                 raise
         else:
             response = self._client.continue_with_user_messages(
@@ -564,6 +625,7 @@ class NodeRuntime(ProviderEventHandler):
             provider=self._config.provider,
             system_message=self._config.build_system_message(),
             tools=tools,
+            before_request=self._prepare_inference,
         )
 
         self._executor = self._config.build_executor(

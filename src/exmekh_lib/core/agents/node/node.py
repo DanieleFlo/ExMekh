@@ -16,6 +16,7 @@ from exmekh_lib.core.agents.capabilities.tool_composer import _DefaultToolCompos
 from exmekh_lib.core.agents.deep_agent.agent_response import AgentResponse
 from exmekh_lib.core.agents.hds.hds import HDS
 from exmekh_lib.core.cache.node_cache import NodeCache
+from exmekh_lib.core.history_compaction import HistoryCompactionPolicy
 from exmekh_lib.core.models.tool import PreformattedToolResult, Tool
 from exmekh_lib.core.tool_calls.execution_history import ExecutionHistory
 from exmekh_lib.interfaces.event_handler import DeepAgentEventHandler
@@ -192,6 +193,14 @@ class Node:
         if self._runtime is None:
             raise RuntimeError(HISTORY_COMPACTION.uninitialized_node)
         self._runtime.compact_history()
+
+    def set_history_compaction_policy(
+        self, policy: HistoryCompactionPolicy | None
+    ) -> None:
+        """Evaluate automatic compaction at complete request boundaries."""
+        if self._runtime is None:
+            raise RuntimeError(HISTORY_COMPACTION.uninitialized_node)
+        self._runtime.set_history_compaction_policy(policy)
 
     def steer(self, user_message: NodeUserMessage) -> None:
         """Queue guidance and release managed tool waits in this node's active run."""

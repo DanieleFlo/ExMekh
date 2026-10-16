@@ -7,8 +7,7 @@ from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
 from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
 from exmekh_lib.core.agents.deep_agent.stream_event import (
-    DeepAgentExecutionEvent,
-    DeepAgentStreamEvent,
+    DeepAgentEvent,
 )
 from exmekh_lib.core.agents.exit_tool.exit_tool import ExitTool
 from exmekh_lib.core.agents.hds.hds import HDS
@@ -54,9 +53,7 @@ class NodeRuntimeConfig:
     def is_streaming(self) -> bool:
         return self.on_stream is not None
 
-    def emit_stream(
-        self, event: DeepAgentStreamEvent | DeepAgentExecutionEvent
-    ) -> None:
+    def emit_stream(self, event: DeepAgentEvent) -> None:
         if self.on_stream is not None:
             self.on_stream.handle(event)
 

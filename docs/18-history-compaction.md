@@ -1,4 +1,4 @@
-# Compattazione esplicita della history
+# Compattazione della history
 
 La compattazione è disponibile su un nodo già inizializzato. Con `DeepAgent`
 il nodo è **obbligatorio** e deve appartenere alla sua gerarchia:
@@ -12,8 +12,42 @@ child_node.compact_history()
 ```
 
 Non esiste una selezione implicita della radice, né una ricerca per nome.
-Il servizio non aggiunge un tool invocabile dal modello e non introduce trigger
-automatici basati sul numero di token.
+Il servizio non aggiunge un tool invocabile dal modello. La selezione automatica
+è una policy dell'applicazione, installabile separatamente su ciascun nodo.
+
+## Policy automatica e osservazione
+
+```python
+from exmekh_lib.core.history_compaction import HistoryCompactionPolicy
+
+# policy implementa il contratto HistoryCompactionPolicy dell'applicazione.
+agent.root_node.set_history_compaction_policy(policy)
+child_node.set_history_compaction_policy(child_policy)
+child_node.set_history_compaction_policy(None)  # disabilita il trigger
+```
+
+`before_inference(request)` osserva una richiesta completa e decide se tentare
+la compattazione; non viene invocato quando non esistono porzioni sostituibili.
+`after_compaction(request)` riceve il contesto già applicato e può riarmare la
+policy senza prendere una seconda decisione alla stessa frontiera. La libreria
+non decide soglie né capienza: appartengono all'applicazione e ai metadati server.
+Le inferenze interne di scoring e riassunto non attraversano la policy.
+
+Un errore di compattazione automatica viene registrato e il modello continua
+con la history originale. La cancellazione viene propagata. Dopo una sostituzione,
+il runtime ricostruisce la richiesta e consegna lo steering accettato durante il
+riassunto prima di riprendere l'inferenza.
+
+`DeepAgentHistoryCompactionEvent` espone copie della history applicata,
+dell'albero delle skill e delle porzioni originali sostituite, correlate all'ID
+della chiamata sintetica. L'applicazione può conservare una vista completa senza
+reinserirla nel contesto del modello. Il fallimento di un osservatore opzionale
+viene registrato senza annullare una sostituzione già applicata.
+
+`CompactionResult.replacement_for(original)` preserva l'identità dei messaggi
+trattenuti, anche se il calcolo è stato eseguito su un checkpoint indipendente.
+Il proprietario della history usa questo metodo senza interpretare le regole
+della mappa degli indici, e può ancora rimuovere input rifiutati dopo il riassunto.
 
 ## Esecuzione e concorrenza
 

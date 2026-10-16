@@ -4,6 +4,7 @@ from .stream_event import (
     DeepAgentEvent,
     DeepAgentExecutionEvent,
     DeepAgentExecutionEventType,
+    DeepAgentHistoryCompactionEvent,
     DeepAgentStreamEvent,
 )
 
@@ -12,5 +13,6 @@ __all__ = [
     "DeepAgentEventHandler",
     "DeepAgentExecutionEvent",
     "DeepAgentExecutionEventType",
+    "DeepAgentHistoryCompactionEvent",
     "DeepAgentStreamEvent",
 ]
