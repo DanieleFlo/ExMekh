@@ -9,7 +9,7 @@ class FileInspectionSettings:
     max_regions: int = 10_000
     default_max_items: int = 50
     max_items: int = 500
-    max_label_chars: int = 200
+    max_label_tokens: int = 200
     max_query_chars: int = 1_000
     max_structure_nodes: int = 100_000
     max_pdf_pages: int = 2_000
@@ -43,6 +43,10 @@ FILE_INSPECTION = FileInspectionSettings()
 class FileInspectionText:
     """Descriptions and diagnostics for workspace file tools."""
 
+    tokenizer_required: str = (
+        "File inspection requires the model tokenizer. Run inspect-file through an "
+        "initialized node, or call inspect_file with an explicit tokenizer."
+    )
     no_readable_lines: str = (
         "This format has no readable physical text lines; use inspect-file metadata."
     )

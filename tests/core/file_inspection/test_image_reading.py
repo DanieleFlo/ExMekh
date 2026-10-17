@@ -11,7 +11,6 @@ from exmekh_lib.config.file_inspection import FILE_INSPECTION
 from exmekh_lib.core.file_inspection import image_reading, reading
 from exmekh_lib.core.file_inspection.errors import FileInspectionError
 from exmekh_lib.core.file_inspection.reading import read_file
-from exmekh_lib.core.file_inspection.service import inspect_file
 from exmekh_lib.core.models.assistant_message import AssistantMessage
 from exmekh_lib.core.models.tool import AttachedToolResult, Tool
 from exmekh_lib.core.models.tool_hooks import ToolHooks
@@ -33,6 +32,7 @@ from tests.core.file_inspection.test_reading import (
     replies,
     result_for,
 )
+from tests.file_inspection_support import inspect_file
 from tests.tool_result_support import parse_tool_result
 
 

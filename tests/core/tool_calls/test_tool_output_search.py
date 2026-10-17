@@ -16,6 +16,8 @@ from exmekh_lib.core.tool_calls.execution_history import ExecutionHistory
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
 from exmekh_lib.core.tool_calls.harness_memory_tools import HarnessMemoryTools
 from exmekh_lib.interfaces.tool_hook import AfterTool
+from tests.core.agents.node.test_node import SequenceProvider
+from tests.tokenizer_support import PairTokenizer, StubTokenizer
 
 
 @pytest.fixture
@@ -23,12 +25,55 @@ def output_rig(tmp_path):
     with SessionCache(tmp_path) as session:
         cache = session.node("owner")
         manager = ToolExecutionManager()
-        memory = HarnessMemoryTools(ExecutionHistory(), lambda: cache, manager)
+        memory = HarnessMemoryTools(
+            ExecutionHistory(), lambda: cache, manager, tokenizer=StubTokenizer()
+        )
         yield cache, manager, memory, session
 
 
 def search_xml(memory, **arguments):
     return ET.fromstring(memory.search_tool_outputs(**arguments).content)
+
+
+@pytest.mark.parametrize("dependency", ["provider", "tokenizer"])
+def test_search_uses_supplied_model_tokenizer_without_changing_saved_output(
+    tmp_path, dependency
+):
+    tokenizer = PairTokenizer()
+    text = "à界😀x" * 250
+    with SessionCache(tmp_path) as session:
+        cache = session.node("owner")
+        original = ToolCallRecord("work", "output", {}, text)
+        cache.store(original)
+        options = (
+            {"provider": SequenceProvider([], tokenizer=tokenizer)}
+            if dependency == "provider"
+            else {"tokenizer": tokenizer}
+        )
+        memory = HarnessMemoryTools(ExecutionHistory(), lambda: cache, **options)
+
+        preview = search_xml(memory).findtext("./records/record/preview")
+
+        assert len(preview) > 240
+        assert tokenizer.count_tokens(preview) == 240
+        assert preview.endswith("…")
+        assert cache.get("output") == original
+
+
+def test_standalone_search_reports_missing_tokenizer():
+    memory = HarnessMemoryTools(ExecutionHistory(), lambda: None)
+    with pytest.raises(ValueError, match="Search previews require a tokenizer"):
+        memory.search_tool_outputs()
+
+
+def test_search_rejects_ambiguous_tokenizer_configuration():
+    with pytest.raises(ValueError, match="not both"):
+        HarnessMemoryTools(
+            ExecutionHistory(),
+            lambda: None,
+            provider=SequenceProvider([]),
+            tokenizer=PairTokenizer(),
+        )
 
 
 @contextmanager
@@ -78,7 +123,8 @@ def test_search_discovers_uncached_background_work_and_its_origin(output_rig):
         assert record.findtext("status") == "running"
         assert record.findtext("storage") == "runtime"
         assert record.findtext("started-at")
-        assert float(record.findtext("elapsed-seconds")) >= 0
+        assert record.findtext("elapsed").endswith("s")
+        assert record.find("elapsed-seconds") is None
         assert record.find("finished-at") is None
         assert (
             search_xml(memory, skill_path="/analysis/nested").findtext("total") == "0"
@@ -222,7 +268,10 @@ def test_search_paginates_combined_sources_and_keeps_node_isolation(output_rig):
         assert [page.findtext("next-offset") for page in pages] == ["1", "2", None]
         assert search_xml(memory, query="private").findtext("total") == "0"
         isolated = HarnessMemoryTools(
-            ExecutionHistory(), lambda: session.node("other"), ToolExecutionManager()
+            ExecutionHistory(),
+            lambda: session.node("other"),
+            ToolExecutionManager(),
+            tokenizer=StubTokenizer(),
         )
         assert search_xml(isolated, query="output-first").findtext("total") == "0"
 

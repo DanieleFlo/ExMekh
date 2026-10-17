@@ -149,7 +149,7 @@ def test_repeated_and_concurrent_reads_reuse_files_and_reused_ids_do_not_collide
 
 
 def test_cache_roundtrip_and_every_view_return_reference_without_original(preparer):
-    service, cache, _ = preparer
+    service, cache, tokenizer = preparer
     text = "SECRET" * 20
     result = service.prepare(
         ToolOutputPresentation(
@@ -167,7 +167,7 @@ def test_cache_roundtrip_and_every_view_return_reference_without_original(prepar
         view.format_saved(None),
         view.format_saved(999),
         view.format_embedded(),
-        view.preview(240),
+        view.preview(240, tokenizer),
     ]:
         assert text not in content
     assert view.format_saved(999) == view.format_saved(None)

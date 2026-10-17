@@ -9,6 +9,7 @@ from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
 from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
 from exmekh_lib.core.file_inspection.edit_filesystem import new_file
 from exmekh_lib.core.file_inspection.errors import FileInspectionError
+from exmekh_lib.core.file_inspection.tokenization import inspection_tokenizer_context
 from exmekh_lib.core.file_inspection.workspace import read_snapshot
 from exmekh_lib.core.reasoning_tools.date_time import (
     DateTimeInputError,
@@ -16,6 +17,7 @@ from exmekh_lib.core.reasoning_tools.date_time import (
 )
 from exmekh_lib.core.reasoning_tools.formal_logic import logic_tool_result
 from exmekh_lib.utils.tool_errors import ToolInputError, tool_failure_result
+from tests.tokenizer_support import StubTokenizer
 
 
 @pytest.fixture
@@ -23,7 +25,8 @@ def bundled_tools(tmp_path):
     loaded = Capabilities(None, default_capabilities=DefaultCapabilities()).load(
         work_root=tmp_path
     )
-    return {tool.name: tool for tool in loaded.tools}
+    with inspection_tokenizer_context(StubTokenizer()):
+        yield {tool.name: tool for tool in loaded.tools}
 
 
 @pytest.mark.parametrize(

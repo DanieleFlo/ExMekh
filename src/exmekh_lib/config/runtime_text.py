@@ -5,6 +5,12 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class RuntimeText:
+    ambiguous_search_tokenizer: str = (
+        "Supply provider or tokenizer to HarnessMemoryTools, not both"
+    )
+    timestamp_timezone_required: str = "Runtime timestamps must be timezone-aware"
+    invalid_duration: str = "Runtime durations must be finite nonnegative numbers"
+    search_previews_require_a_tokenizer: str = "Search previews require a tokenizer; supply provider or tokenizer to HarnessMemoryTools."
     execution_manager_required: str = (
         "Publishing execution output requires an execution manager"
     )

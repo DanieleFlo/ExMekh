@@ -160,11 +160,14 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
     request_tools = provider.requests[0].get_tools()
     assert request_tools is not None
     descriptions = {tool.name: tool.description for tool in request_tools.get_tools()}
-    assert descriptions["inspect-file"] == "Available in skill 'file-processing'."
+    assert (
+        descriptions["inspect-file"]
+        == "Available in skills 'deep-thinking', 'file-processing'."
+    )
     assert descriptions == {
         "file-processing": "Inspects, reads, edits, creates and removes workspace files.",
-        "inspect-file": "Available in skill 'file-processing'.",
-        "read-file": "Available in skill 'file-processing'.",
+        "inspect-file": "Available in skills 'deep-thinking', 'file-processing'.",
+        "read-file": "Available in skills 'deep-thinking', 'file-processing'.",
         "edit-file": "Available in skill 'file-processing'.",
         "new-file": "Available in skill 'file-processing'.",
         "delete-file": "Available in skill 'file-processing'.",

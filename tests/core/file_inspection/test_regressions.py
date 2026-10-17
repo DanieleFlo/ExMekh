@@ -12,7 +12,7 @@ from exmekh_lib.config.file_inspection import FILE_INSPECTION
 from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
 from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
 from exmekh_lib.core.file_inspection import selection
-from exmekh_lib.core.file_inspection.service import inspect_file
+from tests.file_inspection_support import inspect_file
 
 
 def test_markdown_index_limit_keeps_the_first_document_region(tmp_path: Path) -> None:

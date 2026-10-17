@@ -26,6 +26,7 @@ from exmekh_lib.core.tool_calls.execution_manager import (
     ToolExecutionManager,
 )
 from exmekh_lib.core.tool_calls.harness_memory_tools import HarnessMemoryTools
+from tests.tokenizer_support import StubTokenizer
 
 
 def test_managed_result_without_output_id_fails_before_persistence():
@@ -63,7 +64,7 @@ def test_saved_steering_is_listed_searched_and_read_from_harness_memory(tmp_path
         recorder.persist_steering(
             UserMessage(TextsUserMessage(["first", "second"])), "guidance", "/skill"
         )
-        memory = HarnessMemoryTools(history, lambda: cache)
+        memory = HarnessMemoryTools(history, lambda: cache, tokenizer=StubTokenizer())
         assert "<name>steering_message</name>" in memory.get_execution_history().content
         assert (
             "<saved-output-id>guidance</saved-output-id>"

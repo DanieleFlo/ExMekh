@@ -49,7 +49,7 @@ class ToolOutputFormatter:
             and execution is None
             and not failed
         ):
-            content = result.content
+            content = XmlHeader.refresh_timing_in_content(result.content)
             if XmlHeader.has_leading_header(content):
                 annotation = self._thinking_annotation(None, annotation_provider)
                 if annotation:

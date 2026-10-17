@@ -28,6 +28,14 @@ def render_xml(root: ET.Element) -> str:
     return ET.tostring(formatted, encoding="unicode").replace("\r", "&#13;")
 
 
+def read_text_element(element: ET.Element) -> str:
+    """Read XML text using the same lossless encoding as the shared renderer."""
+    text = element.text or ""
+    if element.get("encoding") == "base64":
+        return base64.b64decode(text, validate=True).decode("utf-8", "surrogatepass")
+    return text
+
+
 def append_text_element(
     parent: ET.Element,
     name: str,

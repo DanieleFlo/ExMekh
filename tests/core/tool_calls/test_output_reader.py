@@ -242,7 +242,7 @@ def test_elapsed_time_updates_while_running_and_freezes_at_completion(monkeypatc
 
     def elapsed():
         header = reader.read("output").content.split("</header>")[0] + "</header>"
-        return float(ET.fromstring(header).findtext("elapsed-seconds"))
+        return float(ET.fromstring(header).findtext("elapsed").removesuffix("s"))
 
     try:
         first = elapsed()

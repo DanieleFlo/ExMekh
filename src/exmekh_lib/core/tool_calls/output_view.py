@@ -9,6 +9,9 @@ from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
 from exmekh_lib.core.cache.user_message_codec import deserialize_user_message
 from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.core.models.xml_header import XmlHeader
+from exmekh_lib.core.tokenizers.text_budget import TokenTextBudget
+from exmekh_lib.interfaces.tokenizer import Tokenizer
+from exmekh_lib.utils.time import format_timing_fields
 from exmekh_lib.utils.xml import (
     append_text_element,
     create_text_element,
@@ -50,15 +53,14 @@ class ToolOutputView:
             RUNTIME.saved_attachment_message.format(output_id=record.id)
         )
 
-    def preview(self, limit: int) -> str:
-        """Show useful progress or diagnostics before truncating a preview."""
+    def preview(self, limit: int, tokenizer: Tokenizer) -> str:
+        """Keep useful progress or diagnostics within a model-token budget."""
         if type(limit) is not int or limit < 1:
             raise ValueError(RUNTIME_TEXT.preview_limit_must_be_a_positive_integer)
         preview = " ".join(self._preview_content().split())
-        if len(preview) <= limit:
-            return preview
-        suffix = RUNTIME.preview_truncation_suffix[:limit]
-        return preview[: limit - len(suffix)] + suffix
+        return TokenTextBudget(tokenizer, limit).truncate(
+            preview, suffix=RUNTIME.preview_truncation_suffix
+        )
 
     def format_embedded(self) -> str:
         """Render a selected output with the shared XML escaping rules."""
@@ -198,8 +200,10 @@ class ToolOutputView:
     def _detail_fields(
         execution: dict[str, Any], names: tuple[str, ...]
     ) -> dict[str, Any]:
-        return {
-            name.replace("_", "-"): execution[name]
-            for name in names
-            if name in execution
-        }
+        return format_timing_fields(
+            {
+                name.replace("_", "-"): execution[name]
+                for name in names
+                if name in execution
+            }
+        )

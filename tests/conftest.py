@@ -1,10 +1,12 @@
 import os
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
 from openai import OpenAI
 from pydantic import BaseModel
 
+from exmekh_lib.core.models import xml_header
 from exmekh_lib.core.models.client import Client
 from exmekh_lib.core.models.history import MessageHistory
 from exmekh_lib.core.models.provider_request import ProviderRequest
@@ -21,6 +23,15 @@ _LIVE_TEST_ENV_VAR = "EXMEKH_LIB_RUN_LIVE_TESTS"
 _TRUTHY_VALUES = {"1", "true", "yes", "on"}
 
 pytest_plugins = ("pytester",)
+
+
+@pytest.fixture
+def xml_clock(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+    """Control response timestamps without changing the execution clock."""
+    clock = MagicMock(wraps=datetime)
+    clock.now.return_value = datetime(2026, 10, 17, 14, 32, 8, tzinfo=UTC)
+    monkeypatch.setattr(xml_header, "datetime", clock)
+    return clock
 
 
 @pytest.fixture(autouse=True)

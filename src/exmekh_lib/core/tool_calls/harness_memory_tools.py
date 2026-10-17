@@ -30,9 +30,11 @@ from exmekh_lib.capabilities.tools.search_tool_outputs.tool_call_search import (
     ToolCallSearch,
 )
 from exmekh_lib.config.runtime import RUNTIME
+from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.cache.node_cache import NodeCache
 from exmekh_lib.core.models.tool import PreformattedToolResult, Tool
 from exmekh_lib.interfaces.provider import Provider
+from exmekh_lib.interfaces.tokenizer import Tokenizer
 
 from .execution_history import ExecutionHistory
 from .execution_manager import ToolExecutionManager
@@ -54,12 +56,19 @@ class HarnessMemoryTools:
         work_root: Path | None = None,
         provider: Provider | None = None,
         output_preparer: ToolOutputPreparer | None = None,
+        *,
+        tokenizer: Tokenizer | None = None,
     ) -> None:
+        if provider is not None and tokenizer is not None:
+            raise ValueError(RUNTIME_TEXT.ambiguous_search_tokenizer)
         resolved_work_root = work_root or Path.cwd()
         self._history = history
         self._cache_provider = cache_provider
         self._execution_manager = execution_manager
         self._output_preparer = output_preparer
+        self._tokenizer = (
+            provider.get_tokenizer() if provider is not None else tokenizer
+        )
         self._output_reader = ToolOutputReader(
             cache_provider,
             execution_manager,
@@ -97,6 +106,8 @@ class HarnessMemoryTools:
         offset: int = 0,
         limit: int = RUNTIME.memory_default_page_limit,
     ) -> PreformattedToolResult:
+        if self._tokenizer is None:
+            raise ValueError(RUNTIME_TEXT.search_previews_require_a_tokenizer)
         return render_search_results(
             ToolCallSearch(
                 self._cache_provider(), self._execution_manager, self._output_preparer
@@ -108,6 +119,7 @@ class HarnessMemoryTools:
                 offset=offset,
                 limit=limit,
             ),
+            self._tokenizer,
         )
 
     def read_tool_output(

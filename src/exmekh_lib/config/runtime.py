@@ -71,7 +71,7 @@ class RuntimeSettings:
     exit_tool_name: str = "exit_agent"
     sub_agent_tool_name: str = "call_sub_agent"
     sub_agent_argument_names: frozenset[str] = frozenset({"sub_agent", "text"})
-    memory_preview_limit: int = 240
+    memory_preview_tokens: int = 240
     preview_truncation_suffix: str = "…"
     memory_default_page_limit: int = 20
     memory_max_page_limit: int = 100
@@ -160,10 +160,13 @@ class RuntimeSettings:
             "reads when supported. Check response-type for running, partial, final, "
             "failed or cancelled; a failed execution differs from a valid result "
             "reporting failure.\n"
+            "Headers include current-time in UTC to the second, refreshed on each "
+            "reply. Execution duration is elapsed, using h, m and s with at most "
+            "one decimal place; reading again preserves the original duration.\n"
             "Read summaries with summary_mode='brief' (3 to 5 bullet points) or "
             "'detailed' (essential details); 'none' returns full output by default. "
             f"Content below {self.tool_output_summary_min_tokens} tokens stays complete. "
-            "Summaries preserve status, elapsed-seconds, IDs and next-cursor; "
+            "Summaries preserve status, elapsed, IDs and next-cursor; "
             "read again with 'none' when exact details are needed.\n"
             "Large tool output text is replaced with temporary file references. "
             "Read those files with inspect-file and read-file; read_tool_output, "

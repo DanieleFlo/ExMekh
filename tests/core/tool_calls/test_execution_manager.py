@@ -719,7 +719,9 @@ def test_runtime_record_updates_preserve_stored_output_metadata():
 
 
 @pytest.mark.parametrize("saved", [False, True])
-def test_runtime_records_use_work_arguments_and_reads_preserve_call_provenance(saved):
+def test_runtime_records_use_work_arguments_and_reads_preserve_call_provenance(
+    saved, xml_clock
+):
     operation = ToolExecutionOperation(lambda: "done")
     work_arguments = {"input": ["normalized"]}
     operation.record_arguments(work_arguments)

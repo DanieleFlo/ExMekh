@@ -16,8 +16,8 @@ from exmekh_lib.core.file_inspection.editing import (
 )
 from exmekh_lib.core.file_inspection.errors import FileInspectionError
 from exmekh_lib.core.file_inspection.reading import file_read_context, read_file
-from exmekh_lib.core.file_inspection.service import inspect_file
 from exmekh_lib.core.models import edit_document
+from tests.file_inspection_support import inspect_file
 from tests.interactive_support import edit_fragment
 
 

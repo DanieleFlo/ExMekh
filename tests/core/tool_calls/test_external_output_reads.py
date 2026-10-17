@@ -19,7 +19,6 @@ from exmekh_lib.core.cache.output_file_workspace import OutputFileWorkspace
 from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
 from exmekh_lib.core.file_inspection.output_access import output_file_access
 from exmekh_lib.core.file_inspection.reading import file_read_context, read_file
-from exmekh_lib.core.file_inspection.service import inspect_file
 from exmekh_lib.core.models.tool import (
     ExecutionOptions,
     PreformattedToolResult,
@@ -31,7 +30,8 @@ from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
 from exmekh_lib.core.tool_calls.output_preparer import ToolOutputPreparer
 from exmekh_lib.core.tool_calls.output_view import ToolOutputView
 from exmekh_lib.interfaces.provider import Provider
-from tests.core.agents.node.test_node import _StubTokenizer
+from tests.file_inspection_support import inspect_file
+from tests.tokenizer_support import StubTokenizer
 
 
 @pytest.fixture
@@ -39,7 +39,7 @@ def output_system(tmp_path):
     with SessionCache(tmp_path / "cache") as session:
         cache = session.node("owner")
         preparer = ToolOutputPreparer(
-            _StubTokenizer(),
+            StubTokenizer(),
             OutputFileWorkspace(lambda: cache, tmp_path, ToolOutputSettings(10)),
         )
         manager = ToolExecutionManager()
@@ -49,6 +49,7 @@ def output_system(tmp_path):
 
 def test_legacy_large_saved_record_is_migrated_and_cursors_cannot_reveal_it(
     output_system,
+    xml_clock,
 ):
     cache, _, _, reader = output_system
     original = "private" * 20

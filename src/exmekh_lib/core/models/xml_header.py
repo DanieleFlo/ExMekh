@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import base64
 import json
 import re
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any, Literal
 from xml.etree import ElementTree as ET
 
@@ -12,7 +12,14 @@ from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.config.validation import VALIDATION_PATTERNS
 from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
 from exmekh_lib.utils.json import to_json_value
-from exmekh_lib.utils.xml import append_text_element, append_value_element, render_xml
+from exmekh_lib.utils.time import format_timestamp, format_timing_fields
+from exmekh_lib.utils.xml import (
+    append_text_element,
+    append_value_element,
+    create_text_element,
+    read_text_element,
+    render_xml,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,7 +32,7 @@ class XmlHeaderContent:
 
     def field(self, key: str) -> str | None:
         element = self._root.find(key)
-        return None if element is None else self._text(element)
+        return None if element is None else read_text_element(element)
 
     def output_references(self) -> tuple[ToolOutputReference, ...] | None:
         container = self._root.find("used-tools")
@@ -33,19 +40,10 @@ class XmlHeaderContent:
             return None
         return tuple(
             ToolOutputReference.from_dict(
-                {child.tag: self._text(child) for child in item}
+                {child.tag: read_text_element(child) for child in item}
             )
             for item in container.findall("item")
         )
-
-    @staticmethod
-    def _text(element: ET.Element) -> str:
-        text = element.text or ""
-        if element.get("encoding") == "base64":
-            return base64.b64decode(text, validate=True).decode(
-                "utf-8", "surrogatepass"
-            )
-        return text
 
 
 @dataclass
@@ -114,6 +112,7 @@ class XmlHeader:
         append_text_element(root, "name", self.name)
         append_text_element(root, "type", self.source)
         append_text_element(root, "id", self.id)
+        root.append(self._current_time_element())
 
         if self.args is not None:
             args_element = ET.SubElement(root, "args")
@@ -130,8 +129,8 @@ class XmlHeader:
                         attributes={"name": name},
                     )
 
-        for key, value in self.fields.items():
-            if value is None:
+        for key, value in format_timing_fields(self.fields).items():
+            if value is None or key == "current-time":
                 continue
 
             if isinstance(value, (dict, list)):
@@ -140,6 +139,49 @@ class XmlHeader:
                 append_text_element(root, key, str(value))
 
         return render_xml(root)
+
+    @classmethod
+    def refresh_timing_in_content(cls, content: str) -> str:
+        """Refresh response time and legacy timing fields, preserving the body."""
+        leading = cls._leading_header(content)
+        if leading is None:
+            return content
+        root, end = leading
+        for existing in root.findall("current-time"):
+            root.remove(existing)
+        identity = root.find("id")
+        position = len(root) if identity is None else list(root).index(identity) + 1
+        root.insert(position, cls._current_time_element())
+        cls._refresh_legacy_timing(root)
+        return render_xml(root) + content[end:]
+
+    @staticmethod
+    def _refresh_legacy_timing(root: ET.Element) -> None:
+        for position, element in enumerate(list(root)):
+            if element.tag not in ("started-at", "finished-at", "elapsed-seconds"):
+                continue
+            try:
+                text = read_text_element(element)
+            except (ValueError, UnicodeError):
+                # Unknown legacy encodings must not prevent reading the saved body.
+                continue
+            fields = format_timing_fields({element.tag: text})
+            for name, value in fields.items():
+                if name == element.tag and value == text:
+                    continue
+                attributes = dict(element.attrib)
+                attributes.pop("encoding", None)
+                if "type" in attributes:
+                    attributes["type"] = "string"
+                replacement = create_text_element(
+                    name, str(value), attributes=attributes
+                )
+                root.remove(element)
+                root.insert(position, replacement)
+
+    @staticmethod
+    def _current_time_element() -> ET.Element:
+        return create_text_element("current-time", format_timestamp(datetime.now(UTC)))
 
     @staticmethod
     def _format_argument(value: Any) -> str:

@@ -226,18 +226,44 @@ il nuovo `<response-type>` indica:
 | `failed` | L'esecuzione o un hook ha sollevato un'eccezione. |
 | `cancelled` | Un callback ha confermato l'annullamento. |
 
-Per i lavori gestiti sia la risposta immediata sia le letture usano lo stesso
-header con argomenti, stato, call ID, timestamp di avvio, timestamp finale quando
-presente e secondi trascorsi nel campo `<elapsed-seconds>`. Durante un lavoro
+Gli header XML riportano `<current-time>` con l'ora di generazione della risposta
+in UTC, nel formato `2026-10-17T14:32:08Z`, senza frazioni di secondo. Il campo
+include la data per distinguere letture effettuate in giorni diversi e viene
+aggiornato a ogni nuova risposta, anche rileggendo output salvati o preformattati
+con un header valido. Non indica quando il tool ha osservato i dati restituiti.
+
+Per i lavori gestiti sia la risposta immediata sia le letture usano gli stessi
+metadati con argomenti, stato, call ID, timestamp di avvio, timestamp finale quando
+presente e durata nel campo `<elapsed>`. Anche `<started-at>` e `<finished-at>`
+sono esposti in UTC, fino ai secondi. La durata usa solo ore, minuti e secondi,
+con al massimo un decimale: `3.4s`, `2m 8s`, `1h 2m 3.4s`. Le componenti nulle
+e gli zeri decimali finali sono omessi; una durata inferiore a mezzo decimo
+arrotonda a `0s`. L'arrotondamento precede la scomposizione, quindi `59.95`
+secondi diventano `1m`. Le durate superiori a un giorno continuano a usare ore.
+Lo stesso formato temporale è usato nei record di `search_tool_outputs`.
+Durante un lavoro
 in background il tempo viene ricalcolato con un orologio monotono a ogni lettura;
 dopo completamento, errore o annullamento resta fermo. Le risposte ordinarie dei
 tool sincroni riportano la durata della chiamata, inclusi gli hook; i ritorni delle
 skill riportano il tempo dall'apertura, incluse inferenze e lavoro annidato.
-Queste durate si conservano nella cache e nelle letture dopo il riavvio.
-Una rilettura conserva il tempo dell'output originario. I record precedenti
+La formattazione avviene alla presentazione: i timestamp e `elapsed_seconds`
+numerico conservano la precisione originale nei valori Python e nella cache,
+anche dopo il riavvio. Il contenuto e i valori strutturati restituiti dai tool
+non vengono riscritti per cambiarne unità o precisione.
+Una rilettura conserva la durata dell'output originario, distinta da
+`<current-time>`. Il campo XML `<elapsed>` sostituisce `<elapsed-seconds>`;
+i consumatori del protocollo devono aggiornare il nome e gestire una durata
+leggibile anziché un numero di secondi. I vecchi header preformattati con
+`<elapsed-seconds>` numerico vengono convertiti durante la lettura. Metadati
+legacy non interpretabili, inclusi timestamp senza fuso, restano invariati.
+La lettura dei campi XML codificati usa lo stesso decoder del renderer condiviso;
+quando un campo temporale viene convertito, il suo tipo e la sua codifica vengono
+aggiornati insieme al valore. Un metadato legacy con codifica non leggibile viene
+preservato e non impedisce la lettura del contenuto salvato.
+I record precedenti
 senza metadati di esecuzione vengono letti come risultati finali, senza inventare
 tempi mancanti. Gli output preformattati senza header conservano il loro formato
-originale, senza aggiungere un header solo per la durata. Gli errori di
+originale, senza aggiungere un header solo per l'ora o la durata. Gli errori di
 validazione del runtime usano il renderer XML condiviso e dichiarano
 `response-type=failed`. Un risultato preformattato sincrono mantiene i suoi metadati
 indipendentemente dal nome registrato del tool. Un'esecuzione gestita aggiunge i
@@ -258,7 +284,8 @@ un ID e metadati leggibili. Gli errori dell'infrastruttura fuori dall'invocazion
 come la scrittura della cache, continuano a propagarsi al chiamante.
 Per lavori gestiti, anche gli stati running/failed/cancelled hanno lo stesso
 contenuto strutturato nelle risposte immediate e nelle riletture; solo i metadati
-temporali di un lavoro ancora attivo continuano ad aggiornarsi.
+di durata di un lavoro ancora attivo continuano ad aggiornarsi, oltre all'ora
+della nuova risposta.
 Gli override di tool caricati e runtime conservano entrambi la scelta esplicita
 di esecuzione sincrona della definizione originale.
 Un errore nell'annotazione opzionale `thinking` omette solo quell'annotazione.

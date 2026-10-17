@@ -52,4 +52,4 @@ def test_model_and_public_node_reads_use_isolated_summary_client(make_agent, mod
     assert all(request.get_tools() is None for request in provider.summary_requests)
     original = agent.root_node.read_tool_output("output-0")
     assert original.content.endswith("x" * 300)
-    assert original.content.split("</header>")[0].count("<elapsed-seconds>") == 1
+    assert original.content.split("</header>")[0].count("<elapsed>") == 1

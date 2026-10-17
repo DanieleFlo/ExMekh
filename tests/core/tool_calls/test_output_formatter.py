@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from unittest.mock import MagicMock
 from uuid import UUID
 from xml.etree import ElementTree as ET
@@ -12,6 +12,8 @@ from exmekh_lib.core.models.xml_header import XmlHeader
 from exmekh_lib.core.tool_calls.execution_manager import ExecutionSnapshot
 from exmekh_lib.core.tool_calls.output_formatter import ToolOutputFormatter
 from exmekh_lib.core.tool_calls.output_view import ToolOutputView
+
+pytestmark = pytest.mark.usefixtures("xml_clock")
 
 
 @pytest.mark.parametrize("invalid_id", [None, 42, "", "   ", OSError("unavailable")])
@@ -175,6 +177,46 @@ def test_reading_legacy_output_does_not_substitute_read_duration_for_missing_exe
     )
     assert content == original
     assert output_id is None
+
+
+def test_preformatted_read_refreshes_time_without_replacing_original_duration(
+    xml_clock,
+):
+    formatter = ToolOutputFormatter(MagicMock(spec=Client))
+    body = "# Authored result\r\n\n"
+    original = XmlHeader(
+        "Tool", "work", "output", fields={"elapsed-seconds": 3723.456789}
+    ).prepend_to(body)
+    xml_clock.now.return_value = datetime(2026, 10, 18, 10, 0, 0, tzinfo=UTC)
+
+    content, output_id = formatter.format_tool_result(
+        "read_tool_output", PreformattedToolResult(original), elapsed_seconds=0.123456
+    )
+    parsed = XmlHeader.parse_content(content)
+
+    assert parsed.field("current-time") == "2026-10-18T10:00:00Z"
+    assert parsed.field("elapsed") == "1h 2m 3.5s"
+    assert parsed.field("id") == "output"
+    assert parsed.body == body
+    assert output_id is None
+
+
+def test_duration_formatting_does_not_change_tool_authored_structured_values():
+    client = MagicMock(spec=Client)
+    client.generate_id.return_value = "output"
+    formatter = ToolOutputFormatter(client)
+    payload = {"elapsed_seconds": 3.14159265, "started_at": "original timestamp"}
+
+    content, _ = formatter.format_tool_result(
+        "work", payload, elapsed_seconds=3.14159265
+    )
+    parsed = XmlHeader.parse_content(content)
+    body = ET.fromstring(parsed.body)
+
+    assert parsed.field("elapsed") == "3.1s"
+    assert body.findtext("elapsed_seconds") == "3.14159265"
+    assert body.findtext("started_at") == "original timestamp"
+    assert payload["elapsed_seconds"] == 3.14159265
 
 
 def test_explicit_failed_preformatted_result_preserves_content_with_failed_metadata():

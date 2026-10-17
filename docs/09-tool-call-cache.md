@@ -164,7 +164,8 @@ includere, escludere o sovrascrivere singolarmente tramite i nomi seguenti:
 - `search_tool_outputs(query="", tool_name=None, skill_path=None,
   offset=0, limit=20)` cerca gli output salvati e quelli presenti nel runtime,
   compresi lavori in background e risultati con `cache_result=False`.
-  Restituisce XML paginato con anteprime di 240 caratteri.
+  Restituisce XML paginato con anteprime di massimo 240 token del modello,
+  includendo l'eventuale suffisso `…` nel limite.
 - `read_tool_output(output_id, cursor=None, summary_mode="none")` restituisce un `XmlHeader` con nome, tipo,
   ID, argomenti e `response-type`, seguito dallo stato o dall'output disponibile.
   Legge anche i lavori attivi e gli output temporanei. Un ID assente produce XML con
@@ -194,6 +195,16 @@ include la call ID originaria e i tempi. `response-type` distingue `running`,
 un'esecuzione nel runtime è `unavailable`, con risposta `failed`.
 
 La vista corrente prevale sulla copia salvata con lo stesso ID, senza duplicati.
+Il limite delle anteprime è `RUNTIME.memory_preview_tokens` (240), che sostituisce
+`memory_preview_limit`. Il tokenizer del provider esegue conteggio e troncamento;
+un'istanza standalone di `HarnessMemoryTools` deve ricevere `provider` oppure
+`tokenizer` per eseguire la ricerca. Gli output salvati conservano il testo
+completo, indipendentemente dalla lunghezza dell'anteprima.
+`provider` e `tokenizer` sono alternativi: passarli entrambi è un errore di
+configurazione. Il budget condiviso `TokenTextBudget` verifica anche il conteggio
+del testo dopo l'aggiunta del suffisso e rifiuta prefissi alterati o fuori limite
+restituiti da un tokenizer personalizzato.
+
 Le anteprime mostrano i dati parziali già filtrati, il risultato o l'errore utile;
 la ricerca non conferma la consegna del risultato finale e non salva gli output
 temporanei. I filtri e la paginazione si applicano all'insieme delle due fonti.

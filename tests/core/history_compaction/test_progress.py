@@ -170,7 +170,7 @@ def test_summary_quota_is_global_after_all_scoring_batches():
         )
     events = []
     result = HistoryCompactor(
-        provider, budget=RequestBudget(11000, count_request), on_progress=events.append
+        provider, budget=RequestBudget(13000, count_request), on_progress=events.append
     ).compact(history)
     assert len(provider.score_requests) > 1
     outputs = compacted_payload(result.history.get_history()[-1])["outputs"]

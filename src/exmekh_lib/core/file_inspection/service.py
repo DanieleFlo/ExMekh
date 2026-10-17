@@ -14,6 +14,8 @@ from exmekh_lib.config.file_inspection import (
     FILE_INSPECTION_TEXT,
     FileInspectionSettings,
 )
+from exmekh_lib.core.tokenizers.text_budget import TokenTextBudget
+from exmekh_lib.interfaces.tokenizer import Tokenizer
 
 from .containers import analyze_image, analyze_tar, analyze_zip
 from .evidence import InspectionReport
@@ -28,6 +30,7 @@ def inspect_file(
     work_root: Path,
     path: str,
     *,
+    tokenizer: Tokenizer,
     detailed: bool = False,
     max_items: int = FILE_INSPECTION.default_max_items,
     offset: int = 0,
@@ -36,7 +39,7 @@ def inspect_file(
 ) -> dict[str, object]:
     validate_selection(detailed, max_items, offset, query, settings)
     snapshot = read_snapshot(work_root, path, settings)
-    analysis = _analyze(snapshot, settings)
+    analysis = _analyze(snapshot, settings, tokenizer)
     page = analysis.index.select(max_items=max_items, offset=offset, query=query)
     report = _build_report(snapshot, analysis, page, detailed)
     if snapshot.content is not None:
@@ -66,8 +69,11 @@ def _build_report(
     return result
 
 
-def _analyze(snapshot: FileSnapshot, settings: FileInspectionSettings) -> Analysis:
-    index = RegionIndex(settings)
+def _analyze(
+    snapshot: FileSnapshot, settings: FileInspectionSettings, tokenizer: Tokenizer
+) -> Analysis:
+    label_budget = TokenTextBudget(tokenizer, settings.max_label_tokens)
+    index = RegionIndex(settings, label_budget)
     extension = snapshot.path.suffix.casefold()
     raw = snapshot.content
     if raw is None:
@@ -86,7 +92,7 @@ def _analyze(snapshot: FileSnapshot, settings: FileInspectionSettings) -> Analys
         if extension in settings.image_extensions:
             return analyze_image(raw, index)
         if raw.startswith(b"%PDF-") or extension == ".pdf":
-            return analyze_pdf(raw, index)
+            return analyze_pdf(raw, index, label_budget)
         return analyze_text(raw, extension, index)
     except (
         ValueError,

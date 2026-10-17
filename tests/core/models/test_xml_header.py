@@ -1,4 +1,5 @@
 import base64
+from datetime import UTC, datetime
 from typing import Any, cast
 from xml.etree import ElementTree as ET
 
@@ -7,6 +8,8 @@ import pytest
 from exmekh_lib.core.models.xml_header import XmlHeader
 from exmekh_lib.utils.xml import render_xml
 from tests.tool_result_support import parse_tool_result
+
+pytestmark = pytest.mark.usefixtures("xml_clock")
 
 
 def test_init_valid() -> None:
@@ -103,9 +106,108 @@ def test_remove_field() -> None:
 def test_to_xml_without_fields() -> None:
     header = XmlHeader(source="Tool", name="echo", id="id-1")
     expected = (
-        "<header>\n  <name>echo</name>\n  <type>Tool</type>\n  <id>id-1</id>\n</header>"
+        "<header>\n  <name>echo</name>\n  <type>Tool</type>\n  <id>id-1</id>\n"
+        "  <current-time>2026-10-17T14:32:08Z</current-time>\n</header>"
     )
     assert header.to_xml() == expected
+
+
+@pytest.mark.parametrize("source", ["Tool", "DeepSkill", "UserMessage"])
+def test_header_reports_the_current_utc_time_at_each_render(source, xml_clock):
+    header = XmlHeader(source, "work", "output", fields={"current-time": "stale"})
+    first = ET.fromstring(header.to_xml())
+    xml_clock.now.return_value = datetime(2026, 10, 18, 0, 0, 1, 999999, tzinfo=UTC)
+    second = ET.fromstring(header.to_xml())
+
+    assert first.findtext("current-time") == "2026-10-17T14:32:08Z"
+    assert second.findtext("current-time") == "2026-10-18T00:00:01Z"
+    assert XmlHeader.field_from_content(header.to_xml(), "current-time") == (
+        "2026-10-18T00:00:01Z"
+    )
+    assert len(second.findall("current-time")) == 1
+    assert header.fields == {"current-time": "stale"}
+    xml_clock.now.assert_called_with(UTC)
+
+
+@pytest.mark.parametrize("separator", ["", "\n", "\r\n"])
+def test_refreshing_legacy_header_formats_times_without_changing_the_body(separator):
+    body = "# Authored output\r\n<elapsed-seconds>unchanged</elapsed-seconds>\x00"
+    original = (
+        "<header><name>work</name><type>Tool</type><id>output</id>"
+        "<started-at>2026-10-17T16:32:00.987654+02:00</started-at>"
+        "<finished-at>2026-10-17T14:32:08.123456Z</finished-at>"
+        "<elapsed-seconds>7.13579</elapsed-seconds></header>" + separator + body
+    )
+    refreshed = XmlHeader.refresh_timing_in_content(original)
+    header_text, rest = refreshed.split("</header>", 1)
+    header = ET.fromstring(header_text + "</header>")
+
+    assert header.findtext("current-time") == "2026-10-17T14:32:08Z"
+    assert header.findtext("started-at") == "2026-10-17T14:32:00Z"
+    assert header.findtext("finished-at") == "2026-10-17T14:32:08Z"
+    assert header.findtext("elapsed") == "7.1s"
+    assert header.find("elapsed-seconds") is None
+    assert rest == separator + body
+
+
+def test_refreshing_header_removes_stale_duplicate_response_times():
+    content = (
+        "<header><name>work</name><type>Tool</type><id>output</id>"
+        "<current-time>old</current-time><current-time>older</current-time>"
+        "</header>\nbody"
+    )
+    refreshed = XmlHeader.refresh_timing_in_content(content)
+    parsed = XmlHeader.parse_content(refreshed)
+    assert parsed.field("current-time") == "2026-10-17T14:32:08Z"
+    assert refreshed.count("<current-time>") == 1
+
+
+def test_refreshing_encoded_timing_metadata_updates_its_encoding_and_type():
+    encoded = base64.b64encode(b"7.13579").decode()
+    content = (
+        "<header><name>work</name><type>Tool</type><id>output</id>"
+        f'<elapsed-seconds encoding="base64" type="number">{encoded}</elapsed-seconds>'
+        "</header>\r\nbody"
+    )
+    refreshed = XmlHeader.refresh_timing_in_content(content)
+    parsed = XmlHeader.parse_content(refreshed)
+    assert parsed.field("elapsed") == "7.1s"
+    assert parsed.body == "body"
+    header = ET.fromstring(parsed.header)
+    assert header.find("elapsed").get("type") == "string"
+    assert header.find("elapsed").get("encoding") is None
+
+
+@pytest.mark.parametrize("encoded", ["invalid!", "/w=="])
+def test_invalid_legacy_timing_encodings_do_not_block_a_read(encoded):
+    content = (
+        "<header><id>output</id>"
+        f'<elapsed-seconds encoding="base64">{encoded}</elapsed-seconds>'
+        "</header>\nbody"
+    )
+    refreshed = XmlHeader.refresh_timing_in_content(content)
+    header = ET.fromstring(refreshed.split("</header>")[0] + "</header>")
+    assert header.findtext("elapsed-seconds") == encoded
+    assert header.find("elapsed-seconds").get("encoding") == "base64"
+    assert refreshed.endswith("\nbody")
+
+
+def test_refreshing_minimal_legacy_header_does_not_invent_an_output_identity():
+    refreshed = XmlHeader.refresh_timing_in_content(
+        "<header><name>legacy</name></header>\nraw output"
+    )
+    parsed = XmlHeader.parse_content(refreshed)
+    assert parsed.field("name") == "legacy"
+    assert parsed.field("id") is None
+    assert parsed.field("current-time") == "2026-10-17T14:32:08Z"
+    assert parsed.body == "raw output"
+
+
+@pytest.mark.parametrize("content", ["authored text", "<header>", "<header>&</header>"])
+def test_refreshing_timing_preserves_content_without_a_valid_header(content):
+    assert XmlHeader.refresh_timing_in_content(content) == content
+    assert XmlHeader.field_from_content(content, "current-time") is None
+    assert XmlHeader.add_field_to_content(content, "current-time", "unused") == content
 
 
 def test_to_xml_with_fields_and_none_filtering() -> None:
@@ -121,6 +223,7 @@ def test_to_xml_with_fields_and_none_filtering() -> None:
         "  <name>coding</name>\n"
         "  <type>DeepSkill</type>\n"
         "  <id>skill-1</id>\n"
+        "  <current-time>2026-10-17T14:32:08Z</current-time>\n"
         "  <depth>2</depth>\n"
         "  <active>True</active>\n"
         "</header>"
@@ -176,6 +279,7 @@ def test_to_xml_renders_typed_arguments_and_escapes_content() -> None:
         "  <name>inspect</name>\n"
         "  <type>Tool</type>\n"
         "  <id>result-1</id>\n"
+        "  <current-time>2026-10-17T14:32:08Z</current-time>\n"
         "  <args>\n"
         '    <text>city &lt;Rome&gt; &amp; "Lazio"</text>\n'
         "    <count>2</count>\n"

@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from exmekh_lib.config.file_inspection import FileInspectionSettings
+from exmekh_lib.core.tokenizers.text_budget import TokenTextBudget
 
 from .selection import query_terms
 
@@ -53,8 +54,11 @@ class RegionPage:
 class RegionIndex:
     """Keep navigation bounded; expose selection without mutable list access."""
 
-    def __init__(self, settings: FileInspectionSettings) -> None:
+    def __init__(
+        self, settings: FileInspectionSettings, label_budget: TokenTextBudget
+    ) -> None:
         self._settings = settings
+        self._label_budget = label_budget
         self._regions: list[Region] = []
         self._truncated = False
         self._labels_truncated = False
@@ -76,8 +80,8 @@ class RegionIndex:
         if len(self._regions) >= self._settings.max_regions:
             self.mark_truncated()
             return
-        self._labels_truncated |= len(name) > self._settings.max_label_chars
-        label = name[: self._settings.max_label_chars]
+        label = self._label_budget.truncate(name)
+        self._labels_truncated |= label != name
         self._regions.append(Region(kind, label, start, end))
 
     def select(self, *, max_items: int, offset: int, query: str | None) -> RegionPage:

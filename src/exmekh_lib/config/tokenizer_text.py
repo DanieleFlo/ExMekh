@@ -5,6 +5,14 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class TokenizerText:
+    invalid_text_budget: str = "max_tokens must be a nonnegative integer"
+    invalid_token_count: str = "Tokenizer returned an invalid token count"
+    invalid_prefix: str = (
+        "Tokenizer must return an unchanged prefix within the token budget"
+    )
+    tokenization_failed: str = (
+        "Tokenization failed while applying a text budget: {error}"
+    )
     lossless_split_required: str = (
         "Tokenizer cannot split text losslessly within the token budget"
     )

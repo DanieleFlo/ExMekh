@@ -158,7 +158,9 @@ def execute_live_file_call(provider, directory, tool_name, arguments, initial):
             resource = path.relative_to(directory).as_posix()
             line_count = len(physical_lines(initial[path].decode()))
             start_index = 1 if line_count else 0
-            inspection = inspect_file(directory, resource)
+            inspection = inspect_file(
+                directory, resource, tokenizer=provider.get_tokenizer()
+            )
             with file_read_context((inspection.evidence,)):
                 reading = read_file(directory, resource, start_index, line_count)
             for name, report, inputs in (
@@ -687,7 +689,9 @@ def test_live_rejection_of_second_edit_prevents_entire_call(
     (tmp_path / "existing.txt").write_text("KEEP")
     first = tmp_path / "notes.txt"
     first.write_text("FIRST")
-    inspection = inspect_file(tmp_path, first.name)
+    inspection = inspect_file(
+        tmp_path, first.name, tokenizer=edit_provider.get_tokenizer()
+    )
     with file_read_context((inspection.evidence,)):
         reading = read_file(tmp_path, first.name, 1, 1)
     edit = file_tools(tmp_path)["edit-file"]

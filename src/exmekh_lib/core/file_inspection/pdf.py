@@ -7,11 +7,14 @@ from pypdf.errors import PdfReadError
 from pypdf.generic import DictionaryObject
 
 from exmekh_lib.config.file_inspection import FILE_INSPECTION_TEXT
+from exmekh_lib.core.tokenizers.text_budget import TokenTextBudget
 
 from .models import Analysis, RegionIndex
 
 
-def analyze_pdf(raw: bytes, index: RegionIndex) -> Analysis:
+def analyze_pdf(
+    raw: bytes, index: RegionIndex, property_budget: TokenTextBudget
+) -> Analysis:
     result = Analysis("pdf", "document", index)
     reader = PdfReader(io.BytesIO(raw), strict=True)
     result.details["encrypted"] = reader.is_encrypted
@@ -39,7 +42,7 @@ def analyze_pdf(raw: bytes, index: RegionIndex) -> Analysis:
     metadata = reader.metadata
     if metadata is not None:
         result.details["properties"] = {
-            name: str(metadata[key])[: index.settings.max_label_chars]
+            name: property_budget.truncate(str(metadata[key]))
             for name, key in (
                 ("title", "/Title"),
                 ("author", "/Author"),

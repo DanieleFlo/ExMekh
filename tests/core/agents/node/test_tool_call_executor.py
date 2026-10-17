@@ -144,7 +144,7 @@ def test_synchronous_duration_is_measured_and_preserved_in_saved_reads(
     immediate_header = ET.fromstring(
         result.response.get_message().split("</header>")[0] + "</header>"
     )
-    assert immediate_header.findtext("elapsed-seconds") == "2.5"
+    assert immediate_header.findtext("elapsed") == "2.5s"
     with SessionCache(tmp_path) as session:
         cache = session.node("node")
         history = ExecutionHistory()
@@ -157,7 +157,7 @@ def test_synchronous_duration_is_measured_and_preserved_in_saved_reads(
             result.output_id
         )
         header = ET.fromstring(read.content.split("</header>")[0] + "</header>")
-        assert header.findtext("elapsed-seconds") == "2.5"
+        assert header.findtext("elapsed") == "2.5s"
         assert read.content.endswith("done")
 
 

@@ -33,6 +33,7 @@ from tests.live.test_file_editing_live import (
 from tests.live.test_file_reading_live import (
     test_live_client_reads_files_and_identifies_their_contents as run_live_read_case,
 )
+from tests.tokenizer_support import StubTokenizer
 
 
 class FileFixtureProvider:
@@ -41,6 +42,10 @@ class FileFixtureProvider:
         self.arguments = arguments
         self.requests = []
         self.exchanges = []
+        self._tokenizer = StubTokenizer()
+
+    def get_tokenizer(self):
+        return self._tokenizer
 
     def call(self, request):
         validate_request_history(request)

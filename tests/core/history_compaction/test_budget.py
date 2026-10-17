@@ -82,7 +82,8 @@ def test_large_score_catalog_is_split_without_losing_or_duplicating_entries():
                 "small evidence", call_id=f"call-{index}", output_id=f"id-{index}"
             )
         )
-    budget = RequestBudget(11000, count_request)
+    # Response timestamps enlarge the base history; the catalog still needs batches.
+    budget = RequestBudget(13000, count_request)
     provider.on_score = budget.require_fits
     result = HistoryCompactor(provider, budget=budget).compact(history)
     assert len(provider.score_requests) > 1

@@ -168,7 +168,7 @@ def test_cursor_summary_keeps_original_cursor_attachments_and_separate_client_co
             result = reader.read("output", cursor=5, summary_mode=mode)
             header, body = split_read(result)
             assert int(header.findtext("next-cursor")) == 305
-            assert header.findtext("elapsed-seconds") == "4"
+            assert header.findtext("elapsed") == "4s"
             assert header.findtext("status") == "completed"
             assert header.findtext("response-type") == "final"
             assert body == "essential <&> facts"
@@ -218,7 +218,7 @@ def test_runtime_summary_preserves_status_progress_cursor_and_delivery(
         assert header.findtext("status") == ("completed" if finished else "running")
         assert header.findtext("response-type") == ("final" if finished else "partial")
         assert header.findtext("next-cursor") == "300"
-        assert header.find("elapsed-seconds") is not None
+        assert header.find("elapsed") is not None
         assert body == "essential <&> facts"
         assert manager.next_delivery(("owner",)) is None
         request_body = provider.call.call_args.args[0].get_messages()[1].get_message()

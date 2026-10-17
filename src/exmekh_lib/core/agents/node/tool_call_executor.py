@@ -22,6 +22,7 @@ from exmekh_lib.core.file_inspection.evidence import ReadReport
 from exmekh_lib.core.file_inspection.interactive import FileInteractiveCalls
 from exmekh_lib.core.file_inspection.output_access import output_file_access
 from exmekh_lib.core.file_inspection.runtime import FileToolRuntime
+from exmekh_lib.core.file_inspection.tokenization import inspection_tokenizer_context
 from exmekh_lib.core.models.assistant_message import ToolCall
 from exmekh_lib.core.models.client import Client
 from exmekh_lib.core.models.tool import CalledTool, PreformattedToolResult
@@ -267,6 +268,7 @@ class ToolCallExecutor:
                 )
             else:
                 with (
+                    inspection_tokenizer_context(self._client.get_tokenizer()),
                     output_file_access(
                         self._output_preparer.files
                         if self._output_preparer is not None
@@ -308,6 +310,9 @@ class ToolCallExecutor:
         operation = called_tool.create_execution(
             work_root=self._work_root,
             history=tuple(self._client.get_history()),
+        )
+        operation.add_run_context(
+            inspection_tokenizer_context(self._client.get_tokenizer())
         )
         operation.add_run_context(
             self._file_tools.read_context(self._client.get_history())

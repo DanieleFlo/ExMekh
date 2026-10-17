@@ -22,7 +22,7 @@ from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
 from exmekh_lib.core.agents.node import Node
 from exmekh_lib.core.file_inspection import workspace
 from exmekh_lib.core.file_inspection.errors import FileInspectionError
-from exmekh_lib.core.file_inspection.service import inspect_file
+from exmekh_lib.core.file_inspection.tokenization import inspection_tokenizer_context
 from exmekh_lib.core.models.assistant_message import (
     AssistantMessage,
     FunctionCall,
@@ -38,6 +38,8 @@ from exmekh_lib.core.providers.openai_function_tool_definition_mapper import (
 )
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
 from tests.core.agents.node.test_node import SequenceProvider
+from tests.file_inspection_support import inspect_file
+from tests.tokenizer_support import StubTokenizer
 from tests.tool_result_support import parse_tool_result
 
 
@@ -287,7 +289,7 @@ def test_index_limit_differs_from_pagination_and_labels_are_bounded(tmp_path):
         "# AAAAAAAA\n# B\n# C\n",
         "notes.md",
         max_items=1,
-        settings=replace(FILE_INSPECTION, max_regions=2, max_label_chars=3),
+        settings=replace(FILE_INSPECTION, max_regions=2, max_label_tokens=3),
     )
     assert result["regions"][0]["name"] == "AAA"
     assert result["selection"]["index_truncated"]
@@ -485,7 +487,8 @@ def bundled_tool(tmp_path):
     loaded = Capabilities(None, default_capabilities=DefaultCapabilities()).load(
         work_root=tmp_path
     )
-    return next(tool for tool in loaded.tools if tool.name == "inspect-file")
+    with inspection_tokenizer_context(StubTokenizer()):
+        yield next(tool for tool in loaded.tools if tool.name == "inspect-file")
 
 
 def test_bundled_tool_schema_and_structured_errors(bundled_tool):
@@ -511,13 +514,15 @@ def test_bundled_tool_schema_and_structured_errors(bundled_tool):
 def test_background_result_is_retrievable_as_xml(bundled_tool, tmp_path):
     (tmp_path / "notes.md").write_text("# A <title>\n")
     manager = ToolExecutionManager()
+    operation = bundled_tool.create_execution_with_hooks(
+        {"path": "notes.md"}, call_id="inspect-call", work_root=tmp_path, history=()
+    )
+    operation.add_run_context(inspection_tokenizer_context(StubTokenizer()))
     snapshot = manager.start(
         "inspect-call",
         "inspect-file",
         {"path": "notes.md"},
-        bundled_tool.create_execution_with_hooks(
-            {"path": "notes.md"}, call_id="inspect-call", work_root=tmp_path, history=()
-        ),
+        operation,
         ("node",),
         ExecutionOptions(mode="background"),
         output_id="inspect-output",

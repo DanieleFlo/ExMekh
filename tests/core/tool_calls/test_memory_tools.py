@@ -9,6 +9,7 @@ from exmekh_lib.core.cache import SessionCache, ToolCallRecord
 from exmekh_lib.core.models.tool import PreformattedToolResult
 from exmekh_lib.core.tool_calls.execution_history import ExecutionHistory
 from exmekh_lib.core.tool_calls.harness_memory_tools import HarnessMemoryTools
+from tests.tokenizer_support import StubTokenizer
 
 
 def _content(result: PreformattedToolResult) -> str:
@@ -308,7 +309,9 @@ def test_search_returns_filtered_paginated_xml_previews(tmp_path) -> None:
             ToolCallRecord("fetch", "two", {}, "hello again", skill_path="/analysis")
         )
         cache.store(ToolCallRecord("other", "three", {}, "hello"))
-        memory = HarnessMemoryTools(ExecutionHistory(), lambda: cache)
+        memory = HarnessMemoryTools(
+            ExecutionHistory(), lambda: cache, tokenizer=StubTokenizer()
+        )
 
         first = ET.fromstring(
             _content(

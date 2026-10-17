@@ -20,7 +20,6 @@ from exmekh_lib.core.file_inspection.reading import (
     read_file,
 )
 from exmekh_lib.core.file_inspection.runtime import FileInspectionHistory
-from exmekh_lib.core.file_inspection.service import inspect_file
 from exmekh_lib.core.models.assistant_message import (
     AssistantMessage,
     FunctionCall,
@@ -38,6 +37,7 @@ from exmekh_lib.core.providers.openai_function_tool_definition_mapper import (
 from exmekh_lib.interfaces.tool_hook import AfterTool, BeforeTool, ToolArguments
 from exmekh_lib.utils.xml import stringify_tool_result
 from tests.core.agents.node.test_node import SequenceProvider
+from tests.file_inspection_support import inspect_file
 from tests.tool_result_support import parse_tool_result
 
 

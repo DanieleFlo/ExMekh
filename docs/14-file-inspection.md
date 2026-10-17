@@ -101,7 +101,7 @@ the scan. Warnings explain parser failures and stopped scans; valid text metrics
 remain available when a format parser rejects its input.
 
 Budgets live in `config/file_inspection.py`: 8 MiB input, 10,000 navigation
-regions, 200 characters per label, 1,000 query characters, 64 structural levels,
+regions, 200 model tokens per label, 1,000 query characters, 64 structural levels,
 100,000 YAML node visits, 10,000 archive entries, 64 MiB decompressed TAR input,
 2,000 PDF pages and 40 million image pixels. ZIP members are never decompressed.
 Oversized files expose metadata only. Changes detected while reading a file
@@ -109,6 +109,21 @@ produce a retryable error; each new inspection reads a fresh snapshot.
 Image, TAR/compressed TAR and ZIP/container filename dispatch are configured by
 `image_extensions`, `archive_extensions` and `zip_extensions`; binary signature
 detection still recognizes ZIP and uncompressed TAR content independently.
+
+`max_label_tokens` replaces `max_label_chars`, retaining the default of 200.
+The node supplies its model tokenizer for region names and PDF document
+properties, in both inline and background execution. Tokenization is a runtime
+dependency and is not exposed in the model's tool schema. A truncated region
+name sets `selection.labels_truncated`; document properties use the same budget.
+Direct Python calls to `inspect_file` require `tokenizer=...`, for example
+`inspect_file(work_root, "report.pdf", tokenizer=provider.get_tokenizer())`.
+
+`TokenTextBudget` owns token counting, prefix validation and bounded truncation.
+The navigation index uses it only for its region names; the PDF analyzer receives
+the document-property budget explicitly. A tokenizer failure propagates as
+`TextTokenizationError` and uses normal tool execution failure handling, instead
+of marking a valid source file as `invalid_format`. A missing runtime tokenizer
+is also an execution dependency failure, not a file-path or selection error.
 
 Deterministic tests create actual files and cover parsers, metadata, limits,
 pagination, invalid paths, symlinks, concurrent modification detection, provider

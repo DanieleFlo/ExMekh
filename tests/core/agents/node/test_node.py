@@ -10,7 +10,6 @@ import pytest
 from pydantic import BaseModel
 
 from exmekh_lib.capabilities.tools.call_sub_agent.sub_agent_tool import SubAgentTool
-from exmekh_lib.config.storage import DEFAULT_STORAGE_SETTINGS
 from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
 from exmekh_lib.core.agents.deep_agent.deep_agent import DeepAgent
 from exmekh_lib.core.agents.deep_agent.stream_event import (
@@ -57,6 +56,7 @@ from exmekh_lib.interfaces.provider import Provider
 from exmekh_lib.interfaces.tokenizer import Tokenizer
 from exmekh_lib.utils.xml import stringify_tool_result
 from tests.event_handler import as_agent_handler
+from tests.tokenizer_support import StubTokenizer
 
 _RUNTIME_TOOL_NAMES = [
     "get_execution_history",
@@ -67,32 +67,13 @@ _RUNTIME_TOOL_NAMES = [
 ]
 
 
-class _StubTokenizer(Tokenizer):
-    def count_tokens(self, text: str) -> int:
-        return len(text)
-
-    def truncate_text(self, text: str, start_tokens: int, end_tokens: int = 0) -> str:
-        return text[:start_tokens] + (text[-end_tokens:] if end_tokens else "")
-
-    def initialize(self) -> None:
-        pass
-
-    def generate_id(self) -> str:
-        raise RuntimeError("No tokenizer session for stub")
-
-    def get_session(self) -> SessionCache:
-        return CacheManager.get_session(
-            "stub-node", "default", DEFAULT_STORAGE_SETTINGS.tokenizer_cache_directory
-        )
-
-
 class SequenceProvider(Provider):
     def __init__(
         self,
         responses: list[AssistantMessage],
         tokenizer: Tokenizer | None = None,
     ) -> None:
-        super().__init__(tokenizer or _StubTokenizer())
+        super().__init__(tokenizer or StubTokenizer())
         self._responses = responses
         self.requests: list[ProviderRequest] = []
 
@@ -666,7 +647,7 @@ def test_run_tool_delegates_execution_to_called_tool() -> None:
     assert response.get_name() == "echo"
 
 
-def test_run_tool_prepends_xml_header_when_client_generates_id() -> None:
+def test_run_tool_prepends_xml_header_when_client_generates_id(xml_clock) -> None:
     client = MagicMock(spec=Client)
     client.generate_id.return_value = "id-tool"
     called_tool = MagicMock(spec=CalledTool)
@@ -794,7 +775,9 @@ def test_skill_increments_depth_adds_exit_body_and_requires_a_tool(
     assert _output_body(exit_message.get_message()) == "done"
 
 
-def test_skill_increments_depth_prepends_xml_header_on_exit(tmp_path: Path) -> None:
+def test_skill_increments_depth_prepends_xml_header_on_exit(
+    tmp_path: Path, xml_clock
+) -> None:
     class ProviderWithId(SequenceProvider):
         def generate_id(self) -> str:
             return "exit-id-456"
@@ -838,23 +821,23 @@ def test_skill_increments_depth_prepends_xml_header_on_exit(tmp_path: Path) -> N
     header = ET.fromstring(
         exit_message.get_message().split("</header>")[0] + "</header>"
     )
-    elapsed_seconds = float(header.findtext("elapsed-seconds"))
-    assert elapsed_seconds >= 0
+    elapsed = header.findtext("elapsed")
+    assert elapsed.endswith("s")
     expected_header = XmlHeader(
         source="DeepSkill",
         name="mock-skill",
         id="exit-id-456",
         fields={
-            "elapsed-seconds": elapsed_seconds,
             "response-type": "final",
             "used-tools": [],
+            "elapsed": elapsed,
         },
     ).to_xml()
     assert exit_message.get_message() == f"{expected_header}\ndone"
     record = node._runtime._tool_cache.get("exit-id-456")
     assert record.name == "mock-skill"
     assert record.source == "DeepSkill"
-    assert record.execution["elapsed_seconds"] == elapsed_seconds
+    assert record.execution["elapsed_seconds"] >= 0
     assert record.tool_call_id == "skill-call"
     assert record.args == {"topic": "XML & cache"}
     assert record.skill_path == "/mock-skill"
