@@ -8,6 +8,9 @@ class FileEditingSettings:
     temporary_file_prefix: str = ".exmekh-edit-"
     temporary_file_mode: int = 0o600
     min_new_file_characters: int = 2
+    max_creation_document_bytes: int = 1024 * 1024
+    max_creation_elements: int = 64
+    creation_directory_mode: int = 0o777
     max_snapshot_bytes: int = 1024 * 1024
     max_generated_bytes: int = 1024 * 1024
     protocol_timeout_seconds: float = 300
@@ -75,8 +78,25 @@ class FileEditingSettings:
     )
     minimum_content: str = "content must contain at least {minimum} Unicode characters."
     content_nul: str = "content must not contain NUL characters."
+    content_unicode: str = (
+        "content must contain valid Unicode text representable in UTF-8."
+    )
     creation_byte_limit: str = "Content exceeds the configured file byte limit."
     path_exists: str = "The path already exists; new-file cannot overwrite it."
+    creation_document_string: str = "The creation document must be a string."
+    creation_document_byte_limit: str = "Creation document exceeds the limit of {maximum} UTF-8 bytes; no resources were created."
+    creation_document_element_limit: str = "Creation document exceeds the limit of {maximum} creation markers; no resources were created."
+    creation_document_limit_hint: str = "Split the document into smaller creation calls within the reported limits; no resources were created."
+    creation_marker_required: str = (
+        'Expected <new-exmekh-file path="<path>"/> or '
+        '<new-exmekh-dir path="<path>"/>; only the path attribute is supported.'
+    )
+    empty_creation_document: str = (
+        "Creation document must contain at least one creation."
+    )
+    directory_content_ignored: str = (
+        "Directory content was ignored; directory markers do not accept content."
+    )
     deletion_target: str = "delete-file requires an existing regular file or directory; top-level symbolic links are not followed."
     deletion_paths_required: str = (
         "paths must be a nonempty list of workroot-relative paths."
@@ -149,10 +169,19 @@ class FileEditingSettings:
     @property
     def new_file_description(self) -> str:
         return (
-            "Create a new file inside the workroot. Requires path and content of at "
-            f"least {self.min_new_file_characters} Unicode characters. The parent "
-            "directory must exist. An existing path is an error. No inspect-file or "
-            "read-file is required."
+            "Create files and directories inside the workroot using one document string: "
+            '<new-exmekh-dir path="folder"/><new-exmekh-file path="folder/file.txt"/>content. '
+            "Each body ends at the next reserved new-exmekh-file or new-exmekh-dir opening "
+            "prefix, or the end of the string. File bodies are literal text, without "
+            "trimming, entity decoding or added newlines, and must contain at least "
+            f"{self.min_new_file_characters} Unicode characters. Only path attributes "
+            "are entity-decoded. Directory bodies are ignored with a warning. "
+            "Use self-closing markers with double-quoted paths; no closing tags. "
+            "Process in order: parents must already exist or be created earlier. "
+            "An existing path is an error; new-file never overwrites. "
+            "Return ok and ordered results with per-entry errors/warnings; continue "
+            "after errors without rollback. Retry only failed entries. "
+            "No inspect-file or read-file is required."
         )
 
 
@@ -171,3 +200,14 @@ class FileEditFormat:
 
 
 FILE_EDIT_FORMAT = FileEditFormat()
+
+
+@dataclass(frozen=True, slots=True)
+class FileCreationFormat:
+    """Reserved creation boundaries; only path attributes have XML semantics."""
+
+    marker_pattern: str = r"<new-exmekh-(?:file|dir)\b"
+    opening_pattern: str = r'<new-exmekh-(file|dir)\s+path="([^"<>]*)"\s*/>'
+
+
+FILE_CREATION_FORMAT = FileCreationFormat()

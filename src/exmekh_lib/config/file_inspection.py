@@ -62,6 +62,9 @@ class FileInspectionText:
 
     path_required: str = "path must contain non-space text inside the workroot."
     path_nul: str = "path must not contain NUL characters."
+    path_unicode: str = (
+        "path must contain valid Unicode text without surrogate code points."
+    )
     root_not_directory: str = "workroot must identify a directory."
     root_unavailable: str = (
         "workroot does not exist or cannot be resolved; restore it before retrying."

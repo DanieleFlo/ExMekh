@@ -497,7 +497,7 @@ def test_steering_after_completion_preserves_generated_history_without_dispatch(
         node.steer("stop all work and leave the skill")
         calls = (
             (
-            ("discarded-delete", "delete-file", {"paths": ["notes.txt"]}),
+                ("discarded-delete", "delete-file", {"paths": ["notes.txt"]}),
                 ("discarded-exit", "exit_agent", {"text": "obsolete", "items": []}),
             )
             if with_calls

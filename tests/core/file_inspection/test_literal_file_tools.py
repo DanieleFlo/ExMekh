@@ -208,7 +208,11 @@ def test_new_delete_use_normal_hooks_without_inspect_or_read(
         [
             enter(),
             response(
-                ("new", "new-file", {"path": "notes.txt", "content": "created\r\n"}),
+                (
+                    "new",
+                    "new-file",
+                    {"document": '<new-exmekh-file path="notes.txt"/>created\r\n'},
+                ),
                 continuation="cont-new",
             ),
             response(

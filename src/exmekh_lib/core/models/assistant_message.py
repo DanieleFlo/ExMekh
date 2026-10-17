@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from copy import copy
 from dataclasses import dataclass, field
 from typing import Any, Literal, Self
 
-from pydantic_core import to_json
+from pydantic_core import to_jsonable_python
 
 from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.interfaces.message import Message
@@ -101,6 +102,45 @@ class ToolCall:
     def get_arguments(self) -> dict[str, Any]:
         return self.function.arguments
 
+    def arguments_json(self) -> str:
+        """Keep rejected arguments recoverable when sending the next provider turn."""
+        return self._serialize_json(self.get_arguments())
+
     @staticmethod
     def dump_many(tool_calls: Sequence[ToolCall]) -> str:
-        return to_json(tool_calls, indent=2).decode()
+        records = [
+            {
+                "id": call.get_id(),
+                "function": {
+                    "name": call.get_name(),
+                    "arguments": call.get_arguments(),
+                },
+                "type": call.get_type(),
+            }
+            for call in tool_calls
+        ]
+        return ToolCall._serialize_json(records, indent=2)
+
+    @staticmethod
+    def _serialize_json(value: object, *, indent: int | None = None) -> str:
+        # Preserve typed values while escaping invalid Unicode instead of losing history.
+        return json.dumps(
+            ToolCall._json_value(value),
+            ensure_ascii=True,
+            indent=indent,
+            separators=(",", ":") if indent is None else None,
+        )
+
+    @staticmethod
+    def _json_value(value: object) -> Any:
+        if isinstance(value, dict):
+            converted = {}
+            for key, item in value.items():
+                if not isinstance(key, str):
+                    # Keep the provider's formatting for typed mapping keys.
+                    key = next(iter(to_jsonable_python({key: None})))
+                converted[key] = ToolCall._json_value(item)
+            return converted
+        if isinstance(value, (list, tuple, set, frozenset)):
+            return [ToolCall._json_value(item) for item in value]
+        return to_jsonable_python(value)

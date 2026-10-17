@@ -27,6 +27,9 @@ from tests.live.test_file_editing_live import (
 from tests.live.test_file_editing_live import (
     test_live_model_applies_literal_file_operations as run_literal_file_case,
 )
+from tests.live.test_file_editing_live import (
+    test_live_model_creates_mixed_resource_batch as run_mixed_creation_case,
+)
 from tests.live.test_file_reading_live import (
     test_live_client_reads_files_and_identifies_their_contents as run_live_read_case,
 )
@@ -78,11 +81,18 @@ def test_observed_effects_validate_emitted_arguments_before_user_intent(tmp_path
         if name == "edit-file"
         else {"paths": ["notes.txt"]}
         if name == "delete-file"
-        else {"path": "notes.txt", "content": "MODEL_CHOICE"}
+        else {"document": '<new-exmekh-file path="notes.txt"/>MODEL_CHOICE'}
     )
     receipt = (
         {"ok": True, "results": [{"path": "notes.txt", "ok": True}]}
         if name == "delete-file"
+        else {
+            "ok": True,
+            "results": [
+                {"index": 1, "path": "notes.txt", "resource_type": "file", "ok": True}
+            ],
+        }
+        if name == "new-file"
         else {"ok": True}
     )
     if name != "delete-file":
@@ -102,7 +112,14 @@ def test_rejected_call_cannot_change_file(tmp_path):
     path = tmp_path / "notes.txt"
     path.write_bytes(b"OLD")
     trace = history(
-        "new-file", {"path": "notes.txt", "content": "MODEL_CHOICE"}, {"ok": False}
+        "new-file",
+        {"document": '<new-exmekh-file path="notes.txt"/>MODEL_CHOICE'},
+        {
+            "ok": False,
+            "results": [
+                {"index": 1, "path": "notes.txt", "resource_type": "file", "ok": False}
+            ],
+        },
     )
     assert verify_file_effects(trace, tmp_path, {path: b"OLD"}) == []
     path.write_bytes(b"CHANGED")
@@ -129,7 +146,14 @@ def test_alias_edits_use_one_initial_snapshot(tmp_path):
 def test_valid_creation_failure_is_not_a_model_limitation(tmp_path):
     path = tmp_path / "notes.txt"
     trace = history(
-        "new-file", {"path": "notes.txt", "content": "VALID"}, {"ok": False}
+        "new-file",
+        {"document": '<new-exmekh-file path="notes.txt"/>VALID'},
+        {
+            "ok": False,
+            "results": [
+                {"index": 1, "path": "notes.txt", "resource_type": "file", "ok": False}
+            ],
+        },
     )
     with pytest.raises(AssertionError, match="valid new-file call failed"):
         verify_file_effects(trace, tmp_path, {path: None})
@@ -224,14 +248,14 @@ def test_live_file_fixture_executes_observed_arguments_once(tmp_path, tool_name)
     requested = (
         {"edits": edit_fragment(path.name, "OLD", "REQUESTED")}
         if tool_name == "edit-file"
-        else {"path": path.name, "content": "REQUESTED"}
+        else {"document": f'<new-exmekh-file path="{path.name}"/>REQUESTED'}
         if tool_name == "new-file"
         else {"paths": [path.name]}
     )
     observed = (
         {"edits": edit_fragment(path.name, "OLD", "OBSERVED")}
         if tool_name == "edit-file"
-        else {"path": path.name, "content": "OBSERVED"}
+        else {"document": f'<new-exmekh-file path="{path.name}"/>OBSERVED'}
         if tool_name == "new-file"
         else {"paths": [path.name]}
     )
@@ -256,13 +280,26 @@ def test_live_case_does_not_mistake_model_choice_for_wrong_file_effects(
         "edit-file" if operation == "empty" else "new-file",
         {"edits": edit_fragment("notes.txt", "  old value\r\nKEEP", "")}
         if operation == "empty"
-        else {"path": "notes.txt", "content": "&lt;MODEL_CHOICE&gt;"},
+        else {"document": '<new-exmekh-file path="notes.txt"/>&lt;MODEL_CHOICE&gt;'},
     )
     run_literal_file_case(tmp_path, provider, operation)
     assert len(provider.requests) == 1
     assert (tmp_path / "notes.txt").read_bytes() == (
         b"\n" if operation == "empty" else b"&lt;MODEL_CHOICE&gt;"
     )
+
+
+def test_live_batch_fixture_verifies_directory_and_file_effects(tmp_path):
+    document = (
+        '<new-exmekh-dir path="reports"/>ignored'
+        '<new-exmekh-file path="reports/first.txt"/>FIRST\r\n'
+        '<new-exmekh-file path="reports/second.txt"/>SECOND&<data/>'
+    )
+    provider = FileFixtureProvider("new-file", {"document": document})
+    run_mixed_creation_case(tmp_path, provider)
+    assert len(provider.requests) == 1
+    assert (tmp_path / "reports/first.txt").read_bytes() == b"FIRST\r\n"
+    assert (tmp_path / "reports/second.txt").read_bytes() == b"SECOND&<data/>"
 
 
 def test_live_provider_records_the_real_response_without_extra_inference(
@@ -291,7 +328,14 @@ def test_live_provider_records_the_real_response_without_extra_inference(
     path = tmp_path / "notes.txt"
     path.write_bytes(b"CREATED")
     completed = history(
-        "new-file", {"path": path.name, "content": "CREATED"}, {"ok": True}
+        "new-file",
+        {"document": f'<new-exmekh-file path="{path.name}"/>CREATED'},
+        {
+            "ok": True,
+            "results": [
+                {"index": 1, "path": path.name, "resource_type": "file", "ok": True}
+            ],
+        },
     )
     completed.append(ToolMessage("Complete", "skill", "file-processing"))
     try:

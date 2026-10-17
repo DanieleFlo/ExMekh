@@ -64,6 +64,10 @@ def validate_file_path(path: str) -> None:
         )
     if "\x00" in path:
         raise FileInspectionError(FILE_INSPECTION_TEXT.path_nul, code="invalid_path")
+    if any(0xD800 <= ord(character) <= 0xDFFF for character in path):
+        raise FileInspectionError(
+            FILE_INSPECTION_TEXT.path_unicode, code="invalid_path"
+        )
 
 
 def resolve_work_root(work_root: Path) -> Path:

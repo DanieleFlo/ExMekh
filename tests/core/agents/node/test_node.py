@@ -96,6 +96,9 @@ class SequenceProvider(Provider):
         self._responses = responses
         self.requests: list[ProviderRequest] = []
 
+    def queue_responses(self, responses: list[AssistantMessage]) -> None:
+        self._responses.extend(responses)
+
     def call(self, request: ProviderRequest) -> ProviderResponse:
         self.requests.append(request)
         if request.get_streaming():

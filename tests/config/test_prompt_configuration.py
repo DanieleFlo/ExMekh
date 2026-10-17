@@ -58,7 +58,7 @@ def test_harness_guidance_uses_the_configured_sub_agent_name():
     assert RUNTIME.sub_agent_tool_name not in settings.harness_output_guidance
 
 
-def test_new_file_minimum_agrees_in_runtime_schema_and_instructions(
+def test_new_file_document_schema_and_content_minimum_agree_with_instructions(
     tmp_path, monkeypatch
 ):
     settings = replace(file_editing.FILE_EDITING, min_new_file_characters=4)
@@ -71,12 +71,15 @@ def test_new_file_minimum_agrees_in_runtime_schema_and_instructions(
         OpenAIChatCompletionAnnotationSchemaBuilder()
     )
     schema = mapper.map(tool).get_parameters()
-    assert schema["properties"]["content"]["minLength"] == 4
+    assert schema["properties"] == {"document": {"type": "string"}}
+    assert schema["required"] == ["document"]
+    assert not tool.background_enabled
     assert "at least 4 Unicode characters" in tool.get_description()
     assert "at least 4 characters" in skill.render_instructions("")
-    with pytest.raises(FileInspectionError, match="at least 4"):
-        edit_filesystem.new_file(tmp_path, "notes.txt", "abc")
-    result = edit_filesystem.new_file(tmp_path, "notes.txt", "abcd")
+    rejected = tool.execute(document='<new-exmekh-file path="notes.txt"/>abc')
+    assert rejected["ok"] is False
+    assert "at least 4" in rejected["results"][0]["error"]
+    result = tool.execute(document='<new-exmekh-file path="notes.txt"/>abcd')
     assert result["ok"] and (tmp_path / "notes.txt").read_text() == "abcd"
 
 

@@ -24,7 +24,6 @@ from openai.types.chat.chat_completion_message_tool_call_union_param import (
 )
 from PIL import Image
 from pydantic import BaseModel
-from pydantic_core import to_json
 
 from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.assistant_message import (
@@ -216,7 +215,7 @@ class ToOpenAIChatCompletionMapper:
     def _map_function_tool_call(
         tool_call: ToolCall,
     ) -> ChatCompletionMessageFunctionToolCallParam:
-        arguments = to_json(tool_call.get_arguments()).decode()
+        arguments = tool_call.arguments_json()
 
         return ChatCompletionMessageFunctionToolCallParam(
             id=tool_call.get_id(),

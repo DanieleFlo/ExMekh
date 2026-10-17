@@ -1,10 +1,17 @@
 """Regression cases at file tool/runtime boundaries."""
 
+from functools import partial
 from xml.etree import ElementTree as ET
 
 import pytest
 
 from exmekh_lib.config.file_inspection import FILE_INSPECTION
+from exmekh_lib.core.file_inspection.edit_filesystem import (
+    delete_file,
+    new_directory,
+    new_file,
+)
+from exmekh_lib.core.file_inspection.editing import approve_edit
 from exmekh_lib.core.file_inspection.errors import FileInspectionError
 from exmekh_lib.core.file_inspection.reading import file_read_context, read_file
 from exmekh_lib.core.file_inspection.runtime import FileInspectionRequests
@@ -145,14 +152,19 @@ def test_workroot_must_be_a_directory(tmp_path):
         read_snapshot(root, str(root), FILE_INSPECTION)
 
 
-def test_nul_paths_are_rejected_consistently_before_automatic_inspection(tmp_path):
-    with pytest.raises(FileInspectionError, match="path.*NUL"):
-        inspect_file(tmp_path, "bad\x00path")
+@pytest.mark.parametrize(
+    "path,diagnostic", [("bad\x00path", "NUL"), ("bad\ud800path", "Unicode")]
+)
+def test_invalid_paths_are_rejected_before_automatic_inspection(
+    tmp_path, path, diagnostic
+):
+    with pytest.raises(FileInspectionError, match=diagnostic):
+        inspect_file(tmp_path, path)
     node, provider = make_node(
         tmp_path,
         [
             open_files(),
-            batch(read_call(path="bad\x00path")),
+            batch(read_call(path=path)),
             AssistantMessage("done"),
         ],
     )
@@ -160,8 +172,26 @@ def test_nul_paths_are_rejected_consistently_before_automatic_inspection(tmp_pat
     assert (
         result_for(provider.requests[-1], "read")["error_kind"] == "invalid_file_read"
     )
-    assert "NUL" in result_for(provider.requests[-1], "read")["error"]
+    assert diagnostic in result_for(provider.requests[-1], "read")["error"]
     assert replies(provider.requests[-1])[-1].get_name() == "read-file"
+
+
+@pytest.mark.parametrize(
+    "operation",
+    [
+        pytest.param(inspect_file, id="inspect"),
+        pytest.param(partial(read_file, start_index=1, end_index=1), id="read"),
+        pytest.param(partial(approve_edit, evidence=()), id="edit"),
+        pytest.param(partial(new_file, content="OK"), id="new-file"),
+        pytest.param(new_directory, id="new-directory"),
+        pytest.param(delete_file, id="delete"),
+    ],
+)
+def test_surrogate_paths_have_one_shared_validation_error(tmp_path, operation):
+    with pytest.raises(FileInspectionError) as caught:
+        operation(tmp_path, "bad\ud800path")
+    assert caught.value.code == "invalid_path"
+    assert "Unicode" in str(caught.value)
 
 
 def test_inspection_proof_is_read_only_and_never_a_report_field(tmp_path):

@@ -34,8 +34,26 @@ Keep the skill open, review that result and issue a new read with chosen indices
 Reads never default to the whole file, clamp ranges or retry automatically.
 Report unsupported formats, invalid input and resource limits explicitly.
 
-Use `new-file(path, content)` to create a file. The path must be absent, its
-parent must exist, and content must contain at least {{config.FILE_EDITING.min_new_file_characters}} characters.
+Use `new-file(document)` to create files and directories in one ordered batch:
+```text
+<new-exmekh-dir path="folder"/><new-exmekh-file path="folder/notes.txt"/>literal content
+```
+Use self-closing markers with only a double-quoted `path` attribute; only that
+attribute is entity-decoded. Each body ends at the next reserved
+`<new-exmekh-file` or `<new-exmekh-dir` opening prefix, or the end of the string.
+These prefixes are reserved even inside file content; no escaping or closing tags.
+File bodies are exact literal text, without trimming or added newlines, and
+must contain at least {{config.FILE_EDITING.min_new_file_characters}} characters.
+Directory bodies are ignored with a warning, including whitespace-only bodies.
+Every destination must be absent. Its parent must already exist or be created
+earlier in the same batch; missing intermediate parents are not created implicitly.
+The response contains `ok` and ordered `results`, with one-based `index`,
+`path` and `resource_type` for parsed entries, plus success metadata, warnings
+or error details. Malformed blocks have an index and error without an invented
+path. Recover at the next recognizable marker; leading non-whitespace text is
+an independent framing error. Errors do not stop later entries or undo earlier
+creations. Retry only failed entries. Warnings alone do not make `ok` false.
+Whole-document type, byte or element-limit errors prevent all writes.
 Use `delete-file(paths)` with a nonempty list of paths relative to the workroot
 to remove files or directories, detected automatically. Directories are removed
 recursively without following nested symbolic links. A path naming a symbolic link

@@ -25,6 +25,7 @@ from exmekh_lib.core.models.assistant_message import (
     FunctionCall,
     ToolCall,
 )
+from exmekh_lib.core.models.creation_document import CreationDocument
 from exmekh_lib.core.models.edit_document import EditDocument
 from exmekh_lib.core.models.interactive import InteractiveProtocolError
 from exmekh_lib.core.models.provider_request import ProviderRequest
@@ -40,6 +41,7 @@ from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.core.providers import interactive_openai
 from exmekh_lib.interfaces.event_handler import ProviderEventHandler
 from exmekh_lib.providers.local import LocalProvider
+from exmekh_lib.utils.tool_errors import ToolInputError
 from exmekh_lib.utils.xml import stringify_tool_result
 from tests.interactive_support import edit_fragment
 from tests.live.model_support import CacheTestTokenizer, LiveModelProvider
@@ -272,9 +274,54 @@ def _partial_edit_paths(directory, targets, receipt):
     return committed
 
 
+def _verify_creation_effects(document, receipt, directory, expected, directories):
+    try:
+        elements = CreationDocument.parse(document).elements
+    except ToolInputError:
+        assert receipt["ok"] is False, "IMPLEMENTATION: invalid document was accepted"
+        return
+    outcomes = receipt["results"]
+    assert len(outcomes) == len(elements), "IMPLEMENTATION: missing creation outcomes"
+    assert receipt["ok"] == all(item["ok"] for item in outcomes)
+    for index, (element, item) in enumerate(zip(elements, outcomes, strict=True), 1):
+        assert item["index"] == index, "IMPLEMENTATION: creation order changed"
+        if isinstance(element, ToolInputError):
+            assert item["ok"] is False, "IMPLEMENTATION: malformed block was accepted"
+            continue
+        assert item["path"] == element.path
+        assert item["resource_type"] == element.resource_type
+        path = (directory / element.path).resolve()
+        valid_content = (
+            len(element.content) >= FILE_EDITING.min_new_file_characters
+            and "\x00" not in element.content
+            and not any(0xD800 <= ord(char) <= 0xDFFF for char in element.content)
+            and len(element.content.encode("utf-8", "surrogatepass"))
+            <= FILE_EDITING.max_snapshot_bytes
+        )
+        if item["ok"]:
+            assert expected.get(path) is None and path not in directories, (
+                "IMPLEMENTATION: creation overwrote an existing resource"
+            )
+            if element.resource_type == "file":
+                assert valid_content, (
+                    "IMPLEMENTATION: invalid file content was accepted"
+                )
+                expected[path] = element.content.encode()
+            else:
+                directories.add(path)
+        elif element.resource_type == "file" and path in expected:
+            valid = (
+                expected[path] is None
+                and valid_content
+                and (path.parent in directories or path.parent.is_dir())
+            )
+            assert not valid, f"IMPLEMENTATION: valid new-file call failed: {item!r}"
+
+
 def verify_file_effects(history, directory, initial):
     """Check actual writes against emitted arguments before judging user intent."""
     expected = {path.resolve(): content for path, content in initial.items()}
+    directories = set()
     calls = {}
     seen_results = set()
     successful = []
@@ -297,6 +344,13 @@ def verify_file_effects(history, directory, initial):
         seen_results.add(call.get_id())
         receipt = parse_tool_result(message.get_message())
         arguments = call.get_arguments()
+        if call.get_name() == "new-file":
+            _verify_creation_effects(
+                arguments["document"], receipt, directory, expected, directories
+            )
+            if receipt["ok"]:
+                successful.append(call)
+            continue
         if call.get_name() == "delete-file":
             outcomes = receipt["results"]
             assert [item["path"] for item in outcomes] == arguments["paths"], (
@@ -309,6 +363,11 @@ def verify_file_effects(history, directory, initial):
                     for target in list(expected):
                         if target == path or path in target.parents:
                             expected[target] = None
+                    directories.difference_update(
+                        target
+                        for target in tuple(directories)
+                        if target == path or path in target.parents
+                    )
                 elif path in expected:
                     assert expected[path] is None, (
                         f"IMPLEMENTATION: valid delete-file call failed: {item!r}"
@@ -325,18 +384,6 @@ def verify_file_effects(history, directory, initial):
         if not isinstance(receipt, dict) or (
             receipt.get("ok") is not True and not partial
         ):
-            if call.get_name() == "new-file":
-                path = (directory / arguments["path"]).resolve()
-                if path in expected:
-                    valid = (
-                        expected[path] is None
-                        and isinstance(arguments.get("content"), str)
-                        and len(arguments["content"]) >= 2
-                        and "\x00" not in arguments["content"]
-                    )
-                    assert not valid, (
-                        f"IMPLEMENTATION: valid {call.get_name()} call failed: {receipt!r}"
-                    )
             continue
         if call.get_name() == "edit-file":
             document = EditDocument.parse(arguments["edits"])
@@ -355,11 +402,10 @@ def verify_file_effects(history, directory, initial):
                 else list(groups)
             )
             expected.update({path: changes[path] for path in committed})
-        else:
-            path = (directory / arguments["path"]).resolve()
-            expected[path] = arguments["content"].encode()
         if not partial:
             successful.append(call)
+    for path in directories:
+        assert path.is_dir(), f"IMPLEMENTATION: created directory is missing: {path}"
     for path, content in expected.items():
         if content is None:
             assert not path.exists(), (
@@ -370,6 +416,30 @@ def verify_file_effects(history, directory, initial):
                 f"IMPLEMENTATION: file bytes differ from executed arguments: {path}"
             )
     return successful
+
+
+def test_live_model_creates_mixed_resource_batch(tmp_path, edit_provider):
+    document = (
+        '<new-exmekh-dir path="reports"/>ignored'
+        '<new-exmekh-file path="reports/first.txt"/>FIRST\r\n'
+        '<new-exmekh-file path="reports/second.txt"/>SECOND&<data/>'
+    )
+    _, receipt = execute_live_file_call(
+        edit_provider,
+        tmp_path,
+        "new-file",
+        {"document": document},
+        {tmp_path / "reports/first.txt": None, tmp_path / "reports/second.txt": None},
+    )
+    assert [item["resource_type"] for item in receipt["results"]] == [
+        "directory",
+        "file",
+        "file",
+    ], "COVERAGE: mixed resource creation was not exercised"
+    assert receipt["results"][0].get("warnings"), (
+        "COVERAGE: ignored directory content was not exercised"
+    )
+    assert not edit_provider.exchanges
 
 
 @pytest.mark.parametrize(
@@ -394,7 +464,7 @@ def test_live_model_applies_literal_file_operations(tmp_path, edit_provider, ope
     arguments = (
         {"paths": [path.name]}
         if tool == "delete-file"
-        else {"path": path.name, "content": expected.decode()}
+        else {"document": f'<new-exmekh-file path="{path.name}"/>' + expected.decode()}
         if tool == "new-file"
         else {
             "edits": edit_fragment(
@@ -420,9 +490,13 @@ def test_live_model_applies_literal_file_operations(tmp_path, edit_provider, ope
     if tool != "edit-file":
         assert not edit_provider.exchanges
         if operation == "literal_markup":
-            assert any(
-                character in call.get_arguments()["content"] for character in "<&"
-            ), "COVERAGE: literal markup characters were not exercised"
+            (element,) = CreationDocument.parse(
+                call.get_arguments()["document"]
+            ).elements
+            assert not isinstance(element, ToolInputError)
+            assert any(character in element.content for character in "<&"), (
+                "COVERAGE: literal markup characters were not exercised"
+            )
     else:
         assert len(edit_provider.exchanges) == 1
         assert receipt["files"][0]["size_bytes"] == len(path.read_bytes())

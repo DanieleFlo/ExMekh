@@ -73,6 +73,8 @@ def error_diagnostic(error: BaseException) -> ToolErrorDiagnostic:
     code = "tool_execution_failed"
     if isinstance(error, FileNotFoundError):
         code = "file_not_found"
+    elif isinstance(error, FileExistsError):
+        code = "file_already_exists"
     elif isinstance(error, PermissionError):
         code = "permission_denied"
     elif isinstance(error, (IsADirectoryError, NotADirectoryError)):

@@ -4,7 +4,6 @@ from typing import Any
 
 from PIL import Image
 from pydantic import BaseModel
-from pydantic_core import to_json
 
 from exmekh_lib.config.provider_text import PROVIDER_TEXT
 from exmekh_lib.core.models.assistant_message import AssistantMessage, ToolCall
@@ -123,7 +122,7 @@ class ToOpenAIResponseMapper:
             "type": "function_call",
             "call_id": tool_call.get_id(),
             "name": tool_call.get_name(),
-            "arguments": to_json(tool_call.get_arguments()).decode(),
+            "arguments": tool_call.arguments_json(),
         }
 
     @classmethod

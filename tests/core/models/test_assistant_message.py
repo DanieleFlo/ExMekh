@@ -1,5 +1,8 @@
 import json
+from decimal import Decimal
+from pathlib import Path
 from typing import cast
+from uuid import UUID
 
 import pytest
 
@@ -8,6 +11,10 @@ from exmekh_lib.core.models.assistant_message import (
     FunctionCall,
     ToolCall,
 )
+from exmekh_lib.core.providers.to_openai_chat_completion_mapper import (
+    ToOpenAIChatCompletionMapper,
+)
+from exmekh_lib.core.providers.to_openai_response_mapper import ToOpenAIResponseMapper
 
 
 def test_init_uses_assistant_defaults() -> None:
@@ -96,3 +103,41 @@ def test_metadata_updates_do_not_mutate_a_message_copied_with_new_calls() -> Non
     copied.set_metadata("frontend", {"turn": "copy"})
     assert copied.get_metadata()["frontend"] == {"turn": "copy"}
     assert message.get_metadata()["frontend"] == {"turn": "original"}
+
+
+@pytest.mark.parametrize("value", ["bad\ud800path", "bad\udfffpath", "é😊\r\n\x00"])
+def test_tool_call_json_retains_rejected_unicode_in_history_and_provider_arguments(
+    value,
+):
+    arguments = {"path": value, "nested": [{value: value}]}
+    call = ToolCall("call", FunctionCall("new-file", arguments))
+    message = AssistantMessage(None, tool_calls=[call])
+    exported = json.loads(message.message_dump()["tool_calls"].encode("utf-8"))
+    assert exported[0]["function"]["arguments"] == arguments
+    assert json.loads(call.arguments_json().encode("utf-8")) == arguments
+    response = ToOpenAIResponseMapper.map_assistant_message(message)
+    chat = ToOpenAIChatCompletionMapper.map_assistant_message(message)
+    assert json.loads(response[0]["arguments"].encode("utf-8")) == arguments
+    assert (
+        json.loads(chat["tool_calls"][0]["function"]["arguments"].encode("utf-8"))
+        == arguments
+    )
+
+
+def test_tool_call_json_preserves_typed_values_alongside_rejected_unicode():
+    identifier = UUID(int=1)
+    arguments = {
+        "lookup": {identifier: Decimal("1.5")},
+        "path": Path("notes.txt"),
+        "rejected": {"bad\ud800key": "bad\ud800value"},
+    }
+    call = ToolCall("call", FunctionCall("tool", arguments))
+    expected = {
+        "lookup": {str(identifier): "1.5"},
+        "path": "notes.txt",
+        "rejected": {"bad\ud800key": "bad\ud800value"},
+    }
+    assert json.loads(call.arguments_json()) == expected
+    assert (
+        json.loads(ToolCall.dump_many([call]))[0]["function"]["arguments"] == expected
+    )

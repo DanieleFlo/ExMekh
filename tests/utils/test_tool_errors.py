@@ -33,6 +33,7 @@ def test_missing_dependency_preserves_module_and_install_hint() -> None:
     "error,code",
     [
         (FileNotFoundError("missing"), "file_not_found"),
+        (FileExistsError("concurrent creation"), "file_already_exists"),
         (PermissionError("denied"), "permission_denied"),
         (IsADirectoryError("directory"), "not_a_regular_file"),
         (NotADirectoryError("parent"), "not_a_regular_file"),

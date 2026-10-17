@@ -50,19 +50,19 @@ def bundled_tools(tmp_path):
         ),
         (
             "new-file",
-            {"path": "notes.txt", "content": "new"},
+            {"document": '<new-exmekh-file path="notes.txt"/>new'},
             "invalid_file_creation",
             "file_already_exists",
         ),
         (
             "new-file",
-            {"path": "missing/new.txt", "content": "new"},
+            {"document": '<new-exmekh-file path="missing/new.txt"/>new'},
             "invalid_file_creation",
             "parent_directory_missing",
         ),
         (
             "new-file",
-            {"path": "new.txt", "content": "x"},
+            {"document": '<new-exmekh-file path="new.txt"/>x'},
             "invalid_file_creation",
             "invalid_content",
         ),
@@ -128,7 +128,7 @@ def test_real_tools_preserve_error_family_and_expose_specific_recovery(
 ):
     (tmp_path / "notes.txt").write_text("original")
     result = bundled_tools[name].execute(**arguments)
-    if name == "delete-file":
+    if name in {"delete-file", "new-file"}:
         assert result["ok"] is False
         result = result["results"][0]
     assert result["ok"] is False
@@ -143,9 +143,14 @@ def test_creation_correction_uses_unused_path_without_overwriting(
 ):
     tool = bundled_tools["new-file"]
     (tmp_path / "existing.txt").write_text("keep")
-    rejected = tool.execute(path="existing.txt", content="replacement")
-    assert "never overwrites" in rejected["hint"]
-    assert tool.execute(path="new.txt", content="replacement")["ok"] is True
+    rejected = tool.execute(
+        document='<new-exmekh-file path="existing.txt"/>replacement'
+    )
+    assert "never overwrites" in rejected["results"][0]["hint"]
+    assert (
+        tool.execute(document='<new-exmekh-file path="new.txt"/>replacement')["ok"]
+        is True
+    )
     assert (tmp_path / "existing.txt").read_text() == "keep"
 
 

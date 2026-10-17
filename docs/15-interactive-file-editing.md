@@ -6,9 +6,30 @@ tool arguments and exported history retain their JSON transport.
 
 ## Public tools
 
-- `new-file(path, content)`: create an absent path exclusively. Its parent must
-  exist inside the workroot. Content is required and must contain at least two
-  Unicode characters, counted without trimming. No inspection/read evidence.
+- `new-file(document)`: create files and directories in order from one string,
+  for example `<new-exmekh-dir path="folder"/><new-exmekh-file path="folder/a.txt"/>content`.
+  Markers must be self-closing and contain only a double-quoted `path`; only
+  path attributes are entity-decoded. Bodies end at the next reserved opening
+  prefix (`<new-exmekh-file` or `<new-exmekh-dir`, followed by a word boundary)
+  or the end of the string. These prefixes cannot appear literally in file
+  bodies; there are no closing tags or implicit escaping. File bodies preserve
+  exact whitespace, line endings, markup and entity spellings, and require at
+  least two Unicode characters without trimming. Directory bodies are ignored
+  with a warning, including whitespace-only bodies.
+  Each destination must be absent and its parent must exist inside the workroot
+  or have been created earlier in the batch. Intermediate parents are not
+  created implicitly. No inspection/read evidence is required.
+  The response contains `ok` (true only when every entry succeeds) and ordered
+  `results`. Each result has a one-based `index`; parsed entries also have their
+  input `path` and `resource_type` (`file` or `directory`), plus creation metadata
+  or `error`, `error_kind`, `error_code` and `hint`. Optional `warnings` do not
+  cause failure. Malformed blocks are reported independently, resuming at the
+  next recognizable marker without treating invalid framing as file content.
+  Leading non-whitespace text is a separate framing error. Earlier successes
+  remain; retry only failed entries. Document-wide invalid types or configured
+  byte/element limits reject the entire call before writes (defaults: 1 MiB,
+  64 creation markers). The old `path, content` tool arguments are replaced by
+  `document`; the internal single-file filesystem API is unchanged.
 - `delete-file(paths)`: remove files and directories using a nonempty list of
   workroot-relative paths, for example `{"paths": ["notes.txt", "build"]}`.
   The path determines the resource type; directories and their contents are
@@ -23,11 +44,21 @@ tool arguments and exported history retain their JSON transport.
   Earlier successful deletions are retained; retry only failed paths. Deleting
   a directory can partially remove its contents before a filesystem failure.
   `FileDeletionTarget.resolve(...).remove()` owns resource validation, locking,
-  identity checks and descriptor-relative removal; the tool adapter owns the
-  ordered batch and converts each failure into its independent result.
+  identity checks and descriptor-relative removal; `delete_resources()` owns
+  the ordered batch and converts each failure into its independent result.
+  Likewise, `create_resources()` owns creation batches and per-entry warnings.
+  The public tool adapters delegate to these services; `CreationDocument`
+  owns framing and leaves filesystem operations to the creation service.
 - `edit-file(edits)`: edit existing Unicode text after successful visible
   inspection and subsequent reading of unchanged content. Missing files are
   errors; they are never created through edit.
+
+All file tools reject NUL and surrogate code points in paths with `invalid_path`
+before inspection recovery or filesystem access. New file bodies containing
+invalid Unicode return `invalid_content`; they do not claim that an existing
+file's encoding needs to be changed. `FileExistsError`, including a competing
+exclusive creation, maps to `file_already_exists` through the shared diagnostic
+mapper for both files and directories.
 
 ## Literal two-marker document
 
@@ -74,8 +105,11 @@ an added newline and are published exclusively.
 The generated document, decoded edit snapshot and result remain bounded to
 1 MiB. Delete has no text snapshot limit. Directory descriptors and cooperative
 locks protect filesystem publication. Linux/WSL is the qualified commit
-runtime; non-cooperating writers can still race in the final check/unlink
-window. Distinct files have no transactional rollback guarantee.
+runtime; non-cooperating writers can still race after the final identity check.
+Directory creation uses the same path resolution and cooperative locks, with
+descriptor-relative exclusive `mkdir` and parent-identity revalidation. Its
+permissions follow the configured mode and process umask. Distinct resources
+have no transactional rollback guarantee.
 
 ## Verification
 
@@ -84,7 +118,9 @@ window. Distinct files have no transactional rollback guarantee.
 .venv/bin/pytest -n 0 --run-live tests/live/test_file_editing_live.py
 ```
 
-The deterministic suite covers separate new/delete hooks, absent/existing
+The deterministic suite covers mixed file/directory creation, directory content
+warnings, malformed-marker recovery, per-entry failures, document limits,
+separate new/delete hooks, absent/existing
 paths, binary and recursive directory deletion, independent batch failures,
 workroot and symbolic-link boundaries, empty files, literal old command tags, omitted IDs,
 snapshot-based separator disambiguation, exact content, aliases, post-hook

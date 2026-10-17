@@ -89,8 +89,7 @@ def encode_replacement(text: str, original: bytes, encoding: str) -> bytes:
     return text.encode(encoding)
 
 
-def new_file(work_root: Path, path: str, content: str) -> dict[str, object]:
-    """Publish a complete new file exclusively, without inspection evidence."""
+def _encode_creation_content(content: str) -> bytes:
     if (
         not isinstance(content, str)
         or len(content) < FILE_EDITING.min_new_file_characters
@@ -103,11 +102,22 @@ def new_file(work_root: Path, path: str, content: str) -> dict[str, object]:
         )
     if "\x00" in content:
         raise FileInspectionError(FILE_EDITING.content_nul, code="invalid_content")
-    encoded = content.encode("utf-8")
+    try:
+        encoded = content.encode("utf-8")
+    except UnicodeEncodeError as error:
+        raise FileInspectionError(
+            FILE_EDITING.content_unicode, code="invalid_content"
+        ) from error
     if len(encoded) > FILE_EDITING.max_snapshot_bytes:
         raise FileInspectionError(
             FILE_EDITING.creation_byte_limit, code="file_limit_exceeded"
         )
+    return encoded
+
+
+def new_file(work_root: Path, path: str, content: str) -> dict[str, object]:
+    """Publish a complete new file exclusively, without inspection evidence."""
+    encoded = _encode_creation_content(content)
     target = resolve_edit_target(work_root, path)
     with resource_lock(target):
         if os.path.lexists(work_root.resolve() / path):
@@ -120,6 +130,33 @@ def new_file(work_root: Path, path: str, content: str) -> dict[str, object]:
         "path": target.relative_to(work_root.resolve()).as_posix(),
         "operation": "create",
         "size_bytes": len(encoded),
+    }
+
+
+def new_directory(work_root: Path, path: str) -> dict[str, object]:
+    """Create one absent directory through its authorized parent descriptor."""
+    target = resolve_edit_target(work_root, path)
+    with resource_lock(target):
+        if os.path.lexists(work_root.resolve() / path):
+            raise FileInspectionError(
+                FILE_EDITING.path_exists, code="file_already_exists"
+            )
+        require_descriptor_operations(os.open, os.mkdir)
+        descriptor = _open_parent_directory(work_root, target)
+        try:
+            if resolve_edit_target(
+                work_root, path
+            ) != target or not _parent_directory_matches(target, descriptor):
+                raise FileInspectionError(FILE_EDITING.changed, code="file_changed")
+            os.mkdir(
+                target.name, FILE_EDITING.creation_directory_mode, dir_fd=descriptor
+            )
+        finally:
+            os.close(descriptor)
+    return {
+        "ok": True,
+        "path": target.relative_to(work_root.resolve()).as_posix(),
+        "operation": "create",
     }
 
 
@@ -191,14 +228,11 @@ class FileDeletionTarget:
 
     def _validate_unchanged(self, initial: os.stat_result, descriptor: int) -> None:
         current = os.stat(self.path.name, dir_fd=descriptor, follow_symlinks=False)
-        parent = self.path.parent.stat()
-        opened_parent = os.fstat(descriptor)
         if (
             resolve_edit_target(self.work_root, self.resource) != self.path
             or FileIdentity.from_stat(initial) != FileIdentity.from_stat(current)
             or stat.S_IFMT(initial.st_mode) != stat.S_IFMT(current.st_mode)
-            or (parent.st_dev, parent.st_ino)
-            != (opened_parent.st_dev, opened_parent.st_ino)
+            or not _parent_directory_matches(self.path, descriptor)
         ):
             raise FileInspectionError(
                 FILE_EDITING.changed_before_deletion, code="file_changed"
@@ -210,6 +244,12 @@ def require_descriptor_operations(*operations: Callable[..., object]) -> None:
         raise FileInspectionError(
             FILE_EDITING.unsupported_platform, code="unsupported_platform"
         )
+
+
+def _parent_directory_matches(target: Path, descriptor: int) -> bool:
+    current = target.parent.stat()
+    opened = os.fstat(descriptor)
+    return (current.st_dev, current.st_ino) == (opened.st_dev, opened.st_ino)
 
 
 def _open_parent_directory(work_root: Path, target: Path) -> int:
@@ -270,15 +310,6 @@ class FileWriteTarget:
 
         self.validate()
         parent_fd = _open_parent_directory(self.work_root, self.path)
-        parent_identity = os.fstat(parent_fd)
-
-        def check_parent() -> None:
-            current = self.path.parent.stat()
-            if (current.st_dev, current.st_ino) != (
-                parent_identity.st_dev,
-                parent_identity.st_ino,
-            ):
-                raise FileInspectionError(FILE_EDITING.changed, code="file_changed")
 
         temporary: str | None = None
         try:
@@ -296,7 +327,8 @@ class FileWriteTarget:
                     os.fchmod(stream.fileno(), stat.S_IMODE(self.snapshot.stat.st_mode))
                 os.fsync(stream.fileno())
             self.validate()
-            check_parent()
+            if not _parent_directory_matches(self.path, parent_fd):
+                raise FileInspectionError(FILE_EDITING.changed, code="file_changed")
             if self.snapshot is None:
                 # An exclusive hard link publishes complete bytes without overwriting.
                 os.link(
