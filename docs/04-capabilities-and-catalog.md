@@ -284,5 +284,68 @@ flowchart TD
    - Referenced tools and skills exist in the index.
    - No duplicate tool or skill names across capability folders.
    - Each HDS selects an existing exit tool; exit instruction references resolve.
-5. **Catalog Attachment (`SkillCatalogAttacher`)**: Adds descriptions of declared sub-skills and tools to deep-skill catalogs.
+5. **Catalog Attachment (`SkillCatalogAttacher`)**: Adds descriptions of declared sub-skills and tools, including parameter documentation, to deep-skill catalogs.
 6. **Runtime Composition**: The HDS-selected exit tool supplies instructions when a skill is opened.
+
+### Scoped parameter documentation
+
+Tools available only inside skills keep their structural parameter schemas in
+the initial provider request, with a short `Available in skill ...` description.
+Their parameter `description` annotations are omitted, including those on nested
+objects, arrays, mappings and union branches. Types, enum values, required fields,
+defaults and other validation keywords remain unchanged. A property named
+`description`, or literal data in defaults, examples and enum values, is preserved.
+
+When a skill opens, its catalog automatically includes the original tool
+descriptions and a `<parameter-descriptions path-format="json-pointer">` section.
+Each tool's documented parameters have paths relative to its `parameters` schema,
+for example `/properties/request/items/properties/query`. Documentation comes
+from the same annotation schema builder as the provider definitions; no Markdown
+files need to be generated or maintained. The shared XML renderer escapes text
+and losslessly encodes characters that XML cannot represent.
+
+The injected `execution_mode` and `wait_seconds` descriptions are omitted from
+these catalogs: their semantics, defaults, null handling and limits are already
+explained once in the HDS's `<harness-output-guidance>`. Synchronous business
+parameters with those names retain their own documentation.
+
+HDS-direct tools, skill descriptions, exit tools, runtime tools and standalone
+`Client` tools retain their schema documentation. Contextual tool copies do not
+mutate the originals, so the same tool can be direct in one node and internal in
+another. Skill documentation follows the existing history lifecycle: it is
+available before work calls, remains available through nested skill execution,
+and disappears when that skill's history is replaced on exit. Reopening the
+skill loads its documentation again.
+
+`DeepAgent.get_tools_text()` returns these same contextual definitions for either
+provider API. Token counts of this JSON are useful for comparisons; they do not
+measure the backend's rendered prompt or establish model accuracy. Compare
+task success, argument corrections and total tokens separately when evaluating
+the behavior with a real model.
+
+An offline measurement on 2026-10-18 used the cached Qwen tokenizer and the bundled
+`main` HDS with one `mock-sub-agent` child (28 definitions):
+
+| API | Full parameter descriptions | Scoped descriptions | Saved |
+| --- | ---: | ---: | ---: |
+| Responses | 4,108 tokens | 3,246 tokens | 862 (21.0%) |
+| Chat Completions | 3,606 tokens | 3,032 tokens | 574 (15.9%) |
+
+Before catalog serialization was unified on the shared XML renderer, generated
+parameter-documentation sections cost 88 tokens in `deep-thinking` and 210 in
+`file-processing`, loaded only when those skills open. These historical counts
+may differ from the current XML indentation. The comparison
+keeps the existing contextual function descriptions in both variants. It excludes
+system text, messages, backend prompt rendering and model reasoning.
+
+The focused live regression in `tests/live/test_parameter_documentation_live.py`
+checks both Responses and Chat Completions: a real model fills a nested argument from the generated catalog
+while its function schema omits that description. It makes one required tool
+call per API and verifies the actual Python result; it does not measure autonomous skill
+selection or end-to-end task completion.
+
+An exploratory nested-skill workflow on the same date read the documentation
+correctly, executed the check and returned through both skills, but reopened the
+completed workflow. Restoring full parameter descriptions reproduced the same
+loop. Both runs reached their turn limit; they do not establish end-to-end
+quality equivalence. See the [recorded observations](test-evidence/scoped-parameter-documentation-2026-10-18.xml).

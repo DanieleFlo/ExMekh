@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from exmekh_lib.config.provider_text import PROVIDER_TEXT
+from exmekh_lib.core.models.json_schema import Schema, iter_schema_nodes
 
 
 class OpenAIJSONSchemaMapper:
@@ -28,7 +29,7 @@ class OpenAIJSONSchemaMapper:
 
         schema = response_model.model_json_schema()
         if strict:
-            schema = cls._make_strict(deepcopy(schema), schema)
+            schema = cls._make_strict(schema)
 
         return {
             "name": response_model.__name__,
@@ -39,30 +40,27 @@ class OpenAIJSONSchemaMapper:
     @classmethod
     def _make_strict(
         cls,
-        value: Any,
-        root: dict[str, Any],
-    ) -> Any:
-        if isinstance(value, list):
-            return [cls._make_strict(item, root) for item in value]
-        if not isinstance(value, dict):
-            return value
+        schema: Schema,
+    ) -> Schema:
+        strict = deepcopy(schema)
+        for _, node in iter_schema_nodes(strict):
+            reference = node.get("$ref")
+            if isinstance(reference, str) and len(node) > 1:
+                resolved = deepcopy(cls.resolve_reference(schema, reference))
+                resolved.update(node)
+                node.clear()
+                node.update(resolved)
+                node.pop("$ref")
 
-        reference = value.get("$ref")
-        if isinstance(reference, str) and len(value) > 1:
-            resolved = deepcopy(cls.resolve_reference(root, reference))
-            value = {**resolved, **value}
-            value.pop("$ref")
+            if node.get("type") == "object":
+                node.setdefault("additionalProperties", False)
+                properties = node.get("properties")
+                if isinstance(properties, dict):
+                    node["required"] = list(properties)
 
-        if value.get("type") == "object":
-            value.setdefault("additionalProperties", False)
-            properties = value.get("properties")
-            if isinstance(properties, dict):
-                value["required"] = list(properties)
-
-        if value.get("default") is None:
-            value.pop("default", None)
-
-        return {key: cls._make_strict(child, root) for key, child in value.items()}
+            if node.get("default") is None:
+                node.pop("default", None)
+        return strict
 
     @staticmethod
     def resolve_reference(root: dict[str, Any], reference: str) -> dict[str, Any]:

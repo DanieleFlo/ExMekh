@@ -79,6 +79,31 @@ def test_init_builds_client_and_checks_provider() -> None:
     check_provider.assert_called_once_with()
 
 
+def test_failed_provider_validation_closes_the_created_client():
+    client = MagicMock()
+    with (
+        patch.object(LocalProvider, "_build_client", return_value=client),
+        patch.object(
+            LocalProvider, "_check_provider", side_effect=RuntimeError("offline")
+        ),
+        pytest.raises(RuntimeError, match="offline"),
+    ):
+        LocalProvider(model="local-model")
+
+    client.close.assert_called_once_with()
+
+
+def test_provider_context_closes_the_client_when_the_body_fails():
+    provider = make_provider()
+
+    with pytest.raises(ValueError, match="stop"):
+        with provider as active:
+            assert active is provider
+            raise ValueError("stop")
+
+    provider.client.close.assert_called_once_with()
+
+
 @pytest.mark.parametrize(
     ("overrides", "error_type"),
     [

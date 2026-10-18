@@ -17,9 +17,20 @@ from uuid import UUID
 
 import pytest
 
-from exmekh_lib.core.providers.openai_chat_completion_annotation_schema_builder import (
-    OpenAIChatCompletionAnnotationSchemaBuilder,
-)
+from exmekh_lib.core.models.annotation_schema import AnnotationSchemaBuilder
+
+
+def test_schema_metadata_copies_do_not_share_nested_values():
+    metadata = {"examples": [{"description": "Literal example"}]}
+    annotation = Annotated[str, metadata]
+    builder = AnnotationSchemaBuilder()
+    first = builder.build(annotation)
+    second = builder.build(annotation)
+
+    first["examples"][0]["description"] = "Changed"
+
+    assert second["examples"] == [{"description": "Literal example"}]
+    assert metadata["examples"] == [{"description": "Literal example"}]
 
 
 class OptionalFilters(TypedDict, total=False):
@@ -134,27 +145,27 @@ def test_build_supports_python_type_rules(
     annotation: object,
     expected: dict,
 ) -> None:
-    builder = OpenAIChatCompletionAnnotationSchemaBuilder()
+    builder = AnnotationSchemaBuilder()
 
     assert builder.build(annotation) == expected
 
 
 def test_build_rejects_non_string_mapping_keys() -> None:
-    builder = OpenAIChatCompletionAnnotationSchemaBuilder()
+    builder = AnnotationSchemaBuilder()
 
     with pytest.raises(TypeError, match="keys must be annotated as str"):
         builder.build(dict[int, str])
 
 
 def test_build_rejects_unsupported_type() -> None:
-    builder = OpenAIChatCompletionAnnotationSchemaBuilder()
+    builder = AnnotationSchemaBuilder()
 
     with pytest.raises(TypeError, match="Unsupported tool parameter type"):
         builder.build(bytes)
 
 
 def test_build_rejects_recursive_dataclass() -> None:
-    builder = OpenAIChatCompletionAnnotationSchemaBuilder()
+    builder = AnnotationSchemaBuilder()
 
     with pytest.raises(TypeError, match="Recursive"):
         builder.build(RecursiveNode)

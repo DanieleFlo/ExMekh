@@ -23,6 +23,9 @@ from exmekh_lib.core.agents.node import Node
 from exmekh_lib.core.file_inspection import workspace
 from exmekh_lib.core.file_inspection.errors import FileInspectionError
 from exmekh_lib.core.file_inspection.tokenization import inspection_tokenizer_context
+from exmekh_lib.core.models.annotation_schema import (
+    AnnotationSchemaBuilder,
+)
 from exmekh_lib.core.models.assistant_message import (
     AssistantMessage,
     FunctionCall,
@@ -30,9 +33,6 @@ from exmekh_lib.core.models.assistant_message import (
 )
 from exmekh_lib.core.models.tool import ExecutionOptions
 from exmekh_lib.core.models.tool_message import ToolMessage
-from exmekh_lib.core.providers.openai_chat_completion_annotation_schema_builder import (
-    OpenAIChatCompletionAnnotationSchemaBuilder,
-)
 from exmekh_lib.core.providers.openai_function_tool_definition_mapper import (
     OpenAIFunctionToolDefinitionMapper,
 )
@@ -492,9 +492,7 @@ def bundled_tool(tmp_path):
 
 
 def test_bundled_tool_schema_and_structured_errors(bundled_tool):
-    mapper = OpenAIFunctionToolDefinitionMapper(
-        OpenAIChatCompletionAnnotationSchemaBuilder()
-    )
+    mapper = OpenAIFunctionToolDefinitionMapper(AnnotationSchemaBuilder())
     schema = mapper.map(bundled_tool, strict=True).get_parameters()
     assert set(schema["properties"]) == {
         "path",

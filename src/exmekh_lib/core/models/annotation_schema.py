@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 from collections import abc
+from copy import deepcopy
 from dataclasses import MISSING, fields, is_dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -24,13 +25,14 @@ from typing import (
 )
 from uuid import UUID
 
-from exmekh_lib.config.provider_text import PROVIDER_TEXT
+from exmekh_lib.config.model_text import MODEL_TEXT
+from exmekh_lib.core.models.json_schema import Schema
 from exmekh_lib.utils.type_hints import typed_dict_required_keys
 
-Schema = dict[str, Any]
 
+class AnnotationSchemaBuilder:
+    """Build the shared JSON Schema used by providers and tool documentation."""
 
-class OpenAIChatCompletionAnnotationSchemaBuilder:
     _PRIMITIVE_SCHEMAS: ClassVar[dict[Any, Schema]] = {
         str: {"type": "string"},
         int: {"type": "integer"},
@@ -114,7 +116,7 @@ class OpenAIChatCompletionAnnotationSchemaBuilder:
             return self.build(supertype, active_types)
 
         raise TypeError(
-            PROVIDER_TEXT.unsupported_tool_parameter_type.format(annotation=annotation)
+            MODEL_TEXT.unsupported_tool_parameter_type.format(annotation=annotation)
         )
 
     def _annotated_schema(
@@ -134,7 +136,7 @@ class OpenAIChatCompletionAnnotationSchemaBuilder:
         if isinstance(metadata, str):
             schema["description"] = metadata
         elif isinstance(metadata, dict):
-            schema.update(metadata)
+            schema.update(deepcopy(metadata))
 
     @staticmethod
     def _is_unrestricted(annotation: Any) -> bool:
@@ -242,7 +244,7 @@ class OpenAIChatCompletionAnnotationSchemaBuilder:
         key_annotation, value_annotation = arguments if arguments else (str, Any)
 
         if key_annotation not in {str, Any}:
-            raise TypeError(PROVIDER_TEXT.json_object_keys_must_be_annotated_as_str)
+            raise TypeError(MODEL_TEXT.json_object_keys_must_be_annotated_as_str)
 
         return {
             "type": "object",
@@ -319,9 +321,7 @@ class OpenAIChatCompletionAnnotationSchemaBuilder:
         active_types: frozenset[Any],
     ) -> frozenset[Any]:
         if annotation in active_types:
-            raise TypeError(
-                PROVIDER_TEXT.recursive_tool_parameter_types_are_not_supported
-            )
+            raise TypeError(MODEL_TEXT.recursive_tool_parameter_types_are_not_supported)
 
         return active_types | {annotation}
 

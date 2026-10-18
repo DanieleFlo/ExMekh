@@ -10,8 +10,8 @@ from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
 from exmekh_lib.core.file_inspection import edit_filesystem, reading
 from exmekh_lib.core.file_inspection.errors import FileInspectionError
-from exmekh_lib.core.providers.openai_chat_completion_annotation_schema_builder import (
-    OpenAIChatCompletionAnnotationSchemaBuilder,
+from exmekh_lib.core.models.annotation_schema import (
+    AnnotationSchemaBuilder,
 )
 from exmekh_lib.core.providers.openai_function_tool_definition_mapper import (
     OpenAIFunctionToolDefinitionMapper,
@@ -67,9 +67,7 @@ def test_new_file_document_schema_and_content_minimum_agree_with_instructions(
     loaded = Capabilities([CAPABILITY_FORMAT.bundled_root]).load(work_root=tmp_path)
     tool = next(item for item in loaded.tools if item.get_name() == "new-file")
     skill = next(item for item in loaded.deep_skills if item.name == "file-processing")
-    mapper = OpenAIFunctionToolDefinitionMapper(
-        OpenAIChatCompletionAnnotationSchemaBuilder()
-    )
+    mapper = OpenAIFunctionToolDefinitionMapper(AnnotationSchemaBuilder())
     schema = mapper.map(tool).get_parameters()
     assert schema["properties"] == {"document": {"type": "string"}}
     assert schema["required"] == ["document"]

@@ -1,0 +1,64 @@
+<scoped-parameter-documentation-evidence date="2026-10-18">
+  <token_measurement type="object">
+    <tokenizer type="string">cached Qwen tokenizer</tokenizer>
+    <configuration type="string">bundled main HDS with one mock-sub-agent child; 28 definitions</configuration>
+    <measurement type="string">get_tools_text JSON only; excludes system messages and backend prompt rendering</measurement>
+    <responses type="object">
+      <baseline_tokens type="integer">4108</baseline_tokens>
+      <scoped_tokens type="integer">3246</scoped_tokens>
+      <saved_tokens type="integer">862</saved_tokens>
+    </responses>
+    <chat_completions type="object">
+      <baseline_tokens type="integer">3606</baseline_tokens>
+      <scoped_tokens type="integer">3032</scoped_tokens>
+      <saved_tokens type="integer">574</saved_tokens>
+    </chat_completions>
+    <generated_parameter_documentation type="object">
+      <deep-thinking type="integer">88</deep-thinking>
+      <file-processing type="integer">210</file-processing>
+    </generated_parameter_documentation>
+  </token_measurement>
+  <focused_live_regression type="object">
+    <test type="string">tests/live/test_parameter_documentation_live.py::test_live_model_uses_parameter_documentation_outside_the_schema</test>
+    <result type="string">passed</result>
+    <scope type="string">one real required tool call, nested value absent from schema and present in skill catalog, actual Python result accepted</scope>
+    <limitation type="string">does not evaluate autonomous skill routing or end-to-end task completion</limitation>
+  </focused_live_regression>
+  <workflow_probe type="object">
+    <representation type="string">scoped</representation>
+    <turns type="integer">8</turns>
+    <call_names type="array">
+      <item type="string">mock-skill</item>
+      <item type="string">nested-skill</item>
+      <item type="string">nested-sub-tool</item>
+      <item type="string">exit_agent</item>
+      <item type="string">exit_agent</item>
+      <item type="string">mock-skill</item>
+      <item type="string">nested-skill</item>
+      <item type="string">nested-sub-tool</item>
+    </call_names>
+    <tool_accepted_payload type="boolean">true</tool_accepted_payload>
+    <root_reopened_completed_skill type="boolean">true</root_reopened_completed_skill>
+    <result type="string">turn limit reached; not a successful end-to-end workflow</result>
+    <control type="string">parameter descriptions omitted from initial tool definitions</control>
+  </workflow_probe>
+  <workflow_probe type="object">
+    <representation type="string">full</representation>
+    <turns type="integer">8</turns>
+    <call_names type="array">
+      <item type="string">mock-skill</item>
+      <item type="string">nested-skill</item>
+      <item type="string">nested-sub-tool</item>
+      <item type="string">exit_agent</item>
+      <item type="string">exit_agent</item>
+      <item type="string">mock-skill</item>
+      <item type="string">nested-skill</item>
+      <item type="string">nested-sub-tool</item>
+    </call_names>
+    <tool_accepted_payload type="boolean">true</tool_accepted_payload>
+    <root_reopened_completed_skill type="boolean">true</root_reopened_completed_skill>
+    <result type="string">turn limit reached; not a successful end-to-end workflow</result>
+    <control type="string">same fixture and scoped catalog; full mode restores parameter descriptions in initial tool definitions</control>
+  </workflow_probe>
+  <interpretation type="string">The return loop was observed with both representations. Its cause is undetermined. These probes do not establish general accuracy equivalence.</interpretation>
+</scoped-parameter-documentation-evidence>

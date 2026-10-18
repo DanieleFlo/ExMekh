@@ -20,8 +20,8 @@ from exmekh_lib.capabilities.tools.search_tool_outputs.raw_search import (
     run as run_raw_search,
 )
 from exmekh_lib.core.agents.tools.decorator import get_tool_definition
-from exmekh_lib.core.providers.openai_chat_completion_annotation_schema_builder import (
-    OpenAIChatCompletionAnnotationSchemaBuilder,
+from exmekh_lib.core.models.annotation_schema import (
+    AnnotationSchemaBuilder,
 )
 from exmekh_lib.core.providers.openai_function_tool_definition_mapper import (
     OpenAIFunctionToolDefinitionMapper,
@@ -55,9 +55,7 @@ def test_runtime_state_is_absent_from_model_schemas(tmp_path: Path) -> None:
         BashTool(work_root=tmp_path),
         SubAgentTool([child], tmp_path),
     )
-    mapper = OpenAIFunctionToolDefinitionMapper(
-        OpenAIChatCompletionAnnotationSchemaBuilder()
-    )
+    mapper = OpenAIFunctionToolDefinitionMapper(AnnotationSchemaBuilder())
     schemas = {
         tool.name: set(mapper.map(tool, strict=True).get_parameters()["properties"])
         for tool in tools
@@ -76,9 +74,7 @@ def test_runtime_state_is_absent_from_model_schemas(tmp_path: Path) -> None:
 def test_read_output_summary_schema_has_three_modes_and_no_summary_default(tmp_path):
     memory = HarnessMemoryTools(ExecutionHistory(), lambda: None, work_root=tmp_path)
     read = next(tool for tool in memory.tools if tool.name == "read_tool_output")
-    mapper = OpenAIFunctionToolDefinitionMapper(
-        OpenAIChatCompletionAnnotationSchemaBuilder()
-    )
+    mapper = OpenAIFunctionToolDefinitionMapper(AnnotationSchemaBuilder())
     for strict in (False, True):
         schema = mapper.map(read, strict=strict).get_parameters()
         assert schema["properties"]["summary_mode"]["enum"] == [

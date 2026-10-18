@@ -95,7 +95,10 @@ class CapabilitiesData:
         else:
             names = ", ".join(f"'{name}'" for name in skill_names)
             description = AGENT_TEXT.available_in_skills.format(names=names)
-        return tool.with_description(description)
+        contextual = tool.with_description(description)
+        if skill_names and not isinstance(tool, DeepSkill):
+            return contextual.without_parameter_descriptions()
+        return contextual
 
     def get_hds(self, name: str) -> HDS:
         for hds in self.hds:

@@ -135,6 +135,14 @@ def test_tools_text_matches_http_payload_and_includes_contextual_and_runtime_too
         "enum"
     ] == ["child"]
     assert "work_root" not in by_name["mock-tool"]["parameters"]["properties"]
+    for name in ("mock-sub-tool", "nested-sub-tool", "shared-tool"):
+        parameters = by_name[name]["parameters"]["properties"]
+        assert "description" not in parameters["execution_mode"]
+        assert "description" not in parameters["wait_seconds"]
+    for name in ("mock-tool", "bash"):
+        parameters = by_name[name]["parameters"]["properties"]
+        assert "description" in parameters["execution_mode"]
+        assert "description" in parameters["wait_seconds"]
     assert "città" in text
     assert "🛠️" in text
     assert "Mock skill body" not in text

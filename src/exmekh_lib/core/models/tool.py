@@ -191,6 +191,7 @@ class Tool:
         self.argument_guidance = argument_guidance
         validate_interactive_tool(interactive, background_enabled=background_enabled)
         self.interactive = interactive
+        self._parameter_descriptions_visible = True
         self._check_inputs()
 
     def _resolve_tool_name(self, tool: Callable[..., Any], name: str | None) -> str:
@@ -389,6 +390,16 @@ class Tool:
 
     def with_description(self, description: str) -> Self:
         return self._copy(name=self.name, description=description)
+
+    def exposes_parameter_descriptions(self) -> bool:
+        """Whether provider schemas should include parameter documentation."""
+        return self._parameter_descriptions_visible
+
+    def without_parameter_descriptions(self) -> Self:
+        """Copy the tool for a scope that loads its documentation separately."""
+        copied = copy(self)
+        copied._parameter_descriptions_visible = False
+        return copied
 
     def with_name(self, name: str) -> Self:
         """Copy a tool under another registered name, preserving its behavior."""

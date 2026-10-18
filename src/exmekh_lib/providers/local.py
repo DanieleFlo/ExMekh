@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import os
-from typing import Literal
+from types import TracebackType
+from typing import Literal, Self
 from urllib.parse import urlparse
 
 import openai
@@ -54,7 +55,26 @@ class LocalProvider(Provider):
 
         self._check_inputs()
         self.client = self._build_client()
-        self._check_provider()
+        try:
+            self._check_provider()
+        except BaseException:
+            self.close()
+            raise
+
+    def close(self) -> None:
+        """Release the connection pool owned by this provider."""
+        self.client.close()
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self.close()
 
     def _check_inputs(self) -> None:
         if not isinstance(self._model, str):

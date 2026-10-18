@@ -56,7 +56,8 @@ class DeepAgent:
     def get_tools_text(self) -> str:
         """Return the root's tools JSON exactly as serialized for its provider.
 
-        Includes contextual skill descriptions and runtime tools. Does not call
+        Includes contextual skill descriptions and runtime tools. Skill-only
+        tools load parameter documentation through their skill catalogs. Does not call
         inference or change history. The server's rendered prompt is separate.
         Providers must implement tools request serialization.
         """

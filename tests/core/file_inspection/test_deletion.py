@@ -7,8 +7,8 @@ import pytest
 from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
 from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
 from exmekh_lib.core.file_inspection import edit_filesystem
-from exmekh_lib.core.providers.openai_chat_completion_annotation_schema_builder import (
-    OpenAIChatCompletionAnnotationSchemaBuilder,
+from exmekh_lib.core.models.annotation_schema import (
+    AnnotationSchemaBuilder,
 )
 from exmekh_lib.core.providers.openai_function_tool_definition_mapper import (
     OpenAIFunctionToolDefinitionMapper,
@@ -25,9 +25,7 @@ def delete_tool(tmp_path):
 
 @pytest.mark.parametrize("strict", [False, True])
 def test_delete_schema_requires_a_list_of_paths(delete_tool, strict):
-    mapper = OpenAIFunctionToolDefinitionMapper(
-        OpenAIChatCompletionAnnotationSchemaBuilder()
-    )
+    mapper = OpenAIFunctionToolDefinitionMapper(AnnotationSchemaBuilder())
     schema = mapper.map(delete_tool, strict=strict).get_parameters()
 
     assert schema["required"] == ["paths"]

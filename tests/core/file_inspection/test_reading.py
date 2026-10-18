@@ -20,6 +20,9 @@ from exmekh_lib.core.file_inspection.reading import (
     read_file,
 )
 from exmekh_lib.core.file_inspection.runtime import FileInspectionHistory
+from exmekh_lib.core.models.annotation_schema import (
+    AnnotationSchemaBuilder,
+)
 from exmekh_lib.core.models.assistant_message import (
     AssistantMessage,
     FunctionCall,
@@ -28,9 +31,6 @@ from exmekh_lib.core.models.assistant_message import (
 from exmekh_lib.core.models.tool import Tool
 from exmekh_lib.core.models.tool_hooks import ToolHooks
 from exmekh_lib.core.models.tool_message import ToolMessage
-from exmekh_lib.core.providers.openai_chat_completion_annotation_schema_builder import (
-    OpenAIChatCompletionAnnotationSchemaBuilder,
-)
 from exmekh_lib.core.providers.openai_function_tool_definition_mapper import (
     OpenAIFunctionToolDefinitionMapper,
 )
@@ -201,9 +201,7 @@ def test_read_schema_requires_all_indices_and_describes_prerequisite(tmp_path):
         work_root=tmp_path
     )
     tool = next(t for t in loaded.tools if t.name == "read-file")
-    mapper = OpenAIFunctionToolDefinitionMapper(
-        OpenAIChatCompletionAnnotationSchemaBuilder()
-    )
+    mapper = OpenAIFunctionToolDefinitionMapper(AnnotationSchemaBuilder())
     for strict in (False, True):
         schema = mapper.map(tool, strict=strict).get_parameters()
         assert set(schema["properties"]) == {"path", "start_index", "end_index"}

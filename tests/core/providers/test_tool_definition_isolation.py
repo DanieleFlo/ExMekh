@@ -2,10 +2,10 @@
 
 import pytest
 
-from exmekh_lib.core.models.tool import Tool
-from exmekh_lib.core.providers.openai_chat_completion_annotation_schema_builder import (
-    OpenAIChatCompletionAnnotationSchemaBuilder,
+from exmekh_lib.core.models.annotation_schema import (
+    AnnotationSchemaBuilder,
 )
+from exmekh_lib.core.models.tool import Tool
 from exmekh_lib.core.providers.openai_function_tool_definition_mapper import (
     OpenAIFunctionToolDefinitionMapper,
 )
@@ -16,9 +16,7 @@ def test_nested_schema_exports_are_independent(export: str) -> None:
     def choose(values: list[str]) -> str:
         return values[0]
 
-    mapper = OpenAIFunctionToolDefinitionMapper(
-        OpenAIChatCompletionAnnotationSchemaBuilder()
-    )
+    mapper = OpenAIFunctionToolDefinitionMapper(AnnotationSchemaBuilder())
     definition = mapper.map(Tool(choose))
     parameters = (
         definition.get_parameters()

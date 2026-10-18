@@ -768,7 +768,7 @@ def test_skill_increments_depth_adds_exit_body_and_requires_a_tool(
     skill_message = cast(ToolMessage, provider.requests[1].get_messages()[-1])
     assert skill_message.get_tool_call_id() == "skill-call"
     assert skill_message.get_message() == (
-        "Mock skill body\n\n<catalog></catalog>\n\n"
+        "Mock skill body\n\n<catalog />\n\n"
         '<exit-tool name="exit_agent">Finish the agent</exit-tool>'
     )
     exit_message = cast(ToolMessage, provider.requests[2].get_messages()[-1])

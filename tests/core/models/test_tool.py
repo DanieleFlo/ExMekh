@@ -82,6 +82,22 @@ def test_tool_creates_copy_with_description_suffix() -> None:
     assert described_tool.description == "Search docs. Available in every skill."
 
 
+def test_hiding_parameter_descriptions_preserves_behavior_and_source_metadata():
+    tool = Tool(documented_tool, name="search-docs", cache_result=False)
+    contextual = tool.without_parameter_descriptions()
+
+    assert tool.exposes_parameter_descriptions() is True
+    assert contextual.exposes_parameter_descriptions() is False
+    assert contextual.get_type_hints() == tool.get_type_hints()
+    assert contextual.get_signature() == tool.get_signature()
+    assert contextual.execute(query="value") == tool.execute(query="value")
+    assert contextual.cache_result is False
+    assert contextual.with_name("renamed").exposes_parameter_descriptions() is False
+    assert (
+        contextual.with_description("Scoped").exposes_parameter_descriptions() is False
+    )
+
+
 @pytest.mark.parametrize("original_mode", ["background", "synchronous", "interactive"])
 @pytest.mark.parametrize("replacement_background", [False, True])
 def test_execution_policy_copies_keep_contracts_without_enabling_background(

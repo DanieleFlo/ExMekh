@@ -5,10 +5,10 @@ import pytest
 
 from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
 from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
-from exmekh_lib.core.models.tool import Tool
-from exmekh_lib.core.providers.openai_chat_completion_annotation_schema_builder import (
-    OpenAIChatCompletionAnnotationSchemaBuilder,
+from exmekh_lib.core.models.annotation_schema import (
+    AnnotationSchemaBuilder,
 )
+from exmekh_lib.core.models.tool import Tool
 from exmekh_lib.core.providers.openai_function_tool_definition_mapper import (
     OpenAIFunctionToolDefinitionMapper,
 )
@@ -207,9 +207,7 @@ def test_unknown_timezone_remains_an_input_error(
 
 
 def test_bundled_tool_exposes_a_strict_provider_schema(bundled_tool: Tool) -> None:
-    mapper = OpenAIFunctionToolDefinitionMapper(
-        OpenAIChatCompletionAnnotationSchemaBuilder()
-    )
+    mapper = OpenAIFunctionToolDefinitionMapper(AnnotationSchemaBuilder())
     schema = mapper.map(bundled_tool, strict=True).get_parameters()
     assert schema["properties"]["operation"]["enum"] == [
         "now",

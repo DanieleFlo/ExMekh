@@ -5,11 +5,11 @@ from typing import Any, ClassVar
 from openai.types.responses import ResponseFunctionToolCall
 
 from exmekh_lib.config.provider_text import PROVIDER_TEXT
+from exmekh_lib.core.models.annotation_schema import (
+    AnnotationSchemaBuilder,
+)
 from exmekh_lib.core.models.tool import Tool
 from exmekh_lib.core.models.tools import Tools
-from exmekh_lib.core.providers.openai_chat_completion_annotation_schema_builder import (
-    OpenAIChatCompletionAnnotationSchemaBuilder,
-)
 from exmekh_lib.core.providers.openai_chat_completion_value_coercer import (
     OpenAIChatCompletionValueCoercer,
 )
@@ -27,9 +27,7 @@ class OpenAIResponseToolMapper:
     """Adapt Responses calls with reusable, stateless mapping services."""
 
     _definition_mapper: ClassVar[OpenAIFunctionToolDefinitionMapper] = (
-        OpenAIFunctionToolDefinitionMapper(
-            OpenAIChatCompletionAnnotationSchemaBuilder()
-        )
+        OpenAIFunctionToolDefinitionMapper(AnnotationSchemaBuilder())
     )
     _call_resolver: ClassVar[OpenAIFunctionToolCallResolver] = (
         OpenAIFunctionToolCallResolver(OpenAIChatCompletionValueCoercer())

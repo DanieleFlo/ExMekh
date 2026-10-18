@@ -7,12 +7,12 @@ import pytest
 
 from exmekh_lib.capabilities.tools.call_sub_agent.sub_agent_tool import SubAgentTool
 from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.models.annotation_schema import (
+    AnnotationSchemaBuilder,
+)
 from exmekh_lib.core.models.assistant_message import AssistantMessage
 from exmekh_lib.core.models.provider_response import ProviderResponse
 from exmekh_lib.core.models.tools import Tools
-from exmekh_lib.core.providers.openai_chat_completion_annotation_schema_builder import (
-    OpenAIChatCompletionAnnotationSchemaBuilder,
-)
 from exmekh_lib.core.providers.openai_function_tool_definition_mapper import (
     OpenAIFunctionToolDefinitionMapper,
 )
@@ -31,9 +31,7 @@ def _child(tmp_path: Path, name: str, response: str = "done") -> Node:
 
 def test_exposes_child_enum_and_non_empty_text_schema(tmp_path: Path) -> None:
     tool = SubAgentTool([_child(tmp_path, "writer"), _child(tmp_path, "reviewer")])
-    mapper = OpenAIFunctionToolDefinitionMapper(
-        OpenAIChatCompletionAnnotationSchemaBuilder()
-    )
+    mapper = OpenAIFunctionToolDefinitionMapper(AnnotationSchemaBuilder())
 
     definition = mapper.map(tool, strict=True)
 

@@ -2,6 +2,11 @@
 
 This document covers running the interactive command-line interface, executing standard offline unit tests, and running live integration tests against model backends.
 
+For a separately invoked, scored comparison of tool argument compilation with
+full schemas versus scoped parameter documentation, see
+[Tool argument evaluations](../evaluations/README.md). Its 14 paired scenarios
+are independent of the live-test suite and do not execute tools.
+
 ---
 
 ## 1. Command-Line Interface (CLI)

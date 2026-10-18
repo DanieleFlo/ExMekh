@@ -9,12 +9,12 @@ from typing import Any, ClassVar
 from openai.types.shared_params.function_definition import FunctionDefinition
 
 from exmekh_lib.config.provider_text import PROVIDER_TEXT
+from exmekh_lib.core.models.annotation_schema import (
+    AnnotationSchemaBuilder,
+)
+from exmekh_lib.core.models.json_schema import Schema, without_schema_descriptions
 from exmekh_lib.core.models.tool import Tool
 from exmekh_lib.core.models.tools import Tools
-from exmekh_lib.core.providers.openai_chat_completion_annotation_schema_builder import (
-    OpenAIChatCompletionAnnotationSchemaBuilder,
-    Schema,
-)
 
 
 @dataclass(frozen=True)
@@ -51,7 +51,7 @@ class OpenAIFunctionToolDefinitionMapper:
 
     def __init__(
         self,
-        schema_builder: OpenAIChatCompletionAnnotationSchemaBuilder,
+        schema_builder: AnnotationSchemaBuilder,
     ) -> None:
         self._schema_builder = schema_builder
 
@@ -102,7 +102,12 @@ class OpenAIFunctionToolDefinitionMapper:
             if strict or self._is_required(parameter):
                 required.append(parameter.name)
 
-        return self._object_schema(properties, required)
+        schema = self._object_schema(properties, required)
+        return (
+            schema
+            if tool.exposes_parameter_descriptions()
+            else without_schema_descriptions(schema)
+        )
 
     @staticmethod
     def _parameter_annotation(

@@ -1,0 +1,2877 @@
+<tool-argument-evaluation version="1">
+  <settings type="object">
+    <model type="string">Qwen3.8-27B-UD-Q4_K_S</model>
+    <repetitions type="integer">1</repetitions>
+    <seed type="integer">20261018</seed>
+    <cases type="array">
+      <item type="string">customer_identifier</item>
+      <item type="string">exclusive_date_boundary</item>
+      <item type="string">money_in_minor_units</item>
+      <item type="string">nested_order_lines</item>
+      <item type="string">dataclass_postal_address</item>
+      <item type="string">null_folder</item>
+      <item type="string">enum_direction_mapping</item>
+      <item type="string">dictionary_description_key</item>
+      <item type="string">union_opaque_code</item>
+      <item type="string">signed_coordinate_order</item>
+      <item type="string">boolean_polarity_and_duration</item>
+      <item type="string">literal_document_protocol</item>
+      <item type="string">documented_verification_literal</item>
+      <item type="string">background_execution</item>
+    </cases>
+    <reasoning type="string">low</reasoning>
+    <timeout_seconds type="number">120.0</timeout_seconds>
+    <max_output_tokens type="integer">4096</max_output_tokens>
+    <output type="string">PosixPath('evaluations/results/tool-arguments-reviewed-2026-10-18.xml')</output>
+  </settings>
+  <tokenizer type="string">Qwen/Qwen3.8-27B</tokenizer>
+  <api type="string">responses</api>
+  <planned_samples type="integer">28</planned_samples>
+  <complete type="boolean">true</complete>
+  <summary type="object">
+    <full type="object">
+      <attempts type="integer">14</attempts>
+      <scored_samples type="integer">14</scored_samples>
+      <infrastructure_errors type="integer">0</infrastructure_errors>
+      <mean_score type="number">97.80219780219781</mean_score>
+      <score_stddev type="number">7.924288517503275</score_stddev>
+      <exact_call_rate_percent type="number">92.85714285714286</exact_call_rate_percent>
+      <mean_tool_definition_tokens type="number">192.42857142857142</mean_tool_definition_tokens>
+      <mean_instruction_tokens type="number">781.8571428571429</mean_instruction_tokens>
+    </full>
+    <scoped type="object">
+      <attempts type="integer">14</attempts>
+      <scored_samples type="integer">14</scored_samples>
+      <infrastructure_errors type="integer">0</infrastructure_errors>
+      <mean_score type="number">96.01648351648352</mean_score>
+      <score_stddev type="number">9.818306196982656</score_stddev>
+      <exact_call_rate_percent type="number">85.71428571428571</exact_call_rate_percent>
+      <mean_tool_definition_tokens type="number">111.92857142857143</mean_tool_definition_tokens>
+      <mean_instruction_tokens type="number">862.9285714285714</mean_instruction_tokens>
+    </scoped>
+    <comparison type="object">
+      <paired_samples type="integer">14</paired_samples>
+      <mean_score_delta_scoped_minus_full type="number">-1.7857142857142858</mean_score_delta_scoped_minus_full>
+    </comparison>
+    <cases type="object">
+      <background_execution type="object">
+        <full type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </full>
+        <scoped type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </scoped>
+      </background_execution>
+      <boolean_polarity_and_duration type="object">
+        <full type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </full>
+        <scoped type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </scoped>
+      </boolean_polarity_and_duration>
+      <customer_identifier type="object">
+        <full type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </full>
+        <scoped type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </scoped>
+      </customer_identifier>
+      <dataclass_postal_address type="object">
+        <full type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </full>
+        <scoped type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </scoped>
+      </dataclass_postal_address>
+      <dictionary_description_key type="object">
+        <full type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </full>
+        <scoped type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </scoped>
+      </dictionary_description_key>
+      <documented_verification_literal type="object">
+        <full type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </full>
+        <scoped type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </scoped>
+      </documented_verification_literal>
+      <enum_direction_mapping type="object">
+        <full type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </full>
+        <scoped type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </scoped>
+      </enum_direction_mapping>
+      <exclusive_date_boundary type="object">
+        <full type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </full>
+        <scoped type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </scoped>
+      </exclusive_date_boundary>
+      <literal_document_protocol type="object">
+        <full type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </full>
+        <scoped type="object">
+          <mean_score type="number">75.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </scoped>
+      </literal_document_protocol>
+      <money_in_minor_units type="object">
+        <full type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </full>
+        <scoped type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </scoped>
+      </money_in_minor_units>
+      <nested_order_lines type="object">
+        <full type="object">
+          <mean_score type="number">69.23076923076923</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </full>
+        <scoped type="object">
+          <mean_score type="number">69.23076923076923</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </scoped>
+      </nested_order_lines>
+      <null_folder type="object">
+        <full type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </full>
+        <scoped type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </scoped>
+      </null_folder>
+      <signed_coordinate_order type="object">
+        <full type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </full>
+        <scoped type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </scoped>
+      </signed_coordinate_order>
+      <union_opaque_code type="object">
+        <full type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </full>
+        <scoped type="object">
+          <mean_score type="number">100.0</mean_score>
+          <scored_samples type="integer">1</scored_samples>
+        </scoped>
+      </union_opaque_code>
+    </cases>
+  </summary>
+  <trials type="array">
+    <item type="object">
+      <case type="string">literal_document_protocol</case>
+      <category type="string">text_protocol</category>
+      <variant type="string">full</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <document type="string">&lt;new-exmekh-file path="drafts/ab&amp;amp;cd.txt"/&gt;&lt;hello&gt;&amp;done</document>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">prepare_document</name>
+          <arguments type="string">{"document":"&lt;new-exmekh-file path=\"drafts/ab&amp;amp;cd.txt\"/&gt;&lt;hello&gt;&amp;done","execution_mode":"wait","wait_seconds":60.0}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">document</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">document</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/document</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">&lt;new-exmekh-file path="drafts/ab&amp;amp;cd.txt"/&gt;&lt;hello&gt;&amp;done</expected>
+            <actual type="string">&lt;new-exmekh-file path="drafts/ab&amp;amp;cd.txt"/&gt;&lt;hello&gt;&amp;done</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">13.351272347000304</elapsed_seconds>
+      <tool_definition_tokens type="integer">193</tool_definition_tokens>
+      <instruction_tokens type="integer">782</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1188</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1188</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">338</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">17</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1526</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">literal_document_protocol</case>
+      <category type="string">text_protocol</category>
+      <variant type="string">scoped</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <document type="string">&lt;new-exmekh-file path="drafts/ab&amp;amp;cd.txt"/&gt;&lt;hello&gt;&amp;done</document>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">prepare_document</name>
+          <arguments type="string">{"document":"&lt;new-exmekh-file path=\"drafts/ab&amp;amp;cd.txt\"/&gt;&lt;hello&gt;&amp;amp;done","execution_mode":null,"wait_seconds":null}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">75.0</score>
+        <exact type="boolean">false</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">document</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">document</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/document</path>
+            <passed type="boolean">false</passed>
+            <expected type="string">&lt;new-exmekh-file path="drafts/ab&amp;amp;cd.txt"/&gt;&lt;hello&gt;&amp;done</expected>
+            <actual type="string">&lt;new-exmekh-file path="drafts/ab&amp;amp;cd.txt"/&gt;&lt;hello&gt;&amp;amp;done</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">13.42145180999978</elapsed_seconds>
+      <tool_definition_tokens type="integer">96</tool_definition_tokens>
+      <instruction_tokens type="integer">873</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1182</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1182</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">308</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">17</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1490</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">dataclass_postal_address</case>
+      <category type="string">dataclasses</category>
+      <variant type="string">scoped</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <address type="object">
+          <recipient type="string">Chloé Martin</recipient>
+          <street type="string">Via Roma 12</street>
+          <postal_code type="string">00144</postal_code>
+          <country type="string">IT</country>
+        </address>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">prepare_delivery</name>
+          <arguments type="string">{"address":{"recipient":"Chloé Martin","street":"Via Roma 12","postal_code":"00144","country":"IT"},"execution_mode":"wait","wait_seconds":60}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">address</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">address</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/address/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">country</item>
+              <item type="string">postal_code</item>
+              <item type="string">recipient</item>
+              <item type="string">street</item>
+            </expected>
+            <actual type="array">
+              <item type="string">country</item>
+              <item type="string">postal_code</item>
+              <item type="string">recipient</item>
+              <item type="string">street</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/address/recipient</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">Chloé Martin</expected>
+            <actual type="string">Chloé Martin</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/address/street</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">Via Roma 12</expected>
+            <actual type="string">Via Roma 12</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/address/postal_code</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">00144</expected>
+            <actual type="string">00144</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/address/country</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">IT</expected>
+            <actual type="string">IT</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="integer">60</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">20.54303672900005</elapsed_seconds>
+      <tool_definition_tokens type="integer">147</tool_definition_tokens>
+      <instruction_tokens type="integer">930</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1290</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1290</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">238</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">24</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1528</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">dataclass_postal_address</case>
+      <category type="string">dataclasses</category>
+      <variant type="string">full</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <address type="object">
+          <recipient type="string">Chloé Martin</recipient>
+          <street type="string">Via Roma 12</street>
+          <postal_code type="string">00144</postal_code>
+          <country type="string">IT</country>
+        </address>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">prepare_delivery</name>
+          <arguments type="string">{"address":{"recipient":"Chloé Martin","street":"Via Roma 12","postal_code":"00144","country":"IT"},"execution_mode":"wait","wait_seconds":60.0}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">address</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">address</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/address/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">country</item>
+              <item type="string">postal_code</item>
+              <item type="string">recipient</item>
+              <item type="string">street</item>
+            </expected>
+            <actual type="array">
+              <item type="string">country</item>
+              <item type="string">postal_code</item>
+              <item type="string">recipient</item>
+              <item type="string">street</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/address/recipient</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">Chloé Martin</expected>
+            <actual type="string">Chloé Martin</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/address/street</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">Via Roma 12</expected>
+            <actual type="string">Via Roma 12</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/address/postal_code</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">00144</expected>
+            <actual type="string">00144</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/address/country</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">IT</expected>
+            <actual type="string">IT</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">18.20627790799972</elapsed_seconds>
+      <tool_definition_tokens type="integer">248</tool_definition_tokens>
+      <instruction_tokens type="integer">786</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1247</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1247</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">247</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">24</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1494</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">boolean_polarity_and_duration</case>
+      <category type="string">booleans</category>
+      <variant type="string">full</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <disabled type="boolean">false</disabled>
+        <ttl_seconds type="integer">300</ttl_seconds>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">configure_cache</name>
+          <arguments type="string">{"disabled":false,"ttl_seconds":300,"execution_mode":null,"wait_seconds":null}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">disabled</item>
+              <item type="string">execution_mode</item>
+              <item type="string">ttl_seconds</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">disabled</item>
+              <item type="string">execution_mode</item>
+              <item type="string">ttl_seconds</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/disabled</path>
+            <passed type="boolean">true</passed>
+            <expected type="boolean">false</expected>
+            <actual type="boolean">false</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/ttl_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="integer">300</expected>
+            <actual type="integer">300</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">20.1078630789998</elapsed_seconds>
+      <tool_definition_tokens type="integer">185</tool_definition_tokens>
+      <instruction_tokens type="integer">767</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1165</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1165</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">596</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">29</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1761</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">boolean_polarity_and_duration</case>
+      <category type="string">booleans</category>
+      <variant type="string">scoped</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <disabled type="boolean">false</disabled>
+        <ttl_seconds type="integer">300</ttl_seconds>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">configure_cache</name>
+          <arguments type="string">{"disabled":false,"ttl_seconds":300,"execution_mode":"wait","wait_seconds":60}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">disabled</item>
+              <item type="string">execution_mode</item>
+              <item type="string">ttl_seconds</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">disabled</item>
+              <item type="string">execution_mode</item>
+              <item type="string">ttl_seconds</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/disabled</path>
+            <passed type="boolean">true</passed>
+            <expected type="boolean">false</expected>
+            <actual type="boolean">false</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/ttl_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="integer">300</expected>
+            <actual type="integer">300</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="integer">60</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">13.545767777000037</elapsed_seconds>
+      <tool_definition_tokens type="integer">106</tool_definition_tokens>
+      <instruction_tokens type="integer">851</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1170</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1170</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">190</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">29</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1360</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">money_in_minor_units</case>
+      <category type="string">units</category>
+      <variant type="string">scoped</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <amount_minor type="integer">1234</amount_minor>
+        <currency type="string">EUR</currency>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">prepare_payment</name>
+          <arguments type="string">{"amount_minor":1234,"currency":"EUR","execution_mode":"wait","wait_seconds":null}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">amount_minor</item>
+              <item type="string">currency</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">amount_minor</item>
+              <item type="string">currency</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/amount_minor</path>
+            <passed type="boolean">true</passed>
+            <expected type="integer">1234</expected>
+            <actual type="integer">1234</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/currency</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">EUR</expected>
+            <actual type="string">EUR</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">10.883810476999315</elapsed_seconds>
+      <tool_definition_tokens type="integer">112</tool_definition_tokens>
+      <instruction_tokens type="integer">845</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1170</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1170</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">213</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">30</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1383</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">money_in_minor_units</case>
+      <category type="string">units</category>
+      <variant type="string">full</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <amount_minor type="integer">1234</amount_minor>
+        <currency type="string">EUR</currency>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">prepare_payment</name>
+          <arguments type="string">{"amount_minor":1234,"currency":"EUR","execution_mode":"wait","wait_seconds":60.0}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">amount_minor</item>
+              <item type="string">currency</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">amount_minor</item>
+              <item type="string">currency</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/amount_minor</path>
+            <passed type="boolean">true</passed>
+            <expected type="integer">1234</expected>
+            <actual type="integer">1234</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/currency</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">EUR</expected>
+            <actual type="string">EUR</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">11.42383860299924</elapsed_seconds>
+      <tool_definition_tokens type="integer">185</tool_definition_tokens>
+      <instruction_tokens type="integer">780</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1178</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1178</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">223</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">24</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1401</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">customer_identifier</case>
+      <category type="string">identifiers</category>
+      <variant type="string">full</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <account_id type="string">C-1042</account_id>
+        <include_archived type="boolean">false</include_archived>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">lookup_customer</name>
+          <arguments type="string">{"account_id":"C-1042","include_archived":false,"execution_mode":null,"wait_seconds":null}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">account_id</item>
+              <item type="string">execution_mode</item>
+              <item type="string">include_archived</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">account_id</item>
+              <item type="string">execution_mode</item>
+              <item type="string">include_archived</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/account_id</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">C-1042</expected>
+            <actual type="string">C-1042</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/include_archived</path>
+            <passed type="boolean">true</passed>
+            <expected type="boolean">false</expected>
+            <actual type="boolean">false</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">13.323882315999981</elapsed_seconds>
+      <tool_definition_tokens type="integer">190</tool_definition_tokens>
+      <instruction_tokens type="integer">785</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1188</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1188</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">311</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">23</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1499</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">customer_identifier</case>
+      <category type="string">identifiers</category>
+      <variant type="string">scoped</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <account_id type="string">C-1042</account_id>
+        <include_archived type="boolean">false</include_archived>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">lookup_customer</name>
+          <arguments type="string">{"account_id":"C-1042","include_archived":false,"execution_mode":"wait","wait_seconds":60}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">account_id</item>
+              <item type="string">execution_mode</item>
+              <item type="string">include_archived</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">account_id</item>
+              <item type="string">execution_mode</item>
+              <item type="string">include_archived</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/account_id</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">C-1042</expected>
+            <actual type="string">C-1042</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/include_archived</path>
+            <passed type="boolean">true</passed>
+            <expected type="boolean">false</expected>
+            <actual type="boolean">false</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="integer">60</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">15.599311927999224</elapsed_seconds>
+      <tool_definition_tokens type="integer">110</tool_definition_tokens>
+      <instruction_tokens type="integer">870</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1193</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1193</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">347</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">17</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1540</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">union_opaque_code</case>
+      <category type="string">unions</category>
+      <variant type="string">scoped</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <reference type="string">0017</reference>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">select_reference</name>
+          <arguments type="string">{"reference":"0017","execution_mode":"wait","wait_seconds":60}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">reference</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">reference</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/reference</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">0017</expected>
+            <actual type="string">0017</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="integer">60</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">10.507626880000316</elapsed_seconds>
+      <tool_definition_tokens type="integer">105</tool_definition_tokens>
+      <instruction_tokens type="integer">841</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1159</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1159</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">223</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">11</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1382</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">union_opaque_code</case>
+      <category type="string">unions</category>
+      <variant type="string">full</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <reference type="string">0017</reference>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">select_reference</name>
+          <arguments type="string">{"reference":"0017","execution_mode":null,"wait_seconds":null}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">reference</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">reference</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/reference</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">0017</expected>
+            <actual type="string">0017</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">13.711205411000265</elapsed_seconds>
+      <tool_definition_tokens type="integer">177</tool_definition_tokens>
+      <instruction_tokens type="integer">778</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1168</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1168</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">223</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">17</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1391</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">enum_direction_mapping</case>
+      <category type="string">enums</category>
+      <variant type="string">full</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <direction type="string">in</direction>
+        <reference type="string">TR-82</reference>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">classify_transfer</name>
+          <arguments type="string">{"direction":"in","reference":"TR-82","execution_mode":"wait","wait_seconds":60.0}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">direction</item>
+              <item type="string">execution_mode</item>
+              <item type="string">reference</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">direction</item>
+              <item type="string">execution_mode</item>
+              <item type="string">reference</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/direction</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">in</expected>
+            <actual type="string">in</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/reference</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">TR-82</expected>
+            <actual type="string">TR-82</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">15.122888672000045</elapsed_seconds>
+      <tool_definition_tokens type="integer">192</tool_definition_tokens>
+      <instruction_tokens type="integer">777</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1182</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1182</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">254</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">18</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1436</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">enum_direction_mapping</case>
+      <category type="string">enums</category>
+      <variant type="string">scoped</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <direction type="string">in</direction>
+        <reference type="string">TR-82</reference>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">classify_transfer</name>
+          <arguments type="string">{"direction":"in","reference":"TR-82","execution_mode":null,"wait_seconds":null}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">direction</item>
+              <item type="string">execution_mode</item>
+              <item type="string">reference</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">direction</item>
+              <item type="string">execution_mode</item>
+              <item type="string">reference</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/direction</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">in</expected>
+            <actual type="string">in</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/reference</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">TR-82</expected>
+            <actual type="string">TR-82</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">10.701302282000142</elapsed_seconds>
+      <tool_definition_tokens type="integer">110</tool_definition_tokens>
+      <instruction_tokens type="integer">862</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1185</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1185</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">214</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">24</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1399</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">signed_coordinate_order</case>
+      <category type="string">arrays</category>
+      <variant type="string">scoped</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <coordinates type="array">
+          <item type="number">-73.5</item>
+          <item type="number">40.25</item>
+        </coordinates>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">locate_point</name>
+          <arguments type="string">{"coordinates":[-73.5,40.25],"execution_mode":"wait","wait_seconds":60}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">coordinates</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">coordinates</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/coordinates/@length</path>
+            <passed type="boolean">true</passed>
+            <expected type="integer">2</expected>
+            <actual type="integer">2</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/coordinates/0</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">-73.5</expected>
+            <actual type="number">-73.5</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/coordinates/1</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">40.25</expected>
+            <actual type="number">40.25</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="integer">60</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">15.956515513999875</elapsed_seconds>
+      <tool_definition_tokens type="integer">103</tool_definition_tokens>
+      <instruction_tokens type="integer">847</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1163</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1163</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">294</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">17</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1457</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">signed_coordinate_order</case>
+      <category type="string">arrays</category>
+      <variant type="string">full</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <coordinates type="array">
+          <item type="number">-73.5</item>
+          <item type="number">40.25</item>
+        </coordinates>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">locate_point</name>
+          <arguments type="string">{"coordinates":[-73.5,40.25],"execution_mode":null,"wait_seconds":null}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">coordinates</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">coordinates</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/coordinates/@length</path>
+            <passed type="boolean">true</passed>
+            <expected type="integer">2</expected>
+            <actual type="integer">2</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/coordinates/0</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">-73.5</expected>
+            <actual type="number">-73.5</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/coordinates/1</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">40.25</expected>
+            <actual type="number">40.25</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">13.18626954299998</elapsed_seconds>
+      <tool_definition_tokens type="integer">172</tool_definition_tokens>
+      <instruction_tokens type="integer">786</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1171</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1171</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">174</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">23</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1345</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">dictionary_description_key</case>
+      <category type="string">mappings</category>
+      <variant type="string">full</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <labels type="object">
+          <description type="string">H</description>
+          <priority type="string">L</priority>
+        </labels>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">label_samples</name>
+          <arguments type="string">{"labels":{"description":"H","priority":"L"},"execution_mode":"wait","wait_seconds":60.0}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">labels</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">labels</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/labels/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">description</item>
+              <item type="string">priority</item>
+            </expected>
+            <actual type="array">
+              <item type="string">description</item>
+              <item type="string">priority</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/labels/description</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">H</expected>
+            <actual type="string">H</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/labels/priority</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">L</expected>
+            <actual type="string">L</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">17.425050916000146</elapsed_seconds>
+      <tool_definition_tokens type="integer">192</tool_definition_tokens>
+      <instruction_tokens type="integer">774</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1179</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1179</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">352</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">17</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1531</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">dictionary_description_key</case>
+      <category type="string">mappings</category>
+      <variant type="string">scoped</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <labels type="object">
+          <description type="string">H</description>
+          <priority type="string">L</priority>
+        </labels>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">label_samples</name>
+          <arguments type="string">{"labels":{"description":"H","priority":"L"},"execution_mode":"wait","wait_seconds":60}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">labels</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">labels</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/labels/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">description</item>
+              <item type="string">priority</item>
+            </expected>
+            <actual type="array">
+              <item type="string">description</item>
+              <item type="string">priority</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/labels/description</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">H</expected>
+            <actual type="string">H</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/labels/priority</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">L</expected>
+            <actual type="string">L</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="integer">60</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">12.803718465999737</elapsed_seconds>
+      <tool_definition_tokens type="integer">104</tool_definition_tokens>
+      <instruction_tokens type="integer">870</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1187</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1187</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">140</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">17</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1327</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">exclusive_date_boundary</case>
+      <category type="string">dates</category>
+      <variant type="string">scoped</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <start type="string">2027-03-17</start>
+        <stop type="string">2027-03-20</stop>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">query_period</name>
+          <arguments type="string">{"start":"2027-03-17","stop":"2027-03-20","execution_mode":"wait","wait_seconds":60}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">start</item>
+              <item type="string">stop</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">start</item>
+              <item type="string">stop</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/start</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">2027-03-17</expected>
+            <actual type="string">2027-03-17</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/stop</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">2027-03-20</expected>
+            <actual type="string">2027-03-20</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="integer">60</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">14.035884361000171</elapsed_seconds>
+      <tool_definition_tokens type="integer">104</tool_definition_tokens>
+      <instruction_tokens type="integer">874</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1191</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1191</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">200</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">11</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1391</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">exclusive_date_boundary</case>
+      <category type="string">dates</category>
+      <variant type="string">full</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <start type="string">2027-03-17</start>
+        <stop type="string">2027-03-20</stop>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">query_period</name>
+          <arguments type="string">{"start":"2027-03-17","stop":"2027-03-20","execution_mode":null,"wait_seconds":null}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">start</item>
+              <item type="string">stop</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">start</item>
+              <item type="string">stop</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/start</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">2027-03-17</expected>
+            <actual type="string">2027-03-17</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/stop</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">2027-03-20</expected>
+            <actual type="string">2027-03-20</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">11.707524575000207</elapsed_seconds>
+      <tool_definition_tokens type="integer">186</tool_definition_tokens>
+      <instruction_tokens type="integer">789</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1188</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1188</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">221</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">17</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1409</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">null_folder</case>
+      <category type="string">nullable</category>
+      <variant type="string">full</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <query type="string">quarterly report</query>
+        <folder type="null" />
+        <limit type="integer">3</limit>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">search_documents</name>
+          <arguments type="string">{"query":"quarterly report","folder":null,"limit":3,"execution_mode":null,"wait_seconds":null}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">folder</item>
+              <item type="string">limit</item>
+              <item type="string">query</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">folder</item>
+              <item type="string">limit</item>
+              <item type="string">query</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/query</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">quarterly report</expected>
+            <actual type="string">quarterly report</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/folder</path>
+            <passed type="boolean">true</passed>
+            <expected type="null" />
+            <actual type="null" />
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/limit</path>
+            <passed type="boolean">true</passed>
+            <expected type="integer">3</expected>
+            <actual type="integer">3</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">11.71102391400018</elapsed_seconds>
+      <tool_definition_tokens type="integer">191</tool_definition_tokens>
+      <instruction_tokens type="integer">774</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1178</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1178</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">232</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">29</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1410</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">null_folder</case>
+      <category type="string">nullable</category>
+      <variant type="string">scoped</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <query type="string">quarterly report</query>
+        <folder type="null" />
+        <limit type="integer">3</limit>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">search_documents</name>
+          <arguments type="string">{"query":"quarterly report","folder":null,"limit":3,"execution_mode":"wait","wait_seconds":60}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">folder</item>
+              <item type="string">limit</item>
+              <item type="string">query</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">folder</item>
+              <item type="string">limit</item>
+              <item type="string">query</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/query</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">quarterly report</expected>
+            <actual type="string">quarterly report</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/folder</path>
+            <passed type="boolean">true</passed>
+            <expected type="null" />
+            <actual type="null" />
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/limit</path>
+            <passed type="boolean">true</passed>
+            <expected type="integer">3</expected>
+            <actual type="integer">3</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="integer">60</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">14.120413793999433</elapsed_seconds>
+      <tool_definition_tokens type="integer">121</tool_definition_tokens>
+      <instruction_tokens type="integer">836</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1170</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1170</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">307</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">29</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1477</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">nested_order_lines</case>
+      <category type="string">nested_arrays</category>
+      <variant type="string">scoped</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <lines type="array">
+          <item type="object">
+            <sku type="string">B-17</sku>
+            <quantity type="integer">2</quantity>
+            <unit_price_minor type="integer">125</unit_price_minor>
+          </item>
+          <item type="object">
+            <sku type="string">R-04</sku>
+            <quantity type="integer">3</quantity>
+            <unit_price_minor type="integer">210</unit_price_minor>
+          </item>
+        </lines>
+        <shipping type="string">exp</shipping>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">prepare_order</name>
+          <arguments type="string">{"lines":[{"sku":"B-17","quantity":-2,"unit_price_minor":-125},{"sku":"R-04","quantity":-3,"unit_price_minor":-210}],"shipping":"exp","execution_mode":"wait","wait_seconds":60}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">69.23076923076923</score>
+        <exact type="boolean">false</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">lines</item>
+              <item type="string">shipping</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">lines</item>
+              <item type="string">shipping</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/lines/@length</path>
+            <passed type="boolean">true</passed>
+            <expected type="integer">2</expected>
+            <actual type="integer">2</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/lines/0/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">quantity</item>
+              <item type="string">sku</item>
+              <item type="string">unit_price_minor</item>
+            </expected>
+            <actual type="array">
+              <item type="string">quantity</item>
+              <item type="string">sku</item>
+              <item type="string">unit_price_minor</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/lines/0/sku</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">B-17</expected>
+            <actual type="string">B-17</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/lines/0/quantity</path>
+            <passed type="boolean">false</passed>
+            <expected type="integer">2</expected>
+            <actual type="integer">-2</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/lines/0/unit_price_minor</path>
+            <passed type="boolean">false</passed>
+            <expected type="integer">125</expected>
+            <actual type="integer">-125</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/lines/1/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">quantity</item>
+              <item type="string">sku</item>
+              <item type="string">unit_price_minor</item>
+            </expected>
+            <actual type="array">
+              <item type="string">quantity</item>
+              <item type="string">sku</item>
+              <item type="string">unit_price_minor</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/lines/1/sku</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">R-04</expected>
+            <actual type="string">R-04</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/lines/1/quantity</path>
+            <passed type="boolean">false</passed>
+            <expected type="integer">3</expected>
+            <actual type="integer">-3</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/lines/1/unit_price_minor</path>
+            <passed type="boolean">false</passed>
+            <expected type="integer">210</expected>
+            <actual type="integer">-210</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/shipping</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">exp</expected>
+            <actual type="string">exp</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="integer">60</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">25.71255187999941</elapsed_seconds>
+      <tool_definition_tokens type="integer">156</tool_definition_tokens>
+      <instruction_tokens type="integer">966</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1335</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1335</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">367</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">36</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1702</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">nested_order_lines</case>
+      <category type="string">nested_arrays</category>
+      <variant type="string">full</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <lines type="array">
+          <item type="object">
+            <sku type="string">B-17</sku>
+            <quantity type="integer">2</quantity>
+            <unit_price_minor type="integer">125</unit_price_minor>
+          </item>
+          <item type="object">
+            <sku type="string">R-04</sku>
+            <quantity type="integer">3</quantity>
+            <unit_price_minor type="integer">210</unit_price_minor>
+          </item>
+        </lines>
+        <shipping type="string">exp</shipping>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">prepare_order</name>
+          <arguments type="string">{"lines":[{"sku":"B-17","quantity":-2,"unit_price_minor":-125},{"sku":"R-04","quantity":-3,"unit_price_minor":-210}],"shipping":"exp","execution_mode":"wait","wait_seconds":60.0}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">69.23076923076923</score>
+        <exact type="boolean">false</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">lines</item>
+              <item type="string">shipping</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">lines</item>
+              <item type="string">shipping</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/lines/@length</path>
+            <passed type="boolean">true</passed>
+            <expected type="integer">2</expected>
+            <actual type="integer">2</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/lines/0/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">quantity</item>
+              <item type="string">sku</item>
+              <item type="string">unit_price_minor</item>
+            </expected>
+            <actual type="array">
+              <item type="string">quantity</item>
+              <item type="string">sku</item>
+              <item type="string">unit_price_minor</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/lines/0/sku</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">B-17</expected>
+            <actual type="string">B-17</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/lines/0/quantity</path>
+            <passed type="boolean">false</passed>
+            <expected type="integer">2</expected>
+            <actual type="integer">-2</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/lines/0/unit_price_minor</path>
+            <passed type="boolean">false</passed>
+            <expected type="integer">125</expected>
+            <actual type="integer">-125</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/lines/1/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">quantity</item>
+              <item type="string">sku</item>
+              <item type="string">unit_price_minor</item>
+            </expected>
+            <actual type="array">
+              <item type="string">quantity</item>
+              <item type="string">sku</item>
+              <item type="string">unit_price_minor</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/lines/1/sku</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">R-04</expected>
+            <actual type="string">R-04</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/lines/1/quantity</path>
+            <passed type="boolean">false</passed>
+            <expected type="integer">3</expected>
+            <actual type="integer">-3</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/lines/1/unit_price_minor</path>
+            <passed type="boolean">false</passed>
+            <expected type="integer">210</expected>
+            <actual type="integer">-210</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/shipping</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">exp</expected>
+            <actual type="string">exp</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">24.565038892000302</elapsed_seconds>
+      <tool_definition_tokens type="integer">258</tool_definition_tokens>
+      <instruction_tokens type="integer">818</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1289</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1289</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">251</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">36</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1540</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">documented_verification_literal</case>
+      <category type="string">documentation_lookup</category>
+      <variant type="string">full</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <code type="string">VERIFY-c876db5586ae</code>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">verify</name>
+          <arguments type="string">{"code":"VERIFY-c876db5586ae","execution_mode":null,"wait_seconds":null}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">code</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">code</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/code</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">VERIFY-c876db5586ae</expected>
+            <actual type="string">VERIFY-c876db5586ae</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">9.707173552999848</elapsed_seconds>
+      <tool_definition_tokens type="integer">172</tool_definition_tokens>
+      <instruction_tokens type="integer">769</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1154</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1154</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">175</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">17</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1329</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">documented_verification_literal</case>
+      <category type="string">documentation_lookup</category>
+      <variant type="string">scoped</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <code type="string">VERIFY-c876db5586ae</code>
+        <execution_mode type="string">wait</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">verify</name>
+          <arguments type="string">{"code":"VERIFY-c876db5586ae","execution_mode":null,"wait_seconds":null}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">code</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">code</item>
+              <item type="string">execution_mode</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/code</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">VERIFY-c876db5586ae</expected>
+            <actual type="string">VERIFY-c876db5586ae</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">wait</expected>
+            <actual type="string">wait</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">11.618006763000267</elapsed_seconds>
+      <tool_definition_tokens type="integer">95</tool_definition_tokens>
+      <instruction_tokens type="integer">835</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1143</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1143</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">131</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">17</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1274</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">background_execution</case>
+      <category type="string">execution_options</category>
+      <variant type="string">scoped</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <job_id type="string">JOB-42</job_id>
+        <execution_mode type="string">background</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">queue_job</name>
+          <arguments type="string">{"job_id":"JOB-42","execution_mode":"background","wait_seconds":null}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">job_id</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">job_id</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/job_id</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">JOB-42</expected>
+            <actual type="string">JOB-42</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">background</expected>
+            <actual type="string">background</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">13.353208228000767</elapsed_seconds>
+      <tool_definition_tokens type="integer">98</tool_definition_tokens>
+      <instruction_tokens type="integer">781</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1092</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1092</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">189</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">17</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1281</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+    <item type="object">
+      <case type="string">background_execution</case>
+      <category type="string">execution_options</category>
+      <variant type="string">full</variant>
+      <repetition type="integer">1</repetition>
+      <expected type="object">
+        <job_id type="string">JOB-42</job_id>
+        <execution_mode type="string">background</execution_mode>
+        <wait_seconds type="number">60.0</wait_seconds>
+      </expected>
+      <calls type="array">
+        <item type="object">
+          <name type="string">queue_job</name>
+          <arguments type="string">{"job_id":"JOB-42","execution_mode":"background","wait_seconds":60.0}</arguments>
+        </item>
+      </calls>
+      <grade type="object">
+        <score type="number">100.0</score>
+        <exact type="boolean">true</exact>
+        <checks type="array">
+          <item type="object">
+            <path type="string">/@keys</path>
+            <passed type="boolean">true</passed>
+            <expected type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">job_id</item>
+              <item type="string">wait_seconds</item>
+            </expected>
+            <actual type="array">
+              <item type="string">execution_mode</item>
+              <item type="string">job_id</item>
+              <item type="string">wait_seconds</item>
+            </actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/job_id</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">JOB-42</expected>
+            <actual type="string">JOB-42</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/execution_mode</path>
+            <passed type="boolean">true</passed>
+            <expected type="string">background</expected>
+            <actual type="string">background</actual>
+            <present type="boolean">true</present>
+          </item>
+          <item type="object">
+            <path type="string">/wait_seconds</path>
+            <passed type="boolean">true</passed>
+            <expected type="number">60.0</expected>
+            <actual type="number">60.0</actual>
+            <present type="boolean">true</present>
+          </item>
+        </checks>
+        <issue type="null" />
+      </grade>
+      <elapsed_seconds type="number">16.867122784999992</elapsed_seconds>
+      <tool_definition_tokens type="integer">153</tool_definition_tokens>
+      <instruction_tokens type="integer">781</instruction_tokens>
+      <response_status type="string">completed</response_status>
+      <usage type="object">
+        <input_tokens type="integer">1147</input_tokens>
+        <input_tokens_details type="object">
+          <cache_write_tokens type="integer">1147</cache_write_tokens>
+          <cached_tokens type="integer">0</cached_tokens>
+        </input_tokens_details>
+        <output_tokens type="integer">342</output_tokens>
+        <output_tokens_details type="object">
+          <reasoning_tokens type="integer">0</reasoning_tokens>
+          <constrained_prefill_tokens type="integer">11</constrained_prefill_tokens>
+        </output_tokens_details>
+        <total_tokens type="integer">1489</total_tokens>
+      </usage>
+      <infrastructure_error type="null" />
+    </item>
+  </trials>
+</tool-argument-evaluation>

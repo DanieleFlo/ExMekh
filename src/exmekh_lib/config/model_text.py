@@ -5,6 +5,15 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class ModelText:
+    json_object_keys_must_be_annotated_as_str: str = (
+        "JSON object keys must be annotated as str"
+    )
+    recursive_tool_parameter_types_are_not_supported: str = (
+        "Recursive tool parameter types are not supported"
+    )
+    unsupported_tool_parameter_type: str = (
+        "Unsupported tool parameter type: {annotation!r}"
+    )
     image_hash: str = "Image hash: {hash}"
     all_keys_in_args_must_be_strings: str = "all keys in args must be strings"
     all_keys_in_fields_must_be_strings: str = "all keys in fields must be strings"

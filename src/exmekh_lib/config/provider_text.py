@@ -126,9 +126,6 @@ class ProviderText:
     invalid_interactive_document: str = "Invalid interactive document: {error}"
     invalid_pause: str = "Invalid pause {field}"
     invalid_server_snapshot_byte_limit: str = "Invalid server snapshot byte limit"
-    json_object_keys_must_be_annotated_as_str: str = (
-        "JSON object keys must be annotated as str"
-    )
     json_schema_reference_is_not_an_object: str = (
         "JSON schema reference is not an object: {reference}"
     )
@@ -197,9 +194,6 @@ class ProviderText:
     )
     reasoning_effort_must_be_a_string_or_an_instance: str = (
         "Reasoning effort must be a string or an instance of ReasoningEffort"
-    )
-    recursive_tool_parameter_types_are_not_supported: str = (
-        "Recursive tool parameter types are not supported"
     )
     rejected_call_does_not_match_the_suspended_edit: str = (
         "Rejected call does not match the suspended edit"
@@ -274,9 +268,6 @@ class ProviderText:
     unsupported_scalar_annotation: str = "Unsupported scalar annotation"
     unsupported_tool_call_type: str = (
         "Unsupported tool call type: {tool_call_type_name}"
-    )
-    unsupported_tool_parameter_type: str = (
-        "Unsupported tool parameter type: {annotation!r}"
     )
     unsupported_type_for_argument: str = (
         "Unsupported type for argument '{path}': {annotation!r}"

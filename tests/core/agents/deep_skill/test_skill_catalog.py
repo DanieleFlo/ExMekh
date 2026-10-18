@@ -9,6 +9,36 @@ from exmekh_lib.core.agents.deep_skill.catalog import (
 )
 from exmekh_lib.core.agents.deep_skill.deep_skill import DeepSkill
 from exmekh_lib.core.agents.deep_skill.metadata import DeepSkillMetadata
+from exmekh_lib.core.models.json_schema import SchemaDescription
+from exmekh_lib.utils.xml import read_text_element
+
+
+def test_parameter_documentation_uses_lossless_xml_text():
+    text = "Use <value> & preserve\rnewlines\x00."
+    catalog = SkillCatalog(
+        sub_tools=(
+            SkillCatalogEntry(
+                name="search",
+                description="Search.",
+                parameters=(SchemaDescription('/properties/a<&"', text),),
+            ),
+        )
+    )
+    root = ElementTree.fromstring(catalog.render_prompt_section())
+    parameter = root.find("./parameter-descriptions/tool/parameter")
+    assert parameter is not None
+    assert parameter.attrib["path"] == '/properties/a<&"'
+    assert parameter.attrib["encoding"] == "base64"
+    assert read_text_element(parameter) == text
+
+
+@pytest.mark.parametrize("text", ["Preserve\rcarriage returns.", "Keep\x00controls."])
+def test_tool_descriptions_use_the_same_lossless_xml_encoding(text):
+    catalog = SkillCatalog(sub_tools=(SkillCatalogEntry("search", text),))
+
+    root = ElementTree.fromstring(catalog.render_prompt_section())
+
+    assert read_text_element(root.find("./sub-tools/tool")) == text
 
 
 def _exit_instructions() -> str:
@@ -31,14 +61,11 @@ def test_render_prompt_section_includes_descriptions() -> None:
         ),
     )
 
-    assert catalog.render_prompt_section() == (
-        "<catalog><sub-skills>\n"
-        '<skill name="research">Research the requested topic.</skill>\n'
-        "</sub-skills>\n\n"
-        "<sub-tools>\n"
-        '<tool name="search">Search indexed documents.</tool>\n'
-        "</sub-tools></catalog>"
-    )
+    root = ElementTree.fromstring(catalog.render_prompt_section())
+    assert root.findtext("./sub-skills/skill") == "Research the requested topic."
+    assert root.find("./sub-skills/skill").get("name") == "research"
+    assert root.findtext("./sub-tools/tool") == "Search indexed documents."
+    assert root.find("./sub-tools/tool").get("name") == "search"
 
 
 def test_render_prompt_section_escapes_xml_content() -> None:
@@ -76,7 +103,7 @@ def test_attached_empty_catalog_renders_empty_prompt_section(tmp_path: Path) -> 
     skill.attach_catalog(SkillCatalog())
 
     assert skill.render_instructions(_exit_instructions()) == (
-        "Body\n\n<catalog></catalog>\n\n"
+        "Body\n\n<catalog />\n\n"
         '<exit-tool name="finish">Finish instructions</exit-tool>'
     )
 
@@ -105,8 +132,5 @@ def test_attached_catalog_renders_prompt_section(tmp_path: Path) -> None:
 
     assert skill.catalog is catalog
     assert skill.render_instructions(_exit_instructions()) == (
-        "Body\n\n<catalog><sub-skills>\n"
-        '<skill name="child">Child description</skill>\n'
-        "</sub-skills></catalog>\n\n"
-        '<exit-tool name="finish">Finish instructions</exit-tool>'
+        f"Body\n\n{catalog.render_prompt_section()}\n\n{_exit_instructions()}"
     )
