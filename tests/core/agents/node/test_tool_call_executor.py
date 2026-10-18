@@ -1,3 +1,4 @@
+from threading import get_ident
 from unittest.mock import MagicMock
 from xml.etree import ElementTree as ET
 
@@ -11,6 +12,18 @@ from exmekh_lib.core.agents.node.tool_call_resolver import ToolCallResolver
 from exmekh_lib.core.agents.node.tool_result_recorder import ToolResultRecorder
 from exmekh_lib.core.agents.node.types import ToolExecutionResult
 from exmekh_lib.core.cache import SessionCache
+from exmekh_lib.core.file_inspection.output_access import (
+    output_file_access,
+    output_file_read_limit,
+)
+from exmekh_lib.core.file_inspection.reading import (
+    file_read_context,
+    require_inspection,
+)
+from exmekh_lib.core.file_inspection.tokenization import (
+    current_inspection_tokenizer,
+    inspection_tokenizer_context,
+)
 from exmekh_lib.core.models.assistant_message import (
     AssistantMessage,
     FunctionCall,
@@ -25,11 +38,13 @@ from exmekh_lib.core.models.user_message import UserMessage
 from exmekh_lib.core.tool_calls.execution_history import ExecutionHistory
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
 from exmekh_lib.core.tool_calls.harness_memory_tools import HarnessMemoryTools
+from exmekh_lib.interfaces.file_read_access import FileReadAccess
 from exmekh_lib.interfaces.tool_hook import AfterTool, BeforeTool, ToolContext
 from tests.core.agents.node.test_node import (
     SequenceProvider,
     _write_runnable_capabilities,
 )
+from tests.tokenizer_support import PairTokenizer, StubTokenizer
 from tests.tool_result_support import parse_tool_result, parse_used_tools
 
 
@@ -55,6 +70,58 @@ def make_executor():
 
 def unavailable_annotation():
     raise RuntimeError("Thinking annotation unavailable")
+
+
+@pytest.mark.parametrize("managed", [False, True])
+@pytest.mark.parametrize("fails", [False, True])
+def test_tool_contexts_are_isolated_and_restored_after_execution(
+    tmp_path, managed, fails
+):
+    tokenizer = PairTokenizer()
+    outer_tokenizer = StubTokenizer()
+    outer_access = MagicMock(spec=FileReadAccess)
+    outer_access.read_limit.return_value = 99
+    client = MagicMock(spec=Client)
+    client.get_history.return_value = []
+    client.get_tokenizer.return_value = tokenizer
+    client.generate_id.return_value = "output"
+    executor = ToolCallExecutor(
+        client=client,
+        exit_tool=MagicMock(spec=ExitTool),
+        initial_depth=0,
+        agentic_scope=MagicMock(spec=AgenticScope),
+        exit_content_resolver=MagicMock(),
+        execution_manager=ToolExecutionManager() if managed else None,
+        work_root=tmp_path,
+    )
+    execution_threads = []
+
+    def work():
+        assert current_inspection_tokenizer() is tokenizer
+        assert output_file_read_limit(tmp_path / "output.txt", 7) == 7
+        execution_threads.append(get_ident())
+        require_inspection("inside.txt")
+        if fails:
+            raise RuntimeError("interrupted")
+        return "done"
+
+    called = CalledTool(
+        Tool(work, name="work", background_enabled=managed),
+        ToolCall("call", FunctionCall("work", {})),
+    )
+    with (
+        inspection_tokenizer_context(outer_tokenizer),
+        output_file_access(outer_access),
+        file_read_context(()) as outer_read,
+    ):
+        result = executor.execute(called)
+        assert current_inspection_tokenizer() is outer_tokenizer
+        assert output_file_read_limit(tmp_path / "output.txt", 7) == 99
+        assert outer_read.pending_inspection_path() is None
+
+    assert result.is_error is fails
+    assert len(execution_threads) == 1
+    assert (execution_threads[0] != get_ident()) is managed
 
 
 @pytest.mark.parametrize("managed", [False, True])

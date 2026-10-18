@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from openai.types.responses import ResponseFunctionToolCall
 
@@ -24,19 +24,21 @@ from exmekh_lib.core.providers.openai_function_tool_definition_mapper import (
 
 
 class OpenAIResponseToolMapper:
-    def __init__(self) -> None:
-        self._definition_mapper = OpenAIFunctionToolDefinitionMapper(
+    """Adapt Responses calls with reusable, stateless mapping services."""
+
+    _definition_mapper: ClassVar[OpenAIFunctionToolDefinitionMapper] = (
+        OpenAIFunctionToolDefinitionMapper(
             OpenAIChatCompletionAnnotationSchemaBuilder()
         )
-        self._call_resolver = OpenAIFunctionToolCallResolver(
-            OpenAIChatCompletionValueCoercer()
-        )
+    )
+    _call_resolver: ClassVar[OpenAIFunctionToolCallResolver] = (
+        OpenAIFunctionToolCallResolver(OpenAIChatCompletionValueCoercer())
+    )
 
     @classmethod
     def map_tools(cls, tools: Tools) -> list[dict[str, Any]]:
-        mapper = cls()
-        definitions = mapper._definition_mapper.map_all(tools, strict=True)
-        return [mapper._map_tool(definition) for definition in definitions]
+        definitions = cls._definition_mapper.map_all(tools, strict=True)
+        return [cls._map_tool(definition) for definition in definitions]
 
     @staticmethod
     def _map_tool(definition: OpenAIFunctionToolDefinition) -> dict[str, Any]:
@@ -65,4 +67,4 @@ class OpenAIResponseToolMapper:
             name=tool_call.name,
             arguments=tool_call.arguments,
         )
-        return cls()._call_resolver.resolve(call, tools)
+        return cls._call_resolver.resolve(call, tools)

@@ -49,13 +49,12 @@ class ToolOutputFormatter:
             and execution is None
             and not failed
         ):
-            content = XmlHeader.refresh_timing_in_content(result.content)
-            if XmlHeader.has_leading_header(content):
-                annotation = self._thinking_annotation(None, annotation_provider)
-                if annotation:
-                    content = XmlHeader.add_field_to_content(
-                        content, "thinking", annotation
-                    )
+            content = XmlHeader.refresh_metadata_in_content(
+                result.content,
+                fields_provider=lambda: {
+                    "thinking": self._thinking_annotation(None, annotation_provider)
+                },
+            )
             return content, None
         content = stringify_tool_result(ToolResult(result).value())
         header = (

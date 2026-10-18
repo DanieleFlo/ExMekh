@@ -74,8 +74,9 @@ physical lines, including JSON/YAML strings with Unicode separators. Non-text
 files do not claim a physical line count.
 
 `query` ranks the complete *bounded* index before pagination. It tokenizes
-camelCase/snake_case names and sorts by shared query terms, keeping the original
-order for ties. It does not filter out nonmatches or download semantic models.
+complete camelCase/snake_case names and sorts by shared query terms, keeping the
+original order for ties. It does not filter out nonmatches or download semantic models.
+Display labels can be truncated without removing terms from the search index.
 The region budget retains regions in document discovery order before ranking
 and pagination. An `offset` applies to that ranked index; keep the same query
 when paging.

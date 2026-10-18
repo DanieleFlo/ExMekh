@@ -39,6 +39,30 @@ from tests.live.tool_execution_support import (
     RecordingExecutionProvider,
     UncancellableProcessTool,
 )
+from tests.tokenizer_support import StubTokenizer
+
+
+@pytest.mark.parametrize(
+    "text, head, tail, expected",
+    [
+        ("abc", 2, 2, "abc"),
+        ("à界😀", 2, 2, "à界😀"),
+        ("abcdef", 2, 2, "abef"),
+        ("abc", 0, 0, ""),
+        ("abc", 0, 2, "bc"),
+        ("abc", 2, 0, "ab"),
+        ("", 2, 2, ""),
+    ],
+)
+def test_live_tokenizer_truncation_matches_the_standalone_double(
+    tmp_path, text, head, tail, expected
+):
+    tokenizer = CacheTestTokenizer("truncation-test", tmp_path / "cache")
+
+    assert tokenizer.truncate_text(text, head, tail) == expected
+    assert tokenizer.truncate_text(text, head, tail) == StubTokenizer().truncate_text(
+        text, head, tail
+    )
 
 
 @pytest.fixture

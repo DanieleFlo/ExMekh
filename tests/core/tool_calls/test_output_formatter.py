@@ -162,11 +162,16 @@ def test_preformatted_metadata_is_preserved_independently_of_registered_name(
 
 def test_preformatted_text_without_header_is_preserved_when_timing_is_available():
     formatter = ToolOutputFormatter(MagicMock(spec=Client))
+    annotation = MagicMock(return_value="unused")
     content, output_id = formatter.format_tool_result(
-        "work", PreformattedToolResult("authored output"), elapsed_seconds=0.25
+        "work",
+        PreformattedToolResult("authored output"),
+        elapsed_seconds=0.25,
+        annotation_provider=annotation,
     )
     assert content == "authored output"
     assert output_id is None
+    annotation.assert_not_called()
 
 
 def test_reading_legacy_output_does_not_substitute_read_duration_for_missing_execution_time():

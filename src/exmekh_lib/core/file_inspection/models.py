@@ -51,6 +51,12 @@ class RegionPage:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class _IndexedRegion:
+    region: Region
+    search_terms: frozenset[str]
+
+
 class RegionIndex:
     """Keep navigation bounded; expose selection without mutable list access."""
 
@@ -59,7 +65,7 @@ class RegionIndex:
     ) -> None:
         self._settings = settings
         self._label_budget = label_budget
-        self._regions: list[Region] = []
+        self._regions: list[_IndexedRegion] = []
         self._truncated = False
         self._labels_truncated = False
 
@@ -82,22 +88,23 @@ class RegionIndex:
             return
         label = self._label_budget.truncate(name)
         self._labels_truncated |= label != name
-        self._regions.append(Region(kind, label, start, end))
+        self._regions.append(
+            _IndexedRegion(
+                Region(kind, label, start, end),
+                frozenset(query_terms(name + " " + kind)),
+            )
+        )
 
     def select(self, *, max_items: int, offset: int, query: str | None) -> RegionPage:
         regions = sorted(
             self._regions,
-            key=lambda region: (region.start_line or 0, region.end_line or 0),
+            key=lambda item: (item.region.start_line or 0, item.region.end_line or 0),
         )
         if query is not None:
             terms = query_terms(query)
-            regions.sort(
-                key=lambda region: (
-                    -len(terms & query_terms(region.name + " " + region.kind))
-                )
-            )
+            regions.sort(key=lambda item: -len(terms & item.search_terms))
         return RegionPage(
-            tuple(regions[offset : offset + max_items]),
+            tuple(item.region for item in regions[offset : offset + max_items]),
             offset,
             max_items,
             len(regions),

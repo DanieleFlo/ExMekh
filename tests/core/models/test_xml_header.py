@@ -1,6 +1,7 @@
 import base64
 from datetime import UTC, datetime
 from typing import Any, cast
+from unittest.mock import MagicMock
 from xml.etree import ElementTree as ET
 
 import pytest
@@ -203,8 +204,44 @@ def test_refreshing_minimal_legacy_header_does_not_invent_an_output_identity():
     assert parsed.body == "raw output"
 
 
+@pytest.mark.parametrize("separator", ["", "\n", "\r\n"])
+def test_refreshing_metadata_parses_once_and_preserves_the_authored_body(
+    separator, monkeypatch
+):
+    body = "<authored>\r\nraw\x00</authored>\n"
+    original = (
+        "<header><id>output</id><thinking>old</thinking><thinking>older</thinking>"
+        "<keep>original</keep><elapsed-seconds>7.13579</elapsed-seconds></header>"
+        + separator
+        + body
+    )
+    fields = MagicMock(
+        return_value={"thinking": "new <&>\x00", "keep": None, "current-time": "stale"}
+    )
+    parser = MagicMock(wraps=ET.fromstring)
+    monkeypatch.setattr(ET, "fromstring", parser)
+
+    refreshed = XmlHeader.refresh_metadata_in_content(original, fields_provider=fields)
+
+    parser.assert_called_once()
+    fields.assert_called_once_with()
+    parsed = XmlHeader.parse_content(refreshed)
+    assert parsed.field("thinking") == "new <&>\x00"
+    assert parsed.field("keep") == "original"
+    assert parsed.field("elapsed") == "7.1s"
+    assert parsed.field("current-time") == "2026-10-17T14:32:08Z"
+    assert refreshed.count("<thinking") == 1
+    assert refreshed.split("</header>", 1)[1] == separator + body
+
+
 @pytest.mark.parametrize("content", ["authored text", "<header>", "<header>&</header>"])
 def test_refreshing_timing_preserves_content_without_a_valid_header(content):
+    fields = MagicMock(return_value={"thinking": "unused"})
+    assert (
+        XmlHeader.refresh_metadata_in_content(content, fields_provider=fields)
+        == content
+    )
+    fields.assert_not_called()
     assert XmlHeader.refresh_timing_in_content(content) == content
     assert XmlHeader.field_from_content(content, "current-time") is None
     assert XmlHeader.add_field_to_content(content, "current-time", "unused") == content

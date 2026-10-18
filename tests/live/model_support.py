@@ -43,6 +43,8 @@ class CacheTestTokenizer(SequentialTokenizer):
         return len(text)
 
     def truncate_text(self, text: str, start_tokens: int, end_tokens: int = 0) -> str:
+        if self.count_tokens(text) <= start_tokens + end_tokens:
+            return text
         return text[:start_tokens] + (text[-end_tokens:] if end_tokens else "")
 
     def _load_vocabulary_tokens(self) -> list[str]:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Literal
@@ -143,10 +144,24 @@ class XmlHeader:
     @classmethod
     def refresh_timing_in_content(cls, content: str) -> str:
         """Refresh response time and legacy timing fields, preserving the body."""
+        return cls.refresh_metadata_in_content(content)
+
+    @classmethod
+    def refresh_metadata_in_content(
+        cls,
+        content: str,
+        *,
+        fields_provider: Callable[[], Mapping[str, str | None]] | None = None,
+    ) -> str:
+        """Refresh timing and optional fields after parsing a valid header once."""
         leading = cls._leading_header(content)
         if leading is None:
             return content
         root, end = leading
+        if fields_provider is not None:
+            for key, value in fields_provider().items():
+                if value is not None:
+                    cls._replace_text_field(root, key, value)
         for existing in root.findall("current-time"):
             root.remove(existing)
         identity = root.find("id")
@@ -268,7 +283,11 @@ class XmlHeader:
         if leading is None:
             return content
         root, end = leading
+        cls._replace_text_field(root, key, value)
+        return render_xml(root) + content[end:]
+
+    @staticmethod
+    def _replace_text_field(root: ET.Element, key: str, value: str) -> None:
         for existing in root.findall(key):
             root.remove(existing)
         append_text_element(root, key, value)
-        return render_xml(root) + content[end:]

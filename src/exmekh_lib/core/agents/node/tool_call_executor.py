@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
-from contextlib import AbstractContextManager
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import replace
 from pathlib import Path
 from time import monotonic
@@ -21,6 +21,7 @@ from exmekh_lib.core.agents.exit_tool.items import ExitItemError
 from exmekh_lib.core.file_inspection.evidence import ReadReport
 from exmekh_lib.core.file_inspection.interactive import FileInteractiveCalls
 from exmekh_lib.core.file_inspection.output_access import output_file_access
+from exmekh_lib.core.file_inspection.reading import FileReadContext
 from exmekh_lib.core.file_inspection.runtime import FileToolRuntime
 from exmekh_lib.core.file_inspection.tokenization import inspection_tokenizer_context
 from exmekh_lib.core.models.assistant_message import ToolCall
@@ -268,15 +269,7 @@ class ToolCallExecutor:
                 )
             else:
                 with (
-                    inspection_tokenizer_context(self._client.get_tokenizer()),
-                    output_file_access(
-                        self._output_preparer.files
-                        if self._output_preparer is not None
-                        else None
-                    ),
-                    self._file_tools.read_context(
-                        self._client.get_history()
-                    ) as context,
+                    self._tool_run_context() as context,
                     self._interactive_calls.execution_context(called_tool.call_id),
                 ):
                     try:
@@ -303,6 +296,21 @@ class ToolCallExecutor:
             thinking_annotation_provider=thinking_annotation_provider,
         )
 
+    def _tool_run_context(self) -> AbstractContextManager[FileReadContext]:
+        # Capture dependencies now; enter their contexts in the execution thread.
+        tokenizer_context = inspection_tokenizer_context(self._client.get_tokenizer())
+        output_context = output_file_access(
+            self._output_preparer.files if self._output_preparer is not None else None
+        )
+        read_context = self._file_tools.read_context(self._client.get_history())
+
+        @contextmanager
+        def enter_contexts() -> Iterator[FileReadContext]:
+            with tokenizer_context, output_context, read_context as context:
+                yield context
+
+        return enter_contexts()
+
     def _run_managed_tool(
         self, called_tool: CalledTool, manager: ToolExecutionManager
     ) -> tuple[Any, ExecutionSnapshot]:
@@ -311,19 +319,7 @@ class ToolCallExecutor:
             work_root=self._work_root,
             history=tuple(self._client.get_history()),
         )
-        operation.add_run_context(
-            inspection_tokenizer_context(self._client.get_tokenizer())
-        )
-        operation.add_run_context(
-            self._file_tools.read_context(self._client.get_history())
-        )
-        operation.add_run_context(
-            output_file_access(
-                self._output_preparer.files
-                if self._output_preparer is not None
-                else None
-            )
-        )
+        operation.add_run_context(self._tool_run_context())
         try:
             options = called_tool.execution_options
         except (TypeError, ValueError) as error:

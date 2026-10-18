@@ -73,6 +73,26 @@ def test_custom_label_budget_is_expressed_in_tokens(tmp_path):
     assert report["selection"]["labels_truncated"]
 
 
+@pytest.mark.parametrize("query, expected_line", [("alpha", 1), ("beta", 3)])
+def test_search_ranks_complete_names_even_when_display_labels_are_identical(
+    tmp_path, query, expected_line
+):
+    (tmp_path / "notes.md").write_text("# same alpha\n\n# same beta\n")
+    report = inspect_file(
+        tmp_path,
+        "notes.md",
+        query=query,
+        max_items=1,
+        settings=replace(FILE_INSPECTION, max_label_tokens=4),
+    )
+
+    assert report["regions"][0]["name"] == "same"
+    assert report["regions"][0]["start_line"] == expected_line
+    assert report["selection"]["labels_truncated"]
+    assert report["selection"]["ranking"] == "lexical"
+    assert report["selection"]["has_more"]
+
+
 @pytest.mark.parametrize(
     "cause", [ValueError("invalid vocabulary"), OSError("cache unavailable")]
 )
