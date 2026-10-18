@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path
 from typing import Final
 
@@ -45,12 +46,17 @@ class Capabilities:
             default_path = None
         self._layout = CapabilitiesLayout(capabilities_paths, default_path=default_path)
 
-    def load(self, *, work_root: Path) -> CapabilitiesData:
-        data, _ = self.load_with_defaults(work_root=work_root)
+    def load(
+        self, *, work_root: Path, parameter_descriptions_in_schema: bool = False
+    ) -> CapabilitiesData:
+        data, _ = self.load_with_defaults(
+            work_root=work_root,
+            parameter_descriptions_in_schema=parameter_descriptions_in_schema,
+        )
         return data
 
     def load_with_defaults(
-        self, *, work_root: Path
+        self, *, work_root: Path, parameter_descriptions_in_schema: bool = False
     ) -> tuple[CapabilitiesData, DefaultCapabilities | None]:
         self.format_capabilities_folders()
         tool_paths = self.get_tool_paths()
@@ -68,9 +74,15 @@ class Capabilities:
                 data = _DefaultCapabilitiesComposer(
                     defaults, defaults.capabilities_path, tool_paths
                 ).compose(data)
+            data = replace(
+                data, parameter_descriptions_in_schema=parameter_descriptions_in_schema
+            )
             index = CapabilitiesIndex.build(data)
             CapabilitiesValidator(index).validate((*data.hds, *data.deep_skills))
-            SkillCatalogAttacher(index).attach_to_all(data.deep_skills)
+            SkillCatalogAttacher(
+                index,
+                parameter_descriptions_in_schema=data.parameter_descriptions_in_schema,
+            ).attach_to_all(data.deep_skills)
         except Exception:
             exit_tools.unload()
             deep_tools.unload()

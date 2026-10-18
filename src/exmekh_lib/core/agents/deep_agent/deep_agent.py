@@ -24,12 +24,16 @@ class DeepAgent:
         node: Node,
         work_root: Path,
         on_stream: DeepAgentEventHandler | None = None,
+        *,
+        parameter_descriptions_in_schema: bool = False,
     ) -> None:
         if not isinstance(provider, Provider):
             raise TypeError(AGENT_TEXT.provider_must_be_a_provider)
 
         if not isinstance(node, Node):
             raise TypeError(AGENT_TEXT.node_must_be_a_node)
+        if not isinstance(parameter_descriptions_in_schema, bool):
+            raise TypeError(AGENT_TEXT.parameter_descriptions_in_schema_must_be_a_bool)
         work_root = self._validate_work_root(work_root)
         if on_stream is not None:
             DeepAgentEventHandler.validate_instance(on_stream)
@@ -40,6 +44,7 @@ class DeepAgent:
             node,
             work_root,
             on_stream,
+            parameter_descriptions_in_schema,
         )
 
     @property
@@ -57,7 +62,7 @@ class DeepAgent:
         """Return the root's tools JSON exactly as serialized for its provider.
 
         Includes contextual skill descriptions and runtime tools. Skill-only
-        tools load parameter documentation through their skill catalogs. Does not call
+        parameter documentation follows the constructor setting. Does not call
         inference or change history. The server's rendered prompt is separate.
         Providers must implement tools request serialization.
         """
@@ -82,6 +87,7 @@ class DeepAgent:
         root_node: Node,
         work_root: Path,
         on_stream: DeepAgentEventHandler | None,
+        parameter_descriptions_in_schema: bool,
     ) -> MappingProxyType[Node, CapabilitiesData]:
         """Recursive function to initialize the node tree.
 
@@ -110,6 +116,7 @@ class DeepAgent:
                 provider,
                 work_root=work_root,
                 on_stream=on_stream,
+                parameter_descriptions_in_schema=parameter_descriptions_in_schema,
             )
             for child in node.children:
                 initialize(child)

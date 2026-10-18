@@ -1,3 +1,5 @@
+import pytest
+
 from exmekh_lib.core.agents.deep_agent.deep_agent import DeepAgent
 from exmekh_lib.core.agents.node import Node
 from exmekh_lib.core.models.assistant_message import AssistantMessage
@@ -12,7 +14,10 @@ from tests.core.agents.node.test_node import (
 )
 
 
-def test_skill_entry_loads_docs_before_tool_calls_and_exit_removes_them(tmp_path):
+@pytest.mark.parametrize("parameter_descriptions_in_schema", [False, True])
+def test_skill_entry_loads_docs_before_tool_calls_and_exit_removes_them(
+    tmp_path, parameter_descriptions_in_schema
+):
     path = _write_nested_capabilities(tmp_path)
     for name, documentation in (
         ("mock-sub-tool", "Parent parameter documentation."),
@@ -45,7 +50,10 @@ def test_skill_entry_loads_docs_before_tool_calls_and_exit_removes_them(tmp_path
         ]
     )
     agent = DeepAgent(
-        provider=provider, node=Node([path], name_hds="main"), work_root=tmp_path
+        provider=provider,
+        node=Node([path], name_hds="main"),
+        work_root=tmp_path,
+        parameter_descriptions_in_schema=parameter_descriptions_in_schema,
     )
     assert agent.run("start").get_message() == "done"
 
@@ -57,18 +65,27 @@ def test_skill_entry_loads_docs_before_tool_calls_and_exit_removes_them(tmp_path
             and message.get_name() in {"mock-skill", "nested-skill"}
         )
 
-    assert "Parent parameter documentation." in skill_instructions(1)
-    assert "Child parameter documentation." not in skill_instructions(1)
-    assert "Child parameter documentation." in skill_instructions(3)
-    assert "Child parameter documentation." not in skill_instructions(5)
-    assert "Parent parameter documentation." in skill_instructions(5)
-    assert "Parent parameter documentation." not in skill_instructions(6)
-    assert "Parent parameter documentation." in skill_instructions(7)
+    if parameter_descriptions_in_schema:
+        for index in range(len(provider.requests)):
+            assert "Parent parameter documentation." not in skill_instructions(index)
+            assert "Child parameter documentation." not in skill_instructions(index)
+    else:
+        assert "Parent parameter documentation." in skill_instructions(1)
+        assert "Child parameter documentation." not in skill_instructions(1)
+        assert "Child parameter documentation." in skill_instructions(3)
+        assert "Child parameter documentation." not in skill_instructions(5)
+        assert "Parent parameter documentation." in skill_instructions(5)
+        assert "Parent parameter documentation." not in skill_instructions(6)
+        assert "Parent parameter documentation." in skill_instructions(7)
     for request in provider.requests:
         definitions = OpenAIResponseToolMapper.map_tools(request.get_tools())
         tool = next(d for d in definitions if d["name"] == "mock-sub-tool")
-        assert "description" not in tool["parameters"]["properties"]["text"]
-        assert "description" not in tool["parameters"]["properties"]["execution_mode"]
+        assert (
+            "description" in tool["parameters"]["properties"]["text"]
+        ) is parameter_descriptions_in_schema
+        assert (
+            "description" in tool["parameters"]["properties"]["execution_mode"]
+        ) is parameter_descriptions_in_schema
         assert (
             request.get_messages()[0]
             .get_message()

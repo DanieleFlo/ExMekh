@@ -5,6 +5,9 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class AgentText:
+    parameter_descriptions_in_schema_must_be_a_bool: str = (
+        "parameter_descriptions_in_schema must be a bool"
+    )
     a_running_tool_cannot_have_a_terminal_failure: str = (
         "A running tool cannot have a terminal failure"
     )

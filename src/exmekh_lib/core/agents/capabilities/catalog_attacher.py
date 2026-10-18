@@ -16,9 +16,15 @@ from exmekh_lib.core.models.tool import Tool
 
 
 class SkillCatalogAttacher:
-    def __init__(self, index: CapabilitiesIndex) -> None:
+    def __init__(
+        self,
+        index: CapabilitiesIndex,
+        *,
+        parameter_descriptions_in_schema: bool = False,
+    ) -> None:
         self._index = index
         self._schema_builder = AnnotationSchemaBuilder()
+        self._parameter_descriptions_in_schema = parameter_descriptions_in_schema
 
     def attach_to_all(self, deep_skills: tuple[DeepSkill, ...]) -> None:
         for deep_skill in deep_skills:
@@ -51,6 +57,8 @@ class SkillCatalogAttacher:
         )
 
     def _parameter_descriptions(self, tool: Tool) -> tuple[SchemaDescription, ...]:
+        if self._parameter_descriptions_in_schema:
+            return ()
         hints = tool.get_type_hints()
         properties: Schema = {}
         for name, parameter in tool.get_signature().parameters.items():

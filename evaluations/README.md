@@ -35,6 +35,10 @@ Existing report/trace paths are rejected to avoid mixing runs.
   production `SkillCatalogAttacher` generates parameter documentation in the
   active skill. Common execution instructions are supplied once in both modes.
 
+Both conditions use the same capability policy as
+`DeepAgent(parameter_descriptions_in_schema=...)`: `True` for `full` and `False`
+for `scoped`.
+
 The task, tool name, availability description, parameter constraints, model and
 reasoning settings are identical within each pair. Every request has one available
 tool and `tool_choice="required"`. There is no shared conversation history, skill

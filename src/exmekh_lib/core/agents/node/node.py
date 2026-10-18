@@ -97,6 +97,7 @@ class Node:
         *,
         work_root: Path,
         on_stream: DeepAgentEventHandler | None = None,
+        parameter_descriptions_in_schema: bool = False,
     ) -> CapabilitiesData:
         if not isinstance(provider, Provider):
             raise TypeError(RUNTIME_TEXT.provider_must_be_a_provider)
@@ -104,7 +105,10 @@ class Node:
             DeepAgentEventHandler.validate_instance(on_stream)
 
         self._resolved_default_capabilities = self._default_capabilities
-        capabilities = self.load_capabilities(work_root=work_root)
+        capabilities = self.load_capabilities(
+            work_root=work_root,
+            parameter_descriptions_in_schema=parameter_descriptions_in_schema,
+        )
         defaults = self._resolved_default_capabilities
         hds = capabilities.get_hds(self._name_hds)
         exit_tool_name = hds.get_exit_tool_name()
@@ -168,9 +172,12 @@ class Node:
                 {hds.get_name(): hds.get_description() for hds in child_hds}
             )
 
-    def load_capabilities(self, *, work_root: Path) -> CapabilitiesData:
+    def load_capabilities(
+        self, *, work_root: Path, parameter_descriptions_in_schema: bool = False
+    ) -> CapabilitiesData:
         capabilities, defaults = self._capability_loader.load_with_defaults(
-            work_root=work_root
+            work_root=work_root,
+            parameter_descriptions_in_schema=parameter_descriptions_in_schema,
         )
         capabilities.get_hds(self._name_hds)
         self._resolved_default_capabilities = defaults

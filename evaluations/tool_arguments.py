@@ -28,7 +28,6 @@ from exmekh_lib.config.tokenizer import QWEN_TOKENIZER
 from exmekh_lib.core.agents.capabilities.catalog_attacher import SkillCatalogAttacher
 from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
 from exmekh_lib.core.agents.capabilities.index import CapabilitiesIndex
-from exmekh_lib.core.agents.deep_skill.catalog import SkillCatalog, SkillCatalogEntry
 from exmekh_lib.core.agents.deep_skill.deep_skill import DeepSkill
 from exmekh_lib.core.agents.deep_skill.metadata import DeepSkillMetadata
 from exmekh_lib.core.agents.hds.hds import HDS
@@ -96,7 +95,15 @@ def build_request(case: ArgumentCase, variant: Variant) -> ProviderRequest:
         body="Use the documented tool to satisfy the request.",
         references=(),
     )
-    data = CapabilitiesData(deep_skills=(skill,), tools=(case.tool,))
+    data = CapabilitiesData(
+        deep_skills=(skill,),
+        tools=(case.tool,),
+        parameter_descriptions_in_schema=variant == "full",
+    )
+    SkillCatalogAttacher(
+        CapabilitiesIndex.build(data),
+        parameter_descriptions_in_schema=data.parameter_descriptions_in_schema,
+    ).attach_to_all(data.deep_skills)
     hds = HDS(
         name="argument-evaluation-root",
         markdown_path=Path("argument-evaluation-root.md"),
@@ -114,19 +121,6 @@ def build_request(case: ArgumentCase, variant: Variant) -> ProviderRequest:
         for tool in data.get_contextual_tools(hds)
         if tool.get_name() == case.tool.get_name()
     )
-    tool = case.tool.with_description(contextual.get_description())
-    if variant == "scoped":
-        tool = contextual
-        SkillCatalogAttacher(CapabilitiesIndex.build(data)).attach_to_all(
-            data.deep_skills
-        )
-    else:
-        catalog = SkillCatalog(
-            sub_tools=(
-                SkillCatalogEntry(case.tool.get_name(), case.tool.get_description()),
-            )
-        )
-        skill.attach_catalog(catalog)
     instructions = skill.render_instructions("")
     return ProviderRequest(
         messages=[
@@ -135,7 +129,7 @@ def build_request(case: ArgumentCase, variant: Variant) -> ProviderRequest:
             ),
             UserMessage(case.prompt),
         ],
-        tools=Tools([tool]),
+        tools=Tools([contextual]),
         tool_choice="required",
     )
 

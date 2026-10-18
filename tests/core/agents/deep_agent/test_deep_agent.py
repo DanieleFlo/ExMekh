@@ -145,13 +145,16 @@ def test_shared_descendant_is_loaded_only_once(
     loaded_nodes: list[Node] = []
     original_load_capabilities = Node.load_capabilities
 
-    def load_capabilities(node: Node, *, work_root: Path):
+    def load_capabilities(
+        node: Node, *, work_root: Path, parameter_descriptions_in_schema: bool = False
+    ):
         loaded_nodes.append(node)
         assert work_root == tmp_path.resolve()
         valid_path = _write_capabilities(tmp_path / node.name_hds, node.name_hds)
         return original_load_capabilities(
             Node([valid_path], node.name_hds),
             work_root=work_root,
+            parameter_descriptions_in_schema=parameter_descriptions_in_schema,
         )
 
     monkeypatch.setattr(Node, "load_capabilities", load_capabilities)
@@ -169,11 +172,14 @@ def test_rejects_cycle_in_node_hierarchy(
     root._children = (root,)
     original_load_capabilities = Node.load_capabilities
 
-    def load_capabilities(node: Node, *, work_root: Path):
+    def load_capabilities(
+        node: Node, *, work_root: Path, parameter_descriptions_in_schema: bool = False
+    ):
         valid_path = _write_capabilities(tmp_path / "valid", node.name_hds)
         return original_load_capabilities(
             Node([valid_path], node.name_hds),
             work_root=work_root,
+            parameter_descriptions_in_schema=parameter_descriptions_in_schema,
         )
 
     monkeypatch.setattr(Node, "load_capabilities", load_capabilities)

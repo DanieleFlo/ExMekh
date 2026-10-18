@@ -39,6 +39,27 @@ response = agent.run("Analyze the codebase and run tests.")
 print("Response:", response.get_message())
 ```
 
+### Choosing where parameter descriptions are sent
+
+By default, internal tool schemas omit parameter descriptions and the active
+skill's generated catalog supplies them. Set the keyword-only constructor option
+to keep those descriptions in the schemas instead:
+
+```python
+agent = DeepAgent(
+    provider=provider,
+    node=root_node,
+    work_root=Path.cwd(),
+    parameter_descriptions_in_schema=True,
+)
+```
+
+With `True`, parameter descriptions remain in the provider schemas and are not
+duplicated in skill catalogs. The setting applies to every descendant node,
+bundled and custom capabilities, and both provider APIs. It preserves function
+availability descriptions, general tool descriptions in catalogs, skill bodies,
+and execution behavior. The default is `False`; non-boolean values are rejected.
+
 ### Sending mixed content
 
 Pass an ordered list such as

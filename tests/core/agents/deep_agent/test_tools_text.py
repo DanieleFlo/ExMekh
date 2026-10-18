@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from unittest.mock import patch
+from xml.etree import ElementTree as ET
 
 import httpx2
 import pytest
@@ -157,6 +158,146 @@ def test_tools_text_matches_http_payload_and_includes_contextual_and_runtime_too
     first_messages = json.loads(bodies[0])
     messages = first_messages.get("messages", first_messages.get("input"))
     assert [message["role"] for message in messages] == ["system", "user"]
+
+
+@pytest.mark.parametrize("parameter_descriptions_in_schema", [False, True])
+def test_parameter_documentation_setting_applies_to_every_node_and_http_payload(
+    tmp_path, local_provider, parameter_descriptions_in_schema
+):
+    provider, bodies = local_provider
+    nodes = []
+    for name in ("child", "root"):
+        path = _write_nested_capabilities(tmp_path / name)
+        (path / "tools" / "nested-sub-tool" / "main.py").write_text(
+            "from typing import Annotated\n"
+            "from exmekh_lib.core.agents.tools.decorator import deep_tool\n"
+            "@deep_tool(name='nested-sub-tool', description='Nested work.')\n"
+            "def run(work_root, text: Annotated[str, 'Copy the requested text.']) -> str:\n"
+            "    return text\n"
+        )
+        nodes.append(
+            Node([path], name_hds="main", children=nodes, agent_context_id=name)
+        )
+    root = nodes[-1]
+    agent = DeepAgent(
+        provider=provider,
+        node=root,
+        work_root=tmp_path,
+        parameter_descriptions_in_schema=parameter_descriptions_in_schema,
+    )
+
+    for node, data in agent.capabilities_by_node.items():
+        definitions = json.loads(node.get_tools_text())
+        functions = [item.get("function", item) for item in definitions]
+        internal = next(item for item in functions if item["name"] == "nested-sub-tool")
+        properties = internal["parameters"]["properties"]
+        assert ("description" in properties["text"]) is parameter_descriptions_in_schema
+        assert (
+            "description" in properties["execution_mode"]
+        ) is parameter_descriptions_in_schema
+        assert internal["description"] == "Available in skill 'nested-skill'."
+        direct = next(item for item in functions if item["name"] == "mock-tool")
+        assert "description" in direct["parameters"]["properties"]["execution_mode"]
+        skill = next(
+            skill for skill in data.deep_skills if skill.get_name() == "nested-skill"
+        )
+        catalog = ET.fromstring(skill.catalog.render_prompt_section())
+        assert (
+            catalog.find("parameter-descriptions") is None
+        ) is parameter_descriptions_in_schema
+        assert catalog.findtext("./sub-tools/tool") == "Nested work."
+        assert (
+            "Copy the requested text." in skill.render_instructions("")
+        ) is not parameter_descriptions_in_schema
+
+    assert agent.run("hello").get_message() == "done"
+    assert request_tools_text(bodies[-1]) == agent.get_tools_text()
+
+
+@pytest.mark.parametrize("parameter_descriptions_in_schema", [False, True])
+def test_parameter_documentation_setting_applies_to_bundled_capabilities(
+    tmp_path, local_provider, parameter_descriptions_in_schema
+):
+    provider, _ = local_provider
+    root = Node(name_hds="main")
+    agent = DeepAgent(
+        provider=provider,
+        node=root,
+        work_root=tmp_path,
+        parameter_descriptions_in_schema=parameter_descriptions_in_schema,
+    )
+    data = agent.capabilities_by_node[root]
+    assert data.parameter_descriptions_in_schema is parameter_descriptions_in_schema
+    file_skill = next(
+        skill for skill in data.deep_skills if skill.get_name() == "file-processing"
+    )
+    catalog = ET.fromstring(file_skill.catalog.render_prompt_section())
+    assert (
+        catalog.find("parameter-descriptions") is None
+    ) is parameter_descriptions_in_schema
+    definitions = json.loads(agent.get_tools_text())
+    functions = [item.get("function", item) for item in definitions]
+    inspect_file = next(item for item in functions if item["name"] == "inspect-file")
+    assert (
+        "description" in inspect_file["parameters"]["properties"]["execution_mode"]
+    ) is parameter_descriptions_in_schema
+
+
+def test_agents_sharing_capability_paths_keep_independent_documentation_settings(
+    tmp_path, local_provider
+):
+    provider, _ = local_provider
+    path = _write_nested_capabilities(tmp_path)
+    entrypoint = path / "tools" / "nested-sub-tool" / "main.py"
+    entrypoint.write_text(
+        "from typing import Annotated\n"
+        + entrypoint.read_text().replace(
+            "text: str", "text: Annotated[str, 'Independent documentation.']"
+        )
+    )
+    schemas_node = Node([path], name_hds="main")
+    schemas_agent = DeepAgent(
+        provider=provider,
+        node=schemas_node,
+        work_root=tmp_path,
+        parameter_descriptions_in_schema=True,
+    )
+    schema_text = schemas_agent.get_tools_text()
+    skills_node = Node([path], name_hds="main")
+    skills_agent = DeepAgent(provider=provider, node=skills_node, work_root=tmp_path)
+
+    assert schemas_agent.get_tools_text() == schema_text
+    assert "Independent documentation." in schema_text
+    assert "Independent documentation." not in skills_agent.get_tools_text()
+    for agent, node, expected_in_catalog in (
+        (schemas_agent, schemas_node, False),
+        (skills_agent, skills_node, True),
+    ):
+        data = agent.capabilities_by_node[node]
+        skill = next(
+            skill for skill in data.deep_skills if skill.get_name() == "nested-skill"
+        )
+        assert (
+            "Independent documentation." in skill.render_instructions("")
+        ) is expected_in_catalog
+
+
+@pytest.mark.parametrize("invalid", [None, 0, 1, "true", []])
+def test_invalid_parameter_documentation_setting_fails_before_loading(
+    tmp_path, invalid
+):
+    path = tmp_path / "not-created"
+    root = Node([path], name_hds="main")
+    with pytest.raises(
+        TypeError, match="parameter_descriptions_in_schema must be a bool"
+    ):
+        DeepAgent(
+            provider=StubProvider(),
+            node=root,
+            work_root=tmp_path,
+            parameter_descriptions_in_schema=invalid,
+        )
+    assert not path.exists()
 
 
 def test_tools_text_respects_excluded_runtime_tools(tmp_path: Path, local_provider):

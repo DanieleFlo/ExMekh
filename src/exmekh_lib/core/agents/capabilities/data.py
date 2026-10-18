@@ -22,8 +22,11 @@ class CapabilitiesData:
     tools: tuple[Tool, ...]
     hds: tuple[HDS, ...] = ()
     exit_tools: tuple[ExitTool, ...] = ()
+    parameter_descriptions_in_schema: bool = False
 
     def __post_init__(self) -> None:
+        if not isinstance(self.parameter_descriptions_in_schema, bool):
+            raise TypeError(AGENT_TEXT.parameter_descriptions_in_schema_must_be_a_bool)
         self._validate_items(self.deep_skills, "deep_skills", DeepSkill)
         self._validate_items(self.tools, "tools", Tool)
         if any(isinstance(tool, (MarkdownCapability, ExitTool)) for tool in self.tools):
@@ -96,7 +99,11 @@ class CapabilitiesData:
             names = ", ".join(f"'{name}'" for name in skill_names)
             description = AGENT_TEXT.available_in_skills.format(names=names)
         contextual = tool.with_description(description)
-        if skill_names and not isinstance(tool, DeepSkill):
+        if (
+            skill_names
+            and not isinstance(tool, DeepSkill)
+            and not self.parameter_descriptions_in_schema
+        ):
             return contextual.without_parameter_descriptions()
         return contextual
 

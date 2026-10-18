@@ -289,6 +289,13 @@ flowchart TD
 
 ### Scoped parameter documentation
 
+This is the default behavior. Use
+`DeepAgent(..., parameter_descriptions_in_schema=True)` to retain parameter
+descriptions in the schemas and omit the generated parameter-documentation
+sections from skill catalogs throughout the node hierarchy. Standalone
+`Node.initialize`, `Node.load_capabilities`, and `Capabilities.load` accept the
+same keyword. General tool descriptions and skill bodies remain available.
+
 Tools available only inside skills keep their structural parameter schemas in
 the initial provider request, with a short `Available in skill ...` description.
 Their parameter `description` annotations are omitted, including those on nested
@@ -339,10 +346,12 @@ keeps the existing contextual function descriptions in both variants. It exclude
 system text, messages, backend prompt rendering and model reasoning.
 
 The focused live regression in `tests/live/test_parameter_documentation_live.py`
-checks both Responses and Chat Completions: a real model fills a nested argument from the generated catalog
-while its function schema omits that description. It makes one required tool
-call per API and verifies the actual Python result; it does not measure autonomous skill
-selection or end-to-end task completion.
+checks Responses and Chat Completions with both values of
+`parameter_descriptions_in_schema`. A real model fills a nested argument from
+the selected location, with the description absent from the other location.
+It makes one required tool call per API/setting combination and verifies the
+actual Python result; it does not measure autonomous skill selection or
+end-to-end task completion.
 
 An exploratory nested-skill workflow on the same date read the documentation
 correctly, executed the check and returned through both skills, but reopened the
