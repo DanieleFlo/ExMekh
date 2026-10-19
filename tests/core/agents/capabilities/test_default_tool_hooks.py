@@ -27,6 +27,7 @@ from exmekh_lib.interfaces.tool_hook import (
 )
 from tests.core.agents.capabilities.test_default_capabilities import (
     SequenceProvider,
+    make_hds,
     replacement_tool,
     write_hds,
     write_tool,
@@ -95,9 +96,9 @@ def tool_results(provider: SequenceProvider) -> list[str]:
             "Tool hooks require selected capabilities: bash",
         ),
         (
-            {"tool_hooks": {"mock-tool": ToolHooks()}},
+            {"tool_hooks": {"calculate": ToolHooks()}, "harness": False},
             ValueError,
-            "Tool hooks require selected capabilities: mock-tool",
+            "Tool hooks require selected capabilities: calculate",
         ),
     ],
 )
@@ -126,13 +127,22 @@ def test_default_hook_mapping_is_copied_and_read_only() -> None:
 
 
 def test_bundled_hooks_run_and_only_the_final_result_is_cached(tmp_path: Path) -> None:
+    class ChangeExpression(BeforeTool):
+        def handle(self, context: ToolContext) -> ToolArguments:
+            return ToolArguments({**context.arguments, "expression": "2 + 3"})
+
     provider = SequenceProvider(
         tmp_path / "cache",
         [
             AssistantMessage(
                 None,
                 tool_calls=[
-                    ToolCall("work", FunctionCall("mock-tool", {"text": "original"}))
+                    ToolCall(
+                        "work",
+                        FunctionCall(
+                            "calculate", {"operation": "simplify", "expression": "1"}
+                        ),
+                    )
                 ],
             ),
             AssistantMessage("done"),
@@ -142,17 +152,18 @@ def test_bundled_hooks_run_and_only_the_final_result_is_cached(tmp_path: Path) -
     node = Node(
         name_hds="main",
         default_capabilities=DefaultCapabilities(
-            mocks=True,
-            tool_hooks={"mock-tool": ToolHooks(before=ChangeText(), after=Suffix())},
+            overrides={"main": make_hds("main", tools=("calculate",))},
+            tool_hooks={
+                "calculate": ToolHooks(before=ChangeExpression(), after=Suffix())
+            },
         ),
     )
     node.initialize(provider, work_root=tmp_path)
 
     assert node.run("run tool").get_message() == "done"
     content = node.read_tool_output("saved-output").content
-    assert (
-        content.split("</header>", 1)[-1].strip() == "Mock tool result: changed hooked"
-    )
+    assert "'result': '5'" in content
+    assert content.endswith(" hooked")
 
 
 @pytest.mark.parametrize(
@@ -166,7 +177,7 @@ def test_bundled_hooks_run_and_only_the_final_result_is_cached(tmp_path: Path) -
 def test_hooks_apply_after_named_overrides_without_changing_the_source(
     tmp_path: Path, hooks: ToolHooks, expected: str
 ) -> None:
-    path = write_hds(tmp_path, "application", tools=("mock-tool",))
+    path = write_hds(tmp_path, "application", tools=("calculate",))
     write_tool(path, "replacement-tool")
     entrypoint = path / "tools" / "replacement-tool-directory" / "main.py"
     entrypoint.write_text(
@@ -180,15 +191,15 @@ def test_hooks_apply_after_named_overrides_without_changing_the_source(
         "    return 'replacement-tool: ' + text\n"
     )
     defaults = DefaultCapabilities(
-        overrides=ToolOverride("mock-tool", "replacement-tool"),
-        tool_hooks={"mock-tool": hooks},
+        overrides=ToolOverride("calculate", "replacement-tool"),
+        tool_hooks={"calculate": hooks},
     )
     node = Node([path], name_hds="application", default_capabilities=defaults)
     loaded = node.load_capabilities(work_root=tmp_path)
     tools = {tool.get_name(): tool for tool in loaded.tools}
 
     assert (
-        tools["mock-tool"].execute_with_hooks(
+        tools["calculate"].execute_with_hooks(
             {"text": "original"}, work_root=tmp_path, history=()
         )
         == expected
@@ -202,22 +213,22 @@ def test_hooks_apply_after_named_overrides_without_changing_the_source(
 
 
 def test_hooks_do_not_mutate_object_overrides_shared_by_nodes(tmp_path: Path) -> None:
-    original = Tool(replacement_tool, name="mock-tool", after=Suffix(" original"))
+    original = Tool(replacement_tool, name="calculate", after=Suffix(" original"))
     nodes = [
         Node(
             name_hds="main",
             default_capabilities=DefaultCapabilities(
-                mocks=True,
-                overrides={"mock-tool": original},
+                include={"main"},
+                overrides={"calculate": original},
                 tool_hooks=hooks,
             ),
         )
-        for hooks in ({"mock-tool": ToolHooks(after=Suffix())}, {})
+        for hooks in ({"calculate": ToolHooks(after=Suffix())}, {})
     ]
     results = []
     for node in nodes:
         loaded = node.load_capabilities(work_root=tmp_path)
-        tool = next(tool for tool in loaded.tools if tool.get_name() == "mock-tool")
+        tool = next(tool for tool in loaded.tools if tool.get_name() == "calculate")
         results.append(
             tool.execute_with_hooks({"text": "input"}, work_root=tmp_path, history=())
         )
@@ -343,7 +354,7 @@ def test_exit_hooks_preserve_the_exit_contract(tmp_path: Path) -> None:
     loaded = Node(
         name_hds="main",
         default_capabilities=DefaultCapabilities(
-            mocks=True,
+            include={"main"},
             tool_hooks={"exit_agent": ToolHooks(after=ChangeExit())},
         ),
     ).load_capabilities(work_root=tmp_path)

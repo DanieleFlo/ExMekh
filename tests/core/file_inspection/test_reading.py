@@ -36,6 +36,7 @@ from exmekh_lib.core.providers.openai_function_tool_definition_mapper import (
 )
 from exmekh_lib.interfaces.tool_hook import AfterTool, BeforeTool, ToolArguments
 from exmekh_lib.utils.xml import stringify_tool_result
+from tests.capabilities_support import MOCK_CAPABILITIES_PATH
 from tests.core.agents.node.test_node import SequenceProvider
 from tests.file_inspection_support import inspect_file
 from tests.tool_result_support import parse_tool_result
@@ -64,10 +65,9 @@ def make_node(
 ):
     provider = provider_type(responses)
     node = Node(
+        [MOCK_CAPABILITIES_PATH],
         name_hds="main",
-        default_capabilities=DefaultCapabilities(
-            mocks=True, tool_hooks=hooks, overrides=overrides
-        ),
+        default_capabilities=DefaultCapabilities(tool_hooks=hooks, overrides=overrides),
     )
     node.initialize(provider, work_root=tmp_path)
     return node, provider

@@ -205,7 +205,7 @@ def test_live_model_can_choose_and_combine_every_skill_tool(tmp_path: Path) -> N
         [BUILTIN_CAPABILITIES_PATH],
         name_hds="main",
         agent_context_id=fresh_live_context_id("live-deep-thinking"),
-        default_capabilities=DefaultCapabilities(mocks=True, overrides=overrides),
+        default_capabilities=DefaultCapabilities(include={"main"}, overrides=overrides),
     )
     try:
         response = DeepAgent(provider=provider, node=node, work_root=tmp_path).run(

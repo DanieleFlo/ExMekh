@@ -13,12 +13,12 @@ capabilities/
 ├── hds/
 │   └── main.md                 # Hierarchical Domain Specification (Root System Prompt)
 ├── deep-skill/
-│   ├── mock-skill.md           # Domain skill definition
-│   └── nested-skill.md         # Nested sub-skill definition
+│   ├── deep-thinking.md        # Research and reasoning skill
+│   └── file-processing.md      # Workspace file skill
 ├── tools/
-│   ├── mock-tool/
+│   ├── calculate/
 │   │   └── main.py             # Entrypoint with @deep_tool function
-│   ├── shared-tool/
+│   ├── search-web/
 │   │   └── main.py
 │   └── bash/
 │       ├── main.py             # Decorated entrypoint
@@ -48,18 +48,19 @@ skills, and exit tools.
 ## Per-node default capabilities
 
 `DefaultCapabilities` selects bundled resources independently for each `Node`.
-Its default is `mocks=False, harness=True`. `Node` accepts
+Its default is `harness=True`. The bundled `main` HDS uses only real harness
+skills. Select it explicitly with `include={"main"}` when using defaults without
+an application HDS. `Node` accepts
 `capabilities_paths=None`; when `DefaultCapabilities` is supplied, it adds the
 bundled directory exposed by `DefaultCapabilities.capabilities_path` automatically.
 The bundled directory can also appear explicitly in `capabilities_paths` and is
-loaded only once. A harness-only node needs an application HDS in
-`capabilities_paths` (or an HDS override). Without `DefaultCapabilities`, nodes
+loaded only once. A node using defaults can provide its own HDS or select
+the bundled `main` explicitly. Without `DefaultCapabilities`, nodes
 with application paths keep their existing behavior; a node with no paths loads
 the bundled directory in full.
 
 | Group | Bundled names |
 | --- | --- |
-| Mock | HDS `main`, `mock-sub-agent`; skills `mock-skill`, `nested-skill`; tools `mock-tool`, `mock-sub-tool`, `nested-sub-tool`, `shared-tool` |
 | Harness | Skill `deep-thinking` with web, calculation, date/time, and logic tools; exit tool `exit_agent`; memory tools `get_execution_history`, `search_tool_outputs`, `read_tool_output`; execution control `control_tool_execution`; skill `file-processing` with file analysis `inspect-file`; Bash tool `bash`; delegation tool `call_sub_agent` on nodes with children |
 
 The `file-processing` skill must be declared in the application HDS
@@ -67,8 +68,8 @@ The `file-processing` skill must be declared in the application HDS
 tool is available inside that skill. See
 [Workspace File Inspection](14-file-inspection.md) for supported formats and limits.
 
-Group switches select all names in that group. `include` and `exclude` take names
-that adjust the switches;
+The harness switch selects all harness names. `include` and `exclude` take names
+that adjust that selection;
 `overrides` accepts `ToolOverride(target_name, replacement_name)` and
 `DeepSkillOverride(target_name, replacement_name)`. The replacement name refers
 to a resource loaded from any `capabilities_paths` directory, including the
@@ -76,7 +77,7 @@ bundled directory. The target may be a bundled or application tool or skill;
 runtime harness tools can also be tool targets. The replacement is exposed under
 the target name in this node. Missing targets or replacement names, and
 ambiguous replacement names, raise errors during loading. An override selects a
-bundled target even when its group is off. An explicit exclusion cannot also be
+bundled target even when the harness switch is off. An explicit exclusion cannot also be
 included or overridden.
 
 ```python
@@ -93,19 +94,18 @@ node = Node(
     capabilities_paths=[Path("my-app/capabilities")],
     name_hds="main",
     default_capabilities=DefaultCapabilities(
-        mocks=True,
         harness=True,
         exclude={"read_tool_output"},
         overrides=[
-            ToolOverride("mock-tool", "example-echo"),
-            DeepSkillOverride("mock-skill", "my-skill"),
+            ToolOverride("search-web", "company-search"),
+            DeepSkillOverride("deep-thinking", "my-research"),
         ],
     ),
 )
 ```
 
-Here `my-app/capabilities` defines the tool `example-echo` and the deep skill
-`my-skill`. The tool runs as `mock-tool`, and the skill opens as `mock-skill`.
+Here `my-app/capabilities` defines the tool `company-search` and the deep skill
+`my-research`. The tool runs as `search-web`, and the skill opens as `deep-thinking`.
 Named overrides also work when the target is an application tool or skill. The
 target name stays stable in provider schemas, allowed scopes, and calls. The
 existing mapping form remains available for direct Python object replacements.
@@ -151,6 +151,9 @@ Tools retain their signatures, cache policies, and specialized execution behavio
 Runtime overrides also retain the default tool's execution restrictions: control,
 memory, and delegation tools stay synchronous even if their replacement supports
 background execution.
+When an application tool has the same name as a bundled override target, the
+bundled tool supplies the execution restrictions and interactive contract,
+regardless of capability path order.
 For direct Python tool objects, `tool.with_hooks(ToolHooks(after=None))` returns
 a copy with the same rules.
 
@@ -163,10 +166,9 @@ needs mutable state specific to one node. See
 [tool hook execution](03-tools-and-structured-outputs.md#before-and-after-hooks) for the
 argument and result contracts.
 
-For a smaller selection, use `mocks=False` and `include={"mock-tool"}` with an
-application HDS that declares `mock-tool` in `sub-tools`. Likewise,
-`harness=False` with `include={"exit_agent", "get_execution_history"}` keeps
-only those harness capabilities. Each HDS must still name a selected exit tool;
+For a smaller selection, `harness=False` with
+`include={"exit_agent", "get_execution_history"}` keeps only those harness
+capabilities. Each HDS must still name a selected exit tool;
 an application can provide a different one. `call_sub_agent` requires children
 and cannot be overridden on a leaf node.
 
@@ -191,9 +193,9 @@ description: Main agent system prompt.
 exit-tool: exit_agent
 agent-context-id: main
 sub-tools:
-  - mock-tool
+  - calculate
 sub-skills:
-  - mock-skill
+  - deep-thinking
 ---
 # Main System Agent
 
@@ -211,7 +213,7 @@ description: Performs refactoring and codebase analysis.
 sub-tools:
   - read_workspace_file
 sub-skills:
-  - nested-skill
+  - file-processing
 ---
 # Refactoring Skill Instructions
 
@@ -330,8 +332,9 @@ measure the backend's rendered prompt or establish model accuracy. Compare
 task success, argument corrections and total tokens separately when evaluating
 the behavior with a real model.
 
-An offline measurement on 2026-10-18 used the cached Qwen tokenizer and the bundled
-`main` HDS with one `mock-sub-agent` child (28 definitions):
+An offline measurement on 2026-10-18 used the cached Qwen tokenizer and the historical
+demonstration fixture with one test child (28 definitions). Those demonstration
+resources now live exclusively under `tests/fixtures/capabilities`:
 
 | API | Full parameter descriptions | Scoped descriptions | Saved |
 | --- | ---: | ---: | ---: |

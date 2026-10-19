@@ -26,7 +26,7 @@ class CliSettings:
     """User-facing capability selection for the example CLI."""
 
     root_hds: str = "main"
-    child_hds: str = "mock-sub-agent"
+    child_hds: str | None = None
     presentation: CliPresentation = field(default_factory=CliPresentation)
 
     @classmethod

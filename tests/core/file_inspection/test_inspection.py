@@ -37,6 +37,7 @@ from exmekh_lib.core.providers.openai_function_tool_definition_mapper import (
     OpenAIFunctionToolDefinitionMapper,
 )
 from exmekh_lib.core.tool_calls.execution_manager import ToolExecutionManager
+from tests.capabilities_support import MOCK_CAPABILITIES_PATH
 from tests.core.agents.node.test_node import SequenceProvider
 from tests.file_inspection_support import inspect_file
 from tests.tokenizer_support import StubTokenizer
@@ -566,7 +567,11 @@ def test_file_processing_skill_inspects_exits_and_rereads_saved_xml(tmp_path):
             AssistantMessage("done"),
         ]
     )
-    node = Node(name_hds="main", default_capabilities=DefaultCapabilities(mocks=True))
+    node = Node(
+        [MOCK_CAPABILITIES_PATH],
+        name_hds="main",
+        default_capabilities=DefaultCapabilities(),
+    )
     loaded = node.initialize(provider, work_root=tmp_path)
     skill = next(
         skill for skill in loaded.deep_skills if skill.name == "file-processing"

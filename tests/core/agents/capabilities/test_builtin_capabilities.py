@@ -7,7 +7,7 @@ from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.config.storage import DEFAULT_STORAGE_SETTINGS
 from exmekh_lib.config.web import WEB_NAVIGATION
 from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
-from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.agents.node import DefaultCapabilities, Node
 from exmekh_lib.core.cache.cache_manager import CacheManager
 from exmekh_lib.core.cache.session_cache import SessionCache
 from exmekh_lib.core.models.assistant_message import AssistantMessage
@@ -26,6 +26,7 @@ from exmekh_lib.core.providers.openai_response_tool_mapper import (
 )
 from exmekh_lib.interfaces.provider import Provider
 from exmekh_lib.interfaces.tokenizer import Tokenizer
+from tests.capabilities_support import MOCK_CAPABILITIES_PATH
 
 CAPABILITIES_PATH = (
     Path(__file__).resolve().parents[4] / "src" / "exmekh_lib" / "capabilities"
@@ -91,15 +92,10 @@ def test_browser_action_schema_describes_valid_bounded_actions(tmp_path: Path, a
 def test_loads_builtin_assistant_capabilities(tmp_path: Path) -> None:
     capabilities = Capabilities([CAPABILITIES_PATH]).load(work_root=tmp_path)
 
-    assert tuple(hds.name for hds in capabilities.hds) == (
-        "main",
-        "mock-sub-agent",
-    )
+    assert tuple(hds.name for hds in capabilities.hds) == ("main",)
     assert {skill.name for skill in capabilities.deep_skills} == {
         "deep-thinking",
         "file-processing",
-        "mock-skill",
-        "nested-skill",
     }
     assert {tool.name for tool in capabilities.tools} == {
         "calculate",
@@ -110,12 +106,8 @@ def test_loads_builtin_assistant_capabilities(tmp_path: Path) -> None:
         "new-file",
         "delete-file",
         "interact-web-page",
-        "mock-sub-tool",
-        "mock-tool",
-        "nested-sub-tool",
         "read-web-page",
         "search-web",
-        "shared-tool",
         "logic-check",
         "logic-consistency",
         "logic-counterexample",
@@ -124,16 +116,17 @@ def test_loads_builtin_assistant_capabilities(tmp_path: Path) -> None:
 
     main_hds = capabilities.hds[0]
     assert main_hds.get_sub_skill_names() == (
-        "mock-skill",
         "deep-thinking",
         "file-processing",
     )
-    assert main_hds.get_sub_tool_names() == ("mock-tool",)
+    assert main_hds.get_sub_tool_names() == ()
     assert main_hds.get_exit_tool_name() == "exit_agent"
 
 
-def test_builtin_mock_tool_returns_a_deterministic_result(tmp_path: Path) -> None:
-    capabilities = Capabilities([CAPABILITIES_PATH]).load(work_root=tmp_path)
+def test_mock_tool_is_loaded_only_from_test_fixtures(tmp_path: Path) -> None:
+    capabilities = Capabilities(
+        [MOCK_CAPABILITIES_PATH], default_capabilities=DefaultCapabilities()
+    ).load(work_root=tmp_path)
     mock_tool = next(tool for tool in capabilities.tools if tool.name == "mock-tool")
 
     result = mock_tool.execute(text="example")
@@ -183,14 +176,6 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
         "logic-check": "Available in skill 'deep-thinking'.",
         "logic-consistency": "Available in skill 'deep-thinking'.",
         "logic-counterexample": "Available in skill 'deep-thinking'.",
-        "mock-skill": (
-            "Produces a demonstration response without performing real operations."
-        ),
-        "nested-skill": "Available in skill 'mock-skill'.",
-        "mock-sub-tool": "Available in skill 'mock-skill'.",
-        "mock-tool": ("Returns the received text as a demonstration result."),
-        "nested-sub-tool": "Available in skill 'nested-skill'.",
-        "shared-tool": "Available in skills 'mock-skill', 'nested-skill'.",
         "exit_agent": (
             "Finishes the current skill and returns its result to the caller. "
             "Available in every skill."

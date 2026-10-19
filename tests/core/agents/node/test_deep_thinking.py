@@ -5,7 +5,7 @@ import pytest
 from pydantic import BaseModel
 
 from exmekh_lib.core.agents.capabilities.defaults import BUILTIN_CAPABILITIES_PATH
-from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.agents.node import DefaultCapabilities, Node
 from exmekh_lib.core.agents.node.thinking_annotation import ThinkingAnnotationResolver
 from exmekh_lib.core.cache.session_cache import SessionCache
 from exmekh_lib.core.models.assistant_message import (
@@ -24,6 +24,7 @@ from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.core.models.xml_header import XmlHeader
 from exmekh_lib.interfaces.provider import Provider
 from exmekh_lib.interfaces.tokenizer import Tokenizer
+from tests.capabilities_support import MOCK_CAPABILITIES_PATH
 from tests.tool_result_support import parse_tool_result
 
 
@@ -325,7 +326,11 @@ def test_other_scopes_do_not_annotate_tool_headers(tmp_path: Path) -> None:
                 (AssistantMessage("complete"), None),
             ],
         )
-        node = Node([BUILTIN_CAPABILITIES_PATH], name_hds="main")
+        node = Node(
+            [MOCK_CAPABILITIES_PATH],
+            name_hds="main",
+            default_capabilities=DefaultCapabilities(),
+        )
         node.initialize(provider, work_root=tmp_path)
         node.run("hello")
         assert (

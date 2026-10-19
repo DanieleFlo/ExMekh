@@ -22,6 +22,24 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
+def _build_root_node(settings: CliSettings) -> Node:
+    capabilities_paths = [Path(__file__).parent / CAPABILITY_FORMAT.root_folder]
+    children = []
+    if settings.child_hds:
+        children.append(
+            Node(
+                capabilities_paths=capabilities_paths,
+                name_hds=settings.child_hds,
+                agent_context_id=f"{settings.root_hds}/{settings.child_hds}",
+            )
+        )
+    return Node(
+        capabilities_paths=capabilities_paths,
+        name_hds=settings.root_hds,
+        children=children,
+    )
+
+
 class StreamPrinter(DeepAgentEventHandler):
     def __init__(self, presentation: CliPresentation | None = None) -> None:
         self._presentation = presentation or CliPresentation()
@@ -87,20 +105,9 @@ def main() -> None:
     )
     provider_settings = ProviderSettings.from_environment()
     provider = LocalProvider(model=provider_settings.model, api=provider_settings.api)
-    capabilities_paths = [Path(__file__).parent / CAPABILITY_FORMAT.root_folder]
-    root_node = Node(
-        capabilities_paths=capabilities_paths,
-        name_hds=cli_settings.root_hds,
-        children=[
-            Node(
-                capabilities_paths=capabilities_paths,
-                name_hds=cli_settings.child_hds,
-            )
-        ],
-    )
     deep_agent = DeepAgent(
         provider=provider,
-        node=root_node,
+        node=_build_root_node(cli_settings),
         work_root=Path.cwd(),
         on_stream=StreamPrinter(cli_settings.presentation),
     )

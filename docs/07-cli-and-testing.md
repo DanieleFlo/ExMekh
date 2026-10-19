@@ -30,7 +30,7 @@ python -m exmekh_lib.main
 - **Streaming Printer**: Formats reasoning content (`Thinking: ...`) separately from final model output (`Response: ...`).
 - **Execution Event Logging**: Logs tool invocations with depth and skill path information:
   ```
-  tool_start: mock-tool (depth=0, path=/)
+  tool_start: get_execution_history (depth=0, path=/)
   ```
 - **Session History Dumps**: Prints JSON representations of both linear conversation history and hierarchical `Deep skill history` after each step.
 - **Session Exit**: Type `exit` or `quit` to exit the loop.

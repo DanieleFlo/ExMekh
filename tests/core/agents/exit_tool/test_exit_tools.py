@@ -27,18 +27,20 @@ def _valid_source(*, description: str = "'Exit agent'") -> str:
     )
 
 
-def test_loads_exit_tool_and_rejects_second_load(tmp_path: Path) -> None:
+@pytest.mark.parametrize("method", ["load", "load_exit_tools"])
+def test_loads_exit_tool_and_rejects_second_load(tmp_path: Path, method: str) -> None:
     tool_path = _write_tool(tmp_path / "finish", _valid_source())
     loader = ExitTools([tool_path])
 
-    (tool,) = loader.load_exit_tools()
+    (tool,) = getattr(loader, method)()
 
     assert tool.name == "exit_agent"
     assert tool.description == "Exit agent"
     assert tool.instructions == "Finish now"
     assert tool.folder_path == tool_path
-    with pytest.raises(RuntimeError, match="load only once"):
-        loader.load_exit_tools()
+    for load in (loader.load, loader.load_exit_tools):
+        with pytest.raises(RuntimeError, match="ExitTools can load only once"):
+            load()
 
 
 @pytest.mark.parametrize(

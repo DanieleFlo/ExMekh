@@ -104,9 +104,18 @@ class _DefaultCapabilitiesComposer:
     def _should_keep_loaded_resource(self, name: str, path: Path) -> bool:
         if name in self._defaults.overrides:
             return False
-        return not path.resolve().is_relative_to(
-            self._builtin_root
-        ) or self._defaults.includes(name)
+        return not self._is_bundled_resource(path) or self._defaults.includes(name)
+
+    def _is_bundled_resource(self, path: Path) -> bool:
+        return path.resolve().is_relative_to(self._builtin_root)
+
+    def _original_tools(self, loaded: CapabilitiesData) -> dict[str, Tool]:
+        originals = {tool.get_name(): tool for tool in loaded.tools}
+        for path, tool in zip(self._tool_paths, loaded.tools, strict=True):
+            # An application collision must not replace the bundled target's contract.
+            if self._is_bundled_resource(path):
+                originals[tool.get_name()] = tool
+        return originals
 
     def _apply_overrides(
         self, selected: CapabilitiesData, loaded: CapabilitiesData
@@ -115,7 +124,7 @@ class _DefaultCapabilitiesComposer:
         tools = list(selected.tools)
         hds = list(selected.hds)
         exit_tools = list(selected.exit_tools)
-        original_tools = {tool.get_name(): tool for tool in loaded.tools}
+        original_tools = self._original_tools(loaded)
 
         for name, replacement in self._defaults.overrides.items():
             if name in RUNTIME_NAMES:

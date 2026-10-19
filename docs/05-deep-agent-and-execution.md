@@ -23,7 +23,8 @@ root_node = Node(
     children=[
         Node(
             capabilities_paths=[capabilities_path],
-            name_hds="mock-sub-agent",
+            name_hds="main",
+            agent_context_id="main-worker",
             persistent_history=False,
         )
     ],
@@ -139,8 +140,9 @@ As the agent executes, it transitions between skills based on the active HDS and
 | Active Scope | `skill_path` | `depth` |
 |---|---|---|
 | Main HDS System Prompt | `/` | `0` |
-| Top-level Skill | `/mock-skill` | `1` |
-| Nested Sub-Skill | `/mock-skill/nested-skill` | `2` |
+| Top-level Skill | `/deep-thinking` | `1` |
+| Application-defined Skill | `/research` | `1` |
+| Nested Sub-Skill | `/research/source-review` (application-defined) | `2` |
 
 - **Skill Entry**: Triggered when the agent calls a skill tool.
 - **Exit Instructions**: The selected exit tool provides plain Markdown instructions, appended after each skill catalog. They have no separate callable capability.

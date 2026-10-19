@@ -15,16 +15,6 @@ from exmekh_lib.core.agents.hds.hds import HDS
 from exmekh_lib.core.models.tool import Tool
 from exmekh_lib.core.models.tool_hooks import ToolHooks
 
-_MOCK_RESOURCE_TYPES: dict[str, type[Tool]] = {
-    "main": HDS,
-    "mock-sub-agent": HDS,
-    "mock-skill": DeepSkill,
-    "nested-skill": DeepSkill,
-    "mock-tool": Tool,
-    "mock-sub-tool": Tool,
-    "nested-sub-tool": Tool,
-    "shared-tool": Tool,
-}
 _HARNESS_RESOURCE_TYPES: dict[str, type[Tool]] = {
     "deep-thinking": DeepSkill,
     "file-processing": DeepSkill,
@@ -49,30 +39,9 @@ _HARNESS_RESOURCE_TYPES: dict[str, type[Tool]] = {
     RUNTIME.bash_tool_name: Tool,
     RUNTIME.sub_agent_tool_name: Tool,
 }
-_RESOURCE_TYPES = MappingProxyType(_MOCK_RESOURCE_TYPES | _HARNESS_RESOURCE_TYPES)
-MOCK_NAMES = frozenset(_MOCK_RESOURCE_TYPES)
+_RESOURCE_TYPES = MappingProxyType({"main": HDS} | _HARNESS_RESOURCE_TYPES)
 HARNESS_NAMES = frozenset(_HARNESS_RESOURCE_TYPES)
 RUNTIME_NAMES = RUNTIME.runtime_tool_names
-_MAIN_HDS_DEPENDENCIES = frozenset(
-    {
-        RUNTIME.exit_tool_name,
-        "deep-thinking",
-        "file-processing",
-        "search-web",
-        "read-web-page",
-        "interact-web-page",
-        "calculate",
-        "date-time",
-        "inspect-file",
-        "read-file",
-        "edit-file",
-        "new-file",
-        "delete-file",
-        "logic-check",
-        "logic-consistency",
-        "logic-counterexample",
-    }
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,15 +83,14 @@ class DefaultCapabilities:
     def __init__(
         self,
         *,
-        mocks: bool = False,
         harness: bool = True,
         include: Iterable[str] = (),
         exclude: Iterable[str] = (),
         overrides: OverrideInput = None,
         tool_hooks: Mapping[str, ToolHooks] | None = None,
     ) -> None:
-        if not isinstance(mocks, bool) or not isinstance(harness, bool):
-            raise TypeError(AGENT_TEXT.mocks_and_harness_must_be_bool)
+        if not isinstance(harness, bool):
+            raise TypeError(AGENT_TEXT.harness_must_be_bool)
         included = self._validate_default_names(include, "include")
         excluded = self._validate_default_names(exclude, "exclude")
         replacements = self._validate_overrides(overrides)
@@ -133,11 +101,7 @@ class DefaultCapabilities:
                 + ", ".join(sorted(conflict))
             )
 
-        selected = (MOCK_NAMES if mocks else frozenset()) | (
-            HARNESS_NAMES if harness else frozenset()
-        )
-        if mocks:
-            selected |= _MAIN_HDS_DEPENDENCIES
+        selected = HARNESS_NAMES if harness else frozenset()
         selected_names = frozenset(
             (selected | included | replacements.keys()) - excluded
         )
@@ -148,17 +112,12 @@ class DefaultCapabilities:
                 AGENT_TEXT.tool_hooks_require_selected_capabilities
                 + ", ".join(sorted(unselected))
             )
-        self._mocks = mocks
         self._harness = harness
         self._include = included
         self._exclude = excluded
         self._selected_names = selected_names
         self._overrides = MappingProxyType(replacements)
         self._tool_hooks = MappingProxyType(hooks)
-
-    @property
-    def mocks(self) -> bool:
-        return self._mocks
 
     @property
     def harness(self) -> bool:
@@ -214,7 +173,6 @@ class DefaultCapabilities:
     ) -> DefaultCapabilities:
         """Return the same selection with a new set of resource overrides."""
         return DefaultCapabilities(
-            mocks=self._mocks,
             harness=self._harness,
             include=self._include,
             exclude=self._exclude,
@@ -264,7 +222,7 @@ class DefaultCapabilities:
         cls, names: Iterable[str], label: str
     ) -> frozenset[str]:
         values = cls._normalize_names(names, label)
-        unknown = values - MOCK_NAMES - HARNESS_NAMES
+        unknown = values - _RESOURCE_TYPES.keys()
         if unknown:
             raise ValueError(
                 AGENT_TEXT.unknown_default_capabilities.format(

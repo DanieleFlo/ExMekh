@@ -94,21 +94,11 @@ class ExitTools(DeepTools):
                 )
             )
 
+    def load(self) -> tuple[ExitTool, ...]:
+        return self._load_tools(
+            self._load_tool, AGENT_TEXT.exittools_can_load_only_once
+        )
+
     def load_exit_tools(self) -> tuple[ExitTool, ...]:
-        if self._load_attempted:
-            raise RuntimeError(AGENT_TEXT.exittools_can_load_only_once)
-
-        self._load_attempted = True
-        tools: list[ExitTool] = []
-        loaded_paths: list[Path] = []
-
-        try:
-            for tool_path in self._tool_paths:
-                tools.append(self._load_tool(tool_path))
-                loaded_paths.append(tool_path)
-        except Exception:
-            for loaded_path in loaded_paths:
-                self._module_importer.unload_module(loaded_path)
-            raise
-
-        return tuple(tools)
+        """Compatibility alias for the common tool-loading interface."""
+        return self.load()

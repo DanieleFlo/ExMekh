@@ -16,7 +16,7 @@
 
 - **Hierarchical Agent Engine ([`DeepAgent`](docs/05-deep-agent-and-execution.md))**: Execute multi-depth, scoped agent hierarchies with dynamic skill tree navigation, history snapshotting, and cycle detection.
 - **Filesystem Capabilities ([`Capabilities`](docs/04-capabilities-and-catalog.md))**: Define system prompts (HDS), skills, exit tools, and Python function tools directly in Markdown and Python files inside a modular `capabilities/` directory.
-- **[Per-node Defaults](docs/04-capabilities-and-catalog.md#per-node-default-capabilities)**: Use `DefaultCapabilities` to select bundled mocks and harness tools independently, with per-name selection and named tool or skill overrides.
+- **[Per-node Defaults](docs/04-capabilities-and-catalog.md#per-node-default-capabilities)**: Use `DefaultCapabilities` to select bundled harness capabilities, with per-name selection and named tool or skill overrides.
 - **Typed Function Tools & Auto Schema ([`Tool`](docs/03-tools-and-structured-outputs.md))**: Register annotated Python functions. Automatic JSON schema generation, type hint reflection, and value coercion (handling dates, UUIDs, enums, literals, dataclasses, and Pydantic models).
 - **Structured Outputs**: Validate model completions directly into Pydantic models via `client.call_structured(...)` with optional strict schema enforcement.
 - **Real-Time Token & Event Streaming**: Stream raw provider tokens (including reasoning/thinking tokens) alongside structured execution events (`tool_start`, `tool_end`, depth, and skill path).
@@ -151,7 +151,8 @@ root_node = Node(
     children=[
         Node(
             capabilities_paths=[capabilities_path],
-            name_hds="mock-sub-agent",
+            name_hds="main",
+            agent_context_id="main-worker",
             persistent_history=False,
         )
     ],
@@ -176,7 +177,6 @@ node = Node(
     capabilities_paths=[Path("my-app/capabilities")],
     name_hds="application",
     default_capabilities=DefaultCapabilities(
-        mocks=False,
         harness=True,
         exclude={"read_tool_output"},
     ),

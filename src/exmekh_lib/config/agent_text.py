@@ -216,7 +216,7 @@ class AgentText:
         "Metadata section must be a YAML mapping."
     )
     missing_required_metadata_fields: str = "Missing required metadata fields: {fields}"
-    mocks_and_harness_must_be_bool: str = "mocks and harness must be bool"
+    harness_must_be_bool: str = "harness must be bool"
     must_be_a_string: str = "{label} must be a string"
     must_be_a_tuple: str = "{field_name} must be a tuple"
     must_be_an_iterable_of_capability_names: str = (

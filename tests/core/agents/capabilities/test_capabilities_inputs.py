@@ -82,6 +82,14 @@ def test_rejects_empty_capabilities_paths() -> None:
         Capabilities([])
 
 
+@pytest.mark.parametrize("value", [None, 0, 1, "false"])
+def test_parameter_documentation_setting_requires_a_boolean(value) -> None:
+    with pytest.raises(
+        TypeError, match="parameter_descriptions_in_schema must be a bool"
+    ):
+        CapabilitiesData((), (), parameter_descriptions_in_schema=value)
+
+
 def test_rejects_duplicate_capabilities_paths(tmp_path: Path) -> None:
     capabilities_path = tmp_path / "capabilities"
 

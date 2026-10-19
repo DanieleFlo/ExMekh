@@ -99,7 +99,7 @@ class Capabilities:
             deep_skills=DeepSkills(self.get_deep_skill_folder_paths()).load(),
             tools=deep_tools.load(),
             hds=HDSCollection(self.get_hds_folder_paths()).load(),
-            exit_tools=exit_tools.load_exit_tools(),
+            exit_tools=exit_tools.load(),
         )
 
     def format_capabilities_folders(self) -> None:

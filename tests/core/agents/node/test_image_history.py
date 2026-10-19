@@ -4,6 +4,7 @@ from exmekh_lib.core.agents.deep_agent.deep_agent import DeepAgent
 from exmekh_lib.core.agents.node import DefaultCapabilities, Node
 from exmekh_lib.core.models.assistant_message import AssistantMessage
 from exmekh_lib.core.models.user_message import ImagesUserMessage, UserMessage
+from tests.capabilities_support import MOCK_CAPABILITIES_PATH
 from tests.core.agents.node.steering_support import call, tool_reply
 from tests.core.agents.node.test_node import SequenceProvider
 from tests.core.agents.node.test_steering_history import assert_complete_tool_batches
@@ -24,7 +25,11 @@ def test_image_prompt_survives_tools_skill_return_and_followup(tmp_path):
             AssistantMessage("done"),
         ]
     )
-    node = Node(name_hds="main", default_capabilities=DefaultCapabilities(mocks=True))
+    node = Node(
+        [MOCK_CAPABILITIES_PATH],
+        name_hds="main",
+        default_capabilities=DefaultCapabilities(),
+    )
     agent = DeepAgent(provider, node, tmp_path)
     agent.run("Remember TOKEN_VIOLET_731")
     pixels = Image.new("RGB", (3, 2), "red")

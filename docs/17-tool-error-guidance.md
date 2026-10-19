@@ -1,6 +1,6 @@
 # Tool error guidance
 
-Bundled non-mock tools distinguish failures when the recovery action differs.
+Bundled tools distinguish failures when the recovery action differs.
 The existing `error_kind` identifies the error family. Structured failures also
 expose `error_code` for the detected cause, `error` for the diagnostic, `hint` for
 the next action, and optional `details` for parameter names or observed state.

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from types import ModuleType
 from typing import Final
@@ -55,16 +55,23 @@ class DeepTools:
         return paths
 
     def load(self) -> tuple[Tool, ...]:
+        return self._load_tools(
+            self._load_tool, AGENT_TEXT.deeptools_can_load_only_once
+        )
+
+    def _load_tools[ToolType: Tool](
+        self, load_tool: Callable[[Path], ToolType], already_loaded_message: str
+    ) -> tuple[ToolType, ...]:
         if self._load_attempted:
-            raise RuntimeError(AGENT_TEXT.deeptools_can_load_only_once)
+            raise RuntimeError(already_loaded_message)
 
         self._load_attempted = True
-        tools: list[Tool] = []
+        tools: list[ToolType] = []
         loaded_paths: list[Path] = []
 
         try:
             for tool_path in self._tool_paths:
-                tools.append(self._load_tool(tool_path))
+                tools.append(load_tool(tool_path))
                 loaded_paths.append(tool_path)
         except Exception:
             for loaded_path in loaded_paths:

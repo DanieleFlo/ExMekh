@@ -8,11 +8,10 @@ from xml.etree import ElementTree as ET
 import pytest
 from dotenv import load_dotenv
 
-import exmekh_lib
 from exmekh_lib.config.cache import CACHE_FORMAT
 from exmekh_lib.config.provider import DEFAULT_PROVIDER_SETTINGS
 from exmekh_lib.config.runtime import RUNTIME
-from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.agents.node import DefaultCapabilities, Node
 from exmekh_lib.core.cache.tool_call_record import ToolCallRecord
 from exmekh_lib.core.models.provider_request import ProviderRequest
 from exmekh_lib.core.models.provider_response import ProviderResponse
@@ -21,6 +20,7 @@ from exmekh_lib.core.models.tool import PreformattedToolResult
 from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.core.tool_calls import ToolCallReader
 from exmekh_lib.utils.file import read_json_from_path
+from tests.capabilities_support import MOCK_CAPABILITIES_PATH
 from tests.event_handler import as_agent_handler
 from tests.live.model_support import (
     CacheTestTokenizer,
@@ -83,7 +83,8 @@ def initialize_node(
     provider: RecordingLocalProvider, work_root: Path, *, streaming: bool = False
 ) -> Node:
     node = Node(
-        capabilities_paths=[Path(exmekh_lib.__file__).parent / "capabilities"],
+        capabilities_paths=[MOCK_CAPABILITIES_PATH],
+        default_capabilities=DefaultCapabilities(),
         name_hds="main",
         persistent_history=False,
         agent_context_id=fresh_live_context_id("live-tool-cache"),

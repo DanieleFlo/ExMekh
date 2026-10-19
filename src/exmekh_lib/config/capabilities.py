@@ -42,27 +42,9 @@ class CapabilityText:
 
     skill_only_availability: str = "Available in every skill."
     tool_label: str = "tool"
-    mock_sub_tool_result: str = "Mock sub-tool result: {text}"
-    mock_tool_result: str = "Mock tool result: {text}"
-    nested_sub_tool_result: str = "Nested sub-tool result: {text}"
-    shared_tool_result: str = "Shared tool result: {text}"
     exit_tool_label: str = "Exit tool '{name}'"
     exit_tool_description: str = (
         "Finishes the current skill and returns its result to the caller."
-    )
-
-    mock_sub_tool_description: str = (
-        "Returns a result available only in the mock skill."
-    )
-
-    mock_tool_description: str = "Returns the received text as a demonstration result."
-
-    nested_sub_tool_description: str = (
-        "Returns a result available only in the nested skill."
-    )
-
-    shared_tool_description: str = (
-        "Returns a result shared by the mock and nested skills."
     )
 
 

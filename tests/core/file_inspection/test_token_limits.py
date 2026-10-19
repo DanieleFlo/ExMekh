@@ -180,7 +180,10 @@ def test_node_supplies_its_model_tokenizer_to_file_inspection(tmp_path, executio
         ],
         tokenizer=tokenizer,
     )
-    node = Node(name_hds="main", default_capabilities=DefaultCapabilities(mocks=True))
+    node = Node(
+        name_hds="main",
+        default_capabilities=DefaultCapabilities(include={"main"}),
+    )
     node.initialize(provider, work_root=tmp_path)
 
     assert node.run("Inspect notes").get_message() == "done"

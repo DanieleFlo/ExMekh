@@ -7,12 +7,12 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
-import exmekh_lib
 from exmekh_lib.config.provider import DEFAULT_PROVIDER_SETTINGS
 from exmekh_lib.core.agents.deep_agent.agent_response import AgentResponse
 from exmekh_lib.core.agents.deep_agent.deep_agent import DeepAgent
-from exmekh_lib.core.agents.node import Node
+from exmekh_lib.core.agents.node import DefaultCapabilities, Node
 from exmekh_lib.core.models.reasoning_effort import ReasoningEffortLMH
+from tests.capabilities_support import MOCK_CAPABILITIES_PATH
 from tests.live.model_support import LiveModelProvider, fresh_live_context_id
 
 pytestmark = pytest.mark.live
@@ -26,9 +26,10 @@ def build_live_agent() -> DeepAgent:
         reasoning_effort=ReasoningEffortLMH.LOW,
         api="responses",
     )
-    capabilities_path = Path(exmekh_lib.__file__).parent / "capabilities"
+    capabilities_path = MOCK_CAPABILITIES_PATH
     node = Node(
         capabilities_paths=[capabilities_path],
+        default_capabilities=DefaultCapabilities(),
         name_hds="main",
         persistent_history=False,
         agent_context_id=fresh_live_context_id("live-agent"),

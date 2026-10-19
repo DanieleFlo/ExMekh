@@ -100,9 +100,12 @@ test suite reads `EXMEKH_LIB_LIVE_MODEL` and `EXMEKH_LIB_RUN_LIVE_TESTS`.
 | `EXMEKH_LIB_TOKENIZER_CACHE_DIR` | `.exmekh_lib/tokenizers` | Cache root for tokenizer and sessions |
 | `EXMEKH_LIB_TOKENIZER_DOWNLOAD_TIMEOUT` | `60` | Positive integer timeout in seconds for tokenizer download |
 | `EXMEKH_LIB_ROOT_HDS` | `main` | Root HDS used by the example CLI |
-| `EXMEKH_LIB_CHILD_HDS` | `mock-sub-agent` | Child HDS used by the example CLI |
+| `EXMEKH_LIB_CHILD_HDS` | unset | Optional child HDS for the CLI; no child is created by default |
 | `EXMEKH_LIB_LIVE_MODEL` | `Qwen3.8-27B-UD-Q4_K_S` | Model used by live tests |
 | `EXMEKH_LIB_RUN_LIVE_TESTS` | `0` | Set to `1` to enable live tests |
+
+The CLI assigns an explicitly configured child the context ID
+`<root-hds>/<child-hds>`, so it can reuse `main` without sharing the root context.
 
 The HDS names must refer to capabilities available in the selected capability
 paths. The cache directory can also be passed directly to a tokenizer or

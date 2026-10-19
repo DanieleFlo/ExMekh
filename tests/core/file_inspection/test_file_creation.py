@@ -361,7 +361,7 @@ def test_creation_hooks_run_once_for_batch_and_saved_output_retains_xml(tmp_path
     node = Node(
         name_hds="main",
         default_capabilities=DefaultCapabilities(
-            mocks=True,
+            include={"main"},
             tool_hooks={"new-file": ToolHooks(before=Before(), after=After())},
         ),
     )
