@@ -7,6 +7,7 @@ import yaml
 
 from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.config.validation import VALIDATION_PATTERNS
+from exmekh_lib.core.agents.capability.conditions import has_conditions
 from exmekh_lib.core.agents.capability.markdown import CapabilityMarkdown
 from exmekh_lib.core.agents.capability.metadata import (
     CapabilityMetadata,
@@ -79,4 +80,6 @@ class CapabilityMarkdownParser[
         return data
 
     def _parse_body(self, body: str) -> tuple[str, tuple[str, ...]]:
+        if has_conditions(body):
+            return body, ()
         return parse_references(body)

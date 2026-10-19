@@ -40,6 +40,8 @@ class DeepSkillMetadataParser(CapabilityMetadataParser):
             description=common.get_description(),
             sub_skills=common.get_sub_skill_names(),
             sub_tools=common.get_sub_tool_names(),
+            optional_sub_tools=common.get_optional_sub_tool_names(),
+            optional_sub_skills=common.get_optional_sub_skill_names(),
             inherits_parent_tools=self._parse_boolean(
                 data,
                 self.INHERITS_PARENT_TOOLS_FIELD,

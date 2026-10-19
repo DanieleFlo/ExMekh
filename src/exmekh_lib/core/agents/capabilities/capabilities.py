@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Final
 
 from exmekh_lib.config.agent_text import AGENT_TEXT
+from exmekh_lib.config.default_capabilities import DEFAULT_CAPABILITIES
+from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.agents.capabilities.catalog_attacher import SkillCatalogAttacher
 from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
 from exmekh_lib.core.agents.capabilities.default_composer import (
@@ -15,6 +17,7 @@ from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
 from exmekh_lib.core.agents.capabilities.index import CapabilitiesIndex
 from exmekh_lib.core.agents.capabilities.layout import CapabilitiesLayout
 from exmekh_lib.core.agents.capabilities.override_resolver import _NamedOverrideResolver
+from exmekh_lib.core.agents.capabilities.prompts import CapabilityPrompts
 from exmekh_lib.core.agents.capabilities.validator import CapabilitiesValidator
 from exmekh_lib.core.agents.deep_skill.deep_skills import DeepSkills
 from exmekh_lib.core.agents.exit_tool.exit_tools import ExitTools
@@ -29,8 +32,15 @@ class Capabilities:
         self,
         capabilities_paths: Sequence[Path] | None,
         *,
-        default_capabilities: DefaultCapabilities | None = None,
+        default_capabilities: DefaultCapabilities | bool | None = None,
     ) -> None:
+        if isinstance(default_capabilities, bool):
+            default_capabilities = DefaultCapabilities(
+                harness=default_capabilities,
+                include={DEFAULT_CAPABILITIES.main}
+                if default_capabilities and not capabilities_paths
+                else (),
+            )
         if default_capabilities is not None and not isinstance(
             default_capabilities, DefaultCapabilities
         ):
@@ -39,12 +49,20 @@ class Capabilities:
             )
         self._default_capabilities = default_capabilities
         if default_capabilities is not None:
-            default_path = default_capabilities.capabilities_path
+            default_path = (
+                default_capabilities.capabilities_path
+                if default_capabilities.has_bundled_capabilities()
+                else None
+            )
         elif capabilities_paths is None:
             default_path = DefaultCapabilities.CAPABILITIES_PATH
         else:
             default_path = None
         self._layout = CapabilitiesLayout(capabilities_paths, default_path=default_path)
+
+    @property
+    def default_capabilities(self) -> DefaultCapabilities | None:
+        return self._default_capabilities
 
     def load(
         self, *, work_root: Path, parameter_descriptions_in_schema: bool = False
@@ -77,8 +95,17 @@ class Capabilities:
             data = replace(
                 data, parameter_descriptions_in_schema=parameter_descriptions_in_schema
             )
+            data.resolve_optional_capabilities()
+            runtime_names = (
+                RUNTIME.runtime_tool_names
+                if defaults is None
+                else RUNTIME.runtime_tool_names & defaults.selected_names
+            )
+            CapabilityPrompts(data, runtime_names).attach()
             index = CapabilitiesIndex.build(data)
-            CapabilitiesValidator(index).validate((*data.hds, *data.deep_skills))
+            CapabilitiesValidator(index, runtime_names).validate(
+                (*data.hds, *data.deep_skills)
+            )
             SkillCatalogAttacher(
                 index,
                 parameter_descriptions_in_schema=data.parameter_descriptions_in_schema,

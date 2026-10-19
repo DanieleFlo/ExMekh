@@ -5,11 +5,14 @@ from dataclasses import replace
 from pathlib import Path
 
 from exmekh_lib.config.agent_text import AGENT_TEXT
+from exmekh_lib.config.capability_prompts import CAPABILITY_PROMPTS
+from exmekh_lib.config.runtime import RUNTIME
+from exmekh_lib.core.agents.capabilities.contracts import apply_runtime_contract
 from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
-from exmekh_lib.core.agents.capabilities.defaults import (
-    RUNTIME_NAMES,
-    DefaultCapabilities,
+from exmekh_lib.core.agents.capabilities.default_catalog import (
+    DEFAULT_CAPABILITY_CATALOG,
 )
+from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
 from exmekh_lib.core.agents.capabilities.tool_composer import _DefaultToolComposer
 from exmekh_lib.core.agents.deep_skill.deep_skill import DeepSkill
 from exmekh_lib.core.agents.exit_tool.exit_tool import ExitTool
@@ -36,7 +39,25 @@ class _DefaultCapabilitiesComposer:
         selected = self._select_loaded(loaded)
         composed = self._apply_overrides(selected, loaded)
         self._validate_selected_names(composed)
+        self._validate_dependencies(composed)
         return self._apply_tool_hooks(composed)
+
+    def _validate_dependencies(self, data: CapabilitiesData) -> None:
+        names = {tool.get_name() for tool in data.get_all_tools()}
+        for tool in data.tools:
+            name = tool.get_name()
+            if name in self._defaults.overrides:
+                continue
+            entry = DEFAULT_CAPABILITY_CATALOG.get(name)
+            if entry is None:
+                continue
+            missing = set(entry.dependencies) - names
+            if missing:
+                raise ValueError(
+                    CAPABILITY_PROMPTS.dependency_missing.format(
+                        name=name, dependencies=", ".join(sorted(missing))
+                    )
+                )
 
     def _apply_tool_hooks(self, composed: CapabilitiesData) -> CapabilitiesData:
         return replace(
@@ -55,7 +76,7 @@ class _DefaultCapabilitiesComposer:
         missing_tools = {
             name
             for name, replacement in self._defaults.overrides.items()
-            if name not in RUNTIME_NAMES
+            if name not in RUNTIME.runtime_tool_names
             and not isinstance(replacement, (HDS, DeepSkill, ExitTool))
             and name not in tool_names
         }
@@ -127,16 +148,20 @@ class _DefaultCapabilitiesComposer:
         original_tools = self._original_tools(loaded)
 
         for name, replacement in self._defaults.overrides.items():
-            if name in RUNTIME_NAMES:
+            if name in RUNTIME.runtime_tool_names:
                 continue
             if isinstance(replacement, DeepSkill):
                 skills.append(replacement.copy())
             elif isinstance(replacement, HDS):
                 hds.append(replacement.copy())
             elif isinstance(replacement, ExitTool):
-                exit_tools.append(replacement)
+                exit_tools.append(replacement.copy())
             elif isinstance(replacement, Tool):
-                tools.append(replacement.with_execution_policy_of(original_tools[name]))
+                tools.append(
+                    apply_runtime_contract(replacement).with_execution_policy_of(
+                        original_tools[name]
+                    )
+                )
             else:
                 raise TypeError(
                     AGENT_TEXT.override_for_must_be_resolved_before_composition.format(
@@ -149,7 +174,7 @@ class _DefaultCapabilitiesComposer:
         )
 
     def _validate_selected_names(self, data: CapabilitiesData) -> None:
-        required_names = self._defaults.selected_names - RUNTIME_NAMES
+        required_names = self._defaults.selected_names - RUNTIME.runtime_tool_names
         loaded_names = {
             resource.get_name()
             for resource in (

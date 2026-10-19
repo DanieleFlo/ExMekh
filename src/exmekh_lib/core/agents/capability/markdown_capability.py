@@ -1,15 +1,21 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Set
 from pathlib import Path
 from typing import Any, Self
 
 from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.core.agents.capabilities.resource_type import ResourceType
+from exmekh_lib.core.agents.capability.conditions import (
+    CapabilityPromptContext,
+    render_conditions,
+)
 from exmekh_lib.core.agents.capability.loader import MarkdownLoader
 from exmekh_lib.core.agents.capability.markdown import CapabilityMarkdown
 from exmekh_lib.core.agents.capability.metadata import CapabilityMetadata
 from exmekh_lib.core.agents.capability.parser import CapabilityMarkdownParser
+from exmekh_lib.core.agents.capability.references import parse_references
 from exmekh_lib.core.models.tool import Tool
 
 
@@ -30,6 +36,9 @@ class MarkdownCapability[MetadataType: CapabilityMetadata](Tool, ABC):
         self.metadata = metadata
         self.body = body
         self.references = references
+        self._prompt_context: CapabilityPromptContext | None = None
+        self._available_tools: frozenset[str] = frozenset()
+        self._available_skills: frozenset[str] = frozenset()
         super().__init__(
             tool=self._render_body,
             name=name,
@@ -42,23 +51,60 @@ class MarkdownCapability[MetadataType: CapabilityMetadata](Tool, ABC):
         pass  # pragma: no cover
 
     def get_sub_skill_names(self) -> tuple[str, ...]:
-        return self.metadata.get_sub_skill_names()
+        return self.metadata.resolve_sub_skill_names(self._available_skills)
 
     def get_sub_tool_names(self) -> tuple[str, ...]:
-        return self.metadata.get_sub_tool_names()
+        return self.metadata.resolve_sub_tool_names(self._available_tools)
+
+    def get_optional_sub_skill_names(self) -> tuple[str, ...]:
+        return self.metadata.get_optional_sub_skill_names()
+
+    def get_optional_sub_tool_names(self) -> tuple[str, ...]:
+        return self.metadata.get_optional_sub_tool_names()
 
     def get_direct_tool_names(self) -> set[str]:
-        return self.metadata.get_direct_tool_names()
+        return {*self.get_sub_skill_names(), *self.get_sub_tool_names()}
+
+    def resolve_optional_capabilities(self, tools: Set[str], skills: Set[str]) -> None:
+        self._available_tools = frozenset(tools)
+        self._available_skills = frozenset(skills)
+
+    def attach_prompt_context(self, context: CapabilityPromptContext) -> None:
+        self._prompt_context = context
+
+    @property
+    def prompt_context(self) -> CapabilityPromptContext | None:
+        return self._prompt_context
+
+    def render_body(self, context: CapabilityPromptContext | None = None) -> str:
+        context = context or self._prompt_context
+        if context is None:
+            return self.body
+        rendered, references = parse_references(render_conditions(self.body, context))
+        context.validate_references(references, (*self.references, self.get_name()))
+        return rendered
+
+    def rendered_references(self) -> tuple[str, ...]:
+        body = (
+            self.body
+            if self._prompt_context is None
+            else render_conditions(self.body, self._prompt_context)
+        )
+        return tuple(dict.fromkeys((*self.references, *parse_references(body)[1])))
 
     def copy(self, *, name: str | None = None) -> Self:
         """Create a fresh capability without node-specific attachments."""
-        return type(self)(
+        copied = type(self)(
             name=self.get_name() if name is None else name,
             markdown_path=self.markdown_path,
             metadata=self.metadata,
             body=self.body,
             references=self.references,
         )
+        copied.resolve_optional_capabilities(
+            self._available_tools, self._available_skills
+        )
+        return copied
 
     @classmethod
     def from_markdown[MarkdownType: CapabilityMarkdown[Any]](

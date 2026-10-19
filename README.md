@@ -171,6 +171,7 @@ response = agent.run("Perform workspace maintenance and check capabilities.")
 To configure bundled capabilities on one node, pass `DefaultCapabilities`:
 
 ```python
+from exmekh_lib.config.default_capabilities import DEFAULT_CAPABILITIES as defaults
 from exmekh_lib.core.agents.node import DefaultCapabilities, Node
 
 node = Node(
@@ -178,7 +179,7 @@ node = Node(
     name_hds="application",
     default_capabilities=DefaultCapabilities(
         harness=True,
-        exclude={"read_tool_output"},
+        exclude={defaults.bash, defaults.delete_file},
     ),
 )
 ```
@@ -190,6 +191,13 @@ for individual selection, named `ToolOverride` / `DeepSkillOverride` examples,
 and `tool_hooks` configuration with `ToolHooks`.
 `capabilities_paths` may be `None`; the bundled path is added automatically when
 defaults are configured or no application path is supplied.
+
+Use `default_capabilities=True` for the standard set, or `False` for application
+capabilities only, including an application HDS and exit tool. Inspect
+`DefaultCapabilities.catalog` before selecting resources and
+`node.get_capability_inventory()` after initialization. HDS and skill Markdown
+can use `<if-tool name="...">` and `<if-skill name="...">` blocks so instructions
+follow the resolved capabilities and callable scope automatically.
 
 ---
 

@@ -11,26 +11,37 @@ from exmekh_lib.core.agents.hds.hds import HDS
 
 
 class CapabilitiesValidator:
-    def __init__(self, index: CapabilitiesIndex) -> None:
+    def __init__(
+        self, index: CapabilitiesIndex, runtime_names: frozenset[str] = frozenset()
+    ) -> None:
         self._index = index
+        self._reference_names = index.reference_names | runtime_names
 
     def validate(self, resources: tuple[MarkdownCapability[Any], ...]) -> None:
         for tool in self._index.exit_tools.values():
             self._validate_reference_group(
                 CAPABILITY_TEXT.exit_tool_label.format(name=tool.get_name()),
                 tool.references,
-                self._index.reference_names,
+                self._reference_names,
                 "references",
             )
         for resource in resources:
             self._validate_resource(resource)
+            if resource.prompt_context is not None:
+                tools = (
+                    (self._index.exit_tools[resource.get_exit_tool_name()],)
+                    if isinstance(resource, HDS)
+                    else tuple(self._index.exit_tools.values())
+                )
+                for tool in tools:
+                    tool.render_prompt_section(context=resource.prompt_context)
 
     def _validate_resource(self, resource: MarkdownCapability[Any]) -> None:
         label = f"{resource.resource_type} '{resource.get_name()}'"
         self._validate_reference_group(
             label,
-            resource.references,
-            self._index.reference_names,
+            resource.rendered_references(),
+            self._reference_names,
             "references",
         )
         self._validate_reference_group(

@@ -24,6 +24,8 @@ class CapabilityFormat:
     hds_resource_type: str = "HDS"
     sub_skills_field: str = "sub-skills"
     sub_tools_field: str = "sub-tools"
+    optional_sub_skills_field: str = "optional-sub-skills"
+    optional_sub_tools_field: str = "optional-sub-tools"
     inherits_parent_tools_field: str = "inherits-parent-tools"
     exit_tool_field: str = "exit-tool"
     agent_context_id_field: str = "agent-context-id"

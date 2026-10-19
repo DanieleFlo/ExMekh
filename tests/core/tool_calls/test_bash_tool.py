@@ -277,9 +277,9 @@ def test_bash_result_stays_filtered_through_global_read_and_control_tools(
     node_holder: dict[str, Node] = {}
 
     def read_output(
-        output_id: str, cursor: int | None = None
+        output_id: str, cursor: int | None = None, summary_mode="none"
     ) -> PreformattedToolResult:
-        return node_holder["node"].read_tool_output(output_id, cursor)
+        return node_holder["node"].read_tool_output(output_id, cursor, summary_mode)
 
     def control_execution(
         tool_call_id: str,

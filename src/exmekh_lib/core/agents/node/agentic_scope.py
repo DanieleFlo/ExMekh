@@ -55,7 +55,7 @@ class AgenticScope:
         depth: int,
     ) -> dict[str, dict[str, object]]:
         capability = active_skills[-1] if active_skills else self._hds
-        allowed_tools = self._get_allowed_tool_names(active_skills, depth)
+        allowed_tools = self.get_allowed_tool_names(active_skills, depth)
         allowed_skills = list(capability.get_sub_skill_names())
 
         agentic: dict[str, object] = {
@@ -77,7 +77,7 @@ class AgenticScope:
     ) -> None:
         """Check calls against the same capabilities advertised to the provider."""
         capability = active_skills[-1] if active_skills else self._hds
-        allowed_tools = self._get_allowed_tool_names(active_skills, depth)
+        allowed_tools = self.get_allowed_tool_names(active_skills, depth)
         allowed_skills = list(capability.get_sub_skill_names())
         allowed = set(allowed_tools) | set(allowed_skills)
         for call in calls:
@@ -98,7 +98,7 @@ class AgenticScope:
     def acknowledge_extra(self) -> None:
         self._pending_return_skill_call_id = None
 
-    def _get_allowed_tool_names(
+    def get_allowed_tool_names(
         self,
         active_skills: tuple[DeepSkill, ...],
         depth: int,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import partial
 from typing import Any, Final, Literal
 from uuid import uuid4
@@ -15,6 +15,14 @@ from exmekh_lib.capabilities.tools.read_tool_output.summary import SummaryMode
 from exmekh_lib.config.history_compaction import HISTORY_COMPACTION
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.config.runtime_text import RUNTIME_TEXT
+from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
+from exmekh_lib.core.agents.capabilities.inventory import (
+    CapabilityInventory,
+    build_capability_inventory,
+)
+from exmekh_lib.core.agents.capabilities.prompts import (
+    prepare_node_prompts,
+)
 from exmekh_lib.core.agents.capabilities.tool_composer import _DefaultToolComposer
 from exmekh_lib.core.agents.deep_agent.agent_response import AgentResponse
 from exmekh_lib.core.agents.deep_agent.stream_event import (
@@ -27,6 +35,7 @@ from exmekh_lib.core.agents.deep_agent.stream_event import (
 from exmekh_lib.core.agents.deep_skill.deep_skill import CalledDeepSkill
 from exmekh_lib.core.agents.exit_tool.exit_tool import CalledExitTool
 from exmekh_lib.core.agents.exit_tool.items import ExitItemResolver
+from exmekh_lib.core.agents.hds.hds import HDS
 from exmekh_lib.core.cache.node_cache import NodeCache
 from exmekh_lib.core.cache.output_file_workspace import OutputFileWorkspace
 from exmekh_lib.core.file_inspection.runtime import FileInspectionRequests
@@ -123,13 +132,48 @@ class NodeRuntime(ProviderEventHandler):
         )
         self._runtime_tools = (*config.runtime_tools, *harness_tools)
         self._validate_runtime_tool_names()
-        self._resolver = ToolCallResolver(
+        prepared = prepare_node_prompts(
             config.capabilities,
+            config.get_hds_name(),
+            self._runtime_tools,
+            config.initial_depth,
+        )
+        self._capability_prompts = prepared.prompts
+        capabilities = prepared.capabilities
+        self._config = replace(
+            config,
+            capabilities=capabilities,
+            hds=prepared.hds,
+            exit_tool=capabilities.get_exit_tool(prepared.hds.get_exit_tool_name()),
+            runtime_tools=self._runtime_tools,
+        )
+        self._resolver = ToolCallResolver(
+            capabilities,
             self._runtime_tools,
         )
         self._client: Client
         self._executor: ToolCallExecutor
         self._reset_session()
+
+    @property
+    def hds(self) -> HDS:
+        return self._config.hds
+
+    @property
+    def capabilities(self) -> CapabilitiesData:
+        return self._config.capabilities
+
+    def get_capability_inventory(self) -> CapabilityInventory:
+        context = self._config.hds.prompt_context or self._capability_prompts.context(
+            self._config.hds
+        )
+        defaults = self._config.default_capabilities
+        return build_capability_inventory(
+            self.capabilities,
+            self._runtime_tools,
+            context,
+            frozenset(defaults.overrides) if defaults is not None else frozenset(),
+        )
 
     @property
     def depth(self) -> int:
@@ -659,6 +703,7 @@ class NodeRuntime(ProviderEventHandler):
             execution_manager=self._execution_manager,
             scope_prefix=self._scope_prefix,
             output_preparer=self._output_preparer,
+            capability_prompts=self._capability_prompts,
         )
         self._executor.configure_interactive_calls(
             self._turn_control.has_pending_messages

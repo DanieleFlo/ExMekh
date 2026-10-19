@@ -8,40 +8,21 @@ from typing import cast
 
 from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.config.capabilities import CAPABILITY_FORMAT
-from exmekh_lib.config.runtime import RUNTIME
+from exmekh_lib.core.agents.capabilities.default_catalog import (
+    DEFAULT_CAPABILITY_CATALOG,
+)
 from exmekh_lib.core.agents.deep_skill.deep_skill import DeepSkill
 from exmekh_lib.core.agents.exit_tool.exit_tool import ExitTool
 from exmekh_lib.core.agents.hds.hds import HDS
 from exmekh_lib.core.models.tool import Tool
 from exmekh_lib.core.models.tool_hooks import ToolHooks
 
-_HARNESS_RESOURCE_TYPES: dict[str, type[Tool]] = {
-    "deep-thinking": DeepSkill,
-    "file-processing": DeepSkill,
-    "search-web": Tool,
-    "read-web-page": Tool,
-    "interact-web-page": Tool,
-    "calculate": Tool,
-    "date-time": Tool,
-    "inspect-file": Tool,
-    "read-file": Tool,
-    "edit-file": Tool,
-    "new-file": Tool,
-    "delete-file": Tool,
-    "logic-check": Tool,
-    "logic-consistency": Tool,
-    "logic-counterexample": Tool,
-    RUNTIME.exit_tool_name: ExitTool,
-    RUNTIME.history_tool_name: Tool,
-    RUNTIME.search_tool_name: Tool,
-    RUNTIME.read_tool_name: Tool,
-    RUNTIME.execution_tool_name: Tool,
-    RUNTIME.bash_tool_name: Tool,
-    RUNTIME.sub_agent_tool_name: Tool,
-}
-_RESOURCE_TYPES = MappingProxyType({"main": HDS} | _HARNESS_RESOURCE_TYPES)
-HARNESS_NAMES = frozenset(_HARNESS_RESOURCE_TYPES)
-RUNTIME_NAMES = RUNTIME.runtime_tool_names
+_RESOURCE_TYPES = MappingProxyType(
+    {name: entry.resource_type for name, entry in DEFAULT_CAPABILITY_CATALOG.items()}
+)
+HARNESS_NAMES = frozenset(
+    name for name, entry in DEFAULT_CAPABILITY_CATALOG.items() if entry.kind != "hds"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +60,7 @@ class DefaultCapabilities:
     """Select bundled capabilities and customize loaded resources for one node."""
 
     CAPABILITIES_PATH = CAPABILITY_FORMAT.bundled_root
+    catalog = DEFAULT_CAPABILITY_CATALOG
 
     def __init__(
         self,
@@ -149,6 +131,9 @@ class DefaultCapabilities:
 
     def includes(self, name: str) -> bool:
         return name in self._selected_names
+
+    def has_bundled_capabilities(self) -> bool:
+        return bool(self._selected_names & self.catalog.keys())
 
     def tool_override(self, name: str) -> Tool | None:
         replacement = self._overrides.get(name)

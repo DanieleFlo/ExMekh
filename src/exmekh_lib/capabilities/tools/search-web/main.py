@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from exmekh_lib.config.default_capabilities import DEFAULT_CAPABILITIES
 from exmekh_lib.config.web import WEB_NAVIGATION
 from exmekh_lib.core.agents.tools.decorator import deep_tool
 from exmekh_lib.core.web_navigation.errors import WebNavigationError
@@ -10,7 +11,7 @@ from exmekh_lib.utils.tool_errors import missing_dependency
 
 
 @deep_tool(
-    name="search-web",
+    name=DEFAULT_CAPABILITIES.search_web,
     description=(WEB_NAVIGATION.search_web_description),
 )
 def run(

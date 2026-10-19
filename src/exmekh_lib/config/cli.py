@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
+from exmekh_lib.config.default_capabilities import DEFAULT_CAPABILITIES
+
 
 @dataclass(frozen=True, slots=True)
 class CliPresentation:
@@ -25,7 +27,7 @@ class CliPresentation:
 class CliSettings:
     """User-facing capability selection for the example CLI."""
 
-    root_hds: str = "main"
+    root_hds: str = DEFAULT_CAPABILITIES.main
     child_hds: str | None = None
     presentation: CliPresentation = field(default_factory=CliPresentation)
 

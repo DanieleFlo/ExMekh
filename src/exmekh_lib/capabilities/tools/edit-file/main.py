@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Annotated
 
+from exmekh_lib.config.default_capabilities import DEFAULT_CAPABILITIES
 from exmekh_lib.config.file_editing import FILE_EDIT_FORMAT, FILE_EDITING
 from exmekh_lib.core.agents.tools.decorator import deep_tool
 from exmekh_lib.core.file_inspection.editing import edit_files
@@ -12,7 +13,7 @@ from exmekh_lib.utils.tool_errors import tool_error_result
 
 
 @deep_tool(
-    name="edit-file",
+    name=DEFAULT_CAPABILITIES.edit_file,
     description=FILE_EDITING.description,
     background_enabled=False,
     argument_guidance=FILE_EDITING.argument_guidance,

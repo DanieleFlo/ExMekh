@@ -33,7 +33,7 @@ class HDS(MarkdownCapability[HDSMetadata]):
         )
 
     def _render_body(self) -> str:
-        return self.body
+        return self.render_body()
 
     def get_hds(self) -> str:
         return self._render_body()

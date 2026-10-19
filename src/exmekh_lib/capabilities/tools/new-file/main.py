@@ -2,13 +2,14 @@
 
 from pathlib import Path
 
+from exmekh_lib.config.default_capabilities import DEFAULT_CAPABILITIES
 from exmekh_lib.config.file_editing import FILE_EDITING
 from exmekh_lib.core.agents.tools.decorator import deep_tool
 from exmekh_lib.core.file_inspection.creation import create_resources
 
 
 @deep_tool(
-    name="new-file",
+    name=DEFAULT_CAPABILITIES.new_file,
     description=FILE_EDITING.new_file_description,
     background_enabled=False,
 )

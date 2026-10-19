@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Set
+from dataclasses import dataclass, field
 from typing import Any
 
 from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.config.capabilities import CAPABILITY_FORMAT
+from exmekh_lib.config.capability_prompts import CAPABILITY_PROMPTS
 
 
 @dataclass(frozen=True, slots=True)
@@ -12,6 +14,19 @@ class CapabilityMetadata:
     description: str
     sub_skills: tuple[str, ...]
     sub_tools: tuple[str, ...]
+    optional_sub_skills: tuple[str, ...] = field(default=(), kw_only=True)
+    optional_sub_tools: tuple[str, ...] = field(default=(), kw_only=True)
+
+    def __post_init__(self) -> None:
+        overlap = (set(self.sub_tools) & set(self.optional_sub_tools)) | (
+            set(self.sub_skills) & set(self.optional_sub_skills)
+        )
+        if overlap:
+            raise ValueError(
+                CAPABILITY_PROMPTS.optional_overlap.format(
+                    names=", ".join(sorted(overlap))
+                )
+            )
 
     def get_description(self) -> str:
         return self.description
@@ -22,8 +37,24 @@ class CapabilityMetadata:
     def get_sub_tool_names(self) -> tuple[str, ...]:
         return self.sub_tools
 
+    def get_optional_sub_skill_names(self) -> tuple[str, ...]:
+        return self.optional_sub_skills
+
+    def get_optional_sub_tool_names(self) -> tuple[str, ...]:
+        return self.optional_sub_tools
+
+    def resolve_sub_skill_names(self, available: Set[str]) -> tuple[str, ...]:
+        return self.get_sub_skill_names() + tuple(
+            name for name in self.get_optional_sub_skill_names() if name in available
+        )
+
+    def resolve_sub_tool_names(self, available: Set[str]) -> tuple[str, ...]:
+        return self.get_sub_tool_names() + tuple(
+            name for name in self.get_optional_sub_tool_names() if name in available
+        )
+
     def get_direct_tool_names(self) -> set[str]:
-        return {*self.sub_skills, *self.sub_tools}
+        return {*self.get_sub_skill_names(), *self.get_sub_tool_names()}
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +69,12 @@ class CapabilityMetadataParser:
     )
     SUB_SKILLS_FIELD = MetadataFieldSpec(CAPABILITY_FORMAT.sub_skills_field)
     SUB_TOOLS_FIELD = MetadataFieldSpec(CAPABILITY_FORMAT.sub_tools_field)
+    OPTIONAL_SUB_SKILLS_FIELD = MetadataFieldSpec(
+        CAPABILITY_FORMAT.optional_sub_skills_field
+    )
+    OPTIONAL_SUB_TOOLS_FIELD = MetadataFieldSpec(
+        CAPABILITY_FORMAT.optional_sub_tools_field
+    )
 
     @property
     def field_specs(self) -> tuple[MetadataFieldSpec, ...]:
@@ -45,6 +82,8 @@ class CapabilityMetadataParser:
             self.DESCRIPTION_FIELD,
             self.SUB_SKILLS_FIELD,
             self.SUB_TOOLS_FIELD,
+            self.OPTIONAL_SUB_SKILLS_FIELD,
+            self.OPTIONAL_SUB_TOOLS_FIELD,
         )
 
     def parse(self, data: dict[str, Any]) -> CapabilityMetadata:
@@ -57,6 +96,12 @@ class CapabilityMetadataParser:
             description=self._parse_string(data, self.DESCRIPTION_FIELD),
             sub_skills=self._parse_string_collection(data, self.SUB_SKILLS_FIELD),
             sub_tools=self._parse_string_collection(data, self.SUB_TOOLS_FIELD),
+            optional_sub_skills=self._parse_string_collection(
+                data, self.OPTIONAL_SUB_SKILLS_FIELD
+            ),
+            optional_sub_tools=self._parse_string_collection(
+                data, self.OPTIONAL_SUB_TOOLS_FIELD
+            ),
         )
 
     @staticmethod

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.config.capabilities import CAPABILITY_TEXT
@@ -53,6 +53,22 @@ class CapabilitiesData:
         all_tools = self.deep_skills + self.tools + self.exit_tools
         logger.debug(AGENT_TEXT.available_tools, all_tools)
         return all_tools
+
+    def copy(self) -> CapabilitiesData:
+        """Create independent capability definitions for node preparation."""
+        return replace(
+            self,
+            hds=tuple(hds.copy() for hds in self.hds),
+            deep_skills=tuple(skill.copy() for skill in self.deep_skills),
+            tools=tuple(tool.copy() for tool in self.tools),
+            exit_tools=tuple(tool.copy() for tool in self.exit_tools),
+        )
+
+    def resolve_optional_capabilities(self) -> None:
+        tool_names = {tool.get_name() for tool in self.tools}
+        skill_names = {skill.get_name() for skill in self.deep_skills}
+        for resource in (*self.hds, *self.deep_skills):
+            resource.resolve_optional_capabilities(tool_names, skill_names)
 
     def get_contextual_tools(self, hds: HDS) -> tuple[Tool, ...]:
         direct_tool_names = hds.get_direct_tool_names()

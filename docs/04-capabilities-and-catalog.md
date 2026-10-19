@@ -47,6 +47,45 @@ skills, and exit tools.
 
 ## Per-node default capabilities
 
+`Node(default_capabilities=True)` enables the standard bundled capabilities;
+with no application paths it also selects the bundled `main` HDS.
+`Node(default_capabilities=False)` loads only the application roots, including
+their own HDS and exit tool, and adds no runtime tools. `None` preserves the
+legacy behavior: application roots are loaded as supplied, runtime tools are
+added, and omitting the paths loads the bundled root in full.
+
+For detailed selection, use the frozen names dataclass from `config.default_capabilities`:
+
+```python
+from pathlib import Path
+from exmekh_lib.config.default_capabilities import DEFAULT_CAPABILITIES as defaults
+from exmekh_lib.core.agents.node import DefaultCapabilities, Node, ToolOverride
+
+node = Node(
+    [Path("my-app/capabilities")],
+    name_hds="application",
+    default_capabilities=DefaultCapabilities(
+        exclude={defaults.bash, defaults.delete_file},
+        overrides=[ToolOverride(defaults.search_web, "company-search")],
+    ),
+)
+```
+
+`DefaultCapabilityNames` exposes all shipped HDS, skill, exit and tool names
+as attributes; the values remain strings, so existing string-based selection
+and overrides work unchanged. `DefaultCapabilities.catalog` is a read-only
+mapping whose entries describe each name's kind, Python resource type, required
+dependencies and whether it is bound by the runtime. `harness=False` starts from
+an empty preset, after which `include` and overrides select individual resources.
+An explicit exclusion conflicting with an inclusion or override is an error.
+
+After initialization, `node.get_capability_inventory()` returns structured
+`CapabilityInventory` data, including `selected_names` and entries with `kind`,
+`dependencies`, `replacement`, `direct` and `reachable`. Availability is measured
+from the node's initial HDS scope; a tool can be selected without being reachable
+through that HDS. `call_sub_agent` appears only when actually bound to children.
+The inventory is a Python API and makes no model request.
+
 `DefaultCapabilities` selects bundled resources independently for each `Node`.
 Its default is `harness=True`. The bundled `main` HDS uses only real harness
 skills. Select it explicitly with `include={"main"}` when using defaults without
@@ -173,12 +212,112 @@ an application can provide a different one. `call_sub_agent` requires children
 and cannot be overridden on a leaf node.
 
 Composition happens before reference validation and catalog attachment. A
-selected HDS or skill that references an excluded capability fails loading with
-the invalid reference named; no dependencies are silently re-enabled. Active
+selected HDS or skill that requires an excluded capability fails loading with
+the invalid reference named; no dependencies are silently re-enabled. Optional
+declarations are filtered instead, as described below. Active
 names must be unique across application and bundled resources unless the name
 is replaced in `overrides`. Only selected runtime tools enter the provider tool
 list and every skill scope. Internal execution history and caching continue when
 their reader tools are excluded.
+
+### Required and optional declarations
+
+`sub-tools` and `sub-skills` remain required. Use `optional-sub-tools` and
+`optional-sub-skills` for capabilities that should be exposed only when loaded:
+
+```yaml
+sub-tools:
+  - inspect-file
+  - read-file
+optional-sub-tools:
+  - delete-file
+optional-sub-skills:
+  - deep-thinking
+```
+
+Required and optional declarations must not overlap. Optional application
+extensions may be absent, while bundled names are discoverable in the catalog.
+These declarations grant scope access only to resources that are present;
+neither optional declarations nor conditional text load a resource implicitly.
+The bundled `main`, `deep-thinking` and `file-processing` use optional components.
+The original bundled `read-file` requires `inspect-file`; `edit-file` requires
+both. Excluding a prerequisite while retaining its dependent fails with the
+dependency and correction in the error. Replacements define their own dependency
+behavior; their compatible runtime contracts still apply where required.
+
+### Conditional instructions
+
+The same renderer handles harness guidance, HDS and skill Markdown bodies,
+skill descriptions, tool descriptions and exit instructions:
+
+```xml
+<if-tool name="bash">Use {{!bash}} for shell work.</if-tool>
+<if-skill name="file-processing">Open {{!file-processing}} for file operations.</if-skill>
+<if-tool name="read-file" scope="reachable">A file reader is reachable through a skill.</if-tool>
+<if-tool name="calculate" scope="selected">The calculation capability is installed.</if-tool>
+<if-tool any-of="logic-check logic-consistency logic-counterexample">Shared formula instructions.</if-tool>
+```
+
+`scope="direct"` is the default and tests whether the capability can be called
+in that scope. `reachable` also follows declared descendant skills, with cycle
+protection. `selected` tests presence in the resolved node, without granting
+permission to call it. Skill-entry rendering uses the actual inherited tool
+scope, including `inherits-parent-tools`; reopening or nesting evaluates the
+current path again. The selected exit tool becomes directly available inside
+skills and at positive initial depth.
+At the root, the exit tool is reachable through any reachable skill even when
+it cannot be called directly there.
+
+Use `any-of="name1 name2"` instead of `name` to show shared instructions when at
+least one of the listed capabilities is available in the chosen scope. Names are
+separated by whitespace and all must be known, even if another name already
+matches. `name` and `any-of` are mutually exclusive; an empty list is invalid.
+The same syntax applies to `<if-skill>`.
+
+Conditions can nest. The runtime removes inactive blocks and strips active
+condition tags before sending instructions to the model. It preserves the
+remaining Markdown and arbitrary XML verbatim; fenced code, inline code and
+HTML comments are literal, including example condition tags and references.
+Unclosed code fences and comments remain literal through the end of the document.
+Only the reserved condition tags are parsed, rather than parsing a whole
+Markdown document as XML. Unknown condition names, invalid attributes/scopes
+and unmatched tags fail explicitly, including inside inactive conditions.
+Names declared as optional application extensions are known even when absent.
+Only references in active instruction text are resolved and validated.
+
+Built-in descriptions and catalogs are rendered after selection and override.
+Removing `delete-file`, for example, removes its declaration, catalog entry,
+skill instructions and cross-references from the edit tool's description.
+Conditions describe availability; they do not infer the semantics of a new
+implementation. Supply updated skill/HDS instructions when an override changes
+the workflow expected by existing instructions.
+
+### Overrides used by the runtime
+
+Named and Python-object overrides keep the target's exposed name and use the
+replacement's signature, description, hooks and cache policy. Original
+synchronous and interactive execution restrictions are preserved. Each node
+gets its own composed resource copies.
+
+Two tools also have a checked automatic-call contract:
+
+| Target | Required callable contract | Result after hooks |
+| --- | --- | --- |
+| `read_tool_output` | Accept keyword `output_id`, with optional `cursor` and `summary_mode`, and no extra mandatory parameters | `PreformattedToolResult` |
+| `inspect-file` | Accept keyword `path` with no extra mandatory parameters | `InspectionReport`, or an explicit error dictionary with `ok=False` |
+
+Incompatible signatures fail during initialization; incompatible results become
+ordinary reported tool failures. Inspection reports must retain their provenance
+to satisfy read prerequisites. These checks enforce the call protocol, not the
+truth or completeness of an implementation's result. The exit tool retains its
+existing `ExitToolData` checks. Other tool overrides can change their business
+arguments; consumers' instructions must be updated accordingly.
+
+Disabling a model-facing runtime reader does not disable internal caching or
+history, and the explicit Python `Node.read_tool_output` and execution-control
+APIs remain available to the application. Background work still follows the
+execution protocol, but instructions advertise only the selected retrieval and
+control tools; do not assume a removed tool is available for later recovery.
 
 ---
 

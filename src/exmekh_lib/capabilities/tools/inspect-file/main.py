@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from exmekh_lib.config.default_capabilities import DEFAULT_CAPABILITIES
 from exmekh_lib.config.file_inspection import FILE_INSPECTION, FILE_INSPECTION_TEXT
 from exmekh_lib.core.agents.tools.decorator import deep_tool
 from exmekh_lib.core.file_inspection.errors import FileInspectionError
@@ -10,7 +11,7 @@ from exmekh_lib.utils.tool_errors import missing_dependency, tool_error_result
 
 
 @deep_tool(
-    name="inspect-file",
+    name=DEFAULT_CAPABILITIES.inspect_file,
     description=(FILE_INSPECTION_TEXT.inspect_description),
 )
 def run(

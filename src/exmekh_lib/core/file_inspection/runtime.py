@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
+from exmekh_lib.config.default_capabilities import DEFAULT_CAPABILITIES
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.models.assistant_message import (
     AssistantMessage,
@@ -141,6 +142,9 @@ class FileInspectionRequests:
         if current_scope != self._owner_scope:
             return ()
         return tuple(
-            ToolCall(uuid4().hex, FunctionCall("inspect-file", {"path": path}))
+            ToolCall(
+                uuid4().hex,
+                FunctionCall(DEFAULT_CAPABILITIES.inspect_file, {"path": path}),
+            )
             for path in self._paths.values()
         )

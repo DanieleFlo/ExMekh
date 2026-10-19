@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.config.capabilities import CAPABILITY_FORMAT
 from exmekh_lib.core.agents.capabilities.resource_type import ResourceType
+from exmekh_lib.core.agents.capability.conditions import CapabilityPromptContext
 from exmekh_lib.core.agents.capability.markdown_capability import MarkdownCapability
 from exmekh_lib.core.agents.deep_skill.catalog import SkillCatalog
 from exmekh_lib.core.agents.deep_skill.metadata import DeepSkillMetadata
@@ -44,14 +45,16 @@ class DeepSkill(MarkdownCapability[DeepSkillMetadata]):
     def catalog(self) -> SkillCatalog | None:
         return self._catalog
 
-    def render_instructions(self, exit_instructions: str) -> str:
-        return f"{self._render_body()}\n\n{exit_instructions}"
+    def render_instructions(
+        self, exit_instructions: str, *, context: CapabilityPromptContext | None = None
+    ) -> str:
+        return f"{self._render_with_catalog(self.render_body(context))}\n\n{exit_instructions}"
 
     def inherits_parent_tools(self) -> bool:
         return self.metadata.get_inherits_parent_tools()
 
     def _render_body(self) -> str:
-        return self._render_with_catalog(self.body)
+        return self._render_with_catalog(self.render_body())
 
     def _render_with_catalog(self, body: str) -> str:
         body = body.strip()
@@ -117,8 +120,10 @@ class CalledDeepSkill:
     def tool_call(self) -> ToolCall:
         return self._tool_call
 
-    def render_instructions(self, exit_instructions: str) -> str:
-        return self._deep_skill.render_instructions(exit_instructions)
+    def render_instructions(
+        self, exit_instructions: str, *, context: CapabilityPromptContext | None = None
+    ) -> str:
+        return self._deep_skill.render_instructions(exit_instructions, context=context)
 
     def open_execution(
         self,

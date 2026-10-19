@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Literal
 
+from exmekh_lib.config.default_capabilities import DEFAULT_CAPABILITIES
 from exmekh_lib.config.web import WEB_NAVIGATION
 from exmekh_lib.core.agents.tools.decorator import deep_tool
 from exmekh_lib.core.web_navigation.errors import WebNavigationError
@@ -11,7 +12,7 @@ from exmekh_lib.utils.tool_errors import missing_dependency
 
 
 @deep_tool(
-    name="read-web-page",
+    name=DEFAULT_CAPABILITIES.read_web_page,
     description=(WEB_NAVIGATION.read_web_page_description),
 )
 def run(

@@ -41,6 +41,8 @@ class HDSMetadataParser(CapabilityMetadataParser):
             description=common.get_description(),
             sub_skills=common.get_sub_skill_names(),
             sub_tools=common.get_sub_tool_names(),
+            optional_sub_tools=common.get_optional_sub_tool_names(),
+            optional_sub_skills=common.get_optional_sub_skill_names(),
             exit_tool=self._parse_string(data, EXIT_TOOL_FIELD),
             agent_context_id=self._parse_optional_string(data, AGENT_CONTEXT_ID_FIELD),
         )

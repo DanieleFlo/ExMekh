@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Literal
 
+from exmekh_lib.config.default_capabilities import DEFAULT_CAPABILITIES
 from exmekh_lib.config.reasoning import DATE_TIME
 from exmekh_lib.core.agents.tools.decorator import deep_tool
 from exmekh_lib.core.reasoning_tools.date_time import (
@@ -14,7 +15,7 @@ from exmekh_lib.utils.tool_errors import tool_error_result
 
 
 @deep_tool(
-    name="date-time",
+    name=DEFAULT_CAPABILITIES.date_time,
     description=(DATE_TIME.description),
 )
 def run(

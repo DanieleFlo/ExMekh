@@ -11,6 +11,7 @@ from typing import Any
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.config.tool_errors import ERROR_HINTS
+from exmekh_lib.core.agents.capabilities.prompts import CapabilityPrompts
 from exmekh_lib.core.agents.deep_skill.deep_skill import CalledDeepSkill
 from exmekh_lib.core.agents.deep_skill.execution import (
     DeepSkillExecution,
@@ -76,6 +77,7 @@ class ToolCallExecutor:
         execution_manager: ToolExecutionManager | None = None,
         scope_prefix: str = "",
         output_preparer: ToolOutputPreparer | None = None,
+        capability_prompts: CapabilityPrompts | None = None,
     ) -> None:
         self._client = client
         self._output_formatter = ToolOutputFormatter(client)
@@ -94,6 +96,7 @@ class ToolCallExecutor:
         )
         self._scope_prefix = scope_prefix
         self._file_tools = FileToolRuntime(execution_manager)
+        self._capability_prompts = capability_prompts
         self._interactive_calls = FileInteractiveCalls(
             self._file_tools,
             self._work_root,
@@ -235,8 +238,17 @@ class ToolCallExecutor:
         self._open_deep_skill(
             called_deep_skill, thinking=thinking, history_position=history_position
         )
+        context = None
+        if self._capability_prompts is not None:
+            context = self._capability_prompts.skill_context(
+                called_deep_skill.name,
+                self._agentic_scope.get_allowed_tool_names(
+                    self._skill_executions.active_skills, self._depth
+                ),
+            )
         content = called_deep_skill.render_instructions(
-            self._exit_tool.render_prompt_section()
+            self._exit_tool.render_prompt_section(context=context),
+            context=context,
         )
         tool_response = ToolMessage(
             content=content,

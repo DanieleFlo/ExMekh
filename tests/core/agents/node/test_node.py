@@ -533,19 +533,20 @@ def test_tool_descriptions_reflect_hds_and_skill_availability(
             "Use an optional cursor to read only new output; omit it to read the "
             "complete output. Includes the final result when available. "
             "Also reads saved user steering and restores its attachments. "
-            "Oversized output returns file references; use the file tools to read its text. "
+            "Oversized output returns file references. "
+            " "
             "summary_mode defaults to 'none'; 'brief' gives 3 to 5 bullet points, "
             "'detailed' preserves essential details. Outputs below 300 tokens stay complete."
         ),
         "control_tool_execution": (
             "Wait for a tool execution by its original tool_call_id, or request "
             "cancellation. Waiting returns as soon as the work finishes or "
-            "the wait limit expires; read its output with read_tool_output."
+            "the wait limit expires. Read its output with read_tool_output."
         ),
         "bash": (
             "Run a command in Bash from the node workroot. Each call starts an "
             "independent process. Read incremental stdout/stderr with "
-            "read_tool_output(output_id, cursor); wait or cancel with "
+            "read_tool_output(output_id, cursor). Wait or cancel with "
             "control_tool_execution(tool_call_id). Requires Bash on PATH."
         ),
     }

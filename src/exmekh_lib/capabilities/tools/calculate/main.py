@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Literal
 
+from exmekh_lib.config.default_capabilities import DEFAULT_CAPABILITIES
 from exmekh_lib.config.reasoning import MATH
 from exmekh_lib.core.agents.tools.decorator import deep_tool
 from exmekh_lib.core.reasoning_tools.math import MathInputError, calculate
@@ -10,7 +11,7 @@ from exmekh_lib.utils.tool_errors import missing_dependency, tool_error_result
 
 
 @deep_tool(
-    name="calculate",
+    name=DEFAULT_CAPABILITIES.calculate,
     description=(MATH.description),
 )
 def run(

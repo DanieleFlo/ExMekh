@@ -82,6 +82,15 @@ def test_tool_creates_copy_with_description_suffix() -> None:
     assert described_tool.description == "Search docs. Available in every skill."
 
 
+def test_renaming_a_rendered_tool_preserves_its_original_description_template():
+    tool = Tool(documented_tool, description="Template")
+    tool.render_description(lambda template: template + " rendered")
+    renamed = tool.with_name("renamed")
+    renamed.render_description(lambda template: template + " again")
+    assert renamed.get_description() == "Template again"
+    assert tool.get_description() == "Template rendered"
+
+
 def test_hiding_parameter_descriptions_preserves_behavior_and_source_metadata():
     tool = Tool(documented_tool, name="search-docs", cache_result=False)
     contextual = tool.without_parameter_descriptions()

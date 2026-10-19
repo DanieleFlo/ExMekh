@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from exmekh_lib.core.agents.capabilities.contracts import apply_runtime_contract
 from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
 from exmekh_lib.core.models.tool import Tool
 
@@ -25,6 +26,8 @@ class _DefaultToolComposer:
         if not self._defaults.includes(name):
             return None
         replacement = self._defaults.tool_override(name)
+        if replacement is not None:
+            replacement = apply_runtime_contract(replacement)
         composed = self.apply_hooks(tool if replacement is None else replacement)
         return composed.with_execution_policy_of(tool)
 

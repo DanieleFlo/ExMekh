@@ -12,6 +12,7 @@ from exmekh_lib.config.runtime_text import RUNTIME_TEXT
 from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
 from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
 from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
+from exmekh_lib.core.agents.capabilities.inventory import CapabilityInventory
 from exmekh_lib.core.agents.capabilities.tool_composer import _DefaultToolComposer
 from exmekh_lib.core.agents.deep_agent.agent_response import AgentResponse
 from exmekh_lib.core.agents.hds.hds import HDS
@@ -43,7 +44,7 @@ class Node:
         depth: int = 0,
         agent_context_id: str | None = None,
         *,
-        default_capabilities: DefaultCapabilities | None = None,
+        default_capabilities: DefaultCapabilities | bool | None = None,
     ) -> None:
         if capabilities_paths is None or (
             isinstance(capabilities_paths, Sequence)
@@ -54,8 +55,8 @@ class Node:
         self._capability_loader = Capabilities(
             capabilities_paths, default_capabilities=default_capabilities
         )
-        self._default_capabilities = default_capabilities
-        self._resolved_default_capabilities = default_capabilities
+        self._default_capabilities = self._capability_loader.default_capabilities
+        self._resolved_default_capabilities = self._default_capabilities
         self._name_hds = self._validate_hds_name(name_hds)
         self._children = self._validate_children(children)
         self._persistent_history = self._validate_persistent_history(persistent_history)
@@ -130,8 +131,8 @@ class Node:
                 on_stream=on_stream,
             )
         )
-        self._hds = hds
-        return capabilities
+        self._hds = self._runtime.hds
+        return self._runtime.capabilities
 
     def _build_runtime_tools(
         self, defaults: DefaultCapabilities | None, work_root: Path
@@ -195,6 +196,13 @@ class Node:
                 RUNTIME_TEXT.node_must_be_initialized_before_accessing_tools
             )
         return self._runtime.get_tools_text()
+
+    def get_capability_inventory(self) -> CapabilityInventory:
+        if self._runtime is None:
+            raise RuntimeError(
+                RUNTIME_TEXT.node_must_be_initialized_before_accessing_tools
+            )
+        return self._runtime.get_capability_inventory()
 
     def compact_history(self) -> None:
         """Compact now, or request compaction at the active run's next safe boundary."""

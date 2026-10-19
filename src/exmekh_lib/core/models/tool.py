@@ -169,6 +169,8 @@ class Tool:
         self.description = (
             (inspect.getdoc(tool) or "") if description is None else description
         )
+        self._description_template = self.description
+        self._result_validator: Callable[[Any], Any] | None = None
         if not isinstance(cache_result, bool):
             raise TypeError(MODEL_TEXT.cache_result_must_be_a_bool)
         self.cache_result = cache_result
@@ -178,7 +180,7 @@ class Tool:
         if (
             background_enabled
             and RUNTIME.execution_argument_names
-            & inspect.signature(tool).parameters.keys()
+            & self.get_work_signature().parameters.keys()
         ):
             raise ValueError(
                 MODEL_TEXT.tool_parameters_cannot_use_reserved_execution_names
@@ -219,7 +221,7 @@ class Tool:
 
     def validate_arguments(self, arguments: dict[str, Any]) -> None:
         """Validate the final arguments before invoking the tool."""
-        signature = inspect.signature(self.tool)
+        signature = self.get_work_signature()
         try:
             signature.bind(**arguments)
         except TypeError as error:
@@ -258,7 +260,14 @@ class Tool:
         ).run()
 
     def _finalize_result(self, context: ToolContext, result: Any) -> Any:
-        return self.after.handle(context, result) if self.after is not None else result
+        result = (
+            self.after.handle(context, result) if self.after is not None else result
+        )
+        return (
+            self._result_validator(result)
+            if self._result_validator is not None
+            else result
+        )
 
     def _prepare_context(
         self,
@@ -343,8 +352,21 @@ class Tool:
     def get_description(self) -> str:
         return self.description
 
+    def get_description_template(self) -> str:
+        return self._description_template
+
+    def render_description(self, renderer: Callable[[str], str]) -> None:
+        description = renderer(self.get_description_template())
+        if not isinstance(description, str):
+            raise TypeError(MODEL_TEXT.tool_description_must_be_a_string)
+        self.description = description.strip()
+
+    def get_work_signature(self) -> inspect.Signature:
+        """Business arguments accepted by this tool, before execution options."""
+        return inspect.signature(self.tool)
+
     def get_signature(self) -> inspect.Signature:
-        signature = inspect.signature(self.tool)
+        signature = self.get_work_signature()
         if not self.background_enabled:
             return signature
         parameters = [
@@ -389,7 +411,13 @@ class Tool:
         return hints
 
     def with_description(self, description: str) -> Self:
-        return self._copy(name=self.name, description=description)
+        copied = self._copy(name=self.get_name(), description=description)
+        copied._description_template = description
+        return copied
+
+    def copy(self) -> Self:
+        """Copy the definition before any scope-specific description rendering."""
+        return self.with_description(self.get_description_template())
 
     def exposes_parameter_descriptions(self) -> bool:
         """Whether provider schemas should include parameter documentation."""
@@ -403,7 +431,12 @@ class Tool:
 
     def with_name(self, name: str) -> Self:
         """Copy a tool under another registered name, preserving its behavior."""
-        return self._copy(name=name, description=self.description)
+        return self._copy(name=name, description=self.get_description())
+
+    def with_result_validator(self, validator: Callable[[Any], Any]) -> Self:
+        copied = copy(self)
+        copied._result_validator = validator
+        return copied
 
     def with_hooks(self, hooks: ToolHooks) -> Self:
         """Copy a tool with selected hooks replaced, preserving its behavior."""
@@ -436,7 +469,9 @@ class Tool:
         return copied
 
     def with_description_suffix(self, suffix: str) -> Self:
-        description = " ".join(part for part in (self.description, suffix) if part)
+        description = " ".join(
+            part for part in (self.get_description(), suffix) if part
+        )
         return self.with_description(description)
 
     def __str__(self) -> str:

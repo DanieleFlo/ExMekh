@@ -3,13 +3,14 @@
 from pathlib import Path
 from typing import Any, Literal
 
+from exmekh_lib.config.default_capabilities import DEFAULT_CAPABILITIES
 from exmekh_lib.config.reasoning import FORMAL_LOGIC
 from exmekh_lib.core.agents.tools.decorator import deep_tool
 from exmekh_lib.core.reasoning_tools.formal_logic import logic_tool_result
 
 
 @deep_tool(
-    name="logic-counterexample",
+    name=DEFAULT_CAPABILITIES.logic_counterexample,
     description=(FORMAL_LOGIC.counterexample_description),
 )
 def run(

@@ -79,7 +79,7 @@ class AgentText:
     )
     deeptools_can_load_only_once: str = "DeepTools can load only once"
     default_capabilities_must_be_defaultcapabilities_or_none: str = (
-        "default_capabilities must be DefaultCapabilities or None"
+        "default_capabilities must be DefaultCapabilities, bool or None"
     )
     depth_cannot_be_negative: str = "Depth cannot be negative"
     depth_must_be_an_integer: str = "Depth must be an integer"

@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from exmekh_lib.config.default_capabilities import DEFAULT_CAPABILITIES
+
 
 @dataclass(frozen=True, slots=True)
 class FileEditingSettings:
@@ -18,10 +20,10 @@ class FileEditingSettings:
     max_response_bytes: int = 16 * 1024 * 1024
     inspection_required: str = (
         "Inspect the current file first. The visible inspection is missing or stale; "
-        "this edit was rejected. Read the current file, then make a new edit-file call."
+        f"this edit was rejected. Read the current file, then make a new {DEFAULT_CAPABILITIES.edit_file} call."
     )
     read_required: str = (
-        "Read the current file with read-file after its inspection. A complete, "
+        f"Read the current file with {DEFAULT_CAPABILITIES.read_file} after its inspection. A complete, "
         "unchanged successful read must remain visible. This edit was rejected."
     )
     changed: str = "File or path changed during generation; inspect and read again."
@@ -53,7 +55,7 @@ class FileEditingSettings:
     unsupported_text_format: str = (
         "This file format is not supported by the text edit tool."
     )
-    existing_file_required: str = "edit-file requires an existing file; use new-file."
+    existing_file_required: str = f"{DEFAULT_CAPABILITIES.edit_file} requires an existing file; use {DEFAULT_CAPABILITIES.new_file}."
     unicode_text_required: str = (
         "Only supported Unicode text without NUL can be edited."
     )
@@ -82,7 +84,9 @@ class FileEditingSettings:
         "content must contain valid Unicode text representable in UTF-8."
     )
     creation_byte_limit: str = "Content exceeds the configured file byte limit."
-    path_exists: str = "The path already exists; new-file cannot overwrite it."
+    path_exists: str = (
+        f"The path already exists; {DEFAULT_CAPABILITIES.new_file} cannot overwrite it."
+    )
     creation_document_string: str = "The creation document must be a string."
     creation_document_byte_limit: str = "Creation document exceeds the limit of {maximum} UTF-8 bytes; no resources were created."
     creation_document_element_limit: str = "Creation document exceeds the limit of {maximum} creation markers; no resources were created."
@@ -97,7 +101,7 @@ class FileEditingSettings:
     directory_content_ignored: str = (
         "Directory content was ignored; directory markers do not accept content."
     )
-    deletion_target: str = "delete-file requires an existing regular file or directory; top-level symbolic links are not followed."
+    deletion_target: str = f"{DEFAULT_CAPABILITIES.delete_file} requires an existing regular file or directory; top-level symbolic links are not followed."
     deletion_paths_required: str = (
         "paths must be a nonempty list of workroot-relative paths."
     )
@@ -146,7 +150,10 @@ class FileEditingSettings:
             "unchanged content first; both results must remain visible. Each path is authorized "
             "before body generation. All selections refer to one initial snapshot; any rejected "
             "resource invalidates the entire call. Encoding/BOM and concurrency checks are preserved. "
-            "Use new-file to create and delete-file to remove a file. "
+            f'<if-tool name="{DEFAULT_CAPABILITIES.new_file}" scope="selected">'
+            f"Use {DEFAULT_CAPABILITIES.new_file} to create a file.</if-tool> "
+            f'<if-tool name="{DEFAULT_CAPABILITIES.delete_file}" scope="selected">'
+            f"Use {DEFAULT_CAPABILITIES.delete_file} to remove a file.</if-tool> "
             + self.document_description
         )
 
@@ -157,8 +164,8 @@ class FileEditingSettings:
         "without following nested symbolic links. Top-level symbolic links are rejected. The workroot itself cannot be "
         "deleted. Processes paths in order and continues after failures. Returns "
         "ok and ordered results, each with its input path and success or error "
-        "details; ok is true only if every path succeeded. No inspect-file or "
-        "read-file is required; file contents are not decoded."
+        "details; ok is true only if every path succeeded. No prior inspection or "
+        "reading is required; file contents are not decoded."
     )
 
     argument_guidance: str = (
@@ -178,10 +185,10 @@ class FileEditingSettings:
             "are entity-decoded. Directory bodies are ignored with a warning. "
             "Use self-closing markers with double-quoted paths; no closing tags. "
             "Process in order: parents must already exist or be created earlier. "
-            "An existing path is an error; new-file never overwrites. "
+            f"An existing path is an error; {DEFAULT_CAPABILITIES.new_file} never overwrites. "
             "Return ok and ordered results with per-entry errors/warnings; continue "
             "after errors without rollback. Retry only failed entries. "
-            "No inspect-file or read-file is required."
+            "No prior inspection or reading is required."
         )
 
 

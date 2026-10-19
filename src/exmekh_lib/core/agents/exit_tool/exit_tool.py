@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.config.capabilities import CAPABILITY_FORMAT
+from exmekh_lib.core.agents.capability.conditions import (
+    CapabilityPromptContext,
+    has_conditions,
+    render_conditions,
+)
 from exmekh_lib.core.agents.capability.references import parse_references
 from exmekh_lib.core.agents.exit_tool.data import ExitToolData, ExitToolResult
 from exmekh_lib.core.agents.exit_tool.decorator import ExitToolFunction
@@ -39,8 +44,13 @@ class ExitTool(Tool):
                 )
             )
         self.instructions_path = instructions_path
-        self.instructions, self.references = parse_references(instructions.strip())
+        self.instructions, self.references = (
+            (instructions.strip(), ())
+            if has_conditions(instructions)
+            else parse_references(instructions.strip())
+        )
         self.folder_path = folder_path
+        self._prompt_context: CapabilityPromptContext | None = None
         super().__init__(
             function,
             name=name,
@@ -50,12 +60,29 @@ class ExitTool(Tool):
             after=after,
         )
 
-    def render_prompt_section(self) -> str:
+    def render_prompt_section(
+        self, *, context: CapabilityPromptContext | None = None
+    ) -> str:
+        context = context or self._prompt_context
+        instructions = self.instructions
+        if context is not None:
+            instructions, references = parse_references(
+                render_conditions(instructions, context)
+            )
+            context.validate_references(references, self.references)
         return render_xml(
             create_text_element(
-                "exit-tool", self.instructions, attributes={"name": self.name}
+                "exit-tool", instructions, attributes={"name": self.name}
             )
         )
+
+    def attach_prompt_context(self, context: CapabilityPromptContext) -> None:
+        self._prompt_context = context
+
+    def copy(self) -> Self:
+        copied = super().copy()
+        copied._prompt_context = None
+        return copied
 
     def execute(self, *args: Any, **kwargs: Any) -> ExitToolResult:
         result = self.tool(*args, **kwargs)

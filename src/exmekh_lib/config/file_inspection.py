@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from exmekh_lib.config.default_capabilities import DEFAULT_CAPABILITIES
+
 
 @dataclass(frozen=True, slots=True)
 class FileInspectionSettings:
@@ -44,17 +46,15 @@ class FileInspectionText:
     """Descriptions and diagnostics for workspace file tools."""
 
     tokenizer_required: str = (
-        "File inspection requires the model tokenizer. Run inspect-file through an "
+        f"File inspection requires the model tokenizer. Run {DEFAULT_CAPABILITIES.inspect_file} through an "
         "initialized node, or call inspect_file with an explicit tokenizer."
     )
-    no_readable_lines: str = (
-        "This format has no readable physical text lines; use inspect-file metadata."
-    )
+    no_readable_lines: str = f"This format has no readable physical text lines; use {DEFAULT_CAPABILITIES.inspect_file} metadata."
     inspection_required: str = (
-        "inspect-file(path) and its successful result are missing from the "
+        f"{DEFAULT_CAPABILITIES.inspect_file}(path) and its successful result are missing from the "
         "visible context, or the file has changed. Inspect the current file, "
         "then choose start_index and end_index as {indices} again from that analysis "
-        "and make a new read-file call. This read was not performed."
+        f"and make a new {DEFAULT_CAPABILITIES.read_file} call. This read was not performed."
     )
     image_attachment_label: str = "Image read from {path}"
     pdf_attachment_label: str = "PDF {path}, page {page}"
@@ -79,18 +79,19 @@ class FileInspectionText:
     file_changed: str = "File changed during inspection; retry."
     file_unreadable: str = "File could not be read; check permissions and retry."
     positive_index: str = (
-        "{name} must be a positive integer (1-based); choose it from inspect-file."
+        "{name} must be a positive integer (1-based); choose it from "
+        f"{DEFAULT_CAPABILITIES.inspect_file}."
     )
     ordered_indices: str = (
         "start_index must be <= end_index; supply an inclusive interval from "
-        "inspect-file."
+        f"{DEFAULT_CAPABILITIES.inspect_file}."
     )
     empty_file_range: str = (
         "File is empty; use start_index=0 and end_index=0 to read it."
     )
     line_range_outside_file: str = (
         "start_index/end_index are outside the file (1..{total_lines}); choose both "
-        "inclusive indices from inspect-file."
+        f"inclusive indices from {DEFAULT_CAPABILITIES.inspect_file}."
     )
     positive_page_index: str = "{name} must be a positive PDF page number (1-based)."
     ordered_page_indices: str = (
@@ -185,7 +186,7 @@ class FileInspectionText:
         return (
             "Read workspace text lines, PDF pages or supported images. "
             "Required start_index/end_index are inclusive, 1-based line or page numbers. "
-            "For text/PDF, call inspect-file first; reuse its complete result in "
+            f"For text/PDF, call {DEFAULT_CAPABILITIES.inspect_file} first; reuse its complete result in "
             "visible history only while content is unchanged. Missing/stale inspection "
             "returns an error and automatic inspection; choose indices and read again. "
             f"PDF: at most {FILE_INSPECTION.max_pdf_render_pages} pages per call, returned as labelled images. "
@@ -198,7 +199,7 @@ class FileInspectionText:
     def read_guidance(self) -> str:
         return (
             "Supply path, start_index and end_index. Use 0/0 for images or empty text; "
-            "otherwise choose inclusive 1-based line or page indices from inspect-file "
+            f"otherwise choose inclusive 1-based line or page indices from {DEFAULT_CAPABILITIES.inspect_file} "
             f"(at most {FILE_INSPECTION.max_pdf_render_pages} pages for PDF)."
         )
 

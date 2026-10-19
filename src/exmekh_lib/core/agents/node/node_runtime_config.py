@@ -6,6 +6,8 @@ from pathlib import Path
 from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.agents.capabilities.data import CapabilitiesData
 from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
+from exmekh_lib.core.agents.capabilities.prompts import CapabilityPrompts
+from exmekh_lib.core.agents.capability.conditions import render_conditions
 from exmekh_lib.core.agents.deep_agent.stream_event import (
     DeepAgentEvent,
 )
@@ -75,6 +77,7 @@ class NodeRuntimeConfig:
         execution_manager: ToolExecutionManager | None = None,
         scope_prefix: str = "",
         output_preparer: ToolOutputPreparer | None = None,
+        capability_prompts: CapabilityPrompts | None = None,
     ) -> ToolCallExecutor:
         agentic_scope = AgenticScope(
             hds=self.hds,
@@ -92,13 +95,23 @@ class NodeRuntimeConfig:
             execution_manager=execution_manager,
             scope_prefix=scope_prefix,
             output_preparer=output_preparer,
+            capability_prompts=capability_prompts,
         )
 
     def get_hds_name(self) -> str:
         return self.hds.get_name()
 
     def build_system_message(self) -> SystemMessage:
-        content = f"{self.hds.get_hds()}\n\n{HARNESS_OUTPUT_GUIDANCE}"
+        direct = (
+            *self.hds.get_sub_tool_names(),
+            *((self.exit_tool.get_name(),) if self.initial_depth > 0 else ()),
+        )
+        context = CapabilityPrompts(
+            self.capabilities, (tool.get_name() for tool in self.runtime_tools)
+        ).context(self.hds, direct_tools=direct)
+        content = f"{self.hds.get_hds()}\n\n{render_conditions(HARNESS_OUTPUT_GUIDANCE, context)}"
         if self.initial_depth > 0:
-            content = f"{content}\n\n{self.exit_tool.render_prompt_section()}"
+            content = (
+                f"{content}\n\n{self.exit_tool.render_prompt_section(context=context)}"
+            )
         return SystemMessage(content=content)

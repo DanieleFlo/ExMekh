@@ -158,15 +158,16 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
         == "Available in skills 'deep-thinking', 'file-processing'."
     )
     assert descriptions == {
-        "file-processing": "Inspects, reads, edits, creates and removes workspace files.",
+        "file-processing": "Workspace file operations. Inspect files. Read files. Edit text. Create files and directories. Remove files and directories.",
         "inspect-file": "Available in skills 'deep-thinking', 'file-processing'.",
         "read-file": "Available in skills 'deep-thinking', 'file-processing'.",
         "edit-file": "Available in skill 'file-processing'.",
         "new-file": "Available in skill 'file-processing'.",
         "delete-file": "Available in skill 'file-processing'.",
         "deep-thinking": (
-            "Investigates difficult questions with web evidence, "
-            "mathematical and date/time computation, and formal Z3 reasoning."
+            "Investigate difficult questions. Search web evidence. Read web sources. "
+            "Interact with web pages. Check mathematical computations. Check dates and times. "
+            "Verify formal conclusions with Z3. Check premise consistency. Find formal counterexamples."
         ),
         "calculate": "Available in skill 'deep-thinking'.",
         "date-time": "Available in skill 'deep-thinking'.",
@@ -195,19 +196,20 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
             "Use an optional cursor to read only new output; omit it to read the "
             "complete output. Includes the final result when available. "
             "Also reads saved user steering and restores its attachments. "
-            "Oversized output returns file references; use the file tools to read its text. "
+            "Oversized output returns file references. "
+            "Use read-file to read their text; enter a skill exposing it if necessary. "
             "summary_mode defaults to 'none'; 'brief' gives 3 to 5 bullet points, "
             f"'detailed' preserves essential details. Outputs below {RUNTIME.tool_output_summary_min_tokens} tokens stay complete."
         ),
         "control_tool_execution": (
             "Wait for a tool execution by its original tool_call_id, or request "
             "cancellation. Waiting returns as soon as the work finishes or "
-            f"the wait limit expires; read its output with {RUNTIME.read_tool_name}."
+            f"the wait limit expires. Read its output with {RUNTIME.read_tool_name}."
         ),
         "bash": (
             "Run a command in Bash from the node workroot. Each call starts an "
             "independent process. Read incremental stdout/stderr with "
-            f"{RUNTIME.read_tool_name}(output_id, cursor); wait or cancel with "
+            f"{RUNTIME.read_tool_name}(output_id, cursor). Wait or cancel with "
             f"{RUNTIME.execution_tool_name}(tool_call_id). Requires Bash on PATH."
         ),
     }

@@ -89,6 +89,6 @@ def test_skill_entry_loads_docs_before_tool_calls_and_exit_removes_them(
         assert (
             request.get_messages()[0]
             .get_message()
-            .count("Work tools accept execution_mode")
+            .count("Tools exposing execution_mode accept")
             == 1
         )

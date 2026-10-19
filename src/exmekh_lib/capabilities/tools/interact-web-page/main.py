@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Annotated, Literal
 
+from exmekh_lib.config.default_capabilities import DEFAULT_CAPABILITIES
 from exmekh_lib.config.web import WEB_NAVIGATION
 from exmekh_lib.core.agents.tools.decorator import deep_tool
 from exmekh_lib.core.web_navigation.actions import BrowserAction
@@ -12,7 +13,7 @@ from exmekh_lib.utils.tool_errors import missing_dependency
 
 
 @deep_tool(
-    name="interact-web-page",
+    name=DEFAULT_CAPABILITIES.interact_web_page,
     description=(WEB_NAVIGATION.interact_web_page_description),
 )
 def run(

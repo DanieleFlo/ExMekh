@@ -4,11 +4,11 @@ from typing import cast
 import pytest
 from pydantic import BaseModel
 
+from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
 from exmekh_lib.core.agents.capabilities.defaults import (
     BUILTIN_CAPABILITIES_PATH,
     HARNESS_NAMES,
-    RUNTIME_NAMES,
     DefaultCapabilities,
 )
 from exmekh_lib.core.agents.capabilities.layout import CapabilitiesLayout
@@ -50,7 +50,10 @@ DEEP_THINKING_TOOLS = {
 
 def test_runtime_tool_sources_use_the_bundled_tools_directory(tmp_path: Path) -> None:
     bundled_tools = BUILTIN_CAPABILITIES_PATH / "tools"
-    assert all((bundled_tools / name / "main.py").is_file() for name in RUNTIME_NAMES)
+    assert all(
+        (bundled_tools / name / "main.py").is_file()
+        for name in RUNTIME.runtime_tool_names
+    )
 
     application_root = tmp_path / "capabilities"
     application_bash = application_root / "tools" / "bash"
@@ -61,7 +64,7 @@ def test_runtime_tool_sources_use_the_bundled_tools_directory(tmp_path: Path) ->
     layout.prepare()
     paths = layout.tool_paths()
     assert application_bash in paths
-    assert all(bundled_tools / name not in paths for name in RUNTIME_NAMES)
+    assert all(bundled_tools / name not in paths for name in RUNTIME.runtime_tool_names)
 
 
 class StubTokenizer(Tokenizer):
@@ -199,7 +202,9 @@ def make_exit() -> ExitTool:
 
 def test_group_presets_and_individual_selection() -> None:
     assert DefaultCapabilities().selected_names == HARNESS_NAMES
-    assert not RUNTIME_NAMES.intersection(DEEP_THINKING_TOOLS | {"deep-thinking"})
+    assert not RUNTIME.runtime_tool_names.intersection(
+        DEEP_THINKING_TOOLS | {"deep-thinking"}
+    )
     assert DefaultCapabilities(harness=False).selected_names == set()
     selected = DefaultCapabilities(
         include={"main"},
@@ -420,13 +425,18 @@ def test_direct_capabilities_loader_validates_default_configuration() -> None:
 
 
 def test_excluded_references_fail_before_catalog_attachment(tmp_path: Path) -> None:
-    node = Node(
-        name_hds="main",
-        default_capabilities=DefaultCapabilities(
-            include={"main"}, exclude={"deep-thinking"}
-        ),
+    path = write_hds(
+        tmp_path,
+        "application",
+        body="Use {{!deep-thinking}}",
+        skills=("deep-thinking",),
     )
-    with pytest.raises(ValueError, match="HDS 'main' has invalid references"):
+    node = Node(
+        [path],
+        name_hds="application",
+        default_capabilities=DefaultCapabilities(exclude={"deep-thinking"}),
+    )
+    with pytest.raises(ValueError, match="HDS 'application' has invalid references"):
         node.load_capabilities(work_root=tmp_path)
 
 
