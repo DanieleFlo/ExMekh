@@ -170,29 +170,21 @@ class FileInspectionText:
     @property
     def inspect_description(self) -> str:
         return (
-            "Inspect one regular file inside the workroot before reading it. Returns "
-            "metadata, physical line counts for decoded text, and bounded navigation "
-            "regions with inclusive 1-based line ranges, without full file content. "
-            "Supports Python symbols, Markdown sections/fences, structured data, CSV/TSV, "
-            "archive indexes, PDF metadata and image headers. Other Unicode files get text statistics; "
-            f"unsupported formats and limits are explicit. max_items defaults to {FILE_INSPECTION.default_max_items}; "
-            "use offset to paginate or query to rank the bounded index lexically. "
-            "detailed adds technical metadata and applied limits. No extraction, OCR "
-            "or model downloads. Standard background execution and output retrieval apply."
+            "Inspect a workroot file: metadata, text line count and bounded navigation ranges "
+            "(1-based, inclusive), not full content. PDF/image metadata and archive indexes only; "
+            "no OCR/extraction. query filters/ranks; offset/max_items paginate "
+            f"(default {FILE_INSPECTION.default_max_items}); detailed adds technical limits. Check truncation/warnings."
         )
 
     @property
     def read_description(self) -> str:
         return (
-            "Read workspace text lines, PDF pages or supported images. "
-            "Required start_index/end_index are inclusive, 1-based line or page numbers. "
-            f"For text/PDF, call {DEFAULT_CAPABILITIES.inspect_file} first; reuse its complete result in "
-            "visible history only while content is unchanged. Missing/stale inspection "
-            "returns an error and automatic inspection; choose indices and read again. "
-            f"PDF: at most {FILE_INSPECTION.max_pdf_render_pages} pages per call, returned as labelled images. "
-            "For images, no inspection is required: use 0/0; indices are ignored even "
-            "when nonzero, and only the first frame is returned. Empty text also uses "
-            "0/0. Invalid ranges and unsupported formats return errors without clamping."
+            "Read explicit inclusive start_index/end_index: text lines or PDF pages from 1. "
+            f"Text/PDF requires visible {DEFAULT_CAPABILITIES.inspect_file} of unchanged content; "
+            "missing/stale evidence triggers inspection, then a new read is required. "
+            f"PDF returns <={FILE_INSPECTION.max_pdf_render_pages} labelled page images. "
+            "Images need no inspection (first frame, indices ignored); use 0/0, also for empty text. "
+            "No implicit full read or range clamping."
         )
 
     @property

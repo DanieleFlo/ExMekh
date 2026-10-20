@@ -54,6 +54,7 @@ markers = [
 
 [tool.pyright]
 include = ["src"]
+exclude = ["evaluations/results"]
 extraPaths = ["src"]
 pythonVersion = "3.13"
 venvPath = "."

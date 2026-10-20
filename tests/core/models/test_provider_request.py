@@ -170,3 +170,47 @@ def test_event_adapter_preserves_conversation_options_and_schema(structured):
     assert adapted.with_event_handler(None).on_event is None
     with pytest.raises(TypeError, match="ProviderEventHandler"):
         request.with_event_handler(object())
+
+
+@pytest.mark.parametrize("structured", [False, True])
+def test_request_adapters_preserve_expanded_attachments_and_contracts(structured):
+    class Answer(BaseModel):
+        text: str
+
+    attachment = UserMessage("attachment")
+    messages = [
+        SystemMessage("old", name="policy"),
+        ToolMessage("body", "id", "tool", attachments=attachment),
+    ]
+    request = (
+        StructuredProviderRequest(messages, Answer, strict=False)
+        if structured
+        else ProviderRequest(messages)
+    )
+    request.interactive_handler = Mock()
+    adapted = (
+        request.with_system_message("new")
+        .with_extra({"max_output_tokens": 10})
+        .with_streaming(True)
+    )
+    assert adapted.get_messages().count(attachment) == 1
+    assert adapted.get_messages()[0].get_message() == "new"
+    assert adapted.get_messages()[0].get_name() == "policy"
+    assert request.get_messages()[0].get_message() == "old"
+    assert request.get_extra() is None
+    assert not request.get_streaming()
+    assert adapted.require_interactive_handler() is request.interactive_handler
+    assert type(adapted) is type(request)
+    if structured:
+        assert adapted.get_response_model() is Answer
+        assert not adapted.get_strict()
+
+
+def test_request_adapters_validate_options():
+    request = ProviderRequest([UserMessage("hello")])
+    with pytest.raises(ValueError, match="system message"):
+        request.with_system_message("rules")
+    with pytest.raises(TypeError, match="boolean"):
+        request.with_streaming(1)
+    with pytest.raises(TypeError, match="mapping"):
+        request.with_extra("invalid")

@@ -21,6 +21,7 @@ from exmekh_lib.core.providers.response_openai import ResponseOpenAI
 from exmekh_lib.core.providers.to_openai_response_request_mapper import (
     ToOpenAIResponseRequestMapper,
 )
+from exmekh_lib.interfaces.provider import ProviderResponseIncompleteError
 from tests.event_handler import as_provider_handler
 
 
@@ -192,6 +193,15 @@ def test_consume_stream_rejects_unsuccessful_terminal_response(
 
     with pytest.raises(RuntimeError, match=message):
         ResponseOpenAI._consume_stream([event], request)
+
+
+def test_incomplete_response_exposes_a_typed_error():
+    response = Response.model_construct(error=None, status="incomplete")
+    event = ResponseIncompleteEvent.model_construct(response=response)
+    with pytest.raises(ProviderResponseIncompleteError):
+        ResponseOpenAI._consume_stream(
+            [event], ProviderRequest([AssistantMessage("question")])
+        )
 
 
 def test_parse_structured_response_uses_empty_object_for_missing_text(

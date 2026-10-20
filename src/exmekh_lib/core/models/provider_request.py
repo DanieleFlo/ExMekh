@@ -13,6 +13,7 @@ from exmekh_lib.core.models.provider_stream_event import (
     ProviderStreamEvent,
     ProviderStreamEventType,
 )
+from exmekh_lib.core.models.system_message import SystemMessage
 from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.core.models.tools import Tools
 from exmekh_lib.core.models.user_message import UserMessage
@@ -106,6 +107,33 @@ class ProviderRequest:
             ProviderEventHandler.validate_instance(handler)
         adapted = copy(self)
         adapted.on_event = handler
+        return adapted
+
+    def with_system_message(self, content: str) -> Self:
+        """Replace the leading system message without expanding attachments again."""
+        if not isinstance(self._messages[0], SystemMessage):
+            raise ValueError(MODEL_TEXT.request_must_start_with_system_message)
+        adapted = copy(self)
+        adapted._messages = [
+            SystemMessage(content, name=self._messages[0].get_name()),
+            *self._messages[1:],
+        ]
+        return adapted
+
+    def with_extra(self, extra: Mapping[str, object] | None) -> Self:
+        """Copy provider options while preserving expanded messages and handlers."""
+        if extra is not None and not isinstance(extra, Mapping):
+            raise TypeError(MODEL_TEXT.extra_provider_data_must_be_a_mapping)
+        adapted = copy(self)
+        adapted._extra = dict(extra) if extra is not None else None
+        return adapted
+
+    def with_streaming(self, enabled: bool) -> Self:
+        """Adapt streaming without rebuilding expanded multimodal messages."""
+        if not isinstance(enabled, bool):
+            raise TypeError(MODEL_TEXT.streaming_must_be_a_boolean)
+        adapted = copy(self)
+        adapted.stream = enabled
         return adapted
 
     def require_interactive_handler(self) -> InteractiveHandler:

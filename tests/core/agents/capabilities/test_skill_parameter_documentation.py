@@ -88,7 +88,7 @@ def test_contextual_schemas_hide_only_internal_documentation_and_preserve_contra
     )
     full = original.get("function", original)
 
-    assert mapped["description"] == "Available in skill 'research'."
+    assert mapped["description"] == "Requires open skill 'research'."
     properties = mapped["parameters"]["properties"]
     options = properties["options"]["anyOf"][0]
     request = options["properties"]["requests"]["items"]

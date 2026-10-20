@@ -5,6 +5,9 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class ModelText:
+    request_must_start_with_system_message: str = (
+        "Request must start with a system message"
+    )
     json_object_keys_must_be_annotated_as_str: str = (
         "JSON object keys must be annotated as str"
     )
@@ -102,6 +105,9 @@ class ModelText:
     )
     modelusage_total_tokens_must_be_an_int_or_none: str = (
         "ModelUsage total_tokens must be an int or None"
+    )
+    modelusage_token_counts_must_be_nonnegative: str = (
+        "ModelUsage token counts must be nonnegative"
     )
     name_cannot_be_empty: str = "name cannot be empty"
     name_must_be_a_string: str = "name must be a string"

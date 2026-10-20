@@ -46,7 +46,7 @@ class CapabilityText:
     tool_label: str = "tool"
     exit_tool_label: str = "Exit tool '{name}'"
     exit_tool_description: str = (
-        "Finishes the current skill and returns its result to the caller."
+        "Close the current skill; return text and selected saved outputs to its caller."
     )
 
 

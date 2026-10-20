@@ -36,8 +36,11 @@ def test_bundled_prompts_and_signatures_follow_changed_defaults(tmp_path, monkey
     tools = {tool.name: tool for tool in capabilities.tools}
     skills = {skill.name: skill for skill in capabilities.deep_skills}
     assert tools["inspect-file"].get_signature().parameters["max_items"].default == 7
-    assert "max_items defaults to 7" in tools["inspect-file"].get_description()
-    assert "at most 2 pages" in tools["read-file"].get_description()
+    assert (
+        "offset/max_items paginate (default 7)"
+        in tools["inspect-file"].get_description()
+    )
+    assert "<=2 labelled page images" in tools["read-file"].get_description()
     file_prompt = skills["file-processing"].render_instructions("")
     assert "at most 2 pages" in file_prompt and "72 DPI" in file_prompt
     assert (
@@ -69,10 +72,11 @@ def test_new_file_document_schema_and_content_minimum_agree_with_instructions(
     skill = next(item for item in loaded.deep_skills if item.name == "file-processing")
     mapper = OpenAIFunctionToolDefinitionMapper(AnnotationSchemaBuilder())
     schema = mapper.map(tool).get_parameters()
-    assert schema["properties"] == {"document": {"type": "string"}}
+    assert set(schema["properties"]) == {"document"}
+    assert schema["properties"]["document"]["type"] == "string"
     assert schema["required"] == ["document"]
     assert not tool.background_enabled
-    assert "at least 4 Unicode characters" in tool.get_description()
+    assert ">=4 Unicode characters" in schema["properties"]["document"]["description"]
     assert "at least 4 characters" in skill.render_instructions("")
     rejected = tool.execute(document='<new-exmekh-file path="notes.txt"/>abc')
     assert rejected["ok"] is False

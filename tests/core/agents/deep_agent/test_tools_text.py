@@ -126,8 +126,10 @@ def test_tools_text_matches_http_payload_and_includes_contextual_and_runtime_too
         "bash",
     ]
     assert by_name["mock-skill"]["description"] == 'Skill città <&> "ricerca" 🛠️'
-    assert by_name["nested-skill"]["description"] == "Available in skill 'mock-skill'."
-    assert by_name["mock-sub-tool"]["description"] == "Available in skill 'mock-skill'."
+    assert by_name["nested-skill"]["description"] == "Requires open skill 'mock-skill'."
+    assert (
+        by_name["mock-sub-tool"]["description"] == "Requires open skill 'mock-skill'."
+    )
     assert "description" not in by_name["orphan-tool"]
     assert (
         "<description>child</description>" in by_name["call_sub_agent"]["description"]
@@ -195,7 +197,7 @@ def test_parameter_documentation_setting_applies_to_every_node_and_http_payload(
         assert (
             "description" in properties["execution_mode"]
         ) is parameter_descriptions_in_schema
-        assert internal["description"] == "Available in skill 'nested-skill'."
+        assert internal["description"] == "Requires open skill 'nested-skill'."
         direct = next(item for item in functions if item["name"] == "mock-tool")
         assert "description" in direct["parameters"]["properties"]["execution_mode"]
         skill = next(

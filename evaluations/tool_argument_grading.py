@@ -122,6 +122,24 @@ def _compare(
     return [ArgumentCheck(path, present and matches, expected, actual, present)]
 
 
+def parse_json_value(source: str) -> JsonValue:
+    """Read JSON without coercion, duplicate keys or nonfinite values."""
+    return json.loads(
+        source,
+        object_pairs_hook=_unique_object,
+        parse_constant=_invalid_constant,
+        parse_float=_finite_float,
+    )
+
+
+def parse_arguments(source: str) -> dict[str, JsonValue]:
+    """Read raw model arguments, requiring a JSON object."""
+    arguments = parse_json_value(source)
+    if not isinstance(arguments, dict):
+        raise ValueError("Arguments must be a JSON object.")
+    return arguments
+
+
 def grade_arguments(
     case: ArgumentCase, calls: tuple[RawToolCall, ...]
 ) -> ArgumentGrade:
@@ -130,14 +148,7 @@ def grade_arguments(
             0.0, False, (), "Expected exactly one call to the designated tool."
         )
     try:
-        arguments = json.loads(
-            calls[0].arguments,
-            object_pairs_hook=_unique_object,
-            parse_constant=_invalid_constant,
-            parse_float=_finite_float,
-        )
-        if not isinstance(arguments, dict):
-            raise ValueError("Arguments must be a JSON object.")
+        arguments = parse_arguments(calls[0].arguments)
     except (ValueError, TypeError) as error:
         return ArgumentGrade(0.0, False, (), f"Invalid argument JSON: {error}")
     # Only runtime-documented null/default equivalence is normalized. Missing

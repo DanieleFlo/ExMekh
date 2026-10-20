@@ -43,7 +43,10 @@ anche se la policy è disarmata o restano solo messaggi protetti. Dopo la
 compattazione e la consegna dello steering, controlla nuovamente la richiesta:
 se non entra, propaga `ContextBudgetExceededError` senza inviarla al provider.
 Il limite del prompt riserva alla generazione il minore fra 1024 token e un
-ottavo della capienza. L'applicazione fornisce lo stimatore, includendo template,
+ottavo della capienza per default. Il parametro opzionale `response_reserve`
+permette di riservare il limite di output effettivo dell'applicazione, per esempio
+`RequestBudget(26000, count_request_tokens, response_reserve=4096)`. Deve essere
+un intero non negativo minore della capienza. L'applicazione fornisce lo stimatore, includendo template,
 tool e schema strutturato; senza capienza nota non viene inventato un limite.
 
 Un errore di compattazione automatica viene registrato e propagato con la sua

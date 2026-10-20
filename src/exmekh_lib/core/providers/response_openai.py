@@ -44,6 +44,7 @@ from exmekh_lib.core.providers.openai_response_tool_mapper import (
 from exmekh_lib.core.providers.to_openai_response_request_mapper import (
     ToOpenAIResponseRequestMapper,
 )
+from exmekh_lib.interfaces.provider import ProviderResponseIncompleteError
 from exmekh_lib.utils.json import serialize_json
 
 
@@ -175,7 +176,7 @@ class ResponseOpenAI:
                 )
             )
         if response.status != "completed":
-            raise RuntimeError(
+            raise ProviderResponseIncompleteError(
                 PROVIDER_TEXT.provider_response_did_not_complete.format(
                     response_status=response.status
                 )

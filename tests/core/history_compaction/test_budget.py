@@ -40,6 +40,20 @@ def test_capacity_reserves_generation_space_and_rejects_an_oversized_prompt():
         budget.require_fits(ProviderRequest([UserMessage("x" * 1000)]))
 
 
+@pytest.mark.parametrize("reserve", [0, 4096])
+def test_explicit_generation_reserve_matches_the_application_limit(reserve):
+    assert (
+        RequestBudget(24_000, count_request, response_reserve=reserve).prompt_limit
+        == 24_000 - reserve
+    )
+
+
+@pytest.mark.parametrize("reserve", [-1, True, 1.5, 1000])
+def test_invalid_generation_reserve_is_rejected(reserve):
+    with pytest.raises(ValueError, match="Response reserve"):
+        RequestBudget(1000, count_request, response_reserve=reserve)
+
+
 def test_output_below_static_limit_is_exported_before_scoring_and_preserved(tmp_path):
     provider = CompactionProvider(score=9)
     body = "evidence line\n" * 300

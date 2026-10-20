@@ -23,6 +23,10 @@ class ProviderRequestRejectedError(RuntimeError):
     """The provider rejected the input before producing a response."""
 
 
+class ProviderResponseIncompleteError(RuntimeError):
+    """Generation ended without a complete response, possibly at its output limit."""
+
+
 class Provider(ABC):
     def __init__(self, tokenizer: Tokenizer) -> None:
         if not isinstance(tokenizer, Tokenizer):

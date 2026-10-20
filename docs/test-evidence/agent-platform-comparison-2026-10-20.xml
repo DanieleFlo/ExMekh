@@ -1,0 +1,421 @@
+<agent-benchmark-review version="1">
+  <method type="object">
+    <repetitions type="integer">1</repetitions>
+    <scope type="string">Eight development tasks, paired within task and scaffold version. No holdout results used.</scope>
+    <judge_reasoning type="string">low</judge_reasoning>
+    <schema_parameter_descriptions type="boolean">false</schema_parameter_descriptions>
+    <token_cost type="string">Measured actor plus judge tokens, including unsuccessful scored attempts; exploratory pilots excluded.</token_cost>
+    <scaffold_change type="string">Four noncoding tasks from v3; remaining four tasks after the workspace import fix and execution-tool simplification. Frozen prompt profiles unchanged. Do not interpret this as a single-scaffold performance estimate.</scaffold_change>
+  </method>
+  <provenance type="array">
+    <item type="object">
+      <report type="string">agent-platform-development-v3-2026-10-20.xml</report>
+      <sha256 type="string">ff1f1abd4526bd0b097b28acefe3c5b967664dc3640e484da2e73864474a0464</sha256>
+      <complete type="boolean">false</complete>
+      <selected_trials type="array">
+        <item type="array">
+          <item type="string">inventory_reconciliation</item>
+          <item type="string">current</item>
+          <item type="integer">1</item>
+        </item>
+        <item type="array">
+          <item type="string">inventory_reconciliation</item>
+          <item type="string">handoff</item>
+          <item type="integer">1</item>
+        </item>
+        <item type="array">
+          <item type="string">planning_choice</item>
+          <item type="string">handoff</item>
+          <item type="integer">1</item>
+        </item>
+        <item type="array">
+          <item type="string">planning_choice</item>
+          <item type="string">current</item>
+          <item type="integer">1</item>
+        </item>
+        <item type="array">
+          <item type="string">calendar_offsets</item>
+          <item type="string">current</item>
+          <item type="integer">1</item>
+        </item>
+        <item type="array">
+          <item type="string">calendar_offsets</item>
+          <item type="string">handoff</item>
+          <item type="integer">1</item>
+        </item>
+        <item type="array">
+          <item type="string">physical_explanation</item>
+          <item type="string">handoff</item>
+          <item type="integer">1</item>
+        </item>
+        <item type="array">
+          <item type="string">physical_explanation</item>
+          <item type="string">current</item>
+          <item type="integer">1</item>
+        </item>
+      </selected_trials>
+      <note type="string">All scored trials retained; the interrupted coding attempt is superseded by the corrected-runner campaign.</note>
+    </item>
+    <item type="object">
+      <report type="string">agent-platform-development-final-2026-10-20.xml</report>
+      <sha256 type="string">4c373ceb373441dc361aeae03e4269b5b16122082847f589eba321dba2f79818</sha256>
+      <complete type="boolean">true</complete>
+      <selected_trials type="array">
+        <item type="array">
+          <item type="string">weighted_route</item>
+          <item type="string">current</item>
+          <item type="integer">1</item>
+        </item>
+        <item type="array">
+          <item type="string">weighted_route</item>
+          <item type="string">handoff</item>
+          <item type="integer">1</item>
+        </item>
+        <item type="array">
+          <item type="string">scoped_sum</item>
+          <item type="string">handoff</item>
+          <item type="integer">1</item>
+        </item>
+        <item type="array">
+          <item type="string">scoped_sum</item>
+          <item type="string">current</item>
+          <item type="integer">1</item>
+        </item>
+        <item type="array">
+          <item type="string">fluid_box</item>
+          <item type="string">current</item>
+          <item type="integer">1</item>
+        </item>
+        <item type="array">
+          <item type="string">fluid_box</item>
+          <item type="string">handoff</item>
+          <item type="integer">1</item>
+        </item>
+        <item type="array">
+          <item type="string">source_trust</item>
+          <item type="string">handoff</item>
+          <item type="integer">1</item>
+        </item>
+        <item type="array">
+          <item type="string">source_trust</item>
+          <item type="string">current</item>
+          <item type="integer">1</item>
+        </item>
+      </selected_trials>
+      <note type="string">All scored trials retained; the interrupted coding attempt is superseded by the corrected-runner campaign.</note>
+    </item>
+  </provenance>
+  <summary type="object">
+    <variants type="object">
+      <current type="object">
+        <attempts type="integer">8</attempts>
+        <scored type="integer">8</scored>
+        <infrastructure_errors type="integer">0</infrastructure_errors>
+        <mean_quality type="number">57.1875</mean_quality>
+        <successes type="integer">4</successes>
+        <quality_stddev type="number">48.207836870308604</quality_stddev>
+        <complete_usage_trials type="integer">8</complete_usage_trials>
+        <total_tokens type="integer">162049</total_tokens>
+        <known_total_tokens type="integer">162049</known_total_tokens>
+        <mean_actor_tokens type="number">19682.0</mean_actor_tokens>
+        <mean_judge_tokens type="number">574.125</mean_judge_tokens>
+        <mean_total_tokens type="number">20256.125</mean_total_tokens>
+        <tokens_per_success type="number">40512.25</tokens_per_success>
+        <mean_cost_adjusted_quality type="number">36.931375</mean_cost_adjusted_quality>
+        <compaction_calls type="integer">0</compaction_calls>
+      </current>
+      <handoff type="object">
+        <attempts type="integer">8</attempts>
+        <scored type="integer">8</scored>
+        <infrastructure_errors type="integer">0</infrastructure_errors>
+        <mean_quality type="number">49.0625</mean_quality>
+        <successes type="integer">4</successes>
+        <quality_stddev type="number">52.50743994902056</quality_stddev>
+        <complete_usage_trials type="integer">8</complete_usage_trials>
+        <total_tokens type="integer">213082</total_tokens>
+        <known_total_tokens type="integer">213082</known_total_tokens>
+        <mean_actor_tokens type="number">26151.0</mean_actor_tokens>
+        <mean_judge_tokens type="number">484.25</mean_judge_tokens>
+        <mean_total_tokens type="number">26635.25</mean_total_tokens>
+        <tokens_per_success type="number">53270.5</tokens_per_success>
+        <mean_cost_adjusted_quality type="number">22.42725</mean_cost_adjusted_quality>
+        <compaction_calls type="integer">0</compaction_calls>
+      </handoff>
+    </variants>
+    <paired type="array">
+      <item type="object">
+        <left type="string">current</left>
+        <right type="string">handoff</right>
+        <pairs type="integer">8</pairs>
+        <mean_quality_delta_right_minus_left type="number">-8.125</mean_quality_delta_right_minus_left>
+        <cost_pairs type="integer">8</cost_pairs>
+        <quality_delta_stddev type="number">37.95556612672244</quality_delta_stddev>
+        <mean_token_delta_right_minus_left type="number">6379.125</mean_token_delta_right_minus_left>
+        <right_dominates type="integer">3</right_dominates>
+      </item>
+    </paired>
+    <by_split type="object">
+      <development type="object">
+        <current type="object">
+          <scored type="integer">8</scored>
+          <mean_quality type="number">57.1875</mean_quality>
+        </current>
+        <handoff type="object">
+          <scored type="integer">8</scored>
+          <mean_quality type="number">49.0625</mean_quality>
+        </handoff>
+      </development>
+    </by_split>
+  </summary>
+  <trials type="array">
+    <item type="object">
+      <task type="string">inventory_reconciliation</task>
+      <variant type="string">current</variant>
+      <quality type="number">100.0</quality>
+      <success type="boolean">true</success>
+      <status type="string">completed</status>
+      <actor_tokens type="integer">22677</actor_tokens>
+      <judge_tokens type="integer">0</judge_tokens>
+    </item>
+    <item type="object">
+      <task type="string">inventory_reconciliation</task>
+      <variant type="string">handoff</variant>
+      <quality type="integer">0</quality>
+      <success type="boolean">false</success>
+      <status type="string">budget_exceeded</status>
+      <actor_tokens type="integer">58513</actor_tokens>
+      <judge_tokens type="integer">0</judge_tokens>
+    </item>
+    <item type="object">
+      <task type="string">planning_choice</task>
+      <variant type="string">handoff</variant>
+      <quality type="number">100.0</quality>
+      <success type="boolean">true</success>
+      <status type="string">completed</status>
+      <actor_tokens type="integer">2328</actor_tokens>
+      <judge_tokens type="integer">1879</judge_tokens>
+    </item>
+    <item type="object">
+      <task type="string">planning_choice</task>
+      <variant type="string">current</variant>
+      <quality type="number">82.5</quality>
+      <success type="boolean">true</success>
+      <status type="string">completed</status>
+      <actor_tokens type="integer">2345</actor_tokens>
+      <judge_tokens type="integer">2047</judge_tokens>
+    </item>
+    <item type="object">
+      <task type="string">calendar_offsets</task>
+      <variant type="string">current</variant>
+      <quality type="number">100.0</quality>
+      <success type="boolean">true</success>
+      <status type="string">completed</status>
+      <actor_tokens type="integer">15782</actor_tokens>
+      <judge_tokens type="integer">0</judge_tokens>
+    </item>
+    <item type="object">
+      <task type="string">calendar_offsets</task>
+      <variant type="string">handoff</variant>
+      <quality type="number">100.0</quality>
+      <success type="boolean">true</success>
+      <status type="string">completed</status>
+      <actor_tokens type="integer">12163</actor_tokens>
+      <judge_tokens type="integer">0</judge_tokens>
+    </item>
+    <item type="object">
+      <task type="string">physical_explanation</task>
+      <variant type="string">handoff</variant>
+      <quality type="number">92.5</quality>
+      <success type="boolean">true</success>
+      <status type="string">completed</status>
+      <actor_tokens type="integer">2494</actor_tokens>
+      <judge_tokens type="integer">1995</judge_tokens>
+    </item>
+    <item type="object">
+      <task type="string">physical_explanation</task>
+      <variant type="string">current</variant>
+      <quality type="number">75.0</quality>
+      <success type="boolean">false</success>
+      <status type="string">completed</status>
+      <actor_tokens type="integer">2521</actor_tokens>
+      <judge_tokens type="integer">2546</judge_tokens>
+    </item>
+    <item type="object">
+      <task type="string">weighted_route</task>
+      <variant type="string">current</variant>
+      <quality type="integer">0</quality>
+      <success type="boolean">false</success>
+      <status type="string">budget_exceeded</status>
+      <actor_tokens type="integer">83687</actor_tokens>
+      <judge_tokens type="integer">0</judge_tokens>
+    </item>
+    <item type="object">
+      <task type="string">weighted_route</task>
+      <variant type="string">handoff</variant>
+      <quality type="integer">0</quality>
+      <success type="boolean">false</success>
+      <status type="string">budget_exceeded</status>
+      <actor_tokens type="integer">92478</actor_tokens>
+      <judge_tokens type="integer">0</judge_tokens>
+    </item>
+    <item type="object">
+      <task type="string">scoped_sum</task>
+      <variant type="string">handoff</variant>
+      <quality type="integer">0</quality>
+      <success type="boolean">false</success>
+      <status type="string">incomplete_output</status>
+      <actor_tokens type="integer">16615</actor_tokens>
+      <judge_tokens type="integer">0</judge_tokens>
+    </item>
+    <item type="object">
+      <task type="string">scoped_sum</task>
+      <variant type="string">current</variant>
+      <quality type="integer">0</quality>
+      <success type="boolean">false</success>
+      <status type="string">incomplete_output</status>
+      <actor_tokens type="integer">5712</actor_tokens>
+      <judge_tokens type="integer">0</judge_tokens>
+    </item>
+    <item type="object">
+      <task type="string">fluid_box</task>
+      <variant type="string">current</variant>
+      <quality type="integer">0</quality>
+      <success type="boolean">false</success>
+      <status type="string">incomplete_output</status>
+      <actor_tokens type="integer">6241</actor_tokens>
+      <judge_tokens type="integer">0</judge_tokens>
+    </item>
+    <item type="object">
+      <task type="string">fluid_box</task>
+      <variant type="string">handoff</variant>
+      <quality type="integer">0</quality>
+      <success type="boolean">false</success>
+      <status type="string">incomplete_output</status>
+      <actor_tokens type="integer">6280</actor_tokens>
+      <judge_tokens type="integer">0</judge_tokens>
+    </item>
+    <item type="object">
+      <task type="string">source_trust</task>
+      <variant type="string">handoff</variant>
+      <quality type="number">100.0</quality>
+      <success type="boolean">true</success>
+      <status type="string">completed</status>
+      <actor_tokens type="integer">18337</actor_tokens>
+      <judge_tokens type="integer">0</judge_tokens>
+    </item>
+    <item type="object">
+      <task type="string">source_trust</task>
+      <variant type="string">current</variant>
+      <quality type="number">100.0</quality>
+      <success type="boolean">true</success>
+      <status type="string">completed</status>
+      <actor_tokens type="integer">18491</actor_tokens>
+      <judge_tokens type="integer">0</judge_tokens>
+    </item>
+  </trials>
+  <artifact_diagnostics type="array">
+    <item type="object">
+      <task type="string">weighted_route</task>
+      <variant type="string">current</variant>
+      <official_status type="string">budget_exceeded</official_status>
+      <official_score_unchanged type="integer">0</official_score_unchanged>
+      <analytical_checks_only type="object">
+        <route_correctness type="object">
+          <score type="number">100.0</score>
+          <evidence type="object">
+            <executions type="array">
+              <item type="object">
+                <input type="array">
+                  <item type="array">
+                    <item type="array">
+                      <item type="string">A</item>
+                      <item type="string">B</item>
+                      <item type="integer">5</item>
+                    </item>
+                    <item type="array">
+                      <item type="string">A</item>
+                      <item type="string">C</item>
+                      <item type="integer">1</item>
+                    </item>
+                    <item type="array">
+                      <item type="string">C</item>
+                      <item type="string">B</item>
+                      <item type="integer">1</item>
+                    </item>
+                    <item type="array">
+                      <item type="string">B</item>
+                      <item type="string">D</item>
+                      <item type="integer">1</item>
+                    </item>
+                    <item type="array">
+                      <item type="string">C</item>
+                      <item type="string">D</item>
+                      <item type="integer">8</item>
+                    </item>
+                  </item>
+                  <item type="string">A</item>
+                  <item type="string">D</item>
+                </input>
+                <exit_code type="integer">0</exit_code>
+                <stdout type="string">["A", "C", "B", "D"]
+</stdout>
+                <stderr type="string" />
+                <timed_out type="boolean">false</timed_out>
+                <infrastructure_error type="null" />
+                <output_truncated type="boolean">false</output_truncated>
+              </item>
+              <item type="object">
+                <input type="array">
+                  <item type="array">
+                    <item type="array">
+                      <item type="string">A</item>
+                      <item type="string">B</item>
+                      <item type="integer">2</item>
+                    </item>
+                  </item>
+                  <item type="string">B</item>
+                  <item type="string">A</item>
+                </input>
+                <exit_code type="integer">0</exit_code>
+                <stdout type="string">[]
+</stdout>
+                <stderr type="string" />
+                <timed_out type="boolean">false</timed_out>
+                <infrastructure_error type="null" />
+                <output_truncated type="boolean">false</output_truncated>
+              </item>
+              <item type="object">
+                <input type="array">
+                  <item type="array" />
+                  <item type="string">A</item>
+                  <item type="string">A</item>
+                </input>
+                <exit_code type="integer">0</exit_code>
+                <stdout type="string">["A"]
+</stdout>
+                <stderr type="string" />
+                <timed_out type="boolean">false</timed_out>
+                <infrastructure_error type="null" />
+                <output_truncated type="boolean">false</output_truncated>
+              </item>
+            </executions>
+            <values type="array">
+              <item type="array">
+                <item type="string">A</item>
+                <item type="string">C</item>
+                <item type="string">B</item>
+                <item type="string">D</item>
+              </item>
+              <item type="array" />
+              <item type="array">
+                <item type="string">A</item>
+              </item>
+            </values>
+          </evidence>
+          <error type="null" />
+        </route_correctness>
+      </analytical_checks_only>
+      <note type="string">Offline artifact diagnosis; excluded from official ranking and consumes no model tokens.</note>
+    </item>
+  </artifact_diagnostics>
+</agent-benchmark-review>

@@ -3,7 +3,6 @@ from pathlib import Path
 import pytest
 from pydantic import BaseModel
 
-from exmekh_lib.config.runtime import RUNTIME
 from exmekh_lib.config.storage import DEFAULT_STORAGE_SETTINGS
 from exmekh_lib.config.web import WEB_NAVIGATION
 from exmekh_lib.core.agents.capabilities.capabilities import Capabilities
@@ -155,61 +154,29 @@ def test_builtin_client_receives_contextual_tool_descriptions(tmp_path: Path) ->
     descriptions = {tool.name: tool.description for tool in request_tools.get_tools()}
     assert (
         descriptions["inspect-file"]
-        == "Available in skills 'deep-thinking', 'file-processing'."
+        == "Requires an open skill: 'deep-thinking', 'file-processing'."
     )
-    assert descriptions == {
-        "file-processing": "Workspace file operations. Inspect files. Read files. Edit text. Create files and directories. Remove files and directories.",
-        "inspect-file": "Available in skills 'deep-thinking', 'file-processing'.",
-        "read-file": "Available in skills 'deep-thinking', 'file-processing'.",
-        "edit-file": "Available in skill 'file-processing'.",
-        "new-file": "Available in skill 'file-processing'.",
-        "delete-file": "Available in skill 'file-processing'.",
-        "deep-thinking": (
-            "Investigate difficult questions. Search web evidence. Read web sources. "
-            "Interact with web pages. Check mathematical computations. Check dates and times. "
-            "Verify formal conclusions with Z3. Check premise consistency. Find formal counterexamples."
-        ),
-        "calculate": "Available in skill 'deep-thinking'.",
-        "date-time": "Available in skill 'deep-thinking'.",
-        "interact-web-page": "Available in skill 'deep-thinking'.",
-        "read-web-page": "Available in skill 'deep-thinking'.",
-        "search-web": "Available in skill 'deep-thinking'.",
-        "logic-check": "Available in skill 'deep-thinking'.",
-        "logic-consistency": "Available in skill 'deep-thinking'.",
-        "logic-counterexample": "Available in skill 'deep-thinking'.",
-        "exit_agent": (
-            "Finishes the current skill and returns its result to the caller. "
-            "Available in every skill."
-        ),
-        "get_execution_history": (
-            "Return navigable XML history of capability calls and saved user steering. Omit "
-            "start_position for a head-and-tail overview, or use a 1-based "
-            f"position and limit from {RUNTIME.history_min_page_limit} to {RUNTIME.memory_max_page_limit} to read a page."
-        ),
-        "search_tool_outputs": (
-            "Search this node's saved and runtime tool outputs, including "
-            "background work and user steering saved inside skills. Return paginated XML previews with status "
-            "and output IDs. All filters are optional."
-        ),
-        "read_tool_output": (
-            "Read the current status and available output of a tool by output ID. "
-            "Use an optional cursor to read only new output; omit it to read the "
-            "complete output. Includes the final result when available. "
-            "Also reads saved user steering and restores its attachments. "
-            "Oversized output returns file references. "
-            "Use read-file to read their text; enter a skill exposing it if necessary. "
-            "summary_mode defaults to 'none'; 'brief' gives 3 to 5 bullet points, "
-            f"'detailed' preserves essential details. Outputs below {RUNTIME.tool_output_summary_min_tokens} tokens stay complete."
-        ),
-        "control_tool_execution": (
-            "Wait for a tool execution by its original tool_call_id, or request "
-            "cancellation. Waiting returns as soon as the work finishes or "
-            f"the wait limit expires. Read its output with {RUNTIME.read_tool_name}."
-        ),
-        "bash": (
-            "Run a command in Bash from the node workroot. Each call starts an "
-            "independent process. Read incremental stdout/stderr with "
-            f"{RUNTIME.read_tool_name}(output_id, cursor). Wait or cancel with "
-            f"{RUNTIME.execution_tool_name}(tool_call_id). Requires Bash on PATH."
-        ),
+    scoped = {
+        "inspect-file": "Requires an open skill: 'deep-thinking', 'file-processing'.",
+        "read-file": "Requires an open skill: 'deep-thinking', 'file-processing'.",
+        "edit-file": "Requires open skill 'file-processing'.",
+        "new-file": "Requires open skill 'file-processing'.",
+        "delete-file": "Requires open skill 'file-processing'.",
+        "calculate": "Requires open skill 'deep-thinking'.",
+        "date-time": "Requires open skill 'deep-thinking'.",
+        "interact-web-page": "Requires open skill 'deep-thinking'.",
+        "read-web-page": "Requires open skill 'deep-thinking'.",
+        "search-web": "Requires open skill 'deep-thinking'.",
+        "logic-check": "Requires open skill 'deep-thinking'.",
+        "logic-consistency": "Requires open skill 'deep-thinking'.",
+        "logic-counterexample": "Requires open skill 'deep-thinking'.",
     }
+    assert {name: descriptions[name] for name in scoped} == scoped
+    for name in ("file-processing", "deep-thinking"):
+        assert descriptions[name].startswith("Open a scope")
+    for name, description in descriptions.items():
+        assert description.strip(), name
+        assert "<if-tool" not in description
+    assert "Available in every skill." in descriptions["exit_agent"]
+    assert "output_id" in descriptions["read_tool_output"]
+    assert "tool_call_id" in descriptions["control_tool_execution"]

@@ -11,6 +11,9 @@ class HistoryCompactionSettings:
     minimum_summary_candidates: int = 2
     summary_score_threshold: int = 10
     response_reserve_tokens: int = 1024
+    invalid_response_reserve: str = (
+        "Response reserve must be a nonnegative integer smaller than context capacity"
+    )
     invalid_budget: str = "Context capacity must be a positive integer"
     budget_exceeded: str = (
         "History compaction cannot fit the request within {limit} prompt tokens "

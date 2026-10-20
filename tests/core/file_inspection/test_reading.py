@@ -208,10 +208,10 @@ def test_read_schema_requires_all_indices_and_describes_prerequisite(tmp_path):
         assert set(schema["required"]) == {"path", "start_index", "end_index"}
         assert schema["properties"]["start_index"]["type"] == "integer"
         assert schema["properties"]["end_index"]["type"] == "integer"
-    assert "inspect-file first" in tool.description
-    assert "visible history" in tool.description
-    assert "no inspection is required" in tool.description
-    assert "ignored even when nonzero" in tool.description
+    assert "requires visible inspect-file of unchanged content" in tool.description
+    assert "Images need no inspection" in tool.description
+    assert "indices ignored" in tool.description
+    assert "No implicit full read or range clamping" in tool.description
 
 
 def test_successful_visible_analysis_is_reused_without_synthetic_calls(

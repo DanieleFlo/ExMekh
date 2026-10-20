@@ -47,6 +47,9 @@ Explore the detailed documentation in the [`docs/`](docs) directory:
 16. **[Large Tool Outputs](docs/16-large-tool-outputs.md)**: Configurable token budgets, temporary text files, single-line splitting, file-based recovery and safe concurrent cleanup.
 17. **[Tool Error Guidance](docs/17-tool-error-guidance.md)**: Cause-specific diagnostics, correction hints, reviewed tool inventory and recovery after partial effects.
 18. **[History Compaction](docs/18-history-compaction.md)**: Explicit node selection, application-owned automatic policies, archive events, structured importance scores and safe runtime application.
+19. **[Harness Workflows](docs/19-harness-workflows.md)**: Illustrated scenarios for skill entry/exit, nested scopes, result handoffs, subagents, background work, file evidence, steering, compaction and recovery.
+20. **[Harness Prompts & Evaluation](docs/20-harness-prompts-and-evaluation.md)**: Compact navigation and handoff instructions, a standalone 20-case scored benchmark with varied domains and separate holdout results.
+21. **[Agent Benchmark Platform](docs/21-agent-benchmark-platform.md)**: Extensible end-to-end tasks, analytical checks and a library-built evaluator, fixed grading weights, token costs and compaction accounting.
 
 ---
 

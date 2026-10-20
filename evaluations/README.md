@@ -1,4 +1,26 @@
-# Tool argument compilation evaluations
+# Model evaluations
+
+For complete agent trajectories, executable artifacts and mixed analytical/model
+grading, use `uv run python -m evaluations.benchmark --list`. The
+[platform guide](../docs/21-agent-benchmark-platform.md) covers its twelve varied
+tasks, extension plugins, judge agent, per-criterion weights and token accounting.
+Run `uv run python -m evaluations.benchmark --split development --repetitions 3
+--output evaluations/results/development.xml`, then evaluate the frozen candidate
+on `--split holdout`. Actor and judge default to reasoning `low`; use
+`--judge-model` to select a different evaluator. Regular pytest never calls it.
+
+For skill navigation, handoff planning and avoiding repeated work, run
+`uv run python -m evaluations.harness_workflows --list`, then
+`uv run python -m evaluations.harness_workflows --repetitions 1`.
+The [workflow evaluation guide](../docs/20-harness-prompts-and-evaluation.md)
+describes its 20 varied cases, baseline/workflow/compact conditions, deterministic
+scoring and limitations. Four holdout cases introduce different decision categories;
+freeze candidate prompts before evaluating them and report that split separately.
+Model comparisons are standalone commands, never pytest live tests.
+Use `--variant compact --variant schema` to isolate
+`parameter_descriptions_in_schema=False` versus `True` with unchanged prompt texts.
+
+## Tool argument compilation
 
 This standalone evaluation compares the representation before and after scoped
 parameter documentation. It is outside `tests/live`, is never run by `pytest`,

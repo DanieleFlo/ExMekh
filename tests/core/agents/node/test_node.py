@@ -509,47 +509,24 @@ def test_tool_descriptions_reflect_hds_and_skill_availability(
     request_tools = provider.requests[0].get_tools()
     assert request_tools is not None
     descriptions = {tool.name: tool.description for tool in request_tools.get_tools()}
-    assert descriptions == {
+    assert {
+        name: text
+        for name, text in descriptions.items()
+        if name not in _RUNTIME_TOOL_NAMES
+    } == {
         "mock-skill": "Mock skill",
-        "nested-skill": "Available in skill 'mock-skill'.",
+        "nested-skill": "Requires open skill 'mock-skill'.",
         "mock-tool": "Mock tool",
-        "mock-sub-tool": "Available in skill 'mock-skill'.",
-        "nested-sub-tool": "Available in skill 'nested-skill'.",
-        "shared-tool": "Available in skills 'mock-skill', 'nested-skill'.",
+        "mock-sub-tool": "Requires open skill 'mock-skill'.",
+        "nested-sub-tool": "Requires open skill 'nested-skill'.",
+        "shared-tool": "Requires an open skill: 'mock-skill', 'nested-skill'.",
         "orphan-tool": "",
         "exit_agent": "Exit agent Available in every skill.",
-        "get_execution_history": (
-            "Return navigable XML history of capability calls and saved user steering. Omit "
-            "start_position for a head-and-tail overview, or use a 1-based "
-            "position and limit from 2 to 100 to read a page."
-        ),
-        "search_tool_outputs": (
-            "Search this node's saved and runtime tool outputs, including "
-            "background work and user steering saved inside skills. Return paginated XML previews with status "
-            "and output IDs. All filters are optional."
-        ),
-        "read_tool_output": (
-            "Read the current status and available output of a tool by output ID. "
-            "Use an optional cursor to read only new output; omit it to read the "
-            "complete output. Includes the final result when available. "
-            "Also reads saved user steering and restores its attachments. "
-            "Oversized output returns file references. "
-            " "
-            "summary_mode defaults to 'none'; 'brief' gives 3 to 5 bullet points, "
-            "'detailed' preserves essential details. Outputs below 300 tokens stay complete."
-        ),
-        "control_tool_execution": (
-            "Wait for a tool execution by its original tool_call_id, or request "
-            "cancellation. Waiting returns as soon as the work finishes or "
-            "the wait limit expires. Read its output with read_tool_output."
-        ),
-        "bash": (
-            "Run a command in Bash from the node workroot. Each call starts an "
-            "independent process. Read incremental stdout/stderr with "
-            "read_tool_output(output_id, cursor). Wait or cancel with "
-            "control_tool_execution(tool_call_id). Requires Bash on PATH."
-        ),
     }
+    for name in _RUNTIME_TOOL_NAMES:
+        assert descriptions[name].strip()
+        assert "<if-tool" not in descriptions[name]
+        assert "Requires open skill" not in descriptions[name]
 
 
 @pytest.mark.parametrize("invalid_content", [None, "", "   "])

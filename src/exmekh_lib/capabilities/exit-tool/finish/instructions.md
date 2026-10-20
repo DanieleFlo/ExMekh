@@ -1,8 +1,13 @@
-When the current skill is complete, call {{!exit_agent}} with `text` and `items`.
-`text` is the useful result for the caller. `items` contains zero or more IDs of outputs saved during this skill invocation or its descendant skills. Use `items=[]` when full outputs are unnecessary.
+Call {{!exit_agent}} to close only this skill. Its inner transcript leaves active context:
+`text` must preserve the outcome, completed actions, essential facts/references and next step.
+Promote full outputs in `items` only when the caller needs their details now; otherwise use `items=[]`.
+For use inside a later skill, put the ID/path and purpose in `text` and retrieve there.
 
-Prefer the `saved-output-id`.<if-tool name="get_execution_history"> Find it with `get_execution_history`.</if-tool> You may also use a call ID if it identifies exactly one output. A memory tool without saved output cannot be included. Do not repeat an output in `items`.
+`items` accepts saved outputs only from this invocation or descendants. Prefer canonical
+`saved-output-id`; an unambiguous call ID is accepted. No duplicate aliases or unsaved memory reads.
+<if-tool name="get_execution_history">Find retrievable IDs with `get_execution_history`.</if-tool>
 
-To place an output within the text, use `{{output-id}}` and include its ID in `items`. The ID in the text and the ID in the list may be different IDs for the same output. Listed outputs without placeholders are appended at the end in `items` order as `<tool-output>` XML blocks.
+Place with `{{output-id}}` and list that output in `items` (either alias may identify the same record).
+Unplaced items append in list order as `<tool-output>` XML; large outputs stay file manifests.
 
-If `exit_agent` returns an error, the skill remains open. Correct the indicated IDs or placeholders and call the tool again. A valid call finishes only the current skill and returns control to the previous level.
+An exit error keeps the skill open: correct the arguments and retry the exit, not the completed work.

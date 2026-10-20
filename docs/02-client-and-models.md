@@ -34,10 +34,19 @@ All chat messages in `exmekh_lib` implement the [`Message`](../src/exmekh_lib/in
    - `content`: Text response string (if any).
    - `thinking`: Optional [`ModelThinking`](../src/exmekh_lib/core/models/model_thinking.py) containing reasoning/chain-of-thought tokens.
    - `tool_calls`: List of tool call specifications requested by the model.
-   - `usage`: Optional [`ModelUsage`](../src/exmekh_lib/core/models/model_usage.py) tracking prompt/completion tokens.
 4. **[`ToolMessage`](../src/exmekh_lib/core/models/tool_message.py)**: Contains the return output of a tool call, paired with `tool_call_id` and `tool_name`.
 5. **[`FunctionMessage`](../src/exmekh_lib/core/models/function_message.py)**: Legacy function result message.
 6. **[`StructuredAssistantMessage`](../src/exmekh_lib/core/models/structured_assistant_message.py)**: Wraps model responses when validated against a Pydantic schema via `call_structured`.
+
+`ProviderResponse` and `StructuredProviderResponse` expose optional
+[`ModelUsage`](../src/exmekh_lib/core/models/model_usage.py). Counts must be
+nonnegative integers or `None`; booleans are rejected. `get_total_tokens()` uses
+the reported total, including zero, or derives it when both input and output
+counts are known. Otherwise it returns `None`.
+
+An unfinished Responses completion raises `ProviderResponseIncompleteError`
+(a `RuntimeError` subclass), so callers can classify it without inspecting error
+text. Terminal streaming usage remains available before this error propagates.
 
 ---
 
@@ -196,13 +205,22 @@ The internal [`MessageHistory`](../src/exmekh_lib/core/models/history.py) enforc
 
 When streaming is enabled in `ClientRequest` or provider calls, a `ProviderEventHandler` instance receives each `ProviderStreamEvent` through its `handle` method.
 
+Provider decorators can use `ProviderRequest.with_system_message(text)`,
+`with_extra(mapping_or_none)`, `with_streaming(enabled)` and
+`with_event_handler(handler_or_none)` to copy a request without expanding its
+multimodal attachments twice. The copies preserve interactive handlers and
+structured-response contracts; replacing the system text requires a leading
+`SystemMessage`.
+
 ### Stream Event Types ([`ProviderStreamEventType`](../src/exmekh_lib/core/models/provider_stream_event.py))
 - `START`: Emitted when streaming begins.
 - `REASONING`: Emitted token-by-token during model reasoning/thinking phases.
 - `RESPONSE`: Emitted token-by-token during regular text content generation.
-- `TOOL_CALL`: Emitted when tool call definitions are generated.
-- `END`: Emitted when streaming completes normally.
-- `ERROR`: Emitted if an error occurs during streaming.
+- `TOTALS`: Provider token usage, including failed or incomplete Responses terminals
+  when the provider supplies it. Observers can retain this even if parsing raises.
+- `END`: End-of-stream notification; provider errors still propagate to the caller.
+- `INTERACTIVE`: Structured interactive-protocol control metadata.
+- `STEERING_ADDED`: A steering user message committed to the current history.
 
 ```python
 from exmekh_lib.core.models.provider_stream_event import (

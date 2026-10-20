@@ -1,6 +1,9 @@
+import pytest
 from openai.types.responses import (
     Response,
     ResponseCompletedEvent,
+    ResponseFailedEvent,
+    ResponseIncompleteEvent,
     ResponseReasoningSummaryTextDeltaEvent,
     ResponseReasoningTextDeltaEvent,
     ResponseTextDeltaEvent,
@@ -53,3 +56,17 @@ def test_map_event_maps_completed_usage() -> None:
 
 def test_map_event_ignores_unrelated_events() -> None:
     assert FromOpenAIResponseStreamMapper.map_event(object()) == []
+
+
+@pytest.mark.parametrize("event_type", [ResponseFailedEvent, ResponseIncompleteEvent])
+def test_terminal_failure_keeps_usage_visible(event_type):
+    response = Response.model_construct(
+        usage=ResponseUsage.model_construct(
+            input_tokens=2, output_tokens=3, total_tokens=5
+        )
+    )
+    mapped = FromOpenAIResponseStreamMapper.map_event(
+        event_type.model_construct(response=response)
+    )
+    assert mapped[0].type is ProviderStreamEventType.TOTALS
+    assert mapped[0].usage.total_tokens == 5

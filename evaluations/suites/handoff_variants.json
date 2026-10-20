@@ -1,0 +1,7 @@
+[
+  {"id": "current"},
+  {
+    "id": "handoff",
+    "system_addendum": "Each skill is a scope of this same agent. Verify within that scope; after exiting, reuse its verified results. Retrieve cited evidence if a specific gap remains; do not repeat completed verification."
+  }
+]

@@ -41,12 +41,11 @@ class FileEditingSettings:
     document_description: str = (
         'One string: <exmekh_edit path="file.txt" id="123" />old text'
         '<exmekh_new_text id="123"/>new text. The server supplies the opening ID; '
-        "copy it into the separator. An omitted ID is accepted only with unambiguous framing. "
-        "Both bodies are literal text, with exact whitespace and newlines; no CDATA or XML entity decoding. "
-        "New text ends at the end of the string or the next edit opening with a fresh ID. "
-        "Empty new text removes the selection but keeps the file. To insert, retain an existing "
-        "anchor in the replacement and add text before or after it. For an empty existing file, "
-        "use an empty old body. No line, range, all, create or delete commands."
+        "copy it into the separator; omit IDs only for unambiguous framing. "
+        "Bodies are exact literal text: preserve whitespace/newlines; no entity or CDATA decoding. "
+        "Append edits with fresh IDs; new text ends at the next opening or string end. "
+        "Empty new text removes the selection, not the file. Insert by retaining an anchor "
+        "in new text. Empty old text requires an existing empty file. No command tags."
     )
 
     noneditable_inspection: str = (
@@ -146,26 +145,19 @@ class FileEditingSettings:
     @property
     def description(self) -> str:
         return (
-            "Edit existing workspace text files synchronously. Inspect and subsequently read "
-            "unchanged content first; both results must remain visible. Each path is authorized "
-            "before body generation. All selections refer to one initial snapshot; any rejected "
-            "resource invalidates the entire call. Encoding/BOM and concurrency checks are preserved. "
+            "Replace literal selections in existing text files. Requires visible inspect then read "
+            "of unchanged content. Select unique text from line start, including indentation; "
+            "initial-snapshot selections cannot overlap. Rejected resources prevent writes. "
             f'<if-tool name="{DEFAULT_CAPABILITIES.new_file}" scope="selected">'
             f"Use {DEFAULT_CAPABILITIES.new_file} to create a file.</if-tool> "
             f'<if-tool name="{DEFAULT_CAPABILITIES.delete_file}" scope="selected">'
             f"Use {DEFAULT_CAPABILITIES.delete_file} to remove a file.</if-tool> "
-            + self.document_description
         )
 
     delete_file_description: str = (
-        "Delete files and directories inside the workroot. Requires paths, a nonempty "
-        "list of paths relative to the workroot. Detects files and directories "
-        "automatically; directories and their contents are removed recursively "
-        "without following nested symbolic links. Top-level symbolic links are rejected. The workroot itself cannot be "
-        "deleted. Processes paths in order and continues after failures. Returns "
-        "ok and ordered results, each with its input path and success or error "
-        "details; ok is true only if every path succeeded. No prior inspection or "
-        "reading is required; file contents are not decoded."
+        "Delete a nonempty list of workroot-relative paths; directories are recursive. "
+        "Reject the workroot and directly named symlinks; never follow nested symlinks. "
+        "No inspect/read required. Ordered per-path results; failures keep earlier effects."
     )
 
     argument_guidance: str = (
@@ -176,19 +168,20 @@ class FileEditingSettings:
     @property
     def new_file_description(self) -> str:
         return (
-            "Create files and directories inside the workroot using one document string: "
+            "Create absent files/directories in order; parents must exist or be created earlier. "
+            "No inspect/read or overwrite. Per-entry errors preserve successes; retry only failures."
+        )
+
+    @property
+    def new_document_description(self) -> str:
+        return (
             '<new-exmekh-dir path="folder"/><new-exmekh-file path="folder/file.txt"/>content. '
-            "Each body ends at the next reserved new-exmekh-file or new-exmekh-dir opening "
-            "prefix, or the end of the string. File bodies are literal text, without "
-            "trimming, entity decoding or added newlines, and must contain at least "
-            f"{self.min_new_file_characters} Unicode characters. Only path attributes "
-            "are entity-decoded. Directory bodies are ignored with a warning. "
-            "Use self-closing markers with double-quoted paths; no closing tags. "
-            "Process in order: parents must already exist or be created earlier. "
-            f"An existing path is an error; {DEFAULT_CAPABILITIES.new_file} never overwrites. "
-            "Return ok and ordered results with per-entry errors/warnings; continue "
-            "after errors without rollback. Retry only failed entries. "
-            "No prior inspection or reading is required."
+            "Self-closing markers have only a double-quoted path, entity-decoded. "
+            "Each body ends at the next reserved new-exmekh-file/new-exmekh-dir opening prefix "
+            "or string end; no closing tags or escaping those prefixes. "
+            f"File bodies need >={self.min_new_file_characters} Unicode characters, "
+            "preserved literally without trimming, entity decoding or added newlines. "
+            "Directory bodies are ignored with warnings."
         )
 
 

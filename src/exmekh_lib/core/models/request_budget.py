@@ -1,7 +1,7 @@
 """A caller-supplied context capacity and estimator for complete requests."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from exmekh_lib.config.history_compaction import HISTORY_COMPACTION
 from exmekh_lib.core.models.provider_request import ProviderRequest
@@ -16,15 +16,25 @@ class ContextBudgetExceededError(RuntimeError):
 class RequestBudget:
     capacity: int
     count_tokens: Callable[[ProviderRequest], int]
+    response_reserve: int | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
         if type(self.capacity) is not int or self.capacity <= 0:
             raise ValueError(HISTORY_COMPACTION.invalid_budget)
+        if self.response_reserve is not None and (
+            type(self.response_reserve) is not int
+            or not 0 <= self.response_reserve < self.capacity
+        ):
+            raise ValueError(HISTORY_COMPACTION.invalid_response_reserve)
 
     @property
     def prompt_limit(self) -> int:
         # Keep generation room even when a tool batch jumps across the threshold.
-        reserve = min(HISTORY_COMPACTION.response_reserve_tokens, self.capacity // 8)
+        reserve = self.response_reserve
+        if reserve is None:
+            reserve = min(
+                HISTORY_COMPACTION.response_reserve_tokens, self.capacity // 8
+            )
         return self.capacity - reserve
 
     def fits(self, request: ProviderRequest) -> bool:

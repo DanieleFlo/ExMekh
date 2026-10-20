@@ -140,89 +140,73 @@ class RuntimeSettings:
     def harness_output_guidance(self) -> str:
         return (
             "<harness-output-guidance>\n"
-            "When finishing a skill, put in items only the IDs of complete outputs "
-            "that the caller needs to read immediately. Prefer the saved-output-id shown "
-            "in the history; a call ID is accepted if it is unambiguous. "
+            "Here, open a skill with a tool call using its exact name; reading a file "
+            "does not open it. Skill-only tools require an open skill exposing them; "
+            "after exit, only the restored caller's tools are allowed.\n"
+            "Finish the scoped work, then call the configured exit tool to close one "
+            "level. At root, answer the user. Exit replaces the inner transcript with "
+            "the returned result: carry outcome, completed actions, essential facts, "
+            "references and next step in text. Reopening starts a new invocation; "
+            "reuse completed work instead of repeating it.\n"
+            "Plan for the next consumer: promote saved output IDs in items only if "
+            "the caller needs their full details immediately. If concise text suffices, "
+            "use items=[]. If another skill will use the details, return their ID/path "
+            "and purpose in text, use items=[], and retrieve them there. "
             f'<if-tool name="{self.read_tool_name}">'
-            "If a later skill needs the result, provide only its ID in text "
-            f"and retrieve it with {self.read_tool_name}; avoid repeating full output. "
-            "</if-tool>Use items=[] when text alone is enough.\n"
-            "Tools exposing execution_mode accept 'wait' (default) or 'background'. "
-            f"Wait returns the result if ready within wait_seconds (default {self.default_tool_wait_seconds:g}, "
-            f"greater than 0 and at most {self.max_tool_wait_seconds:g}); otherwise the work continues. "
-            "Background returns immediately. Null execution options use defaults. "
-            "External user steering may release a wait early; the work still continues. "
-            "Skill navigation and harness control/read tools stay synchronous. "
-            f'<if-tool name="{self.sub_agent_tool_name}">'
-            f"{self.sub_agent_tool_name} stays synchronous and waits until the child finishes."
-            "</if-tool>\n"
-            "A running response provides the original tool_call_id and output_id. "
-            f'<if-tool name="{self.execution_tool_name}">'
-            f"Use {self.execution_tool_name}(tool_call_id, action='wait', "
-            f"wait_seconds={self.default_tool_wait_seconds:g}) to wait again or action='cancel' to request supported "
-            "cancellation; a wait limit never stops the work.</if-tool> "
-            f'<if-tool name="{self.read_tool_name}">'
-            f"Use {self.read_tool_name}(output_id) from any scope of this node for "
-            "status, timings and available output. Use its next-cursor for incremental "
-            "reads when supported.</if-tool> Check response-type for running, partial, final, "
-            "failed or cancelled; a failed execution differs from a valid result "
-            "reporting failure.\n"
-            "Headers include current-time in UTC to the second, refreshed on each "
-            "reply. Execution duration is elapsed, using h, m and s with at most "
-            "one decimal place; reading again preserves the original duration.\n"
-            f'<if-tool name="{self.read_tool_name}">'
-            "Read summaries with summary_mode='brief' (3 to 5 bullet points) or "
-            "'detailed' (essential details); 'none' returns full output by default. "
-            f"Content below {self.tool_output_summary_min_tokens} tokens stays complete. "
-            "Summaries preserve status, elapsed, IDs and next-cursor; "
-            "read again with 'none' when exact details are needed.</if-tool>\n"
-            "Large tool output text is replaced with temporary file references. "
-            f'<if-tool name="{DEFAULT_CAPABILITIES.read_file}" scope="reachable">'
-            f"Read those files with {DEFAULT_CAPABILITIES.read_file}; enter a skill exposing it if necessary.</if-tool> "
-            "Output retrieval and exit items return the references. Multiline output "
-            "uses one file. A single oversized physical line is split at the "
-            "configured token limit; read its listed files in order. Files live "
-            "for the cache session, including outputs with cache_result=False.\n"
+            f"{self.read_tool_name}(output_id) retrieves results and saved steering "
+            "with attachments across scopes of this node; prefer canonical output IDs. "
+            "</if-tool>"
             f'<if-tool name="{self.search_tool_name}">'
-            f"Use {self.search_tool_name} to find saved and runtime outputs, including "
-            "background work, by text, tool name or skill path. Search returns IDs, "
-            "status and previews; a preview does not acknowledge final delivery.</if-tool>\n"
-            "User steering inserted inside a skill is saved as a UserMessage output. "
-            "Its ID appears in execution history and the skill's used-tools. "
+            f"{self.search_tool_name} locates saved/running outputs; previews are not full evidence."
+            "</if-tool>\n"
+            "Tools exposing execution_mode accept 'wait' (default) or 'background' "
+            "(return immediately). wait_seconds defaults to "
+            f"{self.default_tool_wait_seconds:g}, >0 and <={self.max_tool_wait_seconds:g}; "
+            "null uses defaults. Wait expiry or user steering leaves work running. "
+            "Skill navigation and control/read tools stay synchronous. "
+            f'<if-tool name="{self.sub_agent_tool_name}">'
+            f"{self.sub_agent_tool_name} waits for a direct child's final answer; "
+            "that child has separate history and output IDs."
+            "</if-tool>\n"
+            "Keep running work's original tool_call_id and output_id. "
+            f'<if-tool name="{self.execution_tool_name}">'
+            f"{self.execution_tool_name} uses tool_call_id to wait (action='wait') "
+            "or request supported cancellation (action='cancel'); it does not read output. "
+            "</if-tool>"
             f'<if-tool name="{self.read_tool_name}">'
-            f"Retrieve it with {self.read_tool_name} after compaction to restore text and attachments.</if-tool>\n"
-            f'<if-tool name="{self.read_tool_name}">'
-            "Completed background output is read automatically at a safe history "
-            "boundary only in the exact skill instance that started it. After exiting "
-            "a skill, keep its output_id and read it explicitly; reopening the skill "
-            "does not restore that instance. A final manual read prevents duplicate "
-            "automatic delivery.</if-tool> Transient outputs live only in this runtime; "
-            "background work is not resumed after a runtime restart.\n"
-            "The user can send you steering messages to better guide your work."
+            "Read by output_id; use next-cursor for supported incremental reads. "
+            "Final reads suppress duplicate automatic delivery, which occurs only in "
+            "the original scope instance; after exit, read explicitly. "
+            "</if-tool>"
+            "Transient outputs expire with the runtime; jobs do not resume after restart.\n"
+            "Large outputs return temporary file manifests, also on retrieval or in items. "
+            f'<if-tool name="{DEFAULT_CAPABILITIES.read_file}" scope="reachable">'
+            f"Enter a skill exposing {DEFAULT_CAPABILITIES.read_file} if needed; "
+            "inspect and read listed files in order. "
+            "</if-tool>"
+            "Check status and domain results separately: final does not mean success. "
+            "Before retrying failed or partially delivered work, check effects already applied."
             "</harness-output-guidance>"
         )
 
     @property
     def bash_description(self) -> str:
         return (
-            "Run a command in Bash from the node workroot. Each call starts an "
-            "independent process. "
+            "Run Bash in the workroot; each call starts a fresh shell. Requires Bash on PATH. "
             f'<if-tool name="{self.read_tool_name}">'
-            f"Read incremental stdout/stderr with {self.read_tool_name}(output_id, cursor).</if-tool> "
+            f"Read stdout/stderr with {self.read_tool_name}(output_id, cursor). "
+            "</if-tool>"
             f'<if-tool name="{self.execution_tool_name}">'
-            f"Wait or cancel with {self.execution_tool_name}(tool_call_id).</if-tool> Requires Bash on PATH."
+            f"Wait/cancel with {self.execution_tool_name}(tool_call_id).</if-tool>"
         )
 
-    call_sub_agent_description: str = (
-        "Send a user message to one direct sub-agent and return its final response."
-    )
+    call_sub_agent_description: str = "Delegate text to one direct child; wait for its final answer. History and output IDs are separate."
 
     @property
     def control_tool_execution_description(self) -> str:
         return (
-            "Wait for a tool execution by its original tool_call_id, or request "
-            "cancellation. Waiting returns as soon as the work finishes or "
-            "the wait limit expires. "
+            "Wait or request cancellation by original tool_call_id. Wait expiry leaves "
+            "work running; unsupported cancellation does not stop it. Returns status/output_id. "
             f'<if-tool name="{self.read_tool_name}">'
             f"Read its output with {self.read_tool_name}.</if-tool>"
         )
@@ -230,30 +214,23 @@ class RuntimeSettings:
     @property
     def get_execution_history_description(self) -> str:
         return (
-            "Return navigable XML history of capability calls and saved user steering. Omit "
-            "start_position for a head-and-tail overview, or use a "
-            f"1-based position and limit from {self.history_min_page_limit} "
-            f"to {self.memory_max_page_limit} to read a page."
+            "List this node's calls, saved steering and retrievable output IDs. "
+            "Omit start_position for overview; otherwise page from a 1-based position "
+            f"with limit {self.history_min_page_limit}-{self.memory_max_page_limit}."
         )
 
     @property
     def read_tool_output_description(self) -> str:
         return (
-            "Read the current status and available output of a tool by "
-            "output ID. Use an optional cursor to read only new output; "
-            "omit it to read the complete output. Includes the final "
-            "result when available. Also reads saved user steering and restores its attachments. "
-            "Oversized output returns file references. "
-            f'<if-tool name="{DEFAULT_CAPABILITIES.read_file}" scope="reachable">'
-            f"Use {DEFAULT_CAPABILITIES.read_file} to read their text; enter a skill exposing it if necessary.</if-tool> "
-            "summary_mode defaults to 'none'; 'brief' gives 3 to 5 bullet points, "
-            f"'detailed' preserves essential details. Outputs below {self.tool_output_summary_min_tokens} tokens stay complete."
+            "Read this node's status/output or saved steering by output_id, restoring attachments. "
+            "Omit cursor for full output; otherwise pass next-cursor for new data. "
+            "summary_mode: none (exact, default), brief (3-5 points), detailed (essential details); "
+            f"below {self.tool_output_summary_min_tokens} tokens stays exact. Large output returns file paths."
         )
 
     search_tool_outputs_description: str = (
-        "Search this node's saved and runtime tool outputs, including background work "
-        "and user steering saved inside skills. Return paginated XML previews with "
-        "status and output IDs. All filters are optional."
+        "Find this node's saved/running outputs and steering. Returns paginated previews, "
+        "status and output IDs; optional text, tool-name and exact skill-path filters."
     )
 
 

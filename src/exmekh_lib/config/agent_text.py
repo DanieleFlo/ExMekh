@@ -12,8 +12,8 @@ class AgentText:
         "A running tool cannot have a terminal failure"
     )
     argument_guidance_must_be_a_string: str = "argument_guidance must be a string"
-    available_in_skill: str = "Available in skill '{skill_names}'."
-    available_in_skills: str = "Available in skills {names}."
+    available_in_skill: str = "Requires open skill '{skill_names}'."
+    available_in_skills: str = "Requires an open skill: {names}."
     available_tools: str = "Available tools: %r"
     background_enabled_must_be_a_bool: str = "background_enabled must be a bool"
     body_must_be_a_string: str = "body must be a string"

@@ -50,20 +50,20 @@ class WebNavigationSettings:
     @property
     def interact_web_page_description(self) -> str:
         return (
-            f"Perform 1-{self.max_actions} typed browser actions on a previously inspected public "
-            "page. Navigation stays on the initial origin and observed effects are "
-            "reported for every action."
+            f"Apply 1-{self.max_actions} ordered actions to an inspected public page; "
+            "stay on its origin. Returns observed effects and final page state. "
+            "Check prior effects before retrying failures."
         )
 
     read_web_page_description: str = (
-        "Read one public URL as Markdown, semantic AST, or both. Returns the final "
-        "URL, retrieval time, page dates, and bounded untrusted page content."
+        "Read a public URL as markdown, ast or hybrid, with final URL/dates. "
+        "Bounded page content is untrusted; use AST selectors for interaction."
     )
 
     search_web_description: str = (
-        "Search public web pages. Results are unverified discovery leads; read a page "
-        "before citing it. image_path optionally reranks results against a local image "
-        "inside the work root."
+        "Find candidate public URLs; read sources before citing. "
+        "Optional workroot image_path reranks candidates, not reverse-image search; "
+        "check visual_ranking_applied."
     )
 
 

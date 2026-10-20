@@ -1,6 +1,6 @@
 ---
 description: >-
-  Investigate difficult questions.
+  Open a scope for checked research and reasoning.
   <if-tool name="search-web">Search web evidence.</if-tool>
   <if-tool name="read-web-page">Read web sources.</if-tool>
   <if-tool name="interact-web-page">Interact with web pages.</if-tool>
@@ -23,8 +23,8 @@ optional-sub-tools:
 ---
 # Deep Thinking
 
-Use the smallest tool that can check the next uncertain claim. State assumptions,
-seek counterexamples, and separate observed facts from inferences.
+Check the next uncertain claim with the smallest available tool. State assumptions,
+seek counterexamples and distinguish observations from inference; hand off findings and references.
 
 <if-tool name="read-file" scope="direct">
 Use `inspect-file` to identify relevant regions of local evidence, then `read-file`

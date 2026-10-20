@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from openai.types.responses import (
     ResponseCompletedEvent,
+    ResponseFailedEvent,
+    ResponseIncompleteEvent,
     ResponseReasoningSummaryTextDeltaEvent,
     ResponseReasoningTextDeltaEvent,
     ResponseStreamEvent,
@@ -39,7 +41,10 @@ class FromOpenAIResponseStreamMapper:
                 )
             ]
 
-        if isinstance(event, ResponseCompletedEvent):
+        if isinstance(
+            event,
+            (ResponseCompletedEvent, ResponseFailedEvent, ResponseIncompleteEvent),
+        ):
             return [
                 ProviderStreamEvent(
                     ProviderStreamEventType.TOTALS,
