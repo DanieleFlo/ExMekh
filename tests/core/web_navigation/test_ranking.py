@@ -26,7 +26,7 @@ def test_visual_ranking_uses_injected_embeddings() -> None:
     from PIL import Image  # noqa: PLC0415
 
     from exmekh_lib.core.web_navigation.ranking import (  # noqa: PLC0415
-        compute_siglip_ranking,
+        compute_multimodal_ranking,
     )
 
     class FakeBackend:
@@ -40,7 +40,7 @@ def test_visual_ranking_uses_injected_embeddings() -> None:
         {"title": "first", "url": "https://example.org/first", "snippet": ""},
         {"title": "second", "url": "https://example.org/second", "snippet": ""},
     ]
-    ranking, image_urls = compute_siglip_ranking(
+    ranking, image_urls = compute_multimodal_ranking(
         "topic",
         results,
         local_image=Image.new("RGB", (2, 2)),
@@ -56,7 +56,7 @@ def test_injected_embedding_backends_do_not_share_cached_vectors() -> None:
     from PIL import Image  # noqa: PLC0415
 
     from exmekh_lib.core.web_navigation.ranking import (  # noqa: PLC0415
-        compute_siglip_ranking,
+        compute_multimodal_ranking,
     )
 
     class Backend:
@@ -74,14 +74,14 @@ def test_injected_embedding_backends_do_not_share_cached_vectors() -> None:
         {"title": "second", "url": "https://cache-test.example/second", "snippet": ""},
     ]
     image = Image.new("RGB", (3, 3), "magenta")
-    first, _ = compute_siglip_ranking(
+    first, _ = compute_multimodal_ranking(
         "topic",
         results,
         local_image=image,
         discovered_images=[],
         backend=Backend([[0.0, 1.0], [1.0, 0.0]]),
     )
-    second, _ = compute_siglip_ranking(
+    second, _ = compute_multimodal_ranking(
         "topic",
         results,
         local_image=image,

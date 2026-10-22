@@ -8,9 +8,13 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
+from ddgs import DDGS
+from ddgs.exceptions import DDGSException
+
 from exmekh_lib.config.web import WEB_NAVIGATION
 from exmekh_lib.config.web_text import WEB_TEXT
 
+from . import image_discovery, ranking
 from .errors import WebNavigationError
 
 if TYPE_CHECKING:
@@ -30,7 +34,6 @@ def search_web(
     timeout_seconds: int = WEB_NAVIGATION.default_timeout_seconds,
 ) -> dict[str, object]:
     """Search several non-Google providers and return bounded candidate pages."""
-    from .ranking import rank_results  # noqa: PLC0415 - optional search extra
 
     normalized_query = _validate_search_arguments(
         query=query,
@@ -38,7 +41,7 @@ def search_web(
         timeout_seconds=timeout_seconds,
     )
     candidates = _retrieve_candidates(normalized_query, timeout_seconds=timeout_seconds)
-    ranked = rank_results(normalized_query, candidates)
+    ranked = ranking.rank_results(normalized_query, candidates)
     return _build_search_payload(
         query=normalized_query,
         candidates=candidates,
@@ -54,12 +57,7 @@ def search_web_multimodal(
     max_results: int = WEB_NAVIGATION.default_search_results,
     timeout_seconds: int = WEB_NAVIGATION.default_timeout_seconds,
 ) -> dict[str, object]:
-    """Search with text discovery and an optional SigLIP2 visual reranking stage."""
-    from .image_discovery import (  # noqa: PLC0415
-        IMAGE_CANDIDATE_LIMIT,
-        discover_result_images,
-    )
-    from .ranking import compute_siglip_ranking, rank_results  # noqa: PLC0415
+    """Search with text discovery and an optional native visual reranking stage."""
 
     normalized_query = _validate_search_arguments(
         query=query,
@@ -67,9 +65,11 @@ def search_web_multimodal(
         timeout_seconds=timeout_seconds,
     )
     candidates = _retrieve_candidates(normalized_query, timeout_seconds=timeout_seconds)
-    preliminary = rank_results(normalized_query, candidates)
-    selected_indices = [index for index, _ in preliminary[:IMAGE_CANDIDATE_LIMIT]]
-    discovered_images = discover_result_images(
+    preliminary = ranking.rank_results(normalized_query, candidates)
+    selected_indices = [
+        index for index, _ in preliminary[: image_discovery.IMAGE_CANDIDATE_LIMIT]
+    ]
+    discovered_images = image_discovery.discover_result_images(
         candidates,
         selected_indices,
         timeout_seconds=timeout_seconds,
@@ -77,18 +77,20 @@ def search_web_multimodal(
     image_urls: dict[int, str] = {}
     visual_ranking_applied = False
     try:
-        image_ranking, image_urls = compute_siglip_ranking(
+        image_ranking, image_urls = ranking.compute_multimodal_ranking(
             normalized_query,
             candidates,
             local_image=local_image,
             discovered_images=discovered_images,
         )
     except Exception as error:  # noqa: BLE001 - visual ranking is an optional signal.
-        _LOGGER.warning(WEB_TEXT.siglip2_visual_ranking_unavailable, error)
+        _LOGGER.warning(WEB_TEXT.native_visual_ranking_unavailable, error)
         ranked = preliminary
     else:
         visual_ranking_applied = True
-        ranked = rank_results(normalized_query, candidates, image_ranking=image_ranking)
+        ranked = ranking.rank_results(
+            normalized_query, candidates, image_ranking=image_ranking
+        )
     return _build_search_payload(
         query=normalized_query,
         candidates=candidates,
@@ -137,8 +139,6 @@ def _retrieve_candidates(
     normalized_query: str, *, timeout_seconds: int
 ) -> list[dict[str, object]]:
     """Retrieve, normalize, and deduplicate the complete DDGS candidate pool."""
-    from ddgs import DDGS  # noqa: PLC0415 - optional search extra
-    from ddgs.exceptions import DDGSException  # noqa: PLC0415
 
     try:
         raw_results = DDGS(timeout=timeout_seconds).text(

@@ -1,13 +1,16 @@
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
 from exmekh_lib.core.agents.deep_skill import execution as execution_module
 from exmekh_lib.core.agents.deep_skill.deep_skill import DeepSkill
 from exmekh_lib.core.agents.deep_skill.execution import DeepSkillExecutionTracker
 from exmekh_lib.core.agents.deep_skill.metadata import DeepSkillMetadata
 from exmekh_lib.core.models.assistant_message import AssistantMessage
+from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
+from exmekh_lib.core.models.user_message import ImagesUserMessage, UserMessage
 
 
 def _skill(name: str) -> DeepSkill:
@@ -23,6 +26,21 @@ def _skill(name: str) -> DeepSkill:
         body=f"{name} body",
         references=(),
     )
+
+
+def test_closed_skill_history_keeps_generated_tool_images():
+    tracker = DeepSkillExecutionTracker()
+    execution = tracker.open(_skill("images"), "open-images", 0)
+    message = ToolMessage(
+        "generated",
+        "image-call",
+        "generate-image",
+        attachments=UserMessage(ImagesUserMessage([Image.new("RGB", (32, 32), "red")])),
+    )
+    tracker.close(end_index=1, output="done", history=[message])
+    payload = execution.history_tree()["history"][0]["attachments"]
+    assert payload["parts"][0]["type"] == "image"
+    assert payload["parts"][0]["data"].startswith("data:image/png;base64,")
 
 
 def test_tracks_nested_executions_and_copies_skills() -> None:

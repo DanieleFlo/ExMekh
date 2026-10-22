@@ -6,11 +6,13 @@ from typing import Literal, Self
 from urllib.parse import urlparse
 
 import openai
+from httpx2 import Client as HTTPClient
 from openai import OpenAI
 from pydantic import BaseModel
 
 from exmekh_lib.config.provider import DEFAULT_PROVIDER_SETTINGS
 from exmekh_lib.config.provider_text import PROVIDER_TEXT
+from exmekh_lib.core.models.native_suite import NativeSuiteClient
 from exmekh_lib.core.models.provider_request import ProviderRequest
 from exmekh_lib.core.models.provider_response import ProviderResponse
 from exmekh_lib.core.models.reasoning_effort import ReasoningEffort
@@ -41,6 +43,7 @@ class LocalProvider(Provider):
         *,
         api_key: str | None = None,
         base_url: str | None = None,
+        http_client: HTTPClient | None = None,
     ) -> None:
         super().__init__(
             tokenizer=tokenizer if tokenizer is not None else QwenTokenizer()
@@ -50,6 +53,7 @@ class LocalProvider(Provider):
         self._base_url_env_var = base_url_env_var
         self._api_key = api_key
         self._base_url = base_url
+        self._http_client = http_client
         self._reasoning_effort = reasoning_effort
         self._api = api
 
@@ -112,8 +116,10 @@ class LocalProvider(Provider):
     def _build_client(self) -> OpenAI:
         api_key = self._resolve_api_key()
         base_url = self._resolve_base_url()
-        client = OpenAI(api_key=api_key, base_url=base_url)
-        return client
+        return OpenAI(api_key=api_key, base_url=base_url, http_client=self._http_client)
+
+    def native_suite(self) -> NativeSuiteClient:
+        return NativeSuiteClient(self.client)
 
     def _resolve_api_key(self) -> str:
         api_key = (
@@ -172,6 +178,10 @@ class LocalProvider(Provider):
             raise TypeError(PROVIDER_TEXT.provider_model_catalog_data_must_be_a_list)
 
         for model in model_data:
+            capabilities = getattr(model, "ds4", None)
+            if isinstance(capabilities, dict) and "operations" in capabilities:
+                if "chat" not in capabilities["operations"]:
+                    continue
             model_id = getattr(model, "id", None)
             if not isinstance(model_id, str) or not model_id.strip():
                 raise RuntimeError(

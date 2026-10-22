@@ -97,6 +97,7 @@ def test_loads_builtin_assistant_capabilities(tmp_path: Path) -> None:
         "file-processing",
     }
     assert {tool.name for tool in capabilities.tools} == {
+        "generate-image",
         "calculate",
         "date-time",
         "inspect-file",
@@ -118,7 +119,7 @@ def test_loads_builtin_assistant_capabilities(tmp_path: Path) -> None:
         "deep-thinking",
         "file-processing",
     )
-    assert main_hds.get_sub_tool_names() == ()
+    assert main_hds.get_sub_tool_names() == ("generate-image",)
     assert main_hds.get_exit_tool_name() == "exit_agent"
 
 

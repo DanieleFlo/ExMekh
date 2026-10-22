@@ -5,9 +5,11 @@ from collections import Counter
 from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import Any
 
 from exmekh_lib.config.model_text import MODEL_TEXT
 from exmekh_lib.core.models.assistant_message import AssistantMessage, ToolCall
+from exmekh_lib.core.models.message_snapshot import snapshot_message
 from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.interfaces.message import Message
 
@@ -215,5 +217,5 @@ class MessageHistory:
                 retained.append(message)
         self.replace_from(0, list(reversed(retained)))
 
-    def dump_history(self) -> list[dict[str, str]]:
-        return [message.message_dump() for message in self._history]
+    def dump_history(self) -> list[dict[str, Any]]:
+        return [snapshot_message(message) for message in self._history]

@@ -8,6 +8,7 @@ from xml.etree import ElementTree as ET
 
 from pydantic import BaseModel
 
+from exmekh_lib.core.agents.capabilities.defaults import DefaultCapabilities
 from exmekh_lib.core.agents.deep_agent.deep_agent import DeepAgent
 from exmekh_lib.core.agents.node import Node
 from exmekh_lib.core.models.assistant_message import AssistantMessage
@@ -61,12 +62,20 @@ def capture_prompts(
 ) -> PromptBundle:
     """Use the real node composition, contextual descriptions and skill catalogs."""
     provider = PromptCaptureProvider()
+    # Keep the tool set paired with the frozen 2026-10-20 baseline. New media
+    # capabilities have separate acceptance tests, outside this prompt study.
+    defaults = DefaultCapabilities(
+        include={"main"},
+        exclude={
+            "generate-image",
+        },
+    )
     child = Node(
-        name_hds="main", default_capabilities=True, agent_context_id="capture-child"
+        name_hds="main", default_capabilities=defaults, agent_context_id="capture-child"
     )
     node = Node(
         name_hds="main",
-        default_capabilities=True,
+        default_capabilities=defaults,
         children=[child],
         agent_context_id="capture-root",
     )

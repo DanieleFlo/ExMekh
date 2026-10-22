@@ -87,9 +87,7 @@ class WebText:
     only_jpeg_png_and_webp_images_are_supported: str = (
         "Only JPEG, PNG, and WebP images are supported."
     )
-    openvino_granite_semantic_ranking_unavailable: str = (
-        "OpenVINO Granite semantic ranking unavailable: %s"
-    )
+    native_semantic_ranking_unavailable: str = "Native semantic ranking unavailable: %s"
     output_mode_must_be_markdown_ast_or_hybrid: str = (
         "output_mode must be markdown, ast, or hybrid."
     )
@@ -115,7 +113,7 @@ class WebText:
     search_query_must_be_a_non_empty_string: str = (
         "Search query must be a non-empty string."
     )
-    siglip2_visual_ranking_unavailable: str = "SigLIP2 visual ranking unavailable: %s"
+    native_visual_ranking_unavailable: str = "Native visual ranking unavailable: %s"
     the_file_does_not_contain_a_valid_supported_image: str = (
         "The file does not contain a valid supported image."
     )

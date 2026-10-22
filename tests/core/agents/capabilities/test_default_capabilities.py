@@ -46,6 +46,9 @@ DEEP_THINKING_TOOLS = {
     "logic-consistency",
     "logic-counterexample",
 }
+NATIVE_MEDIA_TOOLS = {
+    "generate-image",
+}
 
 
 def test_runtime_tool_sources_use_the_bundled_tools_directory(tmp_path: Path) -> None:
@@ -336,7 +339,9 @@ def test_harness_defaults_support_an_application_hds_with_real_tools(
         "deep-thinking",
         "file-processing",
     }
-    assert {tool.name for tool in loaded.tools} == DEEP_THINKING_TOOLS | {
+    assert {
+        tool.name for tool in loaded.tools
+    } == DEEP_THINKING_TOOLS | NATIVE_MEDIA_TOOLS | {
         "inspect-file",
         "read-file",
         "edit-file",
@@ -374,7 +379,7 @@ def test_main_selection_works_without_application_paths_and_deduplicates_builtin
             "deep-thinking",
             "file-processing",
         }
-    assert len(loaded.tools) == 13
+    assert len(loaded.tools) == 14
 
 
 @pytest.mark.parametrize("paths", [None, []])
@@ -386,7 +391,9 @@ def test_node_uses_bundled_path_when_no_paths_are_supplied(
     loaded = node.load_capabilities(work_root=tmp_path)
 
     assert {resource.name for resource in loaded.hds} == {"main"}
-    assert {tool.name for tool in loaded.tools} == DEEP_THINKING_TOOLS | {
+    assert {
+        tool.name for tool in loaded.tools
+    } == DEEP_THINKING_TOOLS | NATIVE_MEDIA_TOOLS | {
         "inspect-file",
         "read-file",
         "edit-file",
@@ -403,7 +410,7 @@ def test_direct_capabilities_loader_adds_bundled_path_once(tmp_path: Path) -> No
             work_root=tmp_path
         )
         assert {hds.name for hds in loaded.hds} == {"main"}
-    assert len(loaded.tools) == 13
+    assert len(loaded.tools) == 14
 
 
 def test_direct_capabilities_loader_uses_bundled_path_when_paths_are_none(
@@ -681,7 +688,7 @@ def test_excluding_memory_readers_preserves_internal_cache(tmp_path: Path) -> No
         "file-processing",
         "control_tool_execution",
         "bash",
-    } | DEEP_THINKING_TOOLS | {
+    } | DEEP_THINKING_TOOLS | NATIVE_MEDIA_TOOLS | {
         "inspect-file",
         "read-file",
         "edit-file",
@@ -783,7 +790,10 @@ def test_application_tool_override_uses_names_from_every_capabilities_path(
     assert defaults.overrides["first-tool"] == ToolOverride("first-tool", "second-tool")
 
     tools = {tool.name: tool for tool in loaded.tools}
-    assert set(tools) == {"first-tool", "second-tool"} | DEEP_THINKING_TOOLS | {
+    assert set(tools) == {
+        "first-tool",
+        "second-tool",
+    } | DEEP_THINKING_TOOLS | NATIVE_MEDIA_TOOLS | {
         "inspect-file",
         "read-file",
         "edit-file",
@@ -824,7 +834,7 @@ def test_named_tool_override_replaces_a_bundled_tool(tmp_path: Path) -> None:
     assert {tool.name for tool in loaded.tools} == {
         "calculate",
         "replacement-tool",
-    } | DEEP_THINKING_TOOLS | {
+    } | DEEP_THINKING_TOOLS | NATIVE_MEDIA_TOOLS | {
         "inspect-file",
         "read-file",
         "edit-file",

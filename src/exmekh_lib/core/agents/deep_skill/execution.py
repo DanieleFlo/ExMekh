@@ -8,6 +8,7 @@ from typing import Any
 
 from exmekh_lib.config.agent_text import AGENT_TEXT
 from exmekh_lib.core.agents.deep_skill.deep_skill import DeepSkill
+from exmekh_lib.core.models.message_snapshot import snapshot_message
 from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.core.models.tool_output_reference import ToolOutputReference
 from exmekh_lib.interfaces.message import Message
@@ -111,7 +112,7 @@ class DeepSkillExecution:
         return {
             "skill": self.name,
             "output": self.output,
-            "history": [message.message_dump() for message in history],
+            "history": [snapshot_message(message) for message in history],
             "children": [
                 child.history_tree(current_history) for child in self.children
             ],

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import AbstractContextManager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
@@ -33,6 +33,7 @@ from exmekh_lib.interfaces.tokenizer import Tokenizer
 
 if TYPE_CHECKING:
     from exmekh_lib.core.cache.session_cache import SessionCache
+    from exmekh_lib.core.models.native_suite import NativeSuiteClient
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,9 @@ class Client:
     def get_tokenizer(self) -> Tokenizer:
         return self._provider.get_tokenizer()
 
+    def native_suite(self) -> NativeSuiteClient:
+        return self._provider.native_suite()
+
     def generate_id(self) -> str:
         return self._provider.generate_id()
 
@@ -76,7 +80,7 @@ class Client:
     def get_history(self) -> list[HistoryMessage]:
         return self._history.get_history()
 
-    def dump_history(self) -> list[dict[str, str]]:
+    def dump_history(self) -> list[dict[str, Any]]:
         return self._history.dump_history()
 
     def copy_history(self) -> list[HistoryMessage]:

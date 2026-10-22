@@ -3,11 +3,13 @@ import base64
 import pytest
 from PIL import Image
 
+from exmekh_lib.core.cache.user_message_codec import deserialize_user_message
 from exmekh_lib.core.models.assistant_message import (
     AssistantMessage,
     FunctionCall,
     ToolCall,
 )
+from exmekh_lib.core.models.history import MessageHistory
 from exmekh_lib.core.models.provider_request import ProviderRequest
 from exmekh_lib.core.models.system_message import SystemMessage
 from exmekh_lib.core.models.tool import PreformattedToolResult
@@ -107,3 +109,20 @@ def test_provider_sends_restored_attachments_after_complete_tool_batch(mapper):
 def test_tool_attachments_require_a_user_message(factory):
     with pytest.raises(TypeError, match="attachments must be a UserMessage"):
         factory("invalid")
+
+
+def test_history_export_preserves_tool_pixels_without_changing_message_dump():
+    image = Image.new("RGB", (32, 32), "red")
+    message = ToolMessage(
+        "complete",
+        "image-call",
+        "generate-image",
+        attachments=UserMessage(["Generated previews", ImagesUserMessage([image])]),
+    )
+    snapshot = MessageHistory([message]).dump_history()[0]
+    assert "attachments" in snapshot
+    restored = deserialize_user_message(snapshot["attachments"])
+    parts = list(restored.iter_content_parts())
+    assert parts[0] == "Generated previews"
+    assert parts[1].tobytes() == image.tobytes()
+    assert message.message_dump() == {"role": "tool", "content": "complete"}

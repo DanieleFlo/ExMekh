@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel
 
 from exmekh_lib.config.interface_text import INTERFACE_TEXT
+from exmekh_lib.config.native_suite import NATIVE_SUITE
 from exmekh_lib.core.models.provider_request import ProviderRequest
 from exmekh_lib.core.models.provider_response import ProviderResponse
 from exmekh_lib.core.models.structured_provider_request import StructuredProviderRequest
@@ -17,6 +18,7 @@ from exmekh_lib.interfaces.tokenizer import Tokenizer
 
 if TYPE_CHECKING:
     from exmekh_lib.core.cache.session_cache import SessionCache
+    from exmekh_lib.core.models.native_suite import NativeSuiteClient
 
 
 class ProviderRequestRejectedError(RuntimeError):
@@ -35,6 +37,9 @@ class Provider(ABC):
 
     def get_tokenizer(self) -> Tokenizer:
         return self._tokenizer
+
+    def native_suite(self) -> NativeSuiteClient:
+        raise NotImplementedError(NATIVE_SUITE.unsupported_provider)
 
     def generate_id(self) -> str:
         return self._tokenizer.generate_id()

@@ -4,6 +4,7 @@ from typing import Literal
 from unittest.mock import MagicMock, patch
 
 import httpx
+import httpx2
 import openai
 import pytest
 from pydantic import BaseModel
@@ -32,6 +33,33 @@ from exmekh_lib.providers.local import LocalProvider
 
 class StructuredAnswer(BaseModel):
     value: int
+
+
+def test_injected_http_client_serves_chat_discovery_and_native_requests():
+    requests = []
+
+    def handler(request):
+        requests.append(request.url.path)
+        if request.url.path.endswith("/models"):
+            return httpx2.Response(200, json={"data": [{"id": "chat-model"}]})
+        return httpx2.Response(
+            200, json={"data": [{"index": 0, "embedding": [1.0] * 128}]}
+        )
+
+    http_client = httpx2.Client(transport=httpx2.MockTransport(handler))
+    with LocalProvider(
+        model="chat-model",
+        base_url="http://native/v1",
+        api_key="test",
+        http_client=http_client,
+    ) as provider:
+        assert (
+            len(provider.native_suite().embeddings(["text"], dimensions=128)["data"])
+            == 1
+        )
+        assert not http_client.is_closed
+    assert http_client.is_closed
+    assert requests == ["/v1/models", "/v1/embeddings"]
 
 
 def make_provider(
@@ -170,7 +198,7 @@ def test_build_client_uses_resolved_credentials() -> None:
     api_key.assert_called_once_with()
     base_url.assert_called_once_with()
     openai_client.assert_called_once_with(
-        api_key="secret", base_url="http://localhost:8000"
+        api_key="secret", base_url="http://localhost:8000", http_client=None
     )
 
 
@@ -304,6 +332,9 @@ def test_get_available_models_returns_unique_model_ids() -> None:
     provider.client.models.list.return_value = SimpleNamespace(
         data=[
             SimpleNamespace(id="first"),
+            SimpleNamespace(id="embed", ds4={"operations": ["embed"]}),
+            SimpleNamespace(id="image", ds4={"operations": ["image_generate"]}),
+            SimpleNamespace(id="second", ds4={"operations": ["chat"]}),
             SimpleNamespace(id="second"),
             SimpleNamespace(id="first"),
         ]

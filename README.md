@@ -50,6 +50,7 @@ Explore the detailed documentation in the [`docs/`](docs) directory:
 19. **[Harness Workflows](docs/19-harness-workflows.md)**: Illustrated scenarios for skill entry/exit, nested scopes, result handoffs, subagents, background work, file evidence, steering, compaction and recovery.
 20. **[Harness Prompts & Evaluation](docs/20-harness-prompts-and-evaluation.md)**: Compact navigation and handoff instructions, a standalone 20-case scored benchmark with varied domains and separate holdout results.
 21. **[Agent Benchmark Platform](docs/21-agent-benchmark-platform.md)**: Extensible end-to-end tasks, analytical checks and a library-built evaluator, fixed grading weights, token costs and compaction accounting.
+22. **[Native DS4 Suite](docs/22-native-suite.md)**: Typed images/embeddings, registered media tools, shared transport and native web ranking.
 
 ---
 
@@ -76,8 +77,8 @@ regular dependencies include the Deep Thinking tools. Install the wheel as a
 dependency in that project's environment. Browser-backed tools install the
 headless Chromium binary on first use if needed. For offline deployments,
 preinstall it with `uv run python -m playwright install chromium --only-shell`
-in that environment. The wheel also declares the ranking libraries; model
-weights download on first use or can be preloaded during deployment. See
+in that environment. Semantic and visual ranking use the configured native
+DS4 embedding service, with no client-side ranking model download. See
 [Deep Thinking](docs/11-deep-thinking.md).
 
 ---

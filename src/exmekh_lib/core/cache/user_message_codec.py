@@ -47,6 +47,20 @@ def serialize_user_message(message: UserMessage) -> dict[str, Any]:
     }
 
 
+def user_message_image_urls(data: dict[str, Any]) -> list[str]:
+    """Read previews from this codec's snapshot without decoding image bytes."""
+    parts = data.get("parts", [])
+    if not isinstance(parts, list):
+        return []
+    return [
+        part["data"]
+        for part in parts
+        if isinstance(part, dict)
+        and part.get("type") == "image"
+        and isinstance(part.get("data"), str)
+    ]
+
+
 def deserialize_user_message(data: dict[str, Any]) -> UserMessage:
     """Restore fresh attachments, reporting malformed cache data as a read error."""
     try:

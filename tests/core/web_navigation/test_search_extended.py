@@ -1,6 +1,5 @@
 """Search normalization, provider failures, and optional visual ranking."""
 
-import sys
 from types import SimpleNamespace
 
 import pytest
@@ -66,10 +65,8 @@ def test_search_normalizes_tracking_links_and_deduplicates_provider_results(
                 {"title": "Bad", "href": "javascript:alert(1)", "body": "ignored"},
             ]
 
-    monkeypatch.setitem(sys.modules, "ddgs", SimpleNamespace(DDGS=FakeDDGS))
-    monkeypatch.setitem(
-        sys.modules, "ddgs.exceptions", SimpleNamespace(DDGSException=RuntimeError)
-    )
+    monkeypatch.setattr(search, "DDGS", FakeDDGS)
+    monkeypatch.setattr(search, "DDGSException", RuntimeError)
     results = search._retrieve_candidates("research topic", timeout_seconds=4)
     assert len(results) == 2
     assert results[0] == {
@@ -89,10 +86,8 @@ def test_provider_failure_becomes_stable_search_error(
         def text(self, *args: object, **kwargs: object) -> None:
             raise TimeoutError("provider timeout")
 
-    monkeypatch.setitem(sys.modules, "ddgs", SimpleNamespace(DDGS=BrokenDDGS))
-    monkeypatch.setitem(
-        sys.modules, "ddgs.exceptions", SimpleNamespace(DDGSException=RuntimeError)
-    )
+    monkeypatch.setattr(search, "DDGS", BrokenDDGS)
+    monkeypatch.setattr(search, "DDGSException", RuntimeError)
     with pytest.raises(WebNavigationError) as failure:
         search._retrieve_candidates("topic", timeout_seconds=1)
     assert failure.value.kind == "search_failed"
@@ -150,17 +145,17 @@ def test_multimodal_search_falls_back_when_visual_model_fails(
     def failed_visual(*args: object, **kwargs: object) -> None:
         raise RuntimeError("model unavailable")
 
-    monkeypatch.setitem(
-        sys.modules,
-        "exmekh_lib.core.web_navigation.ranking",
+    monkeypatch.setattr(
+        search,
+        "ranking",
         SimpleNamespace(
             rank_results=lambda *args, **kwargs: [(0, 0.5)],
-            compute_siglip_ranking=failed_visual,
+            compute_multimodal_ranking=failed_visual,
         ),
     )
-    monkeypatch.setitem(
-        sys.modules,
-        "exmekh_lib.core.web_navigation.image_discovery",
+    monkeypatch.setattr(
+        search,
+        "image_discovery",
         SimpleNamespace(
             IMAGE_CANDIDATE_LIMIT=15,
             discover_result_images=lambda *args, **kwargs: [],

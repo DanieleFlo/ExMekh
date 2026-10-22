@@ -27,6 +27,8 @@ from exmekh_lib.core.file_inspection.runtime import FileToolRuntime
 from exmekh_lib.core.file_inspection.tokenization import inspection_tokenizer_context
 from exmekh_lib.core.models.assistant_message import ToolCall
 from exmekh_lib.core.models.client import Client
+from exmekh_lib.core.models.message_snapshot import snapshot_message
+from exmekh_lib.core.models.native_suite import native_suite_context
 from exmekh_lib.core.models.tool import CalledTool, PreformattedToolResult
 from exmekh_lib.core.models.tool_message import ToolMessage
 from exmekh_lib.core.models.tool_output_presentation import ToolOutputPresentation
@@ -151,7 +153,7 @@ class ToolCallExecutor:
         return NodeExecutionSnapshot(
             depth=self._depth,
             skill_path=self._skill_executions.active_path,
-            history=[message.message_dump() for message in messages],
+            history=[snapshot_message(message) for message in messages],
             history_tree=self._skill_executions.history_tree(messages),
         )
 
@@ -318,7 +320,12 @@ class ToolCallExecutor:
 
         @contextmanager
         def enter_contexts() -> Iterator[FileReadContext]:
-            with tokenizer_context, output_context, read_context as context:
+            with (
+                tokenizer_context,
+                output_context,
+                read_context as context,
+                native_suite_context(self._client.native_suite),
+            ):
                 yield context
 
         return enter_contexts()

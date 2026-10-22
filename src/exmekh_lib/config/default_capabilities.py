@@ -12,6 +12,7 @@ class DefaultCapabilityNames:
     read_web_page: str = "read-web-page"
     interact_web_page: str = "interact-web-page"
     calculate: str = "calculate"
+    generate_image: str = "generate-image"
     date_time: str = "date-time"
     inspect_file: str = "inspect-file"
     read_file: str = "read-file"

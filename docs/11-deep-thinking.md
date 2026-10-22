@@ -15,7 +15,7 @@ Application HDS files expose it by adding `deep-thinking` to `sub-skills`.
 
 The regular `ExMekh-Lib` wheel declares the runtime dependencies for all eight tools
 and their ranking stages: DDGS, Crawl4AI, Playwright, aiohttp, lxml, NumPy,
-SymPy, Z3, OpenVINO, Hugging Face, Transformers, PyTorch, and the IANA timezone
+SymPy, Z3, Hugging Face, Transformers, PyTorch, and the IANA timezone
 database `tzdata` (also needed on Windows). Install the
 wheel in the frontend project's Python environment with dependency resolution
 enabled. Copying the wheel into the project without installing it does not
@@ -35,17 +35,16 @@ Preserve the Playwright browser cache in the deployed environment. If the
 download fails, the tool returns `browser_unavailable` with the install error.
 
 The `deep-thinking` extra remains as an empty compatibility alias for existing
-frontend dependency declarations. A plain `exmekh_lib` installation includes Granite
-semantic ranking and SigLIP2 visual ranking dependencies. The model weights
-still download on first use. For an offline frontend deployment, initialize
-`get_embedding_backend()` and `get_image_embedding_backend()` from
-`exmekh_lib.core.web_navigation.ranking` during image creation and preserve the model
-cache in the runtime environment. Text search falls back to BM25 if
-Granite cannot initialize; image-assisted search reports whether SigLIP2 ran.
+frontend dependency declarations. Semantic and visual ranking use the native
+DS4 embedding service on the calling provider's transport. There is no
+client-side ranking model download. See [Native DS4 Suite](22-native-suite.md)
+for configuration, embedding identity and service lifetime. Text search falls
+back to BM25 if native embeddings fail; image-assisted search reports whether
+native visual ranking ran.
 
 Text search uses DDGS and a bounded result set. BM25 and provider order still
-rank results if the optional Granite embedding model cannot load. Image search
-uses a work-root-local image to rerank candidates with SigLIP2; this is not
+rank results if the embedding service is unavailable. Image search
+uses a work-root-local image to rerank candidates with native embeddings; this is not
 reverse-image search. The result reports whether visual ranking actually ran.
 
 | Tool | Inputs | Result |
@@ -152,5 +151,5 @@ provider and live web access.
 
 Set `EXMEKH_LIB_LIVE_DEEP_THINKING_MODEL` to a configured local model to also run the
 model-driven full-skill task. Set `EXMEKH_LIB_REQUIRE_LIVE_VISUAL_RANKING=1` to require
-the actual SigLIP2 stage in the image-assisted search test; this needs the
-model weights to be available in the deployment environment.
+the actual native embedding stage in the image-assisted search test; this
+requires a configured DS4 service with EmbeddingGemma 2.

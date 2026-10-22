@@ -71,10 +71,6 @@ class WebNavigationSettings:
 class WebRankingSettings:
     """Model defaults, embedding cache capacity, and ranking weights."""
 
-    granite_model_name: str = "ibm-granite/granite-embedding-311m-multilingual-r2"
-    siglip_model_name: str = "google/siglip2-base-patch16-224"
-    openvino_device: str = "CPU"
-    siglip_text_max_length: int = 64
     embedding_cache_size: int = 2_048
     rrf_k: int = 60
     bm25_rrf_weight: float = 1.0
@@ -98,8 +94,6 @@ class WebFormat:
     page_cache_folder: str = "page-cache"
     cache_format_version: int = 2
     crawler_directory_env_var: str = "CRAWL4_AI_BASE_DIRECTORY"
-    openvino_model_xml: str = "openvino/openvino_model_qint8_quantized.xml"
-    openvino_model_bin: str = "openvino/openvino_model_qint8_quantized.bin"
     allowed_image_formats: frozenset[str] = frozenset({"JPEG", "PNG", "WEBP"})
     allowed_image_mime_types: frozenset[str] = frozenset(
         {"image/jpeg", "image/png", "image/webp"}

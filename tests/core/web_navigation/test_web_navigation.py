@@ -33,24 +33,24 @@ def test_search_with_stubbed_candidates_and_ranking(
             {"title": "B", "url": "https://example.org/b", "snippet": "beta"},
         ],
     )
-    monkeypatch.setitem(
-        sys.modules,
-        "exmekh_lib.core.web_navigation.ranking",
+    monkeypatch.setattr(
+        search,
+        "ranking",
         SimpleNamespace(
             rank_results=lambda *_args, **kwargs: (
                 [(0, 0.9), (1, 0.8)]
                 if kwargs.get("image_ranking")
                 else [(1, 0.9), (0, 0.8)]
             ),
-            compute_siglip_ranking=lambda *_args, **_kwargs: (
+            compute_multimodal_ranking=lambda *_args, **_kwargs: (
                 [0, 1],
                 {0: "https://example.org/img"},
             ),
         ),
     )
-    monkeypatch.setitem(
-        sys.modules,
-        "exmekh_lib.core.web_navigation.image_discovery",
+    monkeypatch.setattr(
+        search,
+        "image_discovery",
         SimpleNamespace(
             IMAGE_CANDIDATE_LIMIT=15,
             discover_result_images=lambda *_args, **_kwargs: [],

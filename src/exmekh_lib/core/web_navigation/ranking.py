@@ -9,29 +9,25 @@ import re
 import threading
 from collections import Counter, OrderedDict
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Protocol, cast
+from typing import Protocol
 from urllib.parse import urlparse
 
 import numpy as np
 from numpy.typing import NDArray
 from PIL import Image
 
-from exmekh_lib.config.web import WEB_FORMAT, WEB_RANKING
+from exmekh_lib.config.web import WEB_RANKING
 from exmekh_lib.config.web_text import WEB_TEXT
+from exmekh_lib.core.models.native_suite import EmbeddingItem, native_suite_client
 
 from .image_discovery import DiscoveredImage, decode_image
 
-if TYPE_CHECKING:
-    from torch import Tensor
-
-GRANITE_MODEL_NAME = WEB_RANKING.granite_model_name
 EMBEDDING_CACHE_SIZE = WEB_RANKING.embedding_cache_size
 RRF_K = WEB_RANKING.rrf_k
 BM25_RRF_WEIGHT = WEB_RANKING.bm25_rrf_weight
 SEMANTIC_RRF_WEIGHT = WEB_RANKING.semantic_rrf_weight
 PROVIDER_RRF_WEIGHT = WEB_RANKING.provider_rrf_weight
 IMAGE_RRF_WEIGHT = WEB_RANKING.image_rrf_weight
-SIGLIP_MODEL_NAME = WEB_RANKING.siglip_model_name
 
 Embedding = NDArray[np.float32]
 _LOGGER = logging.getLogger(__name__)
@@ -57,101 +53,28 @@ class ImageEmbeddingBackend(Protocol):
         ...
 
 
-class OpenVINOEmbeddingBackend:
-    """Encode text with IBM's published INT8 OpenVINO Granite artifact."""
-
-    def __init__(
-        self,
-        model_name: str = GRANITE_MODEL_NAME,
-        *,
-        device: str = WEB_RANKING.openvino_device,
-    ) -> None:
-        """Download the official INT8 IR and compile it with OpenVINO Runtime."""
-        import openvino as ov
-        from huggingface_hub import hf_hub_download
-        from transformers import AutoTokenizer
-
-        selected_device = device.upper()
-        model_xml = hf_hub_download(
-            repo_id=model_name,
-            filename=WEB_FORMAT.openvino_model_xml,
-        )
-        hf_hub_download(
-            repo_id=model_name,
-            filename=WEB_FORMAT.openvino_model_bin,
-        )
-        self._tokenizer = AutoTokenizer.from_pretrained(model_name)
-        core = ov.Core()
-        self._model = core.compile_model(core.read_model(model_xml), selected_device)
-        self._input_names = {
-            model_input.get_any_name() for model_input in self._model.inputs
-        }
+class NativeEmbeddingBackend:
+    """Text and image vectors come from one versioned native model space."""
 
     def encode(self, texts: Sequence[str]) -> Embedding:
-        """Tokenize, run the INT8 graph, then CLS-pool and L2-normalize."""
-        encoded = self._tokenizer(
-            list(texts),
-            padding=True,
-            truncation=True,
-            return_tensors="np",
-        )
-        inputs = {
-            name: np.asarray(value)
-            for name, value in encoded.items()
-            if name in self._input_names
-        }
-        outputs = self._model(inputs)
-        token_embeddings = np.asarray(
-            outputs[self._model.output(0)],
-            dtype=np.float32,
-        )
-        vectors = token_embeddings[:, 0, :]
-        norms = np.linalg.norm(vectors, axis=1, keepdims=True)
-        return np.divide(
-            vectors,
-            np.maximum(norms, np.finfo(np.float32).eps),
-            dtype=np.float32,
-        )
-
-
-class SigLIPEmbeddingBackend:
-    """Encode images and text with one lazily loaded SigLIP2 model."""
-
-    def __init__(self, model_name: str = SIGLIP_MODEL_NAME) -> None:
-        """Load SigLIP2 and select CUDA when available, otherwise CPU."""
-        import torch
-        from transformers import AutoModel, AutoProcessor
-
-        self._torch = torch
-        self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self._processor = AutoProcessor.from_pretrained(model_name)
-        self._model = AutoModel.from_pretrained(model_name, dtype="auto")
-        self._model.to(self._device)
-        self._model.eval()
+        return self.encode_texts(texts)
 
     def encode_texts(self, texts: Sequence[str]) -> Embedding:
-        """Batch and L2-normalize SigLIP2 text features."""
-        inputs = self._processor(
-            text=list(texts),
-            padding="max_length",
-            max_length=WEB_RANKING.siglip_text_max_length,
-            truncation=True,
-            return_tensors="pt",
-        ).to(self._device)
-        with self._torch.inference_mode():
-            vectors = _extract_feature_tensor(self._model.get_text_features(**inputs))
-            vectors = self._torch.nn.functional.normalize(vectors, dim=-1)
-        return vectors.detach().float().cpu().numpy().astype(np.float32, copy=False)
+        with native_suite_client() as suite:
+            result = suite.embeddings(texts, task="similarity")
+        return np.asarray(
+            [row["embedding"] for row in result["data"]], dtype=np.float32
+        )
 
     def encode_images(self, images: Sequence[Image.Image]) -> Embedding:
-        """Batch and L2-normalize SigLIP2 image features."""
-        inputs = self._processor(images=list(images), return_tensors="pt").to(
-            self._device
+        with native_suite_client() as suite:
+            items = [
+                EmbeddingItem(content=[suite.upload_image(image)]) for image in images
+            ]
+            result = suite.embeddings(items, task="similarity")
+        return np.asarray(
+            [row["embedding"] for row in result["data"]], dtype=np.float32
         )
-        with self._torch.inference_mode():
-            vectors = _extract_feature_tensor(self._model.get_image_features(**inputs))
-            vectors = self._torch.nn.functional.normalize(vectors, dim=-1)
-        return vectors.detach().float().cpu().numpy().astype(np.float32, copy=False)
 
 
 class EmbeddingLRUCache:
@@ -188,7 +111,7 @@ class EmbeddingLRUCache:
 
 
 class _ImageEmbeddingCache:
-    """Cache SigLIP vectors for one image embedding backend."""
+    """Cache vectors for one image embedding space."""
 
     def __init__(self) -> None:
         self._local_images = EmbeddingLRUCache()
@@ -248,34 +171,19 @@ class _ImageEmbeddingCache:
         return np.asarray(embeddings, dtype=np.float32)
 
 
-_BACKEND: EmbeddingBackend | None = None
-_BACKEND_LOCK = threading.Lock()
-_IMAGE_BACKEND: ImageEmbeddingBackend | None = None
-_IMAGE_BACKEND_LOCK = threading.Lock()
+_NATIVE_BACKEND = NativeEmbeddingBackend()
 _SEMANTIC_INFERENCE_LOCK = threading.Lock()
 _IMAGE_INFERENCE_LOCK = threading.Lock()
-_EMBEDDING_CACHE = EmbeddingLRUCache()
-_IMAGE_EMBEDDING_CACHE = _ImageEmbeddingCache()
 
 
 def get_embedding_backend() -> EmbeddingBackend:
-    """Return the process-wide OpenVINO INT8 Granite backend, loading it once."""
-    global _BACKEND
-    if _BACKEND is None:
-        with _BACKEND_LOCK:
-            if _BACKEND is None:
-                _BACKEND = OpenVINOEmbeddingBackend()
-    return _BACKEND
+    """Return the native HTTP backend; the server owns model residency."""
+    return _NATIVE_BACKEND
 
 
 def get_image_embedding_backend() -> ImageEmbeddingBackend:
-    """Return the process-wide SigLIP2 backend, loading it only once."""
-    global _IMAGE_BACKEND
-    if _IMAGE_BACKEND is None:
-        with _IMAGE_BACKEND_LOCK:
-            if _IMAGE_BACKEND is None:
-                _IMAGE_BACKEND = SigLIPEmbeddingBackend()
-    return _IMAGE_BACKEND
+    """Return the native image/text backend."""
+    return _NATIVE_BACKEND
 
 
 def build_embedding_text(result: Mapping[str, object]) -> str:
@@ -345,12 +253,8 @@ def compute_semantic_similarity(
     """Compute cosine similarities while batching the query and cache misses."""
     if not results:
         return []
-    if cache is not None:
-        resolved_cache = cache
-    elif backend is None:
-        resolved_cache = _EMBEDDING_CACHE
-    else:
-        resolved_cache = EmbeddingLRUCache()
+    # A process cache can mix endpoints or stale page contents. Reuse is explicit.
+    resolved_cache = cache if cache is not None else EmbeddingLRUCache()
     with _SEMANTIC_INFERENCE_LOCK:
         cached: dict[int, Embedding] = {}
         missing_indices: list[int] = []
@@ -390,16 +294,14 @@ def compute_image_similarity(
     if local_image is None or not results:
         return None
     resolved_backend = backend or get_image_embedding_backend()
-    embedding_cache = (
-        _IMAGE_EMBEDDING_CACHE if backend is None else _ImageEmbeddingCache()
-    )
+    embedding_cache = _ImageEmbeddingCache()
     with _IMAGE_INFERENCE_LOCK:
         image_embedding = embedding_cache.local_image(local_image, resolved_backend)
         text_embeddings = embedding_cache.candidate_texts(results, resolved_backend)
         return [float(np.dot(image_embedding, item)) for item in text_embeddings]
 
 
-def compute_siglip_ranking(
+def compute_multimodal_ranking(
     query: str,
     results: Sequence[Mapping[str, object]],
     *,
@@ -407,11 +309,9 @@ def compute_siglip_ranking(
     discovered_images: Sequence[DiscoveredImage],
     backend: ImageEmbeddingBackend | None = None,
 ) -> tuple[list[int], dict[int, str]]:
-    """Fuse image-to-text, text-to-image, and image-to-image SigLIP rankings."""
+    """Fuse image-to-text, text-to-image, and image-to-image native rankings."""
     resolved_backend = backend or get_image_embedding_backend()
-    embedding_cache = (
-        _IMAGE_EMBEDDING_CACHE if backend is None else _ImageEmbeddingCache()
-    )
+    embedding_cache = _ImageEmbeddingCache()
     with _IMAGE_INFERENCE_LOCK:
         local_embedding = embedding_cache.local_image(local_image, resolved_backend)
         candidate_texts = embedding_cache.candidate_texts(results, resolved_backend)
@@ -470,7 +370,7 @@ def rank_results(
     *,
     image_ranking: Sequence[int] | None = None,
 ) -> list[tuple[int, float]]:
-    """Rank candidates by BM25, Granite, optional images, and provider order."""
+    """Rank candidates by BM25, native similarity, images and provider order."""
     bm25_ranking = _ranking_from_scores(bm25_scores(query, results))
     rankings: list[tuple[Sequence[int], float]] = [
         (bm25_ranking, BM25_RRF_WEIGHT),
@@ -479,7 +379,7 @@ def rank_results(
     try:
         semantic_scores = compute_semantic_similarity(query, results)
     except Exception as error:  # noqa: BLE001 - semantic ranking is an optional signal.
-        _LOGGER.warning(WEB_TEXT.openvino_granite_semantic_ranking_unavailable, error)
+        _LOGGER.warning(WEB_TEXT.native_semantic_ranking_unavailable, error)
     else:
         rankings.append((_ranking_from_scores(semantic_scores), SEMANTIC_RRF_WEIGHT))
     if image_ranking is not None:
@@ -492,12 +392,6 @@ def rank_results(
 def _ranking_from_scores(scores: Sequence[int | float]) -> list[int]:
     """Convert scores to a stable descending ranking of candidate indices."""
     return sorted(range(len(scores)), key=lambda index: (-scores[index], index))
-
-
-def _extract_feature_tensor(value: object) -> Tensor:
-    """Return a feature tensor across supported Transformers output variants."""
-    pooled = getattr(value, "pooler_output", None)
-    return cast("Tensor", pooled if pooled is not None else value)
 
 
 def _ranking_from_indexed_scores(scores: Sequence[tuple[int, float]]) -> list[int]:

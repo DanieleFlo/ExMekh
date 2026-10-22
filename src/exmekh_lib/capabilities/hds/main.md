@@ -8,6 +8,8 @@ agent-context-id: main
 optional-sub-skills:
   - deep-thinking
   - file-processing
+optional-sub-tools:
+  - generate-image
 ---
 You are a clear, concise, and collaborative assistant.
 
