@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import io
 import mimetypes
 import os
@@ -10,13 +12,13 @@ from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 from openai import OpenAI
 from PIL import Image
 from pydantic import BaseModel, Field
 
-from exmekh_lib.config.native_suite import NATIVE_SUITE
+from exmekh_lib.config.native_suite import NATIVE_SUITE, ImageCount, ImageDimension
 from exmekh_lib.config.provider import DEFAULT_PROVIDER_SETTINGS
 
 
@@ -50,11 +52,33 @@ class GeneratedImage(BaseModel):
     b64_json: str
     ds4: GeneratedMedia
 
+    def png_bytes(self) -> bytes:
+        """Decode the wire payload and verify its declared format and geometry."""
+        try:
+            raw = base64.b64decode(self.b64_json, validate=True)
+            with Image.open(io.BytesIO(raw)) as image:
+                if image.format != "PNG" or image.size != (
+                    self.ds4.width,
+                    self.ds4.height,
+                ):
+                    raise ValueError(NATIVE_SUITE.invalid_response)
+                image.verify()
+        except (binascii.Error, OSError, SyntaxError, ValueError) as error:
+            raise ValueError(NATIVE_SUITE.invalid_response) from error
+        return raw
+
 
 class ImageBatch(BaseModel):
     created: int
     data: list[GeneratedImage]
     ds4: dict[str, Any]
+
+    def validate_geometry(self, *, n: int, width: int, height: int) -> None:
+        if len(self.data) != n or any(
+            image.ds4.width != width or image.ds4.height != height
+            for image in self.data
+        ):
+            raise ValueError(NATIVE_SUITE.invalid_response)
 
 
 class NativeCapabilities(BaseModel):
@@ -149,19 +173,54 @@ class NativeSuiteClient:
             raise ValueError(NATIVE_SUITE.invalid_response)
         return response
 
+    @staticmethod
+    def validate_image_options(
+        *,
+        n: int,
+        width: int,
+        height: int,
+        output_format: str,
+        background: str,
+        seed: int | None,
+    ) -> None:
+        """Check native request options before transport or reference uploads."""
+        if any(
+            type(value) is not int or value not in get_args(ImageDimension)
+            for value in (width, height)
+        ):
+            raise ValueError(NATIVE_SUITE.invalid_dimensions)
+        if type(n) is not int or n not in get_args(ImageCount):
+            raise ValueError(NATIVE_SUITE.invalid_count)
+        if n * width * height > NATIVE_SUITE.image_batch_pixels:
+            raise ValueError(NATIVE_SUITE.invalid_image_batch)
+        if output_format != "png":
+            raise ValueError(NATIVE_SUITE.invalid_image_format)
+        if background not in ("auto", "opaque", "transparent"):
+            raise ValueError(NATIVE_SUITE.invalid_image_background)
+        if seed is not None and (type(seed) is not int or not 0 <= seed <= 2**64 - n):
+            raise ValueError(NATIVE_SUITE.invalid_image_seed)
+
     def images(
         self,
         prompt: str,
         *,
         images: Sequence[MediaContent] = (),
-        n: int = 1,
-        width: int = 1024,
-        height: int = 1024,
+        n: ImageCount = 1,
+        width: ImageDimension = NATIVE_SUITE.image_default_dimension,
+        height: ImageDimension = NATIVE_SUITE.image_default_dimension,
         output_format: Literal["png"] = "png",
         background: Literal["auto", "opaque", "transparent"] = "auto",
         seed: int | None = None,
         idempotency_key: str | None = None,
     ) -> ImageBatch:
+        self.validate_image_options(
+            n=n,
+            width=width,
+            height=height,
+            output_format=output_format,
+            background=background,
+            seed=seed,
+        )
         extension: dict[str, Any] = {"version": 1, "sampling": "checkpoint"}
         if seed is not None:
             extension["seed"] = seed
@@ -184,7 +243,9 @@ class NativeSuiteClient:
                 "headers": {"Idempotency-Key": idempotency_key or str(uuid.uuid4())}
             },
         )
-        return ImageBatch.model_validate(response)
+        batch = ImageBatch.model_validate(response)
+        batch.validate_geometry(n=n, width=width, height=height)
+        return batch
 
 
 _suite_factory: ContextVar[Callable[[], NativeSuiteClient] | None] = ContextVar(

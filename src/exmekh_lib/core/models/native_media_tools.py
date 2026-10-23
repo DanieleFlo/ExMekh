@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import base64
 import io
 import uuid
 from pathlib import Path
@@ -10,9 +9,10 @@ from typing import Literal
 
 from PIL import Image
 
-from exmekh_lib.config.native_suite import NATIVE_SUITE
+from exmekh_lib.config.native_suite import NATIVE_SUITE, ImageCount, ImageDimension
 from exmekh_lib.core.models.native_suite import (
     ImageBatch,
+    NativeSuiteClient,
     native_suite_client,
 )
 from exmekh_lib.core.models.tool import AttachedToolResult
@@ -31,9 +31,9 @@ def generate_images(
     work_root: Path,
     prompt: str,
     images: list[str] | None = None,
-    n: int = 1,
-    width: int = 1024,
-    height: int = 1024,
+    n: ImageCount = 1,
+    width: ImageDimension = NATIVE_SUITE.image_default_dimension,
+    height: ImageDimension = NATIVE_SUITE.image_default_dimension,
     output_format: Literal["png"] = "png",
     background: Literal["auto", "opaque", "transparent"] = "auto",
     seed: int | None = None,
@@ -41,9 +41,19 @@ def generate_images(
     include_image_in_result: bool = NATIVE_SUITE.include_image_in_result,
     preview_scale: float = NATIVE_SUITE.preview_scale,
 ) -> dict[str, object]:
+    NativeSuiteClient.validate_image_options(
+        n=n,
+        width=width,
+        height=height,
+        output_format=output_format,
+        background=background,
+        seed=seed,
+    )
     if not 0 < preview_scale <= 1:
         raise ValueError(NATIVE_SUITE.invalid_scale)
     paths = [workspace_media(work_root, path) for path in images or []]
+    if any(not path.is_file() for path in paths):
+        raise ValueError(NATIVE_SUITE.invalid_reference)
     directory = workspace_media(
         work_root, f".exmekh_lib/generated-media/{uuid.uuid4().hex}"
     )
@@ -69,11 +79,12 @@ def _save_images(
     include_image_in_result: bool,
     preview_scale: float,
 ) -> dict[str, object]:
+    # Verify the complete batch before publishing any local file.
+    payloads = [item.png_bytes() for item in response.data]
     directory.mkdir(parents=True)
     outputs: list[dict[str, object]] = []
     previews: list[Image.Image] = []
-    for i, item in enumerate(response.data):
-        raw = base64.b64decode(item.b64_json, validate=True)
+    for i, (item, raw) in enumerate(zip(response.data, payloads, strict=True)):
         path = directory / f"{i}.png"
         path.write_bytes(raw)
         outputs.append({**item.ds4.model_dump(), "path": str(path)})

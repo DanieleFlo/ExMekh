@@ -26,7 +26,8 @@ with LocalProvider(model="Qwen3.8-27B-UD-Q4_K_S", base_url="http://localhost:180
 The only implemented identities are `Literal["Qwen/Qwen-Image-2.1-Turbo"]`
 and `Literal["google/embeddinggemma-2"]`. Each operation has one available
 model, so methods and tools expose no model selector. Image dimensions are
-integer `width` and `height`; serialization to the standard `size` field stays
+independent `ImageDimension` Literals for `width` and `height`, enumerating
+every multiple of 32 from 32 to 2048; serialization to the standard `size` field stays
 inside the transport adapter. `models()` returns typed native catalog entries;
 the provider's chat model selection excludes non-chat capabilities.
 
@@ -42,8 +43,18 @@ through `provider.client.embeddings.create`.
 `images` supports ordered image references, prompt-only, image-only with an empty
 prompt, or both. It exposes count, integer dimensions, PNG format,
 auto/opaque/transparent background, seed and idempotency key. The server fixes
-the Turbo recipe at eight steps/CFG 1. Width/height are multiples of 32 from
-32 to 2048; count 1–8 is bounded by 4,194,304 total pixels. Unknown options are
+the Turbo recipe at eight steps/CFG 1. Client, helper and registered tool default
+to 2048×2048 for fine detail; explicit smaller sizes remain supported. Full-resolution
+images use separate calls when a batch would exceed the pixel limit.
+Width/height are multiples of 32 from
+32 to 2048; count 1–8 is bounded by 4,194,304 total pixels. The same Literals
+are exposed by the registered tool, helper and client; invalid geometry is
+rejected locally before uploading references or sending generation requests.
+For 16:9, 1024×576 and 2048×1152 are valid. 1920×1080 fails the 32-pixel
+alignment and 2560×1440 exceeds the current DS4 per-axis limit. These are
+service limits, not architectural maxima of the Qwen checkpoint: its model
+card also lists larger presets such as 2752×1536, outside this service contract.
+Unknown options are
 rejected. An automatic per-call idempotency key protects transport retries;
 pass a stable key yourself when retrying the same logical call later.
 References preserve their supplied dimensions (`reference_resolution=0`) and
@@ -113,3 +124,19 @@ ranking. These tests qualify integration, not the separate image quality gates.
 The subsequent `docs/performance/native-suite-clean-review-20261022/README.md`
 records the ownership/codec refactoring and removal of the embedding capability
 after clarifying that native embeddings belong inside web search.
+
+
+## Image request and response ownership
+
+`NativeSuiteClient.validate_image_options()` validates the native contract
+without opening a connection. Both the client and the workspace tool use this
+public entry point: configuration contains settings and messages only. Options
+are checked before reference uploads, including batch geometry, PNG output,
+background and uint64 seed room for every generated image.
+
+`ImageBatch.validate_geometry()` checks the returned count and dimensions
+against the request. `GeneratedImage.png_bytes()` owns base64 decoding and PNG
+verification, including declared dimensions. Workspace persistence uses this
+public method rather than knowing the encoded payload layout. Every PNG is
+verified before the tool creates an output directory, including when previews
+are disabled. All reference paths must point to files before any upload starts.
