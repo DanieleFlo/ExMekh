@@ -92,7 +92,8 @@ class NativeSuiteSettings:
         "Use 2K for fine detail unless the user requests a smaller image: "
         "2048x2048 square, 2048x1536 landscape, 1536x2048 portrait, or 2048x1152 for 16:9. "
         "Smaller dimensions reduce available detail; 1920x1080 and 2560x1440 are unsupported. "
-        "Generate multiple full-resolution images in separate calls to respect the batch pixel limit."
+        "Generate multiple full-resolution images in separate calls to respect the batch pixel limit. "
+        "Generation waits for completion before inference continues; background execution is unavailable."
     )
     image_result_context: str = (
         "These images are previews from the completed generate-image tool call. "

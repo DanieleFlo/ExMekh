@@ -278,3 +278,8 @@ hierarchy and defaults.
 Tool hooks receive the original invocation ID in `ToolContext.call_id`, including
 when a Before hook replaces the arguments. The field defaults to an empty string
 for existing callers constructing contexts themselves.
+
+The bundled `generate-image` capability runs synchronously with respect to the
+agent loop. It does not advertise `execution_mode` or `wait_seconds`: the native
+service must restore inference before the next model request or image call.
+Other tools retain their existing background execution options.

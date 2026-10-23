@@ -500,3 +500,16 @@ def test_native_client_capability_and_saved_preview_contracts():
             ]
         }
     ) == ["data:image/png;base64,pixels"]
+
+
+def test_registered_image_tool_waits_for_native_service_restoration(tmp_path):
+    tools = DeepTools(
+        [CAPABILITY_FORMAT.bundled_root / "tools/generate-image"], work_root=tmp_path
+    )
+    try:
+        tool = tools.load()[0]
+        assert not tool.background_enabled
+        assert "execution_mode" not in tool.get_type_hints()
+        assert "wait_seconds" not in tool.get_work_signature().parameters
+    finally:
+        tools.unload()

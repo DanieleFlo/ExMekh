@@ -10,7 +10,11 @@ from exmekh_lib.core.models.native_media_tools import generate_images
 
 
 @deep_tool(
-    name=DEFAULT_CAPABILITIES.generate_image, description=NATIVE_SUITE.image_description
+    name=DEFAULT_CAPABILITIES.generate_image,
+    description=NATIVE_SUITE.image_description,
+    # Native generation temporarily borrows the inference service and must restore
+    # it before the next model request or another image call starts.
+    background_enabled=False,
 )
 def run(
     work_root: Path,
