@@ -7,6 +7,7 @@ import json
 from contextlib import nullcontext
 from pathlib import Path
 from typing import get_args, get_type_hints
+from unittest.mock import MagicMock
 
 import httpx2
 import pytest
@@ -18,7 +19,9 @@ from exmekh_lib.config.capabilities import CAPABILITY_FORMAT
 from exmekh_lib.config.native_suite import NATIVE_SUITE, ImageDimension
 from exmekh_lib.config.provider import DEFAULT_PROVIDER_SETTINGS
 from exmekh_lib.core.agents.tools.deep_tools import DeepTools
+from exmekh_lib.core.cache.user_message_codec import user_message_image_urls
 from exmekh_lib.core.models import native_suite
+from exmekh_lib.core.models.client import Client
 from exmekh_lib.core.models.native_media_tools import (
     generate_images,
     workspace_media,
@@ -31,7 +34,9 @@ from exmekh_lib.core.models.native_suite import (
     native_suite_client,
     native_suite_context,
 )
+from exmekh_lib.core.models.system_message import SystemMessage
 from exmekh_lib.core.models.tool import AttachedToolResult
+from exmekh_lib.interfaces.provider import Provider
 
 
 def transport(handler):
@@ -433,3 +438,65 @@ def test_maximum_seed_leaves_room_for_the_entire_batch(n):
 
     suite = transport(handler)
     assert len(suite.images("red", width=32, height=32, n=n, seed=seed).data) == n
+
+
+def test_generated_image_previews_can_be_reused_as_edit_references(tmp_path):
+    path = tmp_path / "reference.png"
+    path.write_bytes(png_payload())
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if request.url.path == "/v1/files":
+            return httpx2.Response(
+                200,
+                json={
+                    "id": "reference",
+                    "object": "file",
+                    "bytes": 1,
+                    "created_at": 1,
+                    "filename": "image.png",
+                    "purpose": "ds4_media",
+                },
+            )
+        if request.method == "GET":
+            return httpx2.Response(200, content=png_payload())
+        assert json.loads(request.content)["images"] == ["reference"]
+        return httpx2.Response(200, json=image_response(raw=png_payload()))
+
+    suite = transport(handler)
+    assert suite.upload_image(Image.new("RGB", (32, 32), "red")).file_id == "reference"
+    assert suite.content("reference") == png_payload()
+    with native_suite_context(lambda: suite):
+        result = generate_images(
+            tmp_path, "edit", images=["reference.png"], width=32, height=32
+        )
+        assert isinstance(result, AttachedToolResult)
+        assert [
+            part.size
+            for part in result.attachments.iter_content_parts()
+            if isinstance(part, Image.Image)
+        ] == [(32, 32)]
+    assert requests[-1].url.path == "/v1/images/edits"
+    with pytest.raises(ValueError, match=NATIVE_SUITE.invalid_scale):
+        generate_images(tmp_path, "invalid preview", preview_scale=0)
+
+
+def test_native_client_capability_and_saved_preview_contracts():
+    provider = MagicMock(spec=Provider)
+    suite = MagicMock(spec=NativeSuiteClient)
+    provider.native_suite.return_value = suite
+    assert Client(provider, SystemMessage("rules")).native_suite() is suite
+    with pytest.raises(NotImplementedError, match=NATIVE_SUITE.unsupported_provider):
+        Provider.native_suite(provider)
+    assert user_message_image_urls({"parts": None}) == []
+    assert user_message_image_urls(
+        {
+            "parts": [
+                None,
+                {"type": "text", "text": "caption"},
+                {"type": "image", "data": "data:image/png;base64,pixels"},
+                {"type": "image", "data": None},
+            ]
+        }
+    ) == ["data:image/png;base64,pixels"]

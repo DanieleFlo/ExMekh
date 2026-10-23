@@ -265,3 +265,16 @@ Opt-in to contact a live model provider endpoint (requires `BASE_URL` set in `.e
 ```shell
 uv run pytest --run-live tests/live
 ```
+
+### Quick HDS
+
+The bundled `quick` HDS provides web search, page reading, file inspection and
+reading, and image generation. It has no sub-skills, shell execution, file editing
+or delegated agents. Select it with `Node(name_hds="quick",
+default_capabilities=DefaultCapabilities(include=["quick"]))`; its declared tool
+list defines the capabilities exposed to the model. `main` retains its existing
+hierarchy and defaults.
+
+Tool hooks receive the original invocation ID in `ToolContext.call_id`, including
+when a Before hook replaces the arguments. The field defaults to an empty string
+for existing callers constructing contexts themselves.

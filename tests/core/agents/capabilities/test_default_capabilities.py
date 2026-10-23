@@ -390,7 +390,7 @@ def test_node_uses_bundled_path_when_no_paths_are_supplied(
 
     loaded = node.load_capabilities(work_root=tmp_path)
 
-    assert {resource.name for resource in loaded.hds} == {"main"}
+    assert {resource.name for resource in loaded.hds} == {"main", "quick"}
     assert {
         tool.name for tool in loaded.tools
     } == DEEP_THINKING_TOOLS | NATIVE_MEDIA_TOOLS | {
@@ -418,7 +418,7 @@ def test_direct_capabilities_loader_uses_bundled_path_when_paths_are_none(
 ) -> None:
     loaded = Capabilities(None).load(work_root=tmp_path)
 
-    assert {hds.name for hds in loaded.hds} == {"main"}
+    assert {hds.name for hds in loaded.hds} == {"main", "quick"}
 
 
 def test_direct_capabilities_loader_validates_default_configuration() -> None:
@@ -1100,4 +1100,4 @@ def test_legacy_node_still_uses_explicit_builtin_path(tmp_path: Path) -> None:
     loaded = Node([BUILTIN_CAPABILITIES_PATH], name_hds="main").load_capabilities(
         work_root=tmp_path
     )
-    assert {resource.name for resource in loaded.hds} == {"main"}
+    assert {resource.name for resource in loaded.hds} == {"main", "quick"}

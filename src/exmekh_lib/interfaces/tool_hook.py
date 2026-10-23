@@ -15,6 +15,7 @@ class ToolContext:
     arguments: dict[str, Any]
     work_root: Path
     history: tuple[Message[object], ...]
+    call_id: str = ""
 
 
 @dataclass(frozen=True, slots=True)

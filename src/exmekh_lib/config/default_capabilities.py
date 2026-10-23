@@ -6,6 +6,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True, slots=True)
 class DefaultCapabilityNames:
     main: str = "main"
+    quick: str = "quick"
     deep_thinking: str = "deep-thinking"
     file_processing: str = "file-processing"
     search_web: str = "search-web"

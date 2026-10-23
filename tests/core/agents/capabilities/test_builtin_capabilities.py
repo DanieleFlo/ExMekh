@@ -91,7 +91,7 @@ def test_browser_action_schema_describes_valid_bounded_actions(tmp_path: Path, a
 def test_loads_builtin_assistant_capabilities(tmp_path: Path) -> None:
     capabilities = Capabilities([CAPABILITIES_PATH]).load(work_root=tmp_path)
 
-    assert tuple(hds.name for hds in capabilities.hds) == ("main",)
+    assert tuple(hds.name for hds in capabilities.hds) == ("main", "quick")
     assert {skill.name for skill in capabilities.deep_skills} == {
         "deep-thinking",
         "file-processing",

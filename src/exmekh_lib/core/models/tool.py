@@ -5,7 +5,7 @@ import re
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from copy import copy, deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import partial
 from pathlib import Path
 from typing import Annotated, Any, Literal, Self, get_type_hints
@@ -274,13 +274,12 @@ class Tool:
         arguments: dict[str, Any],
         work_root: Path,
         history: tuple[Message[object], ...],
+        call_id: str = "",
     ) -> tuple[ToolContext, ToolResponse | None]:
-        context = ToolContext(deepcopy(dict(arguments)), work_root, history)
+        context = ToolContext(deepcopy(dict(arguments)), work_root, history, call_id)
         decision = self.before.handle(context) if self.before is not None else None
         if isinstance(decision, ToolArguments):
-            context = ToolContext(
-                deepcopy(dict(decision.arguments)), work_root, history
-            )
+            context = replace(context, arguments=deepcopy(dict(decision.arguments)))
             return context, None
         if decision is not None and not isinstance(decision, ToolResponse):
             raise TypeError(
@@ -312,7 +311,9 @@ class Tool:
         history = tuple(message.copy() for message in history)
 
         def run() -> Any:
-            context, decision = self._prepare_context(arguments, work_root, history)
+            context, decision = self._prepare_context(
+                arguments, work_root, history, call_id
+            )
             operation.record_arguments(context.arguments)
             if isinstance(decision, ToolResponse):
                 result = decision.result

@@ -27,6 +27,7 @@ def _catalog() -> MappingProxyType[str, DefaultCapability]:
     names = DEFAULT_CAPABILITIES
     special: dict[str, tuple[CapabilityKind, type[Tool]]] = {
         names.main: ("hds", HDS),
+        names.quick: ("hds", HDS),
         names.deep_thinking: ("skill", DeepSkill),
         names.file_processing: ("skill", DeepSkill),
         names.exit_agent: ("exit-tool", ExitTool),
